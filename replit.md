@@ -35,6 +35,13 @@ HostPilotPro is a comprehensive property management platform designed for hospit
 - **Role-Based Access**: Seven user roles (admin, portfolio-manager, owner, staff, retail-agent, referral-agent, guest)
 - **Authorization**: Route-level and component-level access control
 
+### Modular Navigation System
+- **Architecture**: Hierarchical module-based navigation with role-based visibility
+- **Modules**: Core, Property Management, Guest Services, Financial, Administration
+- **Features**: Collapsible sidebar, role-specific menu items, mobile-responsive design
+- **Scalability**: Easily extensible for new modules and user roles
+- **Visual Indicators**: Role badges, icons, and color-coded access levels
+
 ### Property Management
 - **CRUD Operations**: Full property lifecycle management
 - **Property Attributes**: Name, address, bedrooms, bathrooms, capacity, pricing
