@@ -399,6 +399,59 @@ export const welcomePackUsageRelations = relations(welcomePackUsage, ({ one }) =
   item: one(welcomePackItems, { fields: [welcomePackUsage.itemId], references: [welcomePackItems.id] }),
 }));
 
+// Owner Payouts
+export const ownerPayouts = pgTable("owner_payouts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  ownerId: varchar("owner_id").notNull(), // User ID of the owner
+  propertyId: integer("property_id"), // Optional: specific property or all properties
+  requestedAmount: varchar("requested_amount").notNull(),
+  currency: varchar("currency").notNull().default("USD"),
+  status: varchar("status").notNull().default("pending"), // 'pending', 'approved', 'paid', 'completed', 'rejected'
+  
+  // Request details
+  requestDate: timestamp("request_date").defaultNow(),
+  requestedBy: varchar("requested_by").notNull(), // Usually same as ownerId
+  requestNotes: text("request_notes"),
+  
+  // Admin approval
+  approvedBy: varchar("approved_by"), // Admin user ID
+  approvedDate: timestamp("approved_date"),
+  approvalNotes: text("approval_notes"),
+  
+  // Payment details
+  paymentMethod: varchar("payment_method"), // 'bank_transfer', 'check', 'other'
+  paymentReference: varchar("payment_reference"), // Reference number
+  paymentDate: timestamp("payment_date"),
+  paidBy: varchar("paid_by"), // Admin user ID who processed payment
+  
+  // Receipt management
+  receiptUrl: varchar("receipt_url"), // URL to uploaded receipt
+  receiptUploadedBy: varchar("receipt_uploaded_by"), // Admin user ID
+  receiptUploadedDate: timestamp("receipt_uploaded_date"),
+  
+  // Owner confirmation
+  confirmedBy: varchar("confirmed_by"), // Owner user ID
+  confirmedDate: timestamp("confirmed_date"),
+  
+  // Financial period covered
+  periodStartDate: varchar("period_start_date"),
+  periodEndDate: varchar("period_end_date"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const ownerPayoutsRelations = relations(ownerPayouts, ({ one }) => ({
+  owner: one(users, { fields: [ownerPayouts.ownerId], references: [users.id], relationName: "ownerPayouts" }),
+  property: one(properties, { fields: [ownerPayouts.propertyId], references: [properties.id] }),
+  requestedByUser: one(users, { fields: [ownerPayouts.requestedBy], references: [users.id], relationName: "payoutRequests" }),
+  approvedByUser: one(users, { fields: [ownerPayouts.approvedBy], references: [users.id], relationName: "payoutApprovals" }),
+  paidByUser: one(users, { fields: [ownerPayouts.paidBy], references: [users.id], relationName: "payoutPayments" }),
+  receiptUploadedByUser: one(users, { fields: [ownerPayouts.receiptUploadedBy], references: [users.id], relationName: "payoutReceiptUploads" }),
+  confirmedByUser: one(users, { fields: [ownerPayouts.confirmedBy], references: [users.id], relationName: "payoutConfirmations" }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
@@ -477,6 +530,12 @@ export const insertWelcomePackUsageSchema = createInsertSchema(welcomePackUsage)
   updatedAt: true,
 });
 
+export const insertOwnerPayoutSchema = createInsertSchema(ownerPayouts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Organization schemas
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   createdAt: true,
@@ -522,3 +581,5 @@ export type InsertWelcomePackTemplate = z.infer<typeof insertWelcomePackTemplate
 export type WelcomePackTemplate = typeof welcomePackTemplates.$inferSelect;
 export type InsertWelcomePackUsage = z.infer<typeof insertWelcomePackUsageSchema>;
 export type WelcomePackUsage = typeof welcomePackUsage.$inferSelect;
+export type InsertOwnerPayout = z.infer<typeof insertOwnerPayoutSchema>;
+export type OwnerPayout = typeof ownerPayouts.$inferSelect;
