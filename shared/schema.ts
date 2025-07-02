@@ -577,7 +577,19 @@ export const notificationPreferencesRelations = relations(notificationPreference
 
 // Financial & Invoice Toolkit Tables
 
-
+// Balance reset audit log for tracking admin actions
+export const balanceResetAudit = pgTable("balance_reset_audit", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  userId: varchar("user_id").notNull(), // User whose balance was reset
+  userType: varchar("user_type").notNull(), // owner, portfolio-manager, referral-agent, retail-agent
+  previousBalance: decimal("previous_balance", { precision: 10, scale: 2 }).notNull(),
+  newBalance: decimal("new_balance", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  resetReason: text("reset_reason"),
+  adminUserId: varchar("admin_user_id").notNull(), // Admin who performed the reset
+  propertyId: integer("property_id"), // Optional: if reset is property-specific
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // Commission earnings table
 export const commissionEarnings = pgTable("commission_earnings", {
@@ -2057,6 +2069,22 @@ export type ReferralProgramRule = typeof referralProgramRules.$inferSelect;
 export type InsertReferralProgramRule = z.infer<typeof insertReferralProgramRulesSchema>;
 export type PropertyAgent = typeof propertyAgents.$inferSelect;
 export type InsertPropertyAgent = z.infer<typeof insertPropertyAgentsSchema>;
+
+// Balance reset audit relations
+export const balanceResetAuditRelations = relations(balanceResetAudit, ({ one }) => ({
+  user: one(users, { fields: [balanceResetAudit.userId], references: [users.id], relationName: "balanceResets" }),
+  adminUser: one(users, { fields: [balanceResetAudit.adminUserId], references: [users.id], relationName: "adminBalanceResets" }),
+  property: one(properties, { fields: [balanceResetAudit.propertyId], references: [properties.id] }),
+}));
+
+// Balance reset audit insert schema and types
+export const insertBalanceResetAuditSchema = createInsertSchema(balanceResetAudit).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BalanceResetAudit = typeof balanceResetAudit.$inferSelect;
+export type InsertBalanceResetAudit = z.infer<typeof insertBalanceResetAuditSchema>;
 
 // ===== STAFF DASHBOARD TYPES =====
 
