@@ -108,3 +108,30 @@ HostPilotPro is a comprehensive property management platform designed for hospit
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Required Features Status
+
+### ✓ Implemented Features
+- Role-based login and dashboards (Admin, PM, Staff, Owner, Guest, Retail & Referral Agents)
+- Property management with CRUD operations and status tracking
+- Task system with filtering and status updates
+- Financial dashboard with revenue, commission, and expense tracking
+- Booking calendar with visual availability display
+- User authentication with Replit Auth integration
+- Responsive UI with role-based navigation
+
+### → In Progress Features
+- Department tagging for task system
+- Recurring task scheduling
+- Billing tracker for recurring services and utilities
+- Add-on service booking interface (cleaning, massages, etc.)
+- Owner payout dashboard + expense tracking improvements
+- API-connected booking calendar for agents and guests
+
+### 📋 Later Development (Future Versions)
+- Property-linked media library with agent access
+- AI triggers for guest feedback auto-task creation
+- Welcome pack inventory and stock usage tracking (basic inventory exists)
+- Real-time finance summary with category splits
+- Hostaway API integration for live booking data
+- Smart task automation based on guest reviews/messages

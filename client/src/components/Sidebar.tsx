@@ -22,9 +22,11 @@ import {
 const navigationItems = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["admin", "portfolio-manager", "owner", "staff", "retail-agent", "referral-agent"] },
   { path: "/properties", icon: Building, label: "Properties", roles: ["admin", "portfolio-manager", "owner"] },
-  { path: "/tasks", icon: ListTodo, label: "ListTodo", roles: ["admin", "portfolio-manager", "owner", "staff"] },
+  { path: "/tasks", icon: ListTodo, label: "Tasks", roles: ["admin", "portfolio-manager", "owner", "staff"] },
   { path: "/bookings", icon: Calendar, label: "Bookings", roles: ["admin", "portfolio-manager", "owner", "retail-agent"] },
+  { path: "/services", icon: Users, label: "Services", roles: ["admin", "portfolio-manager", "owner", "staff"] },
   { path: "/finances", icon: DollarSign, label: "Finances", roles: ["admin", "portfolio-manager", "owner"] },
+  { path: "/payouts", icon: BarChart3, label: "Payouts", roles: ["admin", "portfolio-manager", "owner"] },
   { path: "/inventory", icon: Package, label: "Inventory", roles: ["admin", "portfolio-manager", "owner", "staff"] },
   { path: "/reports", icon: BarChart3, label: "Reports", roles: ["admin", "portfolio-manager", "owner"] },
   { path: "/settings", icon: Settings, label: "Settings", roles: ["admin", "portfolio-manager", "owner"] },
