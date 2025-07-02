@@ -140,6 +140,7 @@ HostPilotPro is a comprehensive, multi-tenant property management platform desig
 - **Licensing Framework**: Ready for subscription-based licensing model
 
 ## Changelog
+- July 02, 2025. Implemented complete welcome pack inventory system: Database tables (welcome_pack_items, welcome_pack_templates, welcome_pack_usage), storage layer with CRUD operations, API endpoints, and frontend management interface with tabs for inventory items, property templates, and usage history. Includes automated checkout cost logging and low stock alerts.
 - July 02, 2025. Implemented comprehensive multi-tenant architecture for licensing: organization isolation, encrypted API key storage, subdomain-based tenant detection, subscription tiers, and deployment-ready infrastructure for scaling to multiple property management companies.
 - July 02, 2025. Enhanced financial tracking with comprehensive source attribution: Guest Payment, Owner Charge, Company Expense, Complimentary (Owner Gift, Company Gift). All records now include processedBy user tracking, reference numbers, and full traceability.
 - July 02, 2025. Added comprehensive global Admin Settings panel with platform defaults (currency, VAT, commission rules), auto-billing toggles, task automation settings, and API credential management (Hostaway, PEA)
