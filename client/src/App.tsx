@@ -23,6 +23,7 @@ import FinancialToolkit from "@/pages/FinancialToolkit";
 import UtilityTracking from "@/pages/UtilityTracking";
 import ReferralAgentDashboard from "@/pages/ReferralAgentDashboard";
 import RetailAgentBooking from "@/pages/RetailAgentBooking";
+import AiFeedbackMonitor from "@/pages/AiFeedbackMonitor";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -75,6 +76,7 @@ function Router() {
           <Route path="/payouts" component={Payouts} />
           <Route path="/financial-toolkit" component={FinancialToolkit} />
           <Route path="/utility-tracking" component={UtilityTracking} />
+          <Route path="/ai-feedback" component={AiFeedbackMonitor} />
           <Route path="/referral-agent" component={ReferralAgentDashboard} />
           <Route path="/retail-booking" component={RetailAgentBooking} />
           <Route path="/hostaway" component={Hostaway} />

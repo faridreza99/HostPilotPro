@@ -30,7 +30,8 @@ import {
   Calculator,
   Zap,
   UserPlus,
-  ShoppingCart
+  ShoppingCart,
+  Brain
 } from "lucide-react";
 
 // Define navigation modules with hierarchical structure
@@ -178,6 +179,13 @@ const navigationModules = [
         label: "Hostaway Sync", 
         roles: ["admin", "portfolio-manager"],
         description: "Property and booking synchronization"
+      },
+      { 
+        path: "/ai-feedback", 
+        icon: Brain, 
+        label: "AI Task Triggers", 
+        roles: ["admin", "portfolio-manager"],
+        description: "Smart guest feedback monitoring and automatic task creation"
       },
       { 
         path: "/settings", 
