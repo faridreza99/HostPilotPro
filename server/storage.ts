@@ -25,6 +25,8 @@ import {
   recurringServiceBills,
   billReminders,
   servicePerformance,
+  aiSuggestions,
+  ownerActivity,
   type User,
   type UpsertUser,
   type Property,
@@ -1969,11 +1971,11 @@ export class DatabaseStorage implements IStorage {
     const balanceResult = await db.select({
       totalEarnings: sql<number>`COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0)`
     })
-    .from(financialRecords)
+    .from(finances)
     .where(and(
-      eq(financialRecords.organizationId, organizationId),
-      eq(financialRecords.ownerId, ownerId),
-      eq(financialRecords.status, 'completed')
+      eq(finances.organizationId, organizationId),
+      eq(finances.ownerId, ownerId),
+      eq(finances.status, 'completed')
     ));
 
     // Get average nightly rate
