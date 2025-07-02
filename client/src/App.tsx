@@ -25,6 +25,7 @@ import ReferralAgentDashboard from "@/pages/ReferralAgentDashboard";
 import RetailAgentBooking from "@/pages/RetailAgentBooking";
 import AiFeedbackMonitor from "@/pages/AiFeedbackMonitor";
 import GuestAddonServices from "@/pages/GuestAddonServices";
+import RecurringServicesBilling from "@/pages/RecurringServicesBilling";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -79,6 +80,7 @@ function Router() {
           <Route path="/utility-tracking" component={UtilityTracking} />
           <Route path="/ai-feedback" component={AiFeedbackMonitor} />
           <Route path="/guest-addon-services" component={GuestAddonServices} />
+          <Route path="/recurring-services" component={RecurringServicesBilling} />
           <Route path="/referral-agent" component={ReferralAgentDashboard} />
           <Route path="/retail-booking" component={RetailAgentBooking} />
           <Route path="/hostaway" component={Hostaway} />
