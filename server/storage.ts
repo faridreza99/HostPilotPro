@@ -2779,6 +2779,227 @@ export class DatabaseStorage implements IStorage {
       },
     };
   }
+
+  // ==================== PROPERTY MEDIA LIBRARY ====================
+
+  // Property Media Operations
+  async getPropertyMedia(organizationId: string, filters?: {
+    propertyId?: number;
+    mediaType?: string;
+    isAgentApproved?: boolean;
+  }): Promise<PropertyMedia[]> {
+    let query = db.select().from(propertyMedia).where(eq(propertyMedia.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(propertyMedia.propertyId, filters.propertyId));
+    }
+    if (filters?.mediaType) {
+      query = query.where(eq(propertyMedia.mediaType, filters.mediaType));
+    }
+    if (filters?.isAgentApproved !== undefined) {
+      query = query.where(eq(propertyMedia.isAgentApproved, filters.isAgentApproved));
+    }
+
+    return query.orderBy(propertyMedia.displayOrder, propertyMedia.createdAt);
+  }
+
+  async getPropertyMediaById(id: number): Promise<PropertyMedia | undefined> {
+    const [media] = await db.select().from(propertyMedia).where(eq(propertyMedia.id, id));
+    return media;
+  }
+
+  async createPropertyMedia(media: InsertPropertyMedia): Promise<PropertyMedia> {
+    const [newMedia] = await db.insert(propertyMedia).values(media).returning();
+    return newMedia;
+  }
+
+  async updatePropertyMedia(id: number, updates: Partial<InsertPropertyMedia>): Promise<PropertyMedia | undefined> {
+    const [updated] = await db
+      .update(propertyMedia)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyMedia.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyMedia(id: number): Promise<void> {
+    await db.delete(propertyMedia).where(eq(propertyMedia.id, id));
+  }
+
+  async approveMediaForAgents(id: number, approvedBy: string): Promise<PropertyMedia | undefined> {
+    const [updated] = await db
+      .update(propertyMedia)
+      .set({ 
+        isAgentApproved: true, 
+        approvedBy,
+        approvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(propertyMedia.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Property Internal Notes Operations
+  async getPropertyInternalNotes(organizationId: string, filters?: {
+    propertyId?: number;
+    category?: string;
+    isVisibleToAgents?: boolean;
+  }): Promise<PropertyInternalNotes[]> {
+    let query = db.select().from(propertyInternalNotes).where(eq(propertyInternalNotes.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(propertyInternalNotes.propertyId, filters.propertyId));
+    }
+    if (filters?.category) {
+      query = query.where(eq(propertyInternalNotes.category, filters.category));
+    }
+    if (filters?.isVisibleToAgents !== undefined) {
+      query = query.where(eq(propertyInternalNotes.isVisibleToAgents, filters.isVisibleToAgents));
+    }
+
+    return query.orderBy(desc(propertyInternalNotes.createdAt));
+  }
+
+  async createPropertyInternalNote(note: InsertPropertyInternalNotes): Promise<PropertyInternalNotes> {
+    const [newNote] = await db.insert(propertyInternalNotes).values(note).returning();
+    return newNote;
+  }
+
+  async updatePropertyInternalNote(id: number, updates: Partial<InsertPropertyInternalNotes>): Promise<PropertyInternalNotes | undefined> {
+    const [updated] = await db
+      .update(propertyInternalNotes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyInternalNotes.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyInternalNote(id: number): Promise<void> {
+    await db.delete(propertyInternalNotes).where(eq(propertyInternalNotes.id, id));
+  }
+
+  // Agent Media Access Operations
+  async trackAgentMediaAccess(access: InsertAgentMediaAccess): Promise<AgentMediaAccess> {
+    const [newAccess] = await db.insert(agentMediaAccess).values(access).returning();
+    return newAccess;
+  }
+
+  async updateAgentMediaLastViewed(agentId: string, mediaId: number): Promise<void> {
+    await db
+      .update(agentMediaAccess)
+      .set({ lastViewedAt: new Date() })
+      .where(and(
+        eq(agentMediaAccess.agentId, agentId),
+        eq(agentMediaAccess.mediaId, mediaId)
+      ));
+  }
+
+  async incrementCopyCount(agentId: string, mediaId: number): Promise<void> {
+    // First try to increment existing record
+    const existing = await db
+      .select()
+      .from(agentMediaAccess)
+      .where(and(
+        eq(agentMediaAccess.agentId, agentId),
+        eq(agentMediaAccess.mediaId, mediaId)
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db
+        .update(agentMediaAccess)
+        .set({ copyCount: existing[0].copyCount + 1 })
+        .where(eq(agentMediaAccess.id, existing[0].id));
+    }
+  }
+
+  // Agent Media Library Dashboard
+  async getAgentMediaLibraryData(organizationId: string, agentId: string, filters?: {
+    propertyStatus?: string;
+    mediaType?: string;
+  }) {
+    // Get properties accessible to this agent (based on role and assignments)
+    const user = await this.getUser(agentId);
+    let propertiesQuery;
+
+    if (user?.role === 'retail-agent' || user?.role === 'referral-agent') {
+      // Agents can only see approved media for properties they have access to
+      propertiesQuery = db
+        .select({
+          id: properties.id,
+          name: properties.name,
+          status: properties.status,
+          bedrooms: properties.bedrooms,
+          bathrooms: properties.bathrooms,
+          maxGuests: properties.maxGuests,
+          pricePerNight: properties.pricePerNight,
+          commissionRate: properties.commissionRate,
+        })
+        .from(properties)
+        .where(eq(properties.organizationId, organizationId));
+
+      if (filters?.propertyStatus) {
+        propertiesQuery = propertiesQuery.where(eq(properties.status, filters.propertyStatus));
+      }
+    } else {
+      // Admins and PMs can see all properties
+      propertiesQuery = db
+        .select({
+          id: properties.id,
+          name: properties.name,
+          status: properties.status,
+          bedrooms: properties.bedrooms,
+          bathrooms: properties.bathrooms,
+          maxGuests: properties.maxGuests,
+          pricePerNight: properties.pricePerNight,
+          commissionRate: properties.commissionRate,
+        })
+        .from(properties)
+        .where(eq(properties.organizationId, organizationId));
+    }
+
+    const propertiesList = await propertiesQuery;
+
+    // Get approved media for these properties
+    const mediaData = await Promise.all(
+      propertiesList.map(async (property) => {
+        let mediaQuery = db
+          .select()
+          .from(propertyMedia)
+          .where(and(
+            eq(propertyMedia.organizationId, organizationId),
+            eq(propertyMedia.propertyId, property.id),
+            eq(propertyMedia.isAgentApproved, true)
+          ));
+
+        if (filters?.mediaType) {
+          mediaQuery = mediaQuery.where(eq(propertyMedia.mediaType, filters.mediaType));
+        }
+
+        const media = await mediaQuery.orderBy(propertyMedia.displayOrder);
+
+        // Get internal notes visible to agents
+        const notes = await db
+          .select()
+          .from(propertyInternalNotes)
+          .where(and(
+            eq(propertyInternalNotes.organizationId, organizationId),
+            eq(propertyInternalNotes.propertyId, property.id),
+            eq(propertyInternalNotes.isVisibleToAgents, true)
+          ))
+          .orderBy(desc(propertyInternalNotes.createdAt));
+
+        return {
+          property,
+          media,
+          notes,
+        };
+      })
+    );
+
+    return mediaData;
+  }
 }
 
 export const storage = new DatabaseStorage();

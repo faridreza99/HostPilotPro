@@ -18,6 +18,7 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Camera,
   Home,
   Briefcase,
   FileText,
@@ -145,6 +146,13 @@ const navigationModules = [
         label: "Booking Engine", 
         roles: ["retail-agent"],
         description: "Create bookings and track commissions"
+      },
+      { 
+        path: "/agent-media-library", 
+        icon: Camera, 
+        label: "Property Media Library", 
+        roles: ["admin", "portfolio-manager", "retail-agent", "referral-agent"],
+        description: "Property photos, videos, and marketing materials with agent access controls"
       },
     ]
   },

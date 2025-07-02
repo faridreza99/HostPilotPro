@@ -1809,6 +1809,362 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== PROPERTY MEDIA LIBRARY ROUTES ====================
+
+  // Get agent media library data (for agent dashboard)
+  app.get("/api/agent-media-library", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId;
+      const agentId = user.id;
+      const { propertyStatus, mediaType } = req.query;
+
+      const filters: any = {};
+      if (propertyStatus) filters.propertyStatus = propertyStatus as string;
+      if (mediaType) filters.mediaType = mediaType as string;
+
+      const data = await storage.getAgentMediaLibraryData(organizationId, agentId, filters);
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching agent media library data:", error);
+      res.status(500).json({ message: "Failed to fetch agent media library data" });
+    }
+  });
+
+  // Get property media (admin/PM only for upload panel, agents for viewing approved)
+  app.get("/api/property-media", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId;
+      const { propertyId, mediaType, isAgentApproved } = req.query;
+
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (mediaType) filters.mediaType = mediaType as string;
+      
+      // For agents, only show approved media
+      if (user.role === 'retail-agent' || user.role === 'referral-agent') {
+        filters.isAgentApproved = true;
+      } else if (isAgentApproved !== undefined) {
+        filters.isAgentApproved = isAgentApproved === 'true';
+      }
+
+      const media = await storage.getPropertyMedia(organizationId, filters);
+      res.json(media);
+    } catch (error) {
+      console.error("Error fetching property media:", error);
+      res.status(500).json({ message: "Failed to fetch property media" });
+    }
+  });
+
+  // Upload property media (admin/PM only)
+  app.post("/api/property-media", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can upload media
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admins and portfolio managers can upload media" });
+      }
+
+      const organizationId = user.organizationId;
+      const {
+        propertyId,
+        mediaType,
+        title,
+        description,
+        mediaUrl,
+        thumbnailUrl,
+        fileSize,
+        mimeType,
+        displayOrder,
+        tags
+      } = req.body;
+
+      if (!propertyId || !mediaType || !title || !mediaUrl) {
+        return res.status(400).json({ message: "Property ID, media type, title, and media URL are required" });
+      }
+
+      const mediaData = {
+        organizationId,
+        propertyId: parseInt(propertyId),
+        mediaType,
+        title,
+        description,
+        mediaUrl,
+        thumbnailUrl,
+        fileSize: fileSize ? parseInt(fileSize) : null,
+        mimeType,
+        displayOrder: displayOrder || 0,
+        tags: tags || [],
+        isAgentApproved: false, // New uploads need approval
+        uploadedBy: user.id,
+      };
+
+      const newMedia = await storage.createPropertyMedia(mediaData);
+      res.status(201).json(newMedia);
+    } catch (error) {
+      console.error("Error uploading property media:", error);
+      res.status(500).json({ message: "Failed to upload property media" });
+    }
+  });
+
+  // Approve media for agent access (admin/PM only)
+  app.patch("/api/property-media/:id/approve", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can approve media
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admins and portfolio managers can approve media" });
+      }
+
+      const mediaId = parseInt(req.params.id);
+      const approvedMedia = await storage.approveMediaForAgents(mediaId, user.id);
+
+      if (!approvedMedia) {
+        return res.status(404).json({ message: "Media not found" });
+      }
+
+      res.json(approvedMedia);
+    } catch (error) {
+      console.error("Error approving media:", error);
+      res.status(500).json({ message: "Failed to approve media" });
+    }
+  });
+
+  // Update property media (admin/PM only)
+  app.patch("/api/property-media/:id", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can update media
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admins and portfolio managers can update media" });
+      }
+
+      const mediaId = parseInt(req.params.id);
+      const updates = req.body;
+
+      const updatedMedia = await storage.updatePropertyMedia(mediaId, updates);
+
+      if (!updatedMedia) {
+        return res.status(404).json({ message: "Media not found" });
+      }
+
+      res.json(updatedMedia);
+    } catch (error) {
+      console.error("Error updating property media:", error);
+      res.status(500).json({ message: "Failed to update property media" });
+    }
+  });
+
+  // Delete property media (admin/PM only)
+  app.delete("/api/property-media/:id", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can delete media
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admins and portfolio managers can delete media" });
+      }
+
+      const mediaId = parseInt(req.params.id);
+      await storage.deletePropertyMedia(mediaId);
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting property media:", error);
+      res.status(500).json({ message: "Failed to delete property media" });
+    }
+  });
+
+  // Get property internal notes
+  app.get("/api/property-internal-notes", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId;
+      const { propertyId, category, isVisibleToAgents } = req.query;
+
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (category) filters.category = category as string;
+      
+      // For agents, only show notes visible to them
+      if (user.role === 'retail-agent' || user.role === 'referral-agent') {
+        filters.isVisibleToAgents = true;
+      } else if (isVisibleToAgents !== undefined) {
+        filters.isVisibleToAgents = isVisibleToAgents === 'true';
+      }
+
+      const notes = await storage.getPropertyInternalNotes(organizationId, filters);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error fetching property internal notes:", error);
+      res.status(500).json({ message: "Failed to fetch property internal notes" });
+    }
+  });
+
+  // Create property internal note (admin/PM only)
+  app.post("/api/property-internal-notes", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can create internal notes
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admins and portfolio managers can create internal notes" });
+      }
+
+      const organizationId = user.organizationId;
+      const {
+        propertyId,
+        category,
+        title,
+        content,
+        isVisibleToAgents,
+        tags
+      } = req.body;
+
+      if (!propertyId || !title || !content) {
+        return res.status(400).json({ message: "Property ID, title, and content are required" });
+      }
+
+      const noteData = {
+        organizationId,
+        propertyId: parseInt(propertyId),
+        category: category || 'general',
+        title,
+        content,
+        isVisibleToAgents: isVisibleToAgents || false,
+        tags: tags || [],
+        createdBy: user.id,
+      };
+
+      const newNote = await storage.createPropertyInternalNote(noteData);
+      res.status(201).json(newNote);
+    } catch (error) {
+      console.error("Error creating property internal note:", error);
+      res.status(500).json({ message: "Failed to create property internal note" });
+    }
+  });
+
+  // Update property internal note (admin/PM only)
+  app.patch("/api/property-internal-notes/:id", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can update internal notes
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admins and portfolio managers can update internal notes" });
+      }
+
+      const noteId = parseInt(req.params.id);
+      const updates = req.body;
+
+      const updatedNote = await storage.updatePropertyInternalNote(noteId, updates);
+
+      if (!updatedNote) {
+        return res.status(404).json({ message: "Internal note not found" });
+      }
+
+      res.json(updatedNote);
+    } catch (error) {
+      console.error("Error updating property internal note:", error);
+      res.status(500).json({ message: "Failed to update property internal note" });
+    }
+  });
+
+  // Delete property internal note (admin/PM only)
+  app.delete("/api/property-internal-notes/:id", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can delete internal notes
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admins and portfolio managers can delete internal notes" });
+      }
+
+      const noteId = parseInt(req.params.id);
+      await storage.deletePropertyInternalNote(noteId);
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting property internal note:", error);
+      res.status(500).json({ message: "Failed to delete property internal note" });
+    }
+  });
+
+  // Track agent media access (for analytics)
+  app.post("/api/agent-media-access", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { mediaId, actionType } = req.body;
+
+      if (!mediaId || !actionType) {
+        return res.status(400).json({ message: "Media ID and action type are required" });
+      }
+
+      const accessData = {
+        organizationId: user.organizationId,
+        agentId: user.id,
+        mediaId: parseInt(mediaId),
+        accessGrantedBy: user.id, // Self-granted for agent access
+        lastViewedAt: actionType === 'view' ? new Date() : null,
+        copyCount: actionType === 'copy' ? 1 : 0,
+      };
+
+      // Handle different action types
+      if (actionType === 'view') {
+        await storage.updateAgentMediaLastViewed(user.id, parseInt(mediaId));
+      } else if (actionType === 'copy') {
+        await storage.incrementCopyCount(user.id, parseInt(mediaId));
+      }
+
+      const accessRecord = await storage.trackAgentMediaAccess(accessData);
+      res.status(201).json(accessRecord);
+    } catch (error) {
+      console.error("Error tracking agent media access:", error);
+      res.status(500).json({ message: "Failed to track agent media access" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -26,6 +26,7 @@ import RetailAgentBooking from "@/pages/RetailAgentBooking";
 import AiFeedbackMonitor from "@/pages/AiFeedbackMonitor";
 import GuestAddonServices from "@/pages/GuestAddonServices";
 import RecurringServicesBilling from "@/pages/RecurringServicesBilling";
+import PropertyMediaLibrary from "@/pages/PropertyMediaLibrary";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
