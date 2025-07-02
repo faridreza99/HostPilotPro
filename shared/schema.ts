@@ -272,25 +272,62 @@ export const addonBookings = pgTable("addon_bookings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Utility bills and recurring expenses
+// Property utility accounts for tracking provider details
+export const propertyUtilityAccounts = pgTable("property_utility_accounts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }).notNull(),
+  utilityType: varchar("utility_type").notNull(), // electricity, water, internet, gas
+  provider: varchar("provider").notNull(),
+  accountNumber: varchar("account_number").notNull(),
+  packageInfo: text("package_info"), // For internet plans, service details
+  expectedBillDay: integer("expected_bill_day").notNull(), // Day of month (1-31)
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Utility bills and recurring expenses (enhanced)
 export const utilityBills = pgTable("utility_bills", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").notNull(),
   propertyId: integer("property_id").references(() => properties.id).notNull(),
+  utilityAccountId: integer("utility_account_id").references(() => propertyUtilityAccounts.id),
   type: varchar("type").notNull(), // electricity, water, gas, internet, maintenance
   provider: varchar("provider"),
   accountNumber: varchar("account_number"),
   amount: decimal("amount", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("AUD"),
   dueDate: date("due_date").notNull(),
   billPeriodStart: date("bill_period_start"),
   billPeriodEnd: date("bill_period_end"),
+  billingMonth: varchar("billing_month").notNull(), // YYYY-MM format
   status: varchar("status").notNull().default("pending"), // pending, uploaded, paid, overdue
   receiptUrl: varchar("receipt_url"),
+  receiptFilename: varchar("receipt_filename"),
   reminderSent: boolean("reminder_sent").default(false),
   isRecurring: boolean("is_recurring").default(true),
   nextDueDate: date("next_due_date"),
+  responsibleParty: varchar("responsible_party").notNull().default("owner"), // owner, company
+  isOwnerBillable: boolean("is_owner_billable").default(true),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  uploadedAt: timestamp("uploaded_at"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Utility bill reminders and notifications
+export const utilityBillReminders = pgTable("utility_bill_reminders", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  utilityBillId: integer("utility_bill_id").references(() => utilityBills.id, { onDelete: "cascade" }),
+  reminderType: varchar("reminder_type").notNull(), // overdue, due_soon, missing_receipt
+  sentAt: timestamp("sent_at").defaultNow(),
+  sentTo: varchar("sent_to").notNull(), // user ID
+  reminderMessage: text("reminder_message"),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Platform settings for admin configuration
@@ -401,8 +438,21 @@ export const addonBookingsRelations = relations(addonBookings, ({ one }) => ({
   property: one(properties, { fields: [addonBookings.propertyId], references: [properties.id] }),
 }));
 
-export const utilityBillsRelations = relations(utilityBills, ({ one }) => ({
+export const propertyUtilityAccountsRelations = relations(propertyUtilityAccounts, ({ one, many }) => ({
+  property: one(properties, { fields: [propertyUtilityAccounts.propertyId], references: [properties.id] }),
+  bills: many(utilityBills),
+}));
+
+export const utilityBillsRelations = relations(utilityBills, ({ one, many }) => ({
   property: one(properties, { fields: [utilityBills.propertyId], references: [properties.id] }),
+  utilityAccount: one(propertyUtilityAccounts, { fields: [utilityBills.utilityAccountId], references: [propertyUtilityAccounts.id] }),
+  uploadedByUser: one(users, { fields: [utilityBills.uploadedBy], references: [users.id] }),
+  reminders: many(utilityBillReminders),
+}));
+
+export const utilityBillRemindersRelations = relations(utilityBillReminders, ({ one }) => ({
+  utilityBill: one(utilityBills, { fields: [utilityBillReminders.utilityBillId], references: [utilityBills.id] }),
+  sentToUser: one(users, { fields: [utilityBillReminders.sentTo], references: [users.id] }),
 }));
 
 export const platformSettingsRelations = relations(platformSettings, ({ one }) => ({
@@ -689,10 +739,21 @@ export const insertAddonBookingSchema = createInsertSchema(addonBookings).omit({
   updatedAt: true,
 });
 
+export const insertPropertyUtilityAccountSchema = createInsertSchema(propertyUtilityAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertUtilityBillSchema = createInsertSchema(utilityBills).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertUtilityBillReminderSchema = createInsertSchema(utilityBillReminders).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertPlatformSettingSchema = createInsertSchema(platformSettings).omit({
@@ -760,8 +821,12 @@ export type InsertAddonService = z.infer<typeof insertAddonServiceSchema>;
 export type AddonService = typeof addonServices.$inferSelect;
 export type InsertAddonBooking = z.infer<typeof insertAddonBookingSchema>;
 export type AddonBooking = typeof addonBookings.$inferSelect;
+export type InsertPropertyUtilityAccount = z.infer<typeof insertPropertyUtilityAccountSchema>;
+export type PropertyUtilityAccount = typeof propertyUtilityAccounts.$inferSelect;
 export type InsertUtilityBill = z.infer<typeof insertUtilityBillSchema>;
 export type UtilityBill = typeof utilityBills.$inferSelect;
+export type InsertUtilityBillReminder = z.infer<typeof insertUtilityBillReminderSchema>;
+export type UtilityBillReminder = typeof utilityBillReminders.$inferSelect;
 export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
 export type PlatformSetting = typeof platformSettings.$inferSelect;
 export type InsertWelcomePackItem = z.infer<typeof insertWelcomePackItemSchema>;

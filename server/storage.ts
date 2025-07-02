@@ -10,6 +10,8 @@ import {
   addonServices,
   addonBookings,
   utilityBills,
+  propertyUtilityAccounts,
+  utilityBillReminders,
   welcomePackItems,
   welcomePackTemplates,
   welcomePackUsage,
