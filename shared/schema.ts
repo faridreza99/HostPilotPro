@@ -281,6 +281,52 @@ export const platformSettings = pgTable("platform_settings", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Welcome pack inventory items
+export const welcomePackItems = pgTable("welcome_pack_items", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  name: varchar("name").notNull(),
+  category: varchar("category").notNull(), // toiletries, beverages, snacks, amenities
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("AUD"),
+  supplier: varchar("supplier"),
+  restockThreshold: integer("restock_threshold").default(10),
+  currentStock: integer("current_stock").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Welcome pack templates per property
+export const welcomePackTemplates = pgTable("welcome_pack_templates", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").notNull().references(() => properties.id),
+  itemId: integer("item_id").notNull().references(() => welcomePackItems.id),
+  defaultQuantity: integer("default_quantity").notNull(),
+  isComplimentary: boolean("is_complimentary").default(false), // if true, no cost to guest
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Welcome pack usage tracking
+export const welcomePackUsage = pgTable("welcome_pack_usage", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").notNull().references(() => properties.id),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  itemId: integer("item_id").notNull().references(() => welcomePackItems.id),
+  quantityUsed: integer("quantity_used").notNull(),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
+  billingOption: varchar("billing_option").notNull().default("owner_bill"), // owner_bill, guest_bill, complimentary
+  processedBy: varchar("processed_by"),
+  usageDate: date("usage_date").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   ownedProperties: many(properties),
@@ -335,6 +381,22 @@ export const utilityBillsRelations = relations(utilityBills, ({ one }) => ({
 
 export const platformSettingsRelations = relations(platformSettings, ({ one }) => ({
   updatedByUser: one(users, { fields: [platformSettings.updatedBy], references: [users.id] }),
+}));
+
+export const welcomePackItemsRelations = relations(welcomePackItems, ({ many }) => ({
+  templates: many(welcomePackTemplates),
+  usage: many(welcomePackUsage),
+}));
+
+export const welcomePackTemplatesRelations = relations(welcomePackTemplates, ({ one }) => ({
+  property: one(properties, { fields: [welcomePackTemplates.propertyId], references: [properties.id] }),
+  item: one(welcomePackItems, { fields: [welcomePackTemplates.itemId], references: [welcomePackItems.id] }),
+}));
+
+export const welcomePackUsageRelations = relations(welcomePackUsage, ({ one }) => ({
+  property: one(properties, { fields: [welcomePackUsage.propertyId], references: [properties.id] }),
+  booking: one(bookings, { fields: [welcomePackUsage.bookingId], references: [bookings.id] }),
+  item: one(welcomePackItems, { fields: [welcomePackUsage.itemId], references: [welcomePackItems.id] }),
 }));
 
 // Insert schemas
@@ -397,6 +459,24 @@ export const insertPlatformSettingSchema = createInsertSchema(platformSettings).
   updatedAt: true,
 });
 
+export const insertWelcomePackItemSchema = createInsertSchema(welcomePackItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWelcomePackTemplateSchema = createInsertSchema(welcomePackTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWelcomePackUsageSchema = createInsertSchema(welcomePackUsage).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Organization schemas
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   createdAt: true,
@@ -436,3 +516,9 @@ export type InsertUtilityBill = z.infer<typeof insertUtilityBillSchema>;
 export type UtilityBill = typeof utilityBills.$inferSelect;
 export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
 export type PlatformSetting = typeof platformSettings.$inferSelect;
+export type InsertWelcomePackItem = z.infer<typeof insertWelcomePackItemSchema>;
+export type WelcomePackItem = typeof welcomePackItems.$inferSelect;
+export type InsertWelcomePackTemplate = z.infer<typeof insertWelcomePackTemplateSchema>;
+export type WelcomePackTemplate = typeof welcomePackTemplates.$inferSelect;
+export type InsertWelcomePackUsage = z.infer<typeof insertWelcomePackUsageSchema>;
+export type WelcomePackUsage = typeof welcomePackUsage.$inferSelect;
