@@ -239,6 +239,45 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedItem;
   }
+
+  // Platform settings operations
+  async getPlatformSettings(): Promise<PlatformSetting[]> {
+    return await db.select().from(platformSettings).orderBy(asc(platformSettings.category), asc(platformSettings.settingKey));
+  }
+
+  async getPlatformSettingsByCategory(category: string): Promise<PlatformSetting[]> {
+    return await db.select().from(platformSettings).where(eq(platformSettings.category, category)).orderBy(asc(platformSettings.settingKey));
+  }
+
+  async getPlatformSetting(key: string): Promise<PlatformSetting | undefined> {
+    const [setting] = await db.select().from(platformSettings).where(eq(platformSettings.settingKey, key));
+    return setting;
+  }
+
+  async upsertPlatformSetting(setting: InsertPlatformSetting): Promise<PlatformSetting> {
+    const [newSetting] = await db
+      .insert(platformSettings)
+      .values({ ...setting, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: platformSettings.settingKey,
+        set: {
+          settingValue: setting.settingValue,
+          settingType: setting.settingType,
+          category: setting.category,
+          description: setting.description,
+          isSecret: setting.isSecret,
+          updatedBy: setting.updatedBy,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return newSetting;
+  }
+
+  async deletePlatformSetting(key: string): Promise<boolean> {
+    const result = await db.delete(platformSettings).where(eq(platformSettings.settingKey, key));
+    return result.rowCount! > 0;
+  }
 }
 
 export const storage = new DatabaseStorage();

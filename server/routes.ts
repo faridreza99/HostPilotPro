@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema } from "@shared/schema";
+import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -243,6 +243,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Platform Settings routes (Admin only)
+  app.get("/api/admin/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const settings = await storage.getPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching platform settings:", error);
+      res.status(500).json({ message: "Failed to fetch platform settings" });
+    }
+  });
+
+  app.get("/api/admin/settings/:category", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { category } = req.params;
+      const settings = await storage.getPlatformSettingsByCategory(category);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching platform settings by category:", error);
+      res.status(500).json({ message: "Failed to fetch platform settings" });
+    }
+  });
+
+  app.put("/api/admin/settings/:key", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { key } = req.params;
+      const settingData = insertPlatformSettingSchema.parse({
+        ...req.body,
+        settingKey: key,
+        updatedBy: userId,
+      });
+      
+      const setting = await storage.upsertPlatformSetting(settingData);
+      res.json(setting);
+    } catch (error) {
+      console.error("Error updating platform setting:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid setting data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to update platform setting" });
+      }
+    }
+  });
+
+  app.delete("/api/admin/settings/:key", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { key } = req.params;
+      const deleted = await storage.deletePlatformSetting(key);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Setting not found" });
+      }
+      
+      res.json({ message: "Setting deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting platform setting:", error);
+      res.status(500).json({ message: "Failed to delete platform setting" });
     }
   });
 
