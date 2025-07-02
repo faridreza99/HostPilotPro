@@ -31,7 +31,8 @@ import {
   Zap,
   UserPlus,
   ShoppingCart,
-  Brain
+  Brain,
+  RefreshCw
 } from "lucide-react";
 
 // Define navigation modules with hierarchical structure
@@ -123,6 +124,13 @@ const navigationModules = [
         label: "Utility Tracking", 
         roles: ["admin", "portfolio-manager", "staff"],
         description: "Bill automation and expense tracking"
+      },
+      { 
+        path: "/recurring-services", 
+        icon: RefreshCw, 
+        label: "Recurring Services", 
+        roles: ["admin", "portfolio-manager", "staff"],
+        description: "Service contracts and billing management"
       },
       { 
         path: "/referral-agent", 
