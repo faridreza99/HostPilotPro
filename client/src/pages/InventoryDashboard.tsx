@@ -90,7 +90,10 @@ interface WelcomePackUsage {
 export default function InventoryDashboard() {
   const [selectedProperty, setSelectedProperty] = useState<string>("");
   const [selectedStaff, setSelectedStaff] = useState<string>("");
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState<{
+    from?: Date;
+    to?: Date;
+  }>({
     from: addDays(new Date(), -30),
     to: new Date(),
   });
