@@ -84,6 +84,7 @@ function Router() {
           <Route path="/recurring-services" component={RecurringServicesBilling} />
           <Route path="/referral-agent" component={ReferralAgentDashboard} />
           <Route path="/retail-booking" component={RetailAgentBooking} />
+          <Route path="/agent-media-library" component={PropertyMediaLibrary} />
           <Route path="/hostaway" component={Hostaway} />
           <Route path="/settings" component={Settings} />
         </>
