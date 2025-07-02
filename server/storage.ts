@@ -4197,6 +4197,296 @@ export class DatabaseStorage implements IStorage {
       !filters?.checkIn || property.isAvailable
     );
   }
+
+  // ===== REFERRAL AGENT OPERATIONS =====
+
+  // Get referral agent's assigned properties
+  async getReferralAgentProperties(organizationId: string, referralAgentId: string): Promise<any[]> {
+    const referralProperties = await db
+      .select({
+        id: propertyReferrals.id,
+        propertyId: propertyReferrals.propertyId,
+        propertyName: properties.name,
+        portfolioManagerId: propertyReferrals.portfolioManagerId,
+        portfolioManagerName: users.firstName,
+        commissionRate: propertyReferrals.commissionRate,
+        referralDate: propertyReferrals.referralDate,
+        isActive: propertyReferrals.isActive,
+        notes: propertyReferrals.notes,
+      })
+      .from(propertyReferrals)
+      .leftJoin(properties, eq(propertyReferrals.propertyId, properties.id))
+      .leftJoin(users, eq(propertyReferrals.portfolioManagerId, users.id))
+      .where(and(
+        eq(propertyReferrals.organizationId, organizationId),
+        eq(propertyReferrals.referralAgentId, referralAgentId),
+        eq(propertyReferrals.isActive, true)
+      ))
+      .orderBy(propertyReferrals.referralDate);
+
+    return referralProperties;
+  }
+
+  // Get referral earnings for specific month/year
+  async getReferralEarnings(organizationId: string, referralAgentId: string, filters?: {
+    month?: number;
+    year?: number;
+    propertyId?: number;
+    status?: string;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: referralEarnings.id,
+        propertyId: referralEarnings.propertyId,
+        propertyName: properties.name,
+        month: referralEarnings.month,
+        year: referralEarnings.year,
+        grossRentalIncome: referralEarnings.grossRentalIncome,
+        managementFeeTotal: referralEarnings.managementFeeTotal,
+        referralCommissionEarned: referralEarnings.referralCommissionEarned,
+        occupancyRate: referralEarnings.occupancyRate,
+        averageReviewScore: referralEarnings.averageReviewScore,
+        totalBookings: referralEarnings.totalBookings,
+        status: referralEarnings.status,
+        calculatedAt: referralEarnings.calculatedAt,
+        paidAt: referralEarnings.paidAt,
+      })
+      .from(referralEarnings)
+      .leftJoin(properties, eq(referralEarnings.propertyId, properties.id))
+      .where(and(
+        eq(referralEarnings.organizationId, organizationId),
+        eq(referralEarnings.referralAgentId, referralAgentId)
+      ));
+
+    if (filters?.month) {
+      query = query.where(eq(referralEarnings.month, filters.month));
+    }
+    if (filters?.year) {
+      query = query.where(eq(referralEarnings.year, filters.year));
+    }
+    if (filters?.propertyId) {
+      query = query.where(eq(referralEarnings.propertyId, filters.propertyId));
+    }
+    if (filters?.status) {
+      query = query.where(eq(referralEarnings.status, filters.status));
+    }
+
+    return query.orderBy(desc(referralEarnings.year), desc(referralEarnings.month));
+  }
+
+  // Create referral earnings record
+  async createReferralEarnings(earnings: InsertReferralEarnings): Promise<any> {
+    const [newEarnings] = await db.insert(referralEarnings).values(earnings).returning();
+    return newEarnings;
+  }
+
+  // Update referral earnings
+  async updateReferralEarnings(id: number, updates: Partial<InsertReferralEarnings>): Promise<any | undefined> {
+    const [updated] = await db
+      .update(referralEarnings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(referralEarnings.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Get referral agent commission summary
+  async getReferralCommissionSummary(organizationId: string, referralAgentId: string): Promise<any> {
+    // Get total earnings across all properties
+    const [totalEarnings] = await db
+      .select({
+        totalEarned: sum(referralEarnings.referralCommissionEarned),
+        totalPaidAmount: sum(sql`CASE WHEN ${referralEarnings.status} = 'paid' THEN ${referralEarnings.referralCommissionEarned} ELSE 0 END`),
+        totalPendingAmount: sum(sql`CASE WHEN ${referralEarnings.status} = 'pending' THEN ${referralEarnings.referralCommissionEarned} ELSE 0 END`),
+        totalProperties: count(sql`DISTINCT ${referralEarnings.propertyId}`),
+      })
+      .from(referralEarnings)
+      .where(and(
+        eq(referralEarnings.organizationId, organizationId),
+        eq(referralEarnings.referralAgentId, referralAgentId)
+      ));
+
+    // Get payouts summary
+    const [payoutSummary] = await db
+      .select({
+        totalPaidOut: sum(agentPayouts.payoutAmount),
+        lastPayoutDate: max(agentPayouts.paidAt),
+      })
+      .from(agentPayouts)
+      .where(and(
+        eq(agentPayouts.organizationId, organizationId),
+        eq(agentPayouts.agentId, referralAgentId),
+        eq(agentPayouts.agentType, 'referral-agent'),
+        eq(agentPayouts.payoutStatus, 'paid')
+      ));
+
+    const totalEarned = Number(totalEarnings?.totalEarned || 0);
+    const totalPaid = Number(payoutSummary?.totalPaidOut || 0);
+    const currentBalance = totalEarned - totalPaid;
+
+    return {
+      totalEarned,
+      totalPaid,
+      currentBalance,
+      totalPendingCommissions: Number(totalEarnings?.totalPendingAmount || 0),
+      totalProperties: totalEarnings?.totalProperties || 0,
+      lastPayoutDate: payoutSummary?.lastPayoutDate,
+    };
+  }
+
+  // Get referral agent payouts
+  async getReferralPayouts(organizationId: string, referralAgentId: string, filters?: {
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<any[]> {
+    let query = db
+      .select()
+      .from(agentPayouts)
+      .where(and(
+        eq(agentPayouts.organizationId, organizationId),
+        eq(agentPayouts.agentId, referralAgentId),
+        eq(agentPayouts.agentType, 'referral-agent')
+      ));
+
+    if (filters?.status) {
+      query = query.where(eq(agentPayouts.payoutStatus, filters.status));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(agentPayouts.requestedAt, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(agentPayouts.requestedAt, new Date(filters.endDate)));
+    }
+
+    return query.orderBy(desc(agentPayouts.requestedAt));
+  }
+
+  // Create referral payout request
+  async createReferralPayout(payout: InsertAgentPayout): Promise<any> {
+    const [newPayout] = await db.insert(agentPayouts).values(payout).returning();
+    return newPayout;
+  }
+
+  // Get referral program rules
+  async getReferralProgramRules(organizationId: string, filters?: {
+    ruleType?: string;
+    isActive?: boolean;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: referralProgramRules.id,
+        title: referralProgramRules.title,
+        description: referralProgramRules.description,
+        ruleType: referralProgramRules.ruleType,
+        ruleContent: referralProgramRules.ruleContent,
+        isActive: referralProgramRules.isActive,
+        effectiveDate: referralProgramRules.effectiveDate,
+        createdAt: referralProgramRules.createdAt,
+        createdByName: users.firstName,
+      })
+      .from(referralProgramRules)
+      .leftJoin(users, eq(referralProgramRules.createdBy, users.id))
+      .where(eq(referralProgramRules.organizationId, organizationId));
+
+    if (filters?.ruleType) {
+      query = query.where(eq(referralProgramRules.ruleType, filters.ruleType));
+    }
+    if (filters?.isActive !== undefined) {
+      query = query.where(eq(referralProgramRules.isActive, filters.isActive));
+    }
+
+    return query.orderBy(referralProgramRules.effectiveDate, referralProgramRules.createdAt);
+  }
+
+  // Create referral program rule
+  async createReferralProgramRule(rule: InsertReferralProgramRule): Promise<any> {
+    const [newRule] = await db.insert(referralProgramRules).values(rule).returning();
+    return newRule;
+  }
+
+  // Update referral program rule
+  async updateReferralProgramRule(id: number, updates: Partial<InsertReferralProgramRule>): Promise<any | undefined> {
+    const [updated] = await db
+      .update(referralProgramRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(referralProgramRules.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Get property performance analytics for referral agent
+  async getPropertyPerformanceAnalytics(organizationId: string, referralAgentId: string, filters?: {
+    propertyId?: number;
+    startMonth?: number;
+    startYear?: number;
+    endMonth?: number;
+    endYear?: number;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        propertyId: referralEarnings.propertyId,
+        propertyName: properties.name,
+        month: referralEarnings.month,
+        year: referralEarnings.year,
+        grossRentalIncome: referralEarnings.grossRentalIncome,
+        managementFeeTotal: referralEarnings.managementFeeTotal,
+        referralCommissionEarned: referralEarnings.referralCommissionEarned,
+        occupancyRate: referralEarnings.occupancyRate,
+        averageReviewScore: referralEarnings.averageReviewScore,
+        totalBookings: referralEarnings.totalBookings,
+      })
+      .from(referralEarnings)
+      .leftJoin(properties, eq(referralEarnings.propertyId, properties.id))
+      .where(and(
+        eq(referralEarnings.organizationId, organizationId),
+        eq(referralEarnings.referralAgentId, referralAgentId)
+      ));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(referralEarnings.propertyId, filters.propertyId));
+    }
+    if (filters?.startYear && filters?.startMonth) {
+      query = query.where(
+        or(
+          gt(referralEarnings.year, filters.startYear),
+          and(
+            eq(referralEarnings.year, filters.startYear),
+            gte(referralEarnings.month, filters.startMonth)
+          )
+        )
+      );
+    }
+    if (filters?.endYear && filters?.endMonth) {
+      query = query.where(
+        or(
+          lt(referralEarnings.year, filters.endYear),
+          and(
+            eq(referralEarnings.year, filters.endYear),
+            lte(referralEarnings.month, filters.endMonth)
+          )
+        )
+      );
+    }
+
+    return query.orderBy(referralEarnings.year, referralEarnings.month, properties.name);
+  }
+
+  // Add property referral
+  async addPropertyReferral(referral: InsertPropertyReferral): Promise<any> {
+    const [newReferral] = await db.insert(propertyReferrals).values(referral).returning();
+    return newReferral;
+  }
+
+  // Update property referral
+  async updatePropertyReferral(id: number, updates: Partial<InsertPropertyReferral>): Promise<any | undefined> {
+    const [updated] = await db
+      .update(propertyReferrals)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyReferrals.id, id))
+      .returning();
+    return updated;
+  }
 }
 
 export const storage = new DatabaseStorage();

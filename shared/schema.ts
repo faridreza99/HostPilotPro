@@ -1288,10 +1288,104 @@ export const propertyReferrals = pgTable("property_referrals", {
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
   propertyId: integer("property_id").references(() => properties.id).notNull(),
   referralAgentId: varchar("referral_agent_id").references(() => users.id).notNull(),
+  portfolioManagerId: varchar("portfolio_manager_id").references(() => users.id),
   referralDate: timestamp("referral_date").defaultNow(),
   commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("10.00"), // 10% default
   isActive: boolean("is_active").default(true),
   notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Referral agent earnings tracking (monthly commission calculations)
+export const referralEarnings = pgTable("referral_earnings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  referralAgentId: varchar("referral_agent_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  month: integer("month").notNull(), // 1-12
+  year: integer("year").notNull(),
+  
+  // Revenue Data
+  grossRentalIncome: decimal("gross_rental_income", { precision: 10, scale: 2 }).default("0.00"),
+  managementFeeTotal: decimal("management_fee_total", { precision: 10, scale: 2 }).default("0.00"),
+  referralCommissionEarned: decimal("referral_commission_earned", { precision: 10, scale: 2 }).default("0.00"),
+  
+  // Performance Data
+  occupancyRate: decimal("occupancy_rate", { precision: 5, scale: 2 }).default("0.00"), // 0-100%
+  averageReviewScore: decimal("average_review_score", { precision: 3, scale: 1 }).default("0.0"), // 0-5.0
+  totalBookings: integer("total_bookings").default(0),
+  
+  // Status
+  status: varchar("status").default("pending"), // pending, calculated, paid
+  calculatedAt: timestamp("calculated_at"),
+  paidAt: timestamp("paid_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Agent payouts (both retail and referral agents)
+export const agentPayouts = pgTable("agent_payouts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  agentType: varchar("agent_type").notNull(), // 'retail-agent' or 'referral-agent'
+  
+  // Payout Details
+  payoutAmount: decimal("payout_amount", { precision: 10, scale: 2 }).notNull(),
+  payoutMethod: varchar("payout_method").notNull(), // 'bank_transfer', 'paypal', 'check'
+  agentBankDetails: text("agent_bank_details"),
+  requestNotes: text("request_notes"),
+  
+  // Status Tracking
+  payoutStatus: varchar("payout_status").default("pending"), // pending, approved, paid, rejected
+  requestedAt: timestamp("requested_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: varchar("approved_by"),
+  paidAt: timestamp("paid_at"),
+  receiptUrl: varchar("receipt_url"), // Admin uploads receipt
+  receiptConfirmedAt: timestamp("receipt_confirmed_at"), // Agent confirms receipt
+  
+  // Admin Notes
+  adminNotes: text("admin_notes"),
+  rejectionReason: text("rejection_reason"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Referral program rules and settings
+export const referralProgramRules = pgTable("referral_program_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Program Rules
+  title: varchar("title").notNull(),
+  description: text("description"),
+  ruleType: varchar("rule_type").notNull(), // 'commission', 'payout', 'qualification'
+  ruleContent: text("rule_content").notNull(),
+  
+  // Settings
+  isActive: boolean("is_active").default(true),
+  effectiveDate: timestamp("effective_date").defaultNow(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
+// Property agent assignments (links properties to agents for access)
+export const propertyAgents = pgTable("property_agents", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  agentType: varchar("agent_type").notNull(), // 'retail-agent' or 'referral-agent'
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by").references(() => users.id),
+  isActive: boolean("is_active").default(true),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1319,78 +1413,9 @@ export const agentBookings = pgTable("agent_bookings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Agent commission payouts
-export const agentPayouts = pgTable("agent_payouts", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  agentId: varchar("agent_id").references(() => users.id).notNull(),
-  agentType: varchar("agent_type").notNull(), // referral or retail
-  payoutMonth: varchar("payout_month").notNull(), // YYYY-MM format
-  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).notNull(),
-  payoutAmount: decimal("payout_amount", { precision: 10, scale: 2 }).notNull(),
-  payoutStatus: varchar("payout_status").default("pending"), // pending, approved, paid, completed
-  payoutMethod: varchar("payout_method"), // bank_transfer, paypal, etc.
-  paymentReference: varchar("payment_reference"),
-  receiptUrl: varchar("receipt_url"),
-  processedBy: varchar("processed_by").references(() => users.id),
-  notes: text("notes"),
-  requestedAt: timestamp("requested_at").defaultNow(),
-  approvedAt: timestamp("approved_at"),
-  paidAt: timestamp("paid_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
-// Referral agent monthly earnings (calculated from management fees)
-export const referralEarnings = pgTable("referral_earnings", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  referralAgentId: varchar("referral_agent_id").references(() => users.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
-  earningsMonth: varchar("earnings_month").notNull(), // YYYY-MM format
-  managementFee: decimal("management_fee", { precision: 10, scale: 2 }).notNull(),
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("10.00"),
-  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(),
-  occupancyRate: decimal("occupancy_rate", { precision: 5, scale: 2 }), // percentage
-  averageReviewScore: decimal("average_review_score", { precision: 3, scale: 1 }), // out of 5.0
-  totalBookings: integer("total_bookings").default(0),
-  isConfirmed: boolean("is_confirmed").default(false), // Admin confirmed the earnings
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
-// Property agent assignments (for filtering and permissions)
-export const propertyAgents = pgTable("property_agents", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
-  agentId: varchar("agent_id").references(() => users.id).notNull(),
-  agentType: varchar("agent_type").notNull(), // referral, retail
-  assignedAt: timestamp("assigned_at").defaultNow(),
-  isActive: boolean("is_active").default(true),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
-// Insert and Select schemas for agent system
-export const insertPropertyReferralSchema = createInsertSchema(propertyReferrals);
-export const insertAgentBookingSchema = createInsertSchema(agentBookings);
-export const insertAgentPayoutSchema = createInsertSchema(agentPayouts);
-export const insertReferralEarningSchema = createInsertSchema(referralEarnings);
-export const insertPropertyAgentSchema = createInsertSchema(propertyAgents);
-
-export type PropertyReferral = typeof propertyReferrals.$inferSelect;
-export type InsertPropertyReferral = typeof propertyReferrals.$inferInsert;
-export type AgentBooking = typeof agentBookings.$inferSelect;
-export type InsertAgentBooking = typeof agentBookings.$inferInsert;
-export type AgentPayout = typeof agentPayouts.$inferSelect;
-export type InsertAgentPayout = typeof agentPayouts.$inferInsert;
-export type ReferralEarning = typeof referralEarnings.$inferSelect;
-export type InsertReferralEarning = typeof referralEarnings.$inferInsert;
-export type PropertyAgent = typeof propertyAgents.$inferSelect;
-export type InsertPropertyAgent = typeof propertyAgents.$inferInsert;
 
 // ===== AI SMART TASK TRIGGERS & FEEDBACK MONITOR =====
 
@@ -1790,3 +1815,109 @@ export type OwnerInvoice = typeof ownerInvoices.$inferSelect;
 export type InsertOwnerInvoice = z.infer<typeof insertOwnerInvoiceSchema>;
 export type OwnerPreferences = typeof ownerPreferences.$inferSelect;
 export type InsertOwnerPreferences = z.infer<typeof insertOwnerPreferencesSchema>;
+
+// ===== REFERRAL AGENT SCHEMA RELATIONS =====
+
+export const propertyReferralsRelations = relations(propertyReferrals, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyReferrals.propertyId],
+    references: [properties.id],
+  }),
+  referralAgent: one(users, {
+    fields: [propertyReferrals.referralAgentId],
+    references: [users.id],
+  }),
+  portfolioManager: one(users, {
+    fields: [propertyReferrals.portfolioManagerId],
+    references: [users.id],
+  }),
+}));
+
+export const referralEarningsRelations = relations(referralEarnings, ({ one }) => ({
+  property: one(properties, {
+    fields: [referralEarnings.propertyId],
+    references: [properties.id],
+  }),
+  referralAgent: one(users, {
+    fields: [referralEarnings.referralAgentId],
+    references: [users.id],
+  }),
+}));
+
+export const agentPayoutsRelations = relations(agentPayouts, ({ one }) => ({
+  agent: one(users, {
+    fields: [agentPayouts.agentId],
+    references: [users.id],
+  }),
+  approvedByUser: one(users, {
+    fields: [agentPayouts.approvedBy],
+    references: [users.id],
+  }),
+}));
+
+export const referralProgramRulesRelations = relations(referralProgramRules, ({ one }) => ({
+  createdByUser: one(users, {
+    fields: [referralProgramRules.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const propertyAgentsRelations = relations(propertyAgents, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyAgents.propertyId],
+    references: [properties.id],
+  }),
+  agent: one(users, {
+    fields: [propertyAgents.agentId],
+    references: [users.id],
+  }),
+  assignedByUser: one(users, {
+    fields: [propertyAgents.assignedBy],
+    references: [users.id],
+  }),
+}));
+
+// ===== REFERRAL AGENT INSERT SCHEMAS =====
+
+export const insertPropertyReferralSchema = createInsertSchema(propertyReferrals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertReferralEarningsSchema = createInsertSchema(referralEarnings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAgentPayoutsSchema = createInsertSchema(agentPayouts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertReferralProgramRulesSchema = createInsertSchema(referralProgramRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyAgentsSchema = createInsertSchema(propertyAgents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== REFERRAL AGENT TYPES =====
+
+export type PropertyReferral = typeof propertyReferrals.$inferSelect;
+export type InsertPropertyReferral = z.infer<typeof insertPropertyReferralSchema>;
+export type ReferralEarnings = typeof referralEarnings.$inferSelect;
+export type InsertReferralEarnings = z.infer<typeof insertReferralEarningsSchema>;
+export type AgentPayout = typeof agentPayouts.$inferSelect;
+export type InsertAgentPayout = z.infer<typeof insertAgentPayoutsSchema>;
+export type ReferralProgramRule = typeof referralProgramRules.$inferSelect;
+export type InsertReferralProgramRule = z.infer<typeof insertReferralProgramRulesSchema>;
+export type PropertyAgent = typeof propertyAgents.$inferSelect;
+export type InsertPropertyAgent = z.infer<typeof insertPropertyAgentsSchema>;
