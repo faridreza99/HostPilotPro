@@ -15,28 +15,73 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
-// Session storage table for Replit Auth
+// ===== MULTI-TENANT ARCHITECTURE =====
+// Organizations table for multi-tenant support
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().notNull(), // UUID or company slug
+  name: varchar("name").notNull(),
+  domain: varchar("domain").unique().notNull(), // company.hostpilotpro.com
+  subdomain: varchar("subdomain").unique().notNull(), // company
+  companyLogo: varchar("company_logo"),
+  settings: jsonb("settings"), // Company-specific settings
+  subscriptionTier: varchar("subscription_tier").default("basic"), // basic, pro, enterprise
+  maxUsers: integer("max_users").default(10),
+  maxProperties: integer("max_properties").default(50),
+  isActive: boolean("is_active").default(true),
+  trialEndsAt: timestamp("trial_ends_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// API Keys per organization (encrypted storage for security)
+export const organizationApiKeys = pgTable("organization_api_keys", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  provider: varchar("provider").notNull(), // hostaway, pea, stripe, twilio, etc.
+  keyName: varchar("key_name").notNull(), // api_key, secret_key, account_sid, etc.
+  encryptedValue: text("encrypted_value").notNull(),
+  description: varchar("description"), // Human-readable description
+  isActive: boolean("is_active").default(true),
+  lastUsed: timestamp("last_used"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_api_key_org").on(table.organizationId),
+  index("IDX_api_key_provider").on(table.provider),
+]);
+
+// Session storage table for Replit Auth with tenant isolation
 export const sessions = pgTable(
   "sessions",
   {
     sid: varchar("sid").primaryKey(),
     sess: jsonb("sess").notNull(),
     expire: timestamp("expire").notNull(),
+    organizationId: varchar("organization_id").references(() => organizations.id),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  (table) => [
+    index("IDX_session_expire").on(table.expire),
+    index("IDX_session_org").on(table.organizationId),
+  ],
 );
 
-// User storage table for Replit Auth
+// User storage table for Replit Auth with organization membership
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  email: varchar("email"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default("guest"), // admin, portfolio-manager, owner, staff, retail-agent, referral-agent, guest
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("IDX_user_org").on(table.organizationId),
+  index("IDX_user_email_org").on(table.email, table.organizationId),
+]);
 
 export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
@@ -323,7 +368,25 @@ export const insertPlatformSettingSchema = createInsertSchema(platformSettings).
   updatedAt: true,
 });
 
-// Types
+// Organization schemas
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOrganizationApiKeySchema = createInsertSchema(organizationApiKeys).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types - Multi-tenant
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganizationApiKey = z.infer<typeof insertOrganizationApiKeySchema>;
+export type OrganizationApiKey = typeof organizationApiKeys.$inferSelect;
+
+// Types - Core entities
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertProperty = z.infer<typeof insertPropertySchema>;
