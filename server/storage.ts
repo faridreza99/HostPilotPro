@@ -104,6 +104,15 @@ import {
   type InsertGuestAddonBooking,
   type GuestPortalAccess,
   type InsertGuestPortalAccess,
+  propertyMedia,
+  propertyInternalNotes,
+  agentMediaAccess,
+  type PropertyMedia,
+  type InsertPropertyMedia,
+  type PropertyInternalNotes,
+  type InsertPropertyInternalNotes,
+  type AgentMediaAccess,
+  type InsertAgentMediaAccess,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lt, gte, lte, isNull, sql } from "drizzle-orm";

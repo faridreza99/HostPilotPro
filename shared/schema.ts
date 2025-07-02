@@ -1304,11 +1304,78 @@ export const servicePerformance = pgTable("service_performance", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Property Media Library System
+export const propertyMedia = pgTable("property_media", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  mediaType: varchar("media_type").notNull(), // 'photo', 'video', 'document'
+  title: varchar("title").notNull(),
+  description: text("description"),
+  mediaUrl: text("media_url").notNull(), // URL or file path
+  thumbnailUrl: text("thumbnail_url"), // For videos and documents
+  fileSize: integer("file_size"), // File size in bytes
+  mimeType: varchar("mime_type"), // MIME type of the file
+  isAgentApproved: boolean("is_agent_approved").default(false),
+  uploadedBy: varchar("uploaded_by").references(() => users.id).notNull(),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  displayOrder: integer("display_order").default(0),
+  tags: text("tags").array(), // Searchable tags
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const propertyInternalNotes = pgTable("property_internal_notes", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  category: varchar("category").notNull(), // 'commission', 'restrictions', 'booking_instructions', 'other'
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  isVisibleToAgents: boolean("is_visible_to_agents").default(true),
+  priority: varchar("priority").default("medium"), // 'high', 'medium', 'low'
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const agentMediaAccess = pgTable("agent_media_access", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  mediaId: integer("media_id").references(() => propertyMedia.id, { onDelete: "cascade" }),
+  accessGrantedBy: varchar("access_granted_by").references(() => users.id).notNull(),
+  accessedAt: timestamp("accessed_at").defaultNow(),
+  lastViewedAt: timestamp("last_viewed_at"),
+  copyCount: integer("copy_count").default(0), // Track how many times links were copied
+});
+
 // Insert and Select schemas for Recurring Services
 export const insertRecurringServiceSchema = createInsertSchema(recurringServices);
 export const insertRecurringServiceBillSchema = createInsertSchema(recurringServiceBills);
 export const insertBillReminderSchema = createInsertSchema(billReminders);
 export const insertServicePerformanceSchema = createInsertSchema(servicePerformance);
+
+// Insert and Select schemas for Property Media Library
+export const insertPropertyMediaSchema = createInsertSchema(propertyMedia).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyInternalNotesSchema = createInsertSchema(propertyInternalNotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAgentMediaAccessSchema = createInsertSchema(agentMediaAccess).omit({
+  id: true,
+  accessedAt: true,
+});
 
 export type RecurringService = typeof recurringServices.$inferSelect;
 export type InsertRecurringService = typeof recurringServices.$inferInsert;
@@ -1333,3 +1400,11 @@ export type FeedbackProcessingLog = typeof feedbackProcessingLog.$inferSelect;
 export type InsertFeedbackProcessingLog = typeof feedbackProcessingLog.$inferInsert;
 export type AiConfiguration = typeof aiConfiguration.$inferSelect;
 export type InsertAiConfiguration = typeof aiConfiguration.$inferInsert;
+
+// Property Media Library types
+export type InsertPropertyMedia = z.infer<typeof insertPropertyMediaSchema>;
+export type PropertyMedia = typeof propertyMedia.$inferSelect;
+export type InsertPropertyInternalNotes = z.infer<typeof insertPropertyInternalNotesSchema>;
+export type PropertyInternalNotes = typeof propertyInternalNotes.$inferSelect;
+export type InsertAgentMediaAccess = z.infer<typeof insertAgentMediaAccessSchema>;
+export type AgentMediaAccess = typeof agentMediaAccess.$inferSelect;
