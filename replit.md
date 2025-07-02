@@ -118,6 +118,7 @@ HostPilotPro is a comprehensive property management platform designed for hospit
 - **Development Banner**: Replit environment detection
 
 ## Changelog
+- July 02, 2025. Enhanced financial tracking with comprehensive source attribution: Guest Payment, Owner Charge, Company Expense, Complimentary (Owner Gift, Company Gift). All records now include processedBy user tracking, reference numbers, and full traceability.
 - July 02, 2025. Added comprehensive global Admin Settings panel with platform defaults (currency, VAT, commission rules), auto-billing toggles, task automation settings, and API credential management (Hostaway, PEA)
 - July 02, 2025. Added modular navigation system with role-based access control and collapsible sidebar
 - July 02, 2025. Enhanced navigation with Services and Payouts pages, department tagging for tasks

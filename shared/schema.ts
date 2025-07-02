@@ -102,6 +102,8 @@ export const finances = pgTable("finances", {
   propertyId: integer("property_id").references(() => properties.id),
   bookingId: integer("booking_id").references(() => bookings.id),
   type: varchar("type").notNull(), // income, expense, commission, fee, payout
+  source: varchar("source").notNull(), // guest-payment, owner-charge, company-expense, complimentary
+  sourceType: varchar("source_type"), // owner-gift, company-gift (for complimentary records)
   category: varchar("category").notNull(), // booking-payment, cleaning, maintenance, utilities, commission, add-on-service, etc.
   subcategory: varchar("subcategory"), // cleaning-fee, pool-service, massage, chef-service, etc.
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
@@ -114,7 +116,10 @@ export const finances = pgTable("finances", {
   nextDueDate: date("next_due_date"),
   ownerId: varchar("owner_id").references(() => users.id),
   agentId: varchar("agent_id").references(() => users.id),
+  processedBy: varchar("processed_by").references(() => users.id), // user who created/processed the record
   commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }),
+  referenceNumber: varchar("reference_number"), // external reference (invoice, receipt, etc.)
+  attachmentUrl: varchar("attachment_url"), // receipt/invoice attachment
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -233,6 +238,7 @@ export const financesRelations = relations(finances, ({ one }) => ({
   booking: one(bookings, { fields: [finances.bookingId], references: [bookings.id] }),
   owner: one(users, { fields: [finances.ownerId], references: [users.id], relationName: "ownerFinances" }),
   agent: one(users, { fields: [finances.agentId], references: [users.id], relationName: "agentFinances" }),
+  processedByUser: one(users, { fields: [finances.processedBy], references: [users.id], relationName: "processedFinances" }),
 }));
 
 export const inventoryRelations = relations(inventory, ({ one }) => ({
