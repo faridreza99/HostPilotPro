@@ -2,7 +2,7 @@
 
 ## Overview
 
-HostPilotPro is a comprehensive property management platform designed for hospitality professionals. It features role-based access control, property management, task tracking, booking systems, and financial oversight. The application uses a modern full-stack architecture with React frontend, Express backend, PostgreSQL database with Drizzle ORM, and integrates with Replit's authentication system.
+HostPilotPro is a comprehensive, multi-tenant property management platform designed for licensing to hospitality professionals. It features complete organization isolation, role-based access control, property management, task tracking, booking systems, and financial oversight with source attribution. The application uses a modern full-stack architecture with React frontend, Express backend, PostgreSQL database with Drizzle ORM, and integrates with Replit's authentication system. The platform is built for scalable multi-tenant deployment with separate company domains, encrypted API key storage, and subscription-based licensing.
 
 ## System Architecture
 
@@ -22,9 +22,11 @@ HostPilotPro is a comprehensive property management platform designed for hospit
 - **API Design**: RESTful endpoints with role-based authorization
 
 ### Data Storage Solutions
-- **Primary Database**: Neon PostgreSQL serverless database
-- **ORM**: Drizzle ORM for type-safe database operations
-- **Session Storage**: PostgreSQL table for session persistence
+- **Primary Database**: Neon PostgreSQL serverless database with multi-tenant architecture
+- **Organization Isolation**: All data tables include organizationId for complete tenant separation
+- **ORM**: Drizzle ORM for type-safe database operations with tenant-aware queries
+- **Session Storage**: PostgreSQL table with organization-specific session isolation
+- **API Key Storage**: Encrypted credential storage per organization
 - **Migrations**: Drizzle Kit for schema migrations
 
 ## Key Components
@@ -117,7 +119,28 @@ HostPilotPro is a comprehensive property management platform designed for hospit
 - **Cartographer Plugin**: Replit development tools integration
 - **Development Banner**: Replit environment detection
 
+## Multi-Tenant Architecture
+
+### Organization Isolation
+- **Separate Domains**: Each company operates on their own subdomain (e.g., `acme.hostpilotpro.com`)
+- **Complete Data Separation**: All tables include `organizationId` for tenant isolation
+- **Custom Branding**: Organizations can customize logos, colors, and company settings
+- **Subscription Tiers**: Basic, Pro, Enterprise with different limits and features
+
+### API Key Management  
+- **Encrypted Storage**: All third-party API keys stored encrypted per organization
+- **Supported Providers**: Hostaway, Stripe, Twilio, PEA, and other integrations
+- **Secure Access**: Automatic encryption/decryption with audit logging
+- **Easy Rotation**: Simple API key management and rotation
+
+### Deployment Ready
+- **Multi-Tenant Middleware**: Automatic organization detection from domain
+- **Tenant-Aware Queries**: All database operations respect organization boundaries
+- **Organization Seeder**: CLI tools to create new organizations and admin users
+- **Licensing Framework**: Ready for subscription-based licensing model
+
 ## Changelog
+- July 02, 2025. Implemented comprehensive multi-tenant architecture for licensing: organization isolation, encrypted API key storage, subdomain-based tenant detection, subscription tiers, and deployment-ready infrastructure for scaling to multiple property management companies.
 - July 02, 2025. Enhanced financial tracking with comprehensive source attribution: Guest Payment, Owner Charge, Company Expense, Complimentary (Owner Gift, Company Gift). All records now include processedBy user tracking, reference numbers, and full traceability.
 - July 02, 2025. Added comprehensive global Admin Settings panel with platform defaults (currency, VAT, commission rules), auto-billing toggles, task automation settings, and API credential management (Hostaway, PEA)
 - July 02, 2025. Added modular navigation system with role-based access control and collapsible sidebar
