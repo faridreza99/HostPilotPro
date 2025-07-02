@@ -111,6 +111,13 @@ const navigationModules = [
         description: "Add-on services and utilities"
       },
       { 
+        path: "/guest-addon-services", 
+        icon: Package, 
+        label: "Guest Add-On Services", 
+        roles: ["admin", "portfolio-manager", "staff"],
+        description: "Guest service booking platform with flexible billing"
+      },
+      { 
         path: "/utility-tracking", 
         icon: Zap, 
         label: "Utility Tracking", 
