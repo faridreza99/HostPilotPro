@@ -71,6 +71,18 @@ import {
   type InsertInvoiceLineItem,
   type PortfolioAssignment,
   type InsertPortfolioAssignment,
+  guestFeedback,
+  aiTaskRules,
+  feedbackProcessingLog,
+  aiConfiguration,
+  type GuestFeedback,
+  type InsertGuestFeedback,
+  type AiTaskRule,
+  type InsertAiTaskRule,
+  type FeedbackProcessingLog,
+  type InsertFeedbackProcessingLog,
+  type AiConfiguration,
+  type InsertAiConfiguration,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lt, gte, lte, isNull, sql } from "drizzle-orm";
@@ -280,6 +292,37 @@ export interface IStorage {
   updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
   deleteInvoice(id: number): Promise<boolean>;
   generateInvoiceNumber(organizationId: string): Promise<string>;
+
+  // AI Feedback System operations
+  getGuestFeedback(organizationId: string, filters?: { propertyId?: number; processed?: boolean; requiresAction?: boolean }): Promise<GuestFeedback[]>;
+  getGuestFeedbackById(id: number): Promise<GuestFeedback | undefined>;
+  createGuestFeedback(feedback: InsertGuestFeedback): Promise<GuestFeedback>;
+  processGuestFeedback(id: number, processedBy: string, processingNotes?: string, assignedTaskId?: number): Promise<GuestFeedback | undefined>;
+  markFeedbackRequiresAction(id: number, requiresAction: boolean): Promise<GuestFeedback | undefined>;
+
+  // AI Task Rules operations
+  getAiTaskRules(organizationId: string, filters?: { isActive?: boolean; department?: string }): Promise<AiTaskRule[]>;
+  getAiTaskRuleById(id: number): Promise<AiTaskRule | undefined>;
+  createAiTaskRule(rule: InsertAiTaskRule): Promise<AiTaskRule>;
+  updateAiTaskRule(id: number, rule: Partial<InsertAiTaskRule>): Promise<AiTaskRule | undefined>;
+  deleteAiTaskRule(id: number): Promise<boolean>;
+  incrementRuleTriggerCount(id: number): Promise<void>;
+
+  // Feedback Processing operations
+  createProcessingLog(log: InsertFeedbackProcessingLog): Promise<FeedbackProcessingLog>;
+  getProcessingLogs(organizationId: string, feedbackId?: number): Promise<FeedbackProcessingLog[]>;
+
+  // AI Configuration operations
+  getAiConfiguration(organizationId: string): Promise<AiConfiguration | undefined>;
+  upsertAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration>;
+
+  // Core AI processing methods
+  processMessageForKeywords(message: string, organizationId: string): Promise<{
+    matchedRules: AiTaskRule[];
+    detectedKeywords: string[];
+    recommendedActions: string[];
+  }>;
+  createTaskFromFeedback(feedbackId: number, ruleId: number, assignedTo?: string): Promise<Task>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1832,6 +1875,244 @@ export class DatabaseStorage implements IStorage {
     }
 
     return await query;
+  }
+
+  // ===== AI FEEDBACK SYSTEM METHODS =====
+
+  // Guest feedback operations
+  async getGuestFeedback(organizationId: string, filters?: { propertyId?: number; processed?: boolean; requiresAction?: boolean }): Promise<GuestFeedback[]> {
+    let query = db.select().from(guestFeedback).where(eq(guestFeedback.organizationId, organizationId));
+    
+    if (filters?.propertyId) {
+      query = query.where(eq(guestFeedback.propertyId, filters.propertyId));
+    }
+    if (filters?.processed !== undefined) {
+      query = query.where(eq(guestFeedback.isProcessed, filters.processed));
+    }
+    if (filters?.requiresAction !== undefined) {
+      query = query.where(eq(guestFeedback.requiresAction, filters.requiresAction));
+    }
+    
+    return await query.orderBy(desc(guestFeedback.receivedAt));
+  }
+
+  async getGuestFeedbackById(id: number): Promise<GuestFeedback | undefined> {
+    const [feedback] = await db.select().from(guestFeedback).where(eq(guestFeedback.id, id));
+    return feedback;
+  }
+
+  async createGuestFeedback(feedback: InsertGuestFeedback): Promise<GuestFeedback> {
+    const [newFeedback] = await db.insert(guestFeedback).values(feedback).returning();
+    return newFeedback;
+  }
+
+  async processGuestFeedback(id: number, processedBy: string, processingNotes?: string, assignedTaskId?: number): Promise<GuestFeedback | undefined> {
+    const [updatedFeedback] = await db
+      .update(guestFeedback)
+      .set({
+        isProcessed: true,
+        processedBy,
+        processingNotes,
+        assignedTaskId,
+        processedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(guestFeedback.id, id))
+      .returning();
+    return updatedFeedback;
+  }
+
+  async markFeedbackRequiresAction(id: number, requiresAction: boolean): Promise<GuestFeedback | undefined> {
+    const [updatedFeedback] = await db
+      .update(guestFeedback)
+      .set({
+        requiresAction,
+        updatedAt: new Date(),
+      })
+      .where(eq(guestFeedback.id, id))
+      .returning();
+    return updatedFeedback;
+  }
+
+  // AI Task Rules operations
+  async getAiTaskRules(organizationId: string, filters?: { isActive?: boolean; department?: string }): Promise<AiTaskRule[]> {
+    let query = db.select().from(aiTaskRules).where(eq(aiTaskRules.organizationId, organizationId));
+    
+    if (filters?.isActive !== undefined) {
+      query = query.where(eq(aiTaskRules.isActive, filters.isActive));
+    }
+    if (filters?.department) {
+      query = query.where(eq(aiTaskRules.assignToDepartment, filters.department));
+    }
+    
+    return await query.orderBy(desc(aiTaskRules.createdAt));
+  }
+
+  async getAiTaskRuleById(id: number): Promise<AiTaskRule | undefined> {
+    const [rule] = await db.select().from(aiTaskRules).where(eq(aiTaskRules.id, id));
+    return rule;
+  }
+
+  async createAiTaskRule(rule: InsertAiTaskRule): Promise<AiTaskRule> {
+    const [newRule] = await db.insert(aiTaskRules).values(rule).returning();
+    return newRule;
+  }
+
+  async updateAiTaskRule(id: number, rule: Partial<InsertAiTaskRule>): Promise<AiTaskRule | undefined> {
+    const [updatedRule] = await db
+      .update(aiTaskRules)
+      .set({ ...rule, updatedAt: new Date() })
+      .where(eq(aiTaskRules.id, id))
+      .returning();
+    return updatedRule;
+  }
+
+  async deleteAiTaskRule(id: number): Promise<boolean> {
+    const result = await db.delete(aiTaskRules).where(eq(aiTaskRules.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async incrementRuleTriggerCount(id: number): Promise<void> {
+    await db
+      .update(aiTaskRules)
+      .set({
+        triggerCount: sql`${aiTaskRules.triggerCount} + 1`,
+        lastTriggered: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(aiTaskRules.id, id));
+  }
+
+  // Feedback processing operations
+  async createProcessingLog(log: InsertFeedbackProcessingLog): Promise<FeedbackProcessingLog> {
+    const [newLog] = await db.insert(feedbackProcessingLog).values(log).returning();
+    return newLog;
+  }
+
+  async getProcessingLogs(organizationId: string, feedbackId?: number): Promise<FeedbackProcessingLog[]> {
+    let query = db.select().from(feedbackProcessingLog).where(eq(feedbackProcessingLog.organizationId, organizationId));
+    
+    if (feedbackId) {
+      query = query.where(eq(feedbackProcessingLog.feedbackId, feedbackId));
+    }
+    
+    return await query.orderBy(desc(feedbackProcessingLog.createdAt));
+  }
+
+  // AI Configuration operations
+  async getAiConfiguration(organizationId: string): Promise<AiConfiguration | undefined> {
+    const [config] = await db.select().from(aiConfiguration).where(eq(aiConfiguration.organizationId, organizationId));
+    return config;
+  }
+
+  async upsertAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration> {
+    const [newConfig] = await db
+      .insert(aiConfiguration)
+      .values(config)
+      .onConflictDoUpdate({
+        target: aiConfiguration.organizationId,
+        set: {
+          ...config,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return newConfig;
+  }
+
+  // Core AI processing methods
+  async processMessageForKeywords(message: string, organizationId: string): Promise<{
+    matchedRules: AiTaskRule[];
+    detectedKeywords: string[];
+    recommendedActions: string[];
+  }> {
+    // Get active AI task rules for the organization
+    const activeRules = await this.getAiTaskRules(organizationId, { isActive: true });
+    
+    const matchedRules: AiTaskRule[] = [];
+    const detectedKeywords: string[] = [];
+    const recommendedActions: string[] = [];
+    
+    const lowerMessage = message.toLowerCase();
+    
+    for (const rule of activeRules) {
+      const keywords = (rule.keywords as string[]) || [];
+      const matchedKeywords = keywords.filter(keyword => 
+        lowerMessage.includes(keyword.toLowerCase())
+      );
+      
+      if (matchedKeywords.length > 0) {
+        matchedRules.push(rule);
+        detectedKeywords.push(...matchedKeywords);
+        
+        const actionDescription = `Create ${rule.taskType} task: ${rule.taskTitle}`;
+        if (rule.assignToDepartment) {
+          recommendedActions.push(`${actionDescription} (${rule.assignToDepartment} department)`);
+        } else {
+          recommendedActions.push(actionDescription);
+        }
+      }
+    }
+    
+    return {
+      matchedRules,
+      detectedKeywords: [...new Set(detectedKeywords)], // Remove duplicates
+      recommendedActions,
+    };
+  }
+
+  async createTaskFromFeedback(feedbackId: number, ruleId: number, assignedTo?: string): Promise<Task> {
+    // Get the feedback and rule
+    const feedback = await this.getGuestFeedbackById(feedbackId);
+    const rule = await this.getAiTaskRuleById(ruleId);
+    
+    if (!feedback || !rule) {
+      throw new Error("Feedback or rule not found");
+    }
+    
+    // Create task based on rule template
+    const taskData: InsertTask = {
+      organizationId: feedback.organizationId,
+      propertyId: feedback.propertyId,
+      title: rule.taskTitle.replace('{guest_name}', feedback.guestName),
+      description: `${rule.taskDescription || ''}\n\nOriginal guest message: "${feedback.originalMessage}"`,
+      type: rule.taskType,
+      department: rule.assignToDepartment || 'maintenance',
+      priority: rule.priority,
+      status: 'pending',
+      assignedTo: assignedTo || rule.defaultAssignee || undefined,
+      createdBy: 'AI_SYSTEM',
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+    };
+    
+    const task = await this.createTask(taskData);
+    
+    // Update feedback with assigned task
+    await this.processGuestFeedback(
+      feedbackId,
+      'AI_SYSTEM',
+      `Task automatically created from AI rule: ${rule.ruleName}`,
+      task.id
+    );
+    
+    // Increment rule trigger count
+    await this.incrementRuleTriggerCount(ruleId);
+    
+    // Log the processing
+    await this.createProcessingLog({
+      organizationId: feedback.organizationId,
+      feedbackId,
+      processingType: 'auto',
+      triggeredRuleId: ruleId,
+      matchedKeywords: feedback.detectedKeywords || [],
+      confidenceScore: 0.85, // Default confidence for keyword matching
+      actionTaken: 'task_created',
+      createdTaskId: task.id,
+      processedBy: 'AI_SYSTEM',
+      processingTime: 100, // milliseconds (simulated)
+    });
+    
+    return task;
   }
 }
 

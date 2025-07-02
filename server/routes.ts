@@ -1276,6 +1276,256 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== AI FEEDBACK SYSTEM ENDPOINTS =====
+
+  // Guest feedback endpoints
+  app.get("/api/ai/feedback", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId, processed, requiresAction } = req.query;
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (processed !== undefined) filters.processed = processed === 'true';
+      if (requiresAction !== undefined) filters.requiresAction = requiresAction === 'true';
+      
+      const feedback = await storage.getGuestFeedback(organizationId, filters);
+      res.json(feedback);
+    } catch (error) {
+      console.error("Error fetching guest feedback:", error);
+      res.status(500).json({ message: "Failed to fetch guest feedback" });
+    }
+  });
+
+  app.post("/api/ai/feedback", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user as any;
+      
+      const feedbackData = {
+        ...req.body,
+        organizationId,
+        receivedAt: new Date(),
+      };
+      
+      // Process feedback for AI keywords
+      const aiAnalysis = await storage.processMessageForKeywords(
+        feedbackData.originalMessage,
+        organizationId
+      );
+      
+      // Save feedback with AI analysis
+      const feedback = await storage.createGuestFeedback({
+        ...feedbackData,
+        detectedKeywords: aiAnalysis.detectedKeywords,
+        aiConfidence: aiAnalysis.matchedRules.length > 0 ? 0.85 : 0.1,
+        requiresAction: aiAnalysis.matchedRules.length > 0,
+      });
+      
+      // Auto-create tasks if rules match
+      if (aiAnalysis.matchedRules.length > 0) {
+        for (const rule of aiAnalysis.matchedRules) {
+          try {
+            await storage.createTaskFromFeedback(feedback.id, rule.id);
+          } catch (error) {
+            console.error("Error creating task from feedback:", error);
+          }
+        }
+      }
+      
+      res.json({
+        feedback,
+        aiAnalysis,
+        autoTasksCreated: aiAnalysis.matchedRules.length,
+      });
+    } catch (error) {
+      console.error("Error creating guest feedback:", error);
+      res.status(500).json({ message: "Failed to create guest feedback" });
+    }
+  });
+
+  app.put("/api/ai/feedback/:id/process", isDemoAuthenticated, async (req, res) => {
+    try {
+      const feedbackId = parseInt(req.params.id);
+      const user = req.user as any;
+      const { processingNotes, assignedTaskId, createTask, ruleId } = req.body;
+      
+      if (createTask && ruleId) {
+        // Create task from rule
+        const task = await storage.createTaskFromFeedback(feedbackId, ruleId);
+        const feedback = await storage.processGuestFeedback(
+          feedbackId,
+          user.username,
+          processingNotes,
+          task.id
+        );
+        res.json({ feedback, createdTask: task });
+      } else {
+        const feedback = await storage.processGuestFeedback(
+          feedbackId,
+          user.username,
+          processingNotes,
+          assignedTaskId
+        );
+        res.json({ feedback });
+      }
+    } catch (error) {
+      console.error("Error processing feedback:", error);
+      res.status(500).json({ message: "Failed to process feedback" });
+    }
+  });
+
+  // AI Task Rules endpoints
+  app.get("/api/ai/rules", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { isActive, department } = req.query;
+      
+      const filters: any = {};
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      if (department) filters.department = department as string;
+      
+      const rules = await storage.getAiTaskRules(organizationId, filters);
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching AI task rules:", error);
+      res.status(500).json({ message: "Failed to fetch AI task rules" });
+    }
+  });
+
+  app.post("/api/ai/rules", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user as any;
+      
+      const ruleData = {
+        ...req.body,
+        organizationId,
+        createdBy: user.username,
+        triggerCount: 0,
+      };
+      
+      const rule = await storage.createAiTaskRule(ruleData);
+      res.json(rule);
+    } catch (error) {
+      console.error("Error creating AI task rule:", error);
+      res.status(500).json({ message: "Failed to create AI task rule" });
+    }
+  });
+
+  app.put("/api/ai/rules/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const ruleId = parseInt(req.params.id);
+      const rule = await storage.updateAiTaskRule(ruleId, req.body);
+      res.json(rule);
+    } catch (error) {
+      console.error("Error updating AI task rule:", error);
+      res.status(500).json({ message: "Failed to update AI task rule" });
+    }
+  });
+
+  app.delete("/api/ai/rules/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const ruleId = parseInt(req.params.id);
+      const success = await storage.deleteAiTaskRule(ruleId);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting AI task rule:", error);
+      res.status(500).json({ message: "Failed to delete AI task rule" });
+    }
+  });
+
+  // Processing logs endpoints
+  app.get("/api/ai/processing-logs", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { feedbackId } = req.query;
+      
+      const logs = await storage.getProcessingLogs(
+        organizationId,
+        feedbackId ? parseInt(feedbackId as string) : undefined
+      );
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching processing logs:", error);
+      res.status(500).json({ message: "Failed to fetch processing logs" });
+    }
+  });
+
+  // AI Configuration endpoints
+  app.get("/api/ai/config", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const config = await storage.getAiConfiguration(organizationId);
+      res.json(config || {
+        organizationId,
+        isEnabled: true,
+        autoTaskCreation: true,
+        confidenceThreshold: 0.7,
+        enabledDepartments: ['maintenance', 'housekeeping', 'front-desk'],
+        openaiApiKey: null,
+        customPrompts: {},
+      });
+    } catch (error) {
+      console.error("Error fetching AI config:", error);
+      res.status(500).json({ message: "Failed to fetch AI configuration" });
+    }
+  });
+
+  app.put("/api/ai/config", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const configData = {
+        ...req.body,
+        organizationId,
+      };
+      
+      const config = await storage.upsertAiConfiguration(configData);
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating AI config:", error);
+      res.status(500).json({ message: "Failed to update AI configuration" });
+    }
+  });
+
+  // AI processing endpoints
+  app.post("/api/ai/analyze-message", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+      
+      const analysis = await storage.processMessageForKeywords(message, organizationId);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing message:", error);
+      res.status(500).json({ message: "Failed to analyze message" });
+    }
+  });
+
+  app.post("/api/ai/create-task-from-feedback", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { feedbackId, ruleId, assignedTo } = req.body;
+      
+      if (!feedbackId || !ruleId) {
+        return res.status(400).json({ message: "feedbackId and ruleId are required" });
+      }
+      
+      const task = await storage.createTaskFromFeedback(
+        parseInt(feedbackId),
+        parseInt(ruleId),
+        assignedTo
+      );
+      res.json(task);
+    } catch (error) {
+      console.error("Error creating task from feedback:", error);
+      res.status(500).json({ message: "Failed to create task from feedback" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -1010,3 +1010,101 @@ export type ReferralEarning = typeof referralEarnings.$inferSelect;
 export type InsertReferralEarning = typeof referralEarnings.$inferInsert;
 export type PropertyAgent = typeof propertyAgents.$inferSelect;
 export type InsertPropertyAgent = typeof propertyAgents.$inferInsert;
+
+// ===== AI SMART TASK TRIGGERS & FEEDBACK MONITOR =====
+
+// Guest feedback log - stores all guest messages/reviews for AI processing
+export const guestFeedback = pgTable("guest_feedback", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  guestName: varchar("guest_name").notNull(),
+  guestEmail: varchar("guest_email"),
+  feedbackType: varchar("feedback_type").notNull(), // review, message, complaint, compliment
+  feedbackChannel: varchar("feedback_channel").default("portal"), // portal, email, phone, sms
+  originalMessage: text("original_message").notNull(),
+  detectedKeywords: jsonb("detected_keywords"), // Array of matched keywords
+  sentimentScore: decimal("sentiment_score", { precision: 3, scale: 2 }), // -1.0 to 1.0 (future AI)
+  urgencyLevel: varchar("urgency_level").default("medium"), // low, medium, high, critical
+  isProcessed: boolean("is_processed").default(false),
+  requiresAction: boolean("requires_action").default(false),
+  assignedTaskId: integer("assigned_task_id").references(() => tasks.id),
+  processedBy: varchar("processed_by").references(() => users.id),
+  processingNotes: text("processing_notes"),
+  receivedAt: timestamp("received_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI task generation rules - configurable keyword mapping to task types
+export const aiTaskRules = pgTable("ai_task_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ruleName: varchar("rule_name").notNull(),
+  keywords: jsonb("keywords").notNull(), // Array of trigger keywords
+  taskType: varchar("task_type").notNull(),
+  taskTitle: varchar("task_title").notNull(), // Template for task title
+  taskDescription: text("task_description"), // Template for task description
+  assignToDepartment: varchar("assign_to_department"), // cleaning, maintenance, front_desk
+  defaultAssignee: varchar("default_assignee").references(() => users.id),
+  priority: varchar("priority").default("medium"), // high, medium, low
+  autoAssign: boolean("auto_assign").default(true),
+  isActive: boolean("is_active").default(true),
+  triggerCount: integer("trigger_count").default(0), // How many times this rule has triggered
+  lastTriggered: timestamp("last_triggered"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Feedback processing log - audit trail for AI decisions
+export const feedbackProcessingLog = pgTable("feedback_processing_log", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  feedbackId: integer("feedback_id").references(() => guestFeedback.id).notNull(),
+  processingType: varchar("processing_type").notNull(), // auto, manual, ai_nlp
+  triggeredRuleId: integer("triggered_rule_id").references(() => aiTaskRules.id),
+  matchedKeywords: jsonb("matched_keywords"), // Which keywords triggered the rule
+  confidenceScore: decimal("confidence_score", { precision: 3, scale: 2 }), // AI confidence
+  actionTaken: varchar("action_taken").notNull(), // task_created, escalated, ignored
+  createdTaskId: integer("created_task_id").references(() => tasks.id),
+  processedBy: varchar("processed_by").references(() => users.id),
+  aiModel: varchar("ai_model"), // gpt-4, claude, etc. (future)
+  processingTime: integer("processing_time"), // milliseconds
+  errorMessage: text("error_message"), // If processing failed
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// AI configuration per organization
+export const aiConfiguration = pgTable("ai_configuration", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  autoProcessingEnabled: boolean("auto_processing_enabled").default(true),
+  aiProvider: varchar("ai_provider").default("keyword"), // keyword, openai, claude, etc.
+  confidenceThreshold: decimal("confidence_threshold", { precision: 3, scale: 2 }).default("0.75"),
+  autoTaskCreation: boolean("auto_task_creation").default(true),
+  requireManagerApproval: boolean("require_manager_approval").default(false),
+  notificationSettings: jsonb("notification_settings"), // Who gets notified when
+  processingCooldown: integer("processing_cooldown").default(300), // seconds between processing same type
+  debugMode: boolean("debug_mode").default(false),
+  lastUpdatedBy: varchar("last_updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert and Select schemas for AI Feedback System
+export const insertGuestFeedbackSchema = createInsertSchema(guestFeedback);
+export const insertAiTaskRuleSchema = createInsertSchema(aiTaskRules);
+export const insertFeedbackProcessingLogSchema = createInsertSchema(feedbackProcessingLog);
+export const insertAiConfigurationSchema = createInsertSchema(aiConfiguration);
+
+export type GuestFeedback = typeof guestFeedback.$inferSelect;
+export type InsertGuestFeedback = typeof guestFeedback.$inferInsert;
+export type AiTaskRule = typeof aiTaskRules.$inferSelect;
+export type InsertAiTaskRule = typeof aiTaskRules.$inferInsert;
+export type FeedbackProcessingLog = typeof feedbackProcessingLog.$inferSelect;
+export type InsertFeedbackProcessingLog = typeof feedbackProcessingLog.$inferInsert;
+export type AiConfiguration = typeof aiConfiguration.$inferSelect;
+export type InsertAiConfiguration = typeof aiConfiguration.$inferInsert;
