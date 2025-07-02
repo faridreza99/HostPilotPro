@@ -38,6 +38,10 @@ import {
   type InsertAddonBooking,
   type UtilityBill,
   type InsertUtilityBill,
+  type PropertyUtilityAccount,
+  type InsertPropertyUtilityAccount,
+  type UtilityBillReminder,
+  type InsertUtilityBillReminder,
   type WelcomePackItem,
   type InsertWelcomePackItem,
   type WelcomePackTemplate,
@@ -69,7 +73,7 @@ import {
   type InsertPortfolioAssignment,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, lt, gte, lte, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -147,13 +151,38 @@ export interface IStorage {
   updateAddonBooking(id: number, booking: Partial<InsertAddonBooking>): Promise<AddonBooking | undefined>;
   deleteAddonBooking(id: number): Promise<boolean>;
 
+  // Property utility accounts operations
+  getPropertyUtilityAccounts(): Promise<PropertyUtilityAccount[]>;
+  getPropertyUtilityAccountsByProperty(propertyId: number): Promise<PropertyUtilityAccount[]>;
+  getPropertyUtilityAccount(id: number): Promise<PropertyUtilityAccount | undefined>;
+  createPropertyUtilityAccount(account: InsertPropertyUtilityAccount): Promise<PropertyUtilityAccount>;
+  updatePropertyUtilityAccount(id: number, account: Partial<InsertPropertyUtilityAccount>): Promise<PropertyUtilityAccount | undefined>;
+  deletePropertyUtilityAccount(id: number): Promise<boolean>;
+
   // Utility bills operations
   getUtilityBills(): Promise<UtilityBill[]>;
   getUtilityBillsByProperty(propertyId: number): Promise<UtilityBill[]>;
+  getUtilityBillsByMonth(billingMonth: string): Promise<UtilityBill[]>;
+  getOverdueUtilityBills(): Promise<UtilityBill[]>;
+  getPendingUtilityBills(): Promise<UtilityBill[]>;
   getUtilityBill(id: number): Promise<UtilityBill | undefined>;
   createUtilityBill(bill: InsertUtilityBill): Promise<UtilityBill>;
   updateUtilityBill(id: number, bill: Partial<InsertUtilityBill>): Promise<UtilityBill | undefined>;
+  uploadUtilityBillReceipt(id: number, receiptUrl: string, filename: string, uploadedBy: string): Promise<UtilityBill | undefined>;
+  markUtilityBillPaid(id: number, paidBy: string): Promise<UtilityBill | undefined>;
   deleteUtilityBill(id: number): Promise<boolean>;
+
+  // Utility bill reminder operations
+  getUtilityBillReminders(): Promise<UtilityBillReminder[]>;
+  getUtilityBillRemindersByUser(userId: string): Promise<UtilityBillReminder[]>;
+  getUnreadUtilityBillReminders(userId: string): Promise<UtilityBillReminder[]>;
+  createUtilityBillReminder(reminder: InsertUtilityBillReminder): Promise<UtilityBillReminder>;
+  markUtilityBillReminderRead(id: number): Promise<UtilityBillReminder | undefined>;
+  
+  // Utility automation operations
+  generateUtilityBillReminders(organizationId: string): Promise<UtilityBillReminder[]>;
+  getUtilityExpensesByProperty(propertyId: number, fromDate?: Date, toDate?: Date): Promise<any>;
+  getUtilityExpensesByOwner(ownerId: string, fromDate?: Date, toDate?: Date): Promise<any>;
 
   // Welcome pack inventory operations
   getWelcomePackItems(): Promise<WelcomePackItem[]>;
@@ -1560,6 +1589,249 @@ export class DatabaseStorage implements IStorage {
 
       await this.createNotification(notification);
     }
+  }
+
+  // Property utility accounts operations
+  async getPropertyUtilityAccounts(): Promise<PropertyUtilityAccount[]> {
+    return await db.select().from(propertyUtilityAccounts);
+  }
+
+  async getPropertyUtilityAccountsByProperty(propertyId: number): Promise<PropertyUtilityAccount[]> {
+    return await db.select()
+      .from(propertyUtilityAccounts)
+      .where(eq(propertyUtilityAccounts.propertyId, propertyId));
+  }
+
+  async getPropertyUtilityAccount(id: number): Promise<PropertyUtilityAccount | undefined> {
+    const [account] = await db.select()
+      .from(propertyUtilityAccounts)
+      .where(eq(propertyUtilityAccounts.id, id));
+    return account;
+  }
+
+  async createPropertyUtilityAccount(account: InsertPropertyUtilityAccount): Promise<PropertyUtilityAccount> {
+    const [created] = await db.insert(propertyUtilityAccounts)
+      .values(account)
+      .returning();
+    return created;
+  }
+
+  async updatePropertyUtilityAccount(id: number, account: Partial<InsertPropertyUtilityAccount>): Promise<PropertyUtilityAccount | undefined> {
+    const [updated] = await db.update(propertyUtilityAccounts)
+      .set({ ...account, updatedAt: new Date() })
+      .where(eq(propertyUtilityAccounts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyUtilityAccount(id: number): Promise<boolean> {
+    const result = await db.delete(propertyUtilityAccounts)
+      .where(eq(propertyUtilityAccounts.id, id));
+    return result.rowCount! > 0;
+  }
+
+  // Enhanced utility bills operations
+  async getUtilityBillsByMonth(billingMonth: string): Promise<UtilityBill[]> {
+    return await db.select()
+      .from(utilityBills)
+      .where(eq(utilityBills.billingMonth, billingMonth))
+      .orderBy(utilityBills.dueDate);
+  }
+
+  async getOverdueUtilityBills(): Promise<UtilityBill[]> {
+    const today = new Date().toISOString().split('T')[0];
+    return await db.select()
+      .from(utilityBills)
+      .where(
+        and(
+          lt(utilityBills.dueDate, today),
+          eq(utilityBills.status, 'pending')
+        )
+      )
+      .orderBy(utilityBills.dueDate);
+  }
+
+  async getPendingUtilityBills(): Promise<UtilityBill[]> {
+    return await db.select()
+      .from(utilityBills)
+      .where(eq(utilityBills.status, 'pending'))
+      .orderBy(utilityBills.dueDate);
+  }
+
+  async uploadUtilityBillReceipt(id: number, receiptUrl: string, filename: string, uploadedBy: string): Promise<UtilityBill | undefined> {
+    const [updated] = await db.update(utilityBills)
+      .set({
+        receiptUrl,
+        receiptFilename: filename,
+        uploadedBy,
+        uploadedAt: new Date(),
+        status: 'uploaded',
+        updatedAt: new Date()
+      })
+      .where(eq(utilityBills.id, id))
+      .returning();
+    return updated;
+  }
+
+  async markUtilityBillPaid(id: number, paidBy: string): Promise<UtilityBill | undefined> {
+    const [updated] = await db.update(utilityBills)
+      .set({
+        status: 'paid',
+        updatedAt: new Date()
+      })
+      .where(eq(utilityBills.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Utility bill reminder operations
+  async getUtilityBillReminders(): Promise<UtilityBillReminder[]> {
+    return await db.select().from(utilityBillReminders)
+      .orderBy(desc(utilityBillReminders.sentAt));
+  }
+
+  async getUtilityBillRemindersByUser(userId: string): Promise<UtilityBillReminder[]> {
+    return await db.select()
+      .from(utilityBillReminders)
+      .where(eq(utilityBillReminders.sentTo, userId))
+      .orderBy(desc(utilityBillReminders.sentAt));
+  }
+
+  async getUnreadUtilityBillReminders(userId: string): Promise<UtilityBillReminder[]> {
+    return await db.select()
+      .from(utilityBillReminders)
+      .where(
+        and(
+          eq(utilityBillReminders.sentTo, userId),
+          eq(utilityBillReminders.isRead, false)
+        )
+      )
+      .orderBy(desc(utilityBillReminders.sentAt));
+  }
+
+  async createUtilityBillReminder(reminder: InsertUtilityBillReminder): Promise<UtilityBillReminder> {
+    const [created] = await db.insert(utilityBillReminders)
+      .values(reminder)
+      .returning();
+    return created;
+  }
+
+  async markUtilityBillReminderRead(id: number): Promise<UtilityBillReminder | undefined> {
+    const [updated] = await db.update(utilityBillReminders)
+      .set({ isRead: true })
+      .where(eq(utilityBillReminders.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Utility automation operations
+  async generateUtilityBillReminders(organizationId: string): Promise<UtilityBillReminder[]> {
+    const today = new Date();
+    const fourDaysAgo = new Date(today);
+    fourDaysAgo.setDate(today.getDate() - 4);
+
+    // Find bills that are overdue by 4+ days without receipts
+    const overdueBills = await db.select()
+      .from(utilityBills)
+      .where(
+        and(
+          eq(utilityBills.organizationId, organizationId),
+          eq(utilityBills.status, 'pending'),
+          lt(utilityBills.dueDate, fourDaysAgo.toISOString().split('T')[0]),
+          isNull(utilityBills.receiptUrl)
+        )
+      );
+
+    const reminders: UtilityBillReminder[] = [];
+
+    // Get admin users to send reminders to
+    const adminUsers = await db.select()
+      .from(users)
+      .where(
+        and(
+          eq(users.organizationId, organizationId),
+          eq(users.role, 'admin')
+        )
+      );
+
+    for (const bill of overdueBills) {
+      for (const admin of adminUsers) {
+        // Check if reminder already sent for this bill
+        const existingReminder = await db.select()
+          .from(utilityBillReminders)
+          .where(
+            and(
+              eq(utilityBillReminders.utilityBillId, bill.id),
+              eq(utilityBillReminders.sentTo, admin.id)
+            )
+          );
+
+        if (existingReminder.length === 0) {
+          const reminder = await this.createUtilityBillReminder({
+            organizationId,
+            utilityBillId: bill.id,
+            reminderType: 'missing_receipt',
+            sentTo: admin.id,
+            reminderMessage: `Utility bill for ${bill.type} at property ${bill.propertyId} is overdue by ${Math.ceil((today.getTime() - new Date(bill.dueDate).getTime()) / (1000 * 60 * 60 * 24))} days. Please upload receipt.`,
+            isRead: false
+          });
+          reminders.push(reminder);
+        }
+      }
+    }
+
+    return reminders;
+  }
+
+  async getUtilityExpensesByProperty(propertyId: number, fromDate?: Date, toDate?: Date): Promise<any> {
+    let query = db.select({
+      type: utilityBills.type,
+      totalAmount: sql<number>`SUM(${utilityBills.amount})`,
+      billCount: sql<number>`COUNT(*)`,
+      avgAmount: sql<number>`AVG(${utilityBills.amount})`,
+      responsibleParty: utilityBills.responsibleParty
+    })
+    .from(utilityBills)
+    .where(eq(utilityBills.propertyId, propertyId))
+    .groupBy(utilityBills.type, utilityBills.responsibleParty);
+
+    if (fromDate) {
+      query = query.where(gte(utilityBills.billPeriodStart, fromDate.toISOString().split('T')[0]));
+    }
+    if (toDate) {
+      query = query.where(lte(utilityBills.billPeriodEnd, toDate.toISOString().split('T')[0]));
+    }
+
+    return await query;
+  }
+
+  async getUtilityExpensesByOwner(ownerId: string, fromDate?: Date, toDate?: Date): Promise<any> {
+    let query = db.select({
+      propertyName: properties.name,
+      propertyId: properties.id,
+      type: utilityBills.type,
+      totalAmount: sql<number>`SUM(${utilityBills.amount})`,
+      billCount: sql<number>`COUNT(*)`,
+      responsibleParty: utilityBills.responsibleParty
+    })
+    .from(utilityBills)
+    .innerJoin(properties, eq(utilityBills.propertyId, properties.id))
+    .where(
+      and(
+        eq(properties.ownerId, ownerId),
+        eq(utilityBills.isOwnerBillable, true)
+      )
+    )
+    .groupBy(properties.id, properties.name, utilityBills.type, utilityBills.responsibleParty);
+
+    if (fromDate) {
+      query = query.where(gte(utilityBills.billPeriodStart, fromDate.toISOString().split('T')[0]));
+    }
+    if (toDate) {
+      query = query.where(lte(utilityBills.billPeriodEnd, toDate.toISOString().split('T')[0]));
+    }
+
+    return await query;
   }
 }
 
