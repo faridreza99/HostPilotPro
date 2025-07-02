@@ -4487,6 +4487,513 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
+  // ===== STAFF DASHBOARD STORAGE METHODS =====
+
+  // Staff Dashboard Overview
+  async getStaffDashboardOverview(organizationId: string, staffId: string, department?: string): Promise<any> {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Get today's tasks
+    let todayTasksQuery = db
+      .select()
+      .from(tasks)
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId),
+        eq(tasks.dueDate, new Date(todayStr)),
+        or(
+          eq(tasks.status, 'pending'),
+          eq(tasks.status, 'in-progress')
+        )
+      ));
+
+    if (department) {
+      todayTasksQuery = todayTasksQuery.where(eq(tasks.department, department));
+    }
+
+    const todayTasks = await todayTasksQuery;
+
+    // Get overdue tasks
+    let overdueTasksQuery = db
+      .select()
+      .from(tasks)
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId),
+        lt(tasks.dueDate, new Date(todayStr)),
+        or(
+          eq(tasks.status, 'pending'),
+          eq(tasks.status, 'in-progress')
+        )
+      ));
+
+    if (department) {
+      overdueTasksQuery = overdueTasksQuery.where(eq(tasks.department, department));
+    }
+
+    const overdueTasks = await overdueTasksQuery;
+
+    // Get upcoming tasks (next 7 days)
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    
+    let upcomingTasksQuery = db
+      .select()
+      .from(tasks)
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId),
+        gt(tasks.dueDate, new Date(todayStr)),
+        lte(tasks.dueDate, nextWeek),
+        eq(tasks.status, 'pending')
+      ));
+
+    if (department) {
+      upcomingTasksQuery = upcomingTasksQuery.where(eq(tasks.department, department));
+    }
+
+    const upcomingTasks = await upcomingTasksQuery;
+
+    // Get completion rate (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    let completedTasksQuery = db
+      .select()
+      .from(tasks)
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId),
+        gte(tasks.dueDate, thirtyDaysAgo),
+        eq(tasks.status, 'completed')
+      ));
+
+    let totalTasksQuery = db
+      .select()
+      .from(tasks)
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId),
+        gte(tasks.dueDate, thirtyDaysAgo)
+      ));
+
+    if (department) {
+      completedTasksQuery = completedTasksQuery.where(eq(tasks.department, department));
+      totalTasksQuery = totalTasksQuery.where(eq(tasks.department, department));
+    }
+
+    const completedTasks = await completedTasksQuery;
+    const totalTasks = await totalTasksQuery;
+    
+    const completionRate = totalTasks.length > 0 ? (completedTasks.length / totalTasks.length) * 100 : 0;
+
+    return {
+      todayTasks: todayTasks.length,
+      overdueTasks: overdueTasks.length,
+      upcomingTasks: upcomingTasks.length,
+      completionRate: Math.round(completionRate),
+      todayTasksList: todayTasks,
+      overdueTasksList: overdueTasks,
+      upcomingTasksList: upcomingTasks,
+    };
+  }
+
+  // Get staff tasks with optional filtering
+  async getStaffTasks(organizationId: string, staffId: string, filters?: {
+    department?: string;
+    status?: string;
+    priority?: string;
+    startDate?: string;
+    endDate?: string;
+    propertyId?: number;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        type: tasks.type,
+        department: tasks.department,
+        status: tasks.status,
+        priority: tasks.priority,
+        dueDate: tasks.dueDate,
+        completedAt: tasks.completedAt,
+        estimatedCost: tasks.estimatedCost,
+        actualCost: tasks.actualCost,
+        completionNotes: tasks.completionNotes,
+        evidencePhotos: tasks.evidencePhotos,
+        issuesFound: tasks.issuesFound,
+        propertyId: tasks.propertyId,
+        propertyName: properties.name,
+        createdAt: tasks.createdAt,
+        updatedAt: tasks.updatedAt,
+      })
+      .from(tasks)
+      .leftJoin(properties, eq(tasks.propertyId, properties.id))
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId)
+      ));
+
+    if (filters?.department) {
+      query = query.where(eq(tasks.department, filters.department));
+    }
+    if (filters?.status) {
+      query = query.where(eq(tasks.status, filters.status));
+    }
+    if (filters?.priority) {
+      query = query.where(eq(tasks.priority, filters.priority));
+    }
+    if (filters?.propertyId) {
+      query = query.where(eq(tasks.propertyId, filters.propertyId));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(tasks.dueDate, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(tasks.dueDate, new Date(filters.endDate)));
+    }
+
+    return query.orderBy(desc(tasks.dueDate));
+  }
+
+  // Get task checklist for a specific task type
+  async getTaskChecklist(organizationId: string, taskType: string, propertyId?: number): Promise<any | null> {
+    let query = db
+      .select()
+      .from(taskChecklists)
+      .where(and(
+        eq(taskChecklists.organizationId, organizationId),
+        eq(taskChecklists.taskType, taskType),
+        eq(taskChecklists.isActive, true)
+      ));
+
+    // Check for property-specific checklist first
+    if (propertyId) {
+      const propertySpecific = await query.where(eq(taskChecklists.propertyId, propertyId)).limit(1);
+      if (propertySpecific.length > 0) {
+        return propertySpecific[0];
+      }
+    }
+
+    // Fall back to default checklist
+    const defaultChecklist = await query.where(isNull(taskChecklists.propertyId)).limit(1);
+    return defaultChecklist.length > 0 ? defaultChecklist[0] : null;
+  }
+
+  // Start a task (update status and record start time)
+  async startTask(organizationId: string, taskId: number, staffId: string): Promise<any> {
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        status: 'in-progress',
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(tasks.id, taskId),
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId)
+      ))
+      .returning();
+
+    // Record task history
+    await db.insert(taskHistory).values({
+      organizationId,
+      taskId,
+      propertyId: updatedTask.propertyId,
+      action: 'started',
+      previousStatus: 'pending',
+      newStatus: 'in-progress',
+      performedBy: staffId,
+      notes: 'Task started by staff member',
+    });
+
+    return updatedTask;
+  }
+
+  // Complete task with all evidence and completion data
+  async completeTask(organizationId: string, taskId: number, staffId: string, completionData: {
+    completionNotes?: string;
+    evidencePhotos?: string[];
+    issuesFound?: string[];
+    completedItems?: any;
+    expenses?: any[];
+    duration?: number;
+    checklistId?: number;
+  }): Promise<any> {
+    const totalExpenseAmount = completionData.expenses?.reduce((sum, expense) => sum + parseFloat(expense.amount || '0'), 0) || 0;
+
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+        completionNotes: completionData.completionNotes,
+        evidencePhotos: completionData.evidencePhotos || [],
+        issuesFound: completionData.issuesFound || [],
+        actualCost: totalExpenseAmount.toString(),
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(tasks.id, taskId),
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId)
+      ))
+      .returning();
+
+    // Record task completion
+    await db.insert(taskCompletions).values({
+      organizationId,
+      taskId,
+      staffId,
+      propertyId: updatedTask.propertyId,
+      completedAt: new Date(),
+      duration: completionData.duration,
+      checklistId: completionData.checklistId,
+      completedItems: completionData.completedItems,
+      evidencePhotos: completionData.evidencePhotos || [],
+      completionNotes: completionData.completionNotes,
+      issuesFound: completionData.issuesFound || [],
+      expenses: completionData.expenses,
+      totalExpenseAmount: totalExpenseAmount.toString(),
+    });
+
+    // Record expenses if any
+    if (completionData.expenses && completionData.expenses.length > 0) {
+      for (const expense of completionData.expenses) {
+        await db.insert(staffExpenses).values({
+          organizationId,
+          staffId,
+          taskId,
+          propertyId: updatedTask.propertyId,
+          item: expense.item,
+          amount: expense.amount,
+          currency: expense.currency || 'THB',
+          category: expense.category,
+          description: expense.description,
+        });
+      }
+    }
+
+    // Record task history
+    await db.insert(taskHistory).values({
+      organizationId,
+      taskId,
+      propertyId: updatedTask.propertyId,
+      action: 'completed',
+      previousStatus: 'in-progress',
+      newStatus: 'completed',
+      performedBy: staffId,
+      notes: completionData.completionNotes || 'Task completed by staff member',
+      evidencePhotos: completionData.evidencePhotos || [],
+      issuesFound: completionData.issuesFound || [],
+    });
+
+    // Create notification for managers
+    await this.createNotification({
+      organizationId,
+      title: 'Task Completed',
+      message: `Task "${updatedTask.title}" has been completed by staff member`,
+      type: 'task_completion',
+      userId: updatedTask.createdBy || 'admin',
+      relatedEntityType: 'task',
+      relatedEntityId: taskId,
+      priority: 'medium',
+    });
+
+    return updatedTask;
+  }
+
+  // Staff salary methods
+  async getStaffSalary(organizationId: string, staffId: string, period?: string): Promise<any[]> {
+    let query = db
+      .select()
+      .from(staffSalaries)
+      .where(and(
+        eq(staffSalaries.organizationId, organizationId),
+        eq(staffSalaries.staffId, staffId)
+      ));
+
+    if (period) {
+      query = query.where(eq(staffSalaries.salaryPeriod, period));
+    }
+
+    return query.orderBy(desc(staffSalaries.salaryPeriod));
+  }
+
+  async createStaffSalary(salaryData: any): Promise<any> {
+    const [newSalary] = await db.insert(staffSalaries).values(salaryData).returning();
+    return newSalary;
+  }
+
+  // Staff expenses methods
+  async getStaffExpenses(organizationId: string, staffId: string, filters?: {
+    taskId?: number;
+    category?: string;
+    approved?: boolean;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: staffExpenses.id,
+        item: staffExpenses.item,
+        amount: staffExpenses.amount,
+        currency: staffExpenses.currency,
+        category: staffExpenses.category,
+        description: staffExpenses.description,
+        receiptUrl: staffExpenses.receiptUrl,
+        isApproved: staffExpenses.isApproved,
+        reimbursementStatus: staffExpenses.reimbursementStatus,
+        taskId: staffExpenses.taskId,
+        taskTitle: tasks.title,
+        propertyId: staffExpenses.propertyId,
+        propertyName: properties.name,
+        createdAt: staffExpenses.createdAt,
+      })
+      .from(staffExpenses)
+      .leftJoin(tasks, eq(staffExpenses.taskId, tasks.id))
+      .leftJoin(properties, eq(staffExpenses.propertyId, properties.id))
+      .where(and(
+        eq(staffExpenses.organizationId, organizationId),
+        eq(staffExpenses.staffId, staffId)
+      ));
+
+    if (filters?.taskId) {
+      query = query.where(eq(staffExpenses.taskId, filters.taskId));
+    }
+    if (filters?.category) {
+      query = query.where(eq(staffExpenses.category, filters.category));
+    }
+    if (filters?.approved !== undefined) {
+      query = query.where(eq(staffExpenses.isApproved, filters.approved));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(staffExpenses.createdAt, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(staffExpenses.createdAt, new Date(filters.endDate)));
+    }
+
+    return query.orderBy(desc(staffExpenses.createdAt));
+  }
+
+  async createStaffExpense(expenseData: any): Promise<any> {
+    const [newExpense] = await db.insert(staffExpenses).values(expenseData).returning();
+    return newExpense;
+  }
+
+  // Get staff task completion history
+  async getStaffTaskHistory(organizationId: string, staffId: string, filters?: {
+    startDate?: string;
+    endDate?: string;
+    propertyId?: number;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: taskCompletions.id,
+        taskId: taskCompletions.taskId,
+        taskTitle: tasks.title,
+        taskType: tasks.type,
+        department: tasks.department,
+        propertyId: taskCompletions.propertyId,
+        propertyName: properties.name,
+        startedAt: taskCompletions.startedAt,
+        completedAt: taskCompletions.completedAt,
+        duration: taskCompletions.duration,
+        evidencePhotos: taskCompletions.evidencePhotos,
+        completionNotes: taskCompletions.completionNotes,
+        issuesFound: taskCompletions.issuesFound,
+        totalExpenseAmount: taskCompletions.totalExpenseAmount,
+        qualityRating: taskCompletions.qualityRating,
+        managerNotes: taskCompletions.managerNotes,
+        createdAt: taskCompletions.createdAt,
+      })
+      .from(taskCompletions)
+      .leftJoin(tasks, eq(taskCompletions.taskId, tasks.id))
+      .leftJoin(properties, eq(taskCompletions.propertyId, properties.id))
+      .where(and(
+        eq(taskCompletions.organizationId, organizationId),
+        eq(taskCompletions.staffId, staffId)
+      ));
+
+    if (filters?.startDate) {
+      query = query.where(gte(taskCompletions.completedAt, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(taskCompletions.completedAt, new Date(filters.endDate)));
+    }
+    if (filters?.propertyId) {
+      query = query.where(eq(taskCompletions.propertyId, filters.propertyId));
+    }
+
+    return query.orderBy(desc(taskCompletions.completedAt));
+  }
+
+  // Skip task with reason
+  async skipTask(organizationId: string, taskId: number, staffId: string, reason: string): Promise<any> {
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        status: 'skipped',
+        skipReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(tasks.id, taskId),
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId)
+      ))
+      .returning();
+
+    // Record task history
+    await db.insert(taskHistory).values({
+      organizationId,
+      taskId,
+      propertyId: updatedTask.propertyId,
+      action: 'skipped',
+      previousStatus: 'pending',
+      newStatus: 'skipped',
+      performedBy: staffId,
+      notes: reason,
+    });
+
+    return updatedTask;
+  }
+
+  // Reschedule task
+  async rescheduleTask(organizationId: string, taskId: number, staffId: string, newDate: Date, reason: string): Promise<any> {
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        status: 'rescheduled',
+        rescheduleReason: reason,
+        rescheduledDate: newDate,
+        dueDate: newDate,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(tasks.id, taskId),
+        eq(tasks.organizationId, organizationId),
+        eq(tasks.assignedTo, staffId)
+      ))
+      .returning();
+
+    // Record task history
+    await db.insert(taskHistory).values({
+      organizationId,
+      taskId,
+      propertyId: updatedTask.propertyId,
+      action: 'rescheduled',
+      previousStatus: 'pending',
+      newStatus: 'rescheduled',
+      performedBy: staffId,
+      notes: `Rescheduled to ${newDate.toISOString().split('T')[0]}: ${reason}`,
+    });
+
+    return updatedTask;
+  }
 }
 
 export const storage = new DatabaseStorage();

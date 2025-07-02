@@ -577,21 +577,7 @@ export const notificationPreferencesRelations = relations(notificationPreference
 
 // Financial & Invoice Toolkit Tables
 
-// Staff salaries table
-export const staffSalaries = pgTable("staff_salaries", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").notNull(),
-  userId: varchar("user_id").notNull(),
-  monthlySalary: decimal("monthly_salary", { precision: 10, scale: 2 }).notNull(),
-  currency: varchar("currency", { length: 3 }).default("USD"),
-  bonusStructure: jsonb("bonus_structure"), // Store bonus rules as JSON
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("0"), // Percentage
-  isActive: boolean("is_active").default(true),
-  effectiveFrom: date("effective_from").notNull(),
-  effectiveTo: date("effective_to"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+
 
 // Commission earnings table
 export const commissionEarnings = pgTable("commission_earnings", {
@@ -668,9 +654,6 @@ export const portfolioAssignments = pgTable("portfolio_assignments", {
 });
 
 // Relations for new tables
-export const staffSalariesRelations = relations(staffSalaries, ({ one }) => ({
-  user: one(users, { fields: [staffSalaries.userId], references: [users.id] }),
-}));
 
 export const commissionEarningsRelations = relations(commissionEarnings, ({ one }) => ({
   user: one(users, { fields: [commissionEarnings.userId], references: [users.id] }),
@@ -1909,6 +1892,164 @@ export const insertPropertyAgentsSchema = createInsertSchema(propertyAgents).omi
   updatedAt: true,
 });
 
+// ===== STAFF DASHBOARD PLATFORM =====
+
+// Staff Salary & Commission Tracking
+export const staffSalaries = pgTable("staff_salaries", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  
+  // Salary Information
+  monthlySalary: decimal("monthly_salary", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("THB"),
+  payrollPeriod: varchar("payroll_period").notNull(), // monthly, weekly, bi-weekly
+  department: varchar("department"), // cleaning, pool, garden, maintenance, general
+  
+  // Task-based bonuses
+  taskBonusEnabled: boolean("task_bonus_enabled").default(false),
+  taskBonusAmount: decimal("task_bonus_amount", { precision: 10, scale: 2 }).default("0"),
+  taskBonusType: varchar("task_bonus_type").default("per_task"), // per_task, percentage
+  
+  // Tips and Additional Income
+  tipsReceived: decimal("tips_received", { precision: 10, scale: 2 }).default("0"),
+  additionalIncome: decimal("additional_income", { precision: 10, scale: 2 }).default("0"),
+  additionalIncomeNotes: text("additional_income_notes"),
+  
+  // Period Information
+  salaryPeriod: varchar("salary_period").notNull(), // "2025-01" format for monthly
+  paidAt: timestamp("paid_at"),
+  paidBy: varchar("paid_by").references(() => users.id),
+  paymentReference: varchar("payment_reference"),
+  paymentMethod: varchar("payment_method"), // bank_transfer, cash, paypal
+  
+  // Status
+  status: varchar("status").default("pending"), // pending, paid, late
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Task Checklists & Guides
+export const taskChecklists = pgTable("task_checklists", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Checklist Configuration
+  name: varchar("name").notNull(),
+  taskType: varchar("task_type").notNull(), // cleaning, pool-service, garden, maintenance, inspection
+  department: varchar("department").notNull(), // cleaning, pool, garden, maintenance, general
+  
+  // Checklist Items
+  items: jsonb("items").notNull(), // Array of checklist items with descriptions
+  estimatedTime: integer("estimated_time"), // In minutes
+  requiredPhotos: integer("required_photos").default(1),
+  requiresComments: boolean("requires_comments").default(true),
+  
+  // Guides and Instructions
+  instructions: text("instructions"),
+  guideImageUrls: text("guide_image_urls").array().default([]),
+  guidePdfUrl: varchar("guide_pdf_url"),
+  safetyNotes: text("safety_notes"),
+  
+  // Property-specific customization
+  propertyId: integer("property_id").references(() => properties.id), // null for default, specific for property override
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Task Completion Records with Enhanced Tracking
+export const taskCompletions = pgTable("task_completions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  
+  // Completion Details
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  duration: integer("duration"), // In minutes
+  
+  // Checklist Progress
+  checklistId: integer("checklist_id").references(() => taskChecklists.id),
+  completedItems: jsonb("completed_items"), // Array of completed checklist item IDs
+  
+  // Evidence & Documentation
+  evidencePhotos: text("evidence_photos").array().default([]),
+  completionNotes: text("completion_notes"),
+  issuesFound: text("issues_found").array().default([]),
+  
+  // Expenses
+  expenses: jsonb("expenses"), // Array of expense objects {item, amount, description}
+  totalExpenseAmount: decimal("total_expense_amount", { precision: 10, scale: 2 }).default("0"),
+  
+  // Quality & Rating
+  qualityRating: integer("quality_rating"), // 1-5 rating if reviewed
+  managerNotes: text("manager_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Staff Expense Tracking
+export const staffExpenses = pgTable("staff_expenses", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  
+  // Expense Details
+  item: varchar("item").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("THB"),
+  category: varchar("category").notNull(), // cleaning_supplies, tools, materials, fuel, other
+  description: text("description"),
+  
+  // Receipt & Verification
+  receiptUrl: varchar("receipt_url"),
+  isApproved: boolean("is_approved").default(false),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  
+  // Reimbursement
+  reimbursementStatus: varchar("reimbursement_status").default("pending"), // pending, approved, paid, rejected
+  reimbursedAt: timestamp("reimbursed_at"),
+  reimbursedBy: varchar("reimbursed_by").references(() => users.id),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas for staff platform
+export const insertStaffSalariesSchema = createInsertSchema(staffSalaries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskChecklistsSchema = createInsertSchema(taskChecklists).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskCompletionsSchema = createInsertSchema(taskCompletions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertStaffExpensesSchema = createInsertSchema(staffExpenses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // ===== REFERRAL AGENT TYPES =====
 
 export type PropertyReferral = typeof propertyReferrals.$inferSelect;
@@ -1921,3 +2062,14 @@ export type ReferralProgramRule = typeof referralProgramRules.$inferSelect;
 export type InsertReferralProgramRule = z.infer<typeof insertReferralProgramRulesSchema>;
 export type PropertyAgent = typeof propertyAgents.$inferSelect;
 export type InsertPropertyAgent = z.infer<typeof insertPropertyAgentsSchema>;
+
+// ===== STAFF DASHBOARD TYPES =====
+
+export type StaffSalary = typeof staffSalaries.$inferSelect;
+export type InsertStaffSalary = z.infer<typeof insertStaffSalariesSchema>;
+export type TaskChecklist = typeof taskChecklists.$inferSelect;
+export type InsertTaskChecklist = z.infer<typeof insertTaskChecklistsSchema>;
+export type TaskCompletion = typeof taskCompletions.$inferSelect;
+export type InsertTaskCompletion = z.infer<typeof insertTaskCompletionsSchema>;
+export type StaffExpense = typeof staffExpenses.$inferSelect;
+export type InsertStaffExpense = z.infer<typeof insertStaffExpensesSchema>;
