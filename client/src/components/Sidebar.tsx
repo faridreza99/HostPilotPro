@@ -28,7 +28,9 @@ import {
   TrendingUp,
   Gift,
   Calculator,
-  Zap
+  Zap,
+  UserPlus,
+  ShoppingCart
 } from "lucide-react";
 
 // Define navigation modules with hierarchical structure
@@ -113,6 +115,20 @@ const navigationModules = [
         label: "Utility Tracking", 
         roles: ["admin", "portfolio-manager", "staff"],
         description: "Bill automation and expense tracking"
+      },
+      { 
+        path: "/referral-agent", 
+        icon: UserPlus, 
+        label: "Referral Dashboard", 
+        roles: ["referral-agent"],
+        description: "Property referrals and commission tracking"
+      },
+      { 
+        path: "/retail-booking", 
+        icon: ShoppingCart, 
+        label: "Booking Engine", 
+        roles: ["retail-agent"],
+        description: "Create bookings and track commissions"
       },
     ]
   },
