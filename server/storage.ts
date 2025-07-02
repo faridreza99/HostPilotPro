@@ -269,6 +269,149 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
+  // Enhanced staff task management
+  async completeTask(id: number, userId: string, evidencePhotos: string[], issuesFound: string[], notes?: string): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    if (!task) return undefined;
+
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+        completionNotes: notes,
+        evidencePhotos,
+        issuesFound,
+        updatedAt: new Date(),
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+
+    // Create task history entry
+    await this.createTaskHistory({
+      organizationId: task.organizationId,
+      taskId: id,
+      propertyId: task.propertyId,
+      action: 'completed',
+      previousStatus: task.status,
+      newStatus: 'completed',
+      performedBy: userId,
+      notes,
+      evidencePhotos,
+      issuesFound,
+    });
+
+    return updatedTask;
+  }
+
+  async skipTask(id: number, userId: string, reason: string): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    if (!task) return undefined;
+
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        status: 'skipped',
+        skipReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+
+    // Create task history entry
+    await this.createTaskHistory({
+      organizationId: task.organizationId,
+      taskId: id,
+      propertyId: task.propertyId,
+      action: 'skipped',
+      previousStatus: task.status,
+      newStatus: 'skipped',
+      performedBy: userId,
+      notes: reason,
+      evidencePhotos: [],
+      issuesFound: [],
+    });
+
+    return updatedTask;
+  }
+
+  async rescheduleTask(id: number, userId: string, newDate: Date, reason: string): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    if (!task) return undefined;
+
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        status: 'rescheduled',
+        rescheduledDate: newDate,
+        rescheduleReason: reason,
+        dueDate: newDate,
+        updatedAt: new Date(),
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+
+    // Create task history entry
+    await this.createTaskHistory({
+      organizationId: task.organizationId,
+      taskId: id,
+      propertyId: task.propertyId,
+      action: 'rescheduled',
+      previousStatus: task.status,
+      newStatus: 'rescheduled',
+      performedBy: userId,
+      notes: `Rescheduled to ${newDate.toISOString()}: ${reason}`,
+      evidencePhotos: [],
+      issuesFound: [],
+    });
+
+    return updatedTask;
+  }
+
+  async startTask(id: number, userId: string): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    if (!task) return undefined;
+
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({
+        status: 'in-progress',
+        updatedAt: new Date(),
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+
+    // Create task history entry
+    await this.createTaskHistory({
+      organizationId: task.organizationId,
+      taskId: id,
+      propertyId: task.propertyId,
+      action: 'started',
+      previousStatus: task.status,
+      newStatus: 'in-progress',
+      performedBy: userId,
+      notes: 'Task started',
+      evidencePhotos: [],
+      issuesFound: [],
+    });
+
+    return updatedTask;
+  }
+
+  // Task history operations
+  async getTaskHistory(taskId: number): Promise<TaskHistory[]> {
+    return await db.select().from(taskHistory).where(eq(taskHistory.taskId, taskId)).orderBy(desc(taskHistory.timestamp));
+  }
+
+  async getTaskHistoryByProperty(propertyId: number): Promise<TaskHistory[]> {
+    return await db.select().from(taskHistory).where(eq(taskHistory.propertyId, propertyId)).orderBy(desc(taskHistory.timestamp));
+  }
+
+  async createTaskHistory(history: InsertTaskHistory): Promise<TaskHistory> {
+    const [newHistory] = await db.insert(taskHistory).values(history).returning();
+    return newHistory;
+  }
+
   // Booking operations
   async getBookings(): Promise<Booking[]> {
     return await db.select().from(bookings).orderBy(desc(bookings.createdAt));

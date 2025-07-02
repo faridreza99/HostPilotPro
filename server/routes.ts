@@ -158,6 +158,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced task management routes
+  app.patch("/api/tasks/:id/complete", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userData = req.user as any;
+      const id = parseInt(req.params.id);
+      const { evidencePhotos = [], issuesFound = [], notes } = req.body;
+      
+      const task = await storage.completeTask(id, userData.claims.sub, evidencePhotos, issuesFound, notes);
+      
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      console.error("Error completing task:", error);
+      res.status(500).json({ message: "Failed to complete task" });
+    }
+  });
+
+  app.patch("/api/tasks/:id/skip", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userData = req.user as any;
+      const id = parseInt(req.params.id);
+      const { reason } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ message: "Skip reason is required" });
+      }
+      
+      const task = await storage.skipTask(id, userData.claims.sub, reason);
+      
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      console.error("Error skipping task:", error);
+      res.status(500).json({ message: "Failed to skip task" });
+    }
+  });
+
+  app.patch("/api/tasks/:id/reschedule", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userData = req.user as any;
+      const id = parseInt(req.params.id);
+      const { newDate, reason } = req.body;
+      
+      if (!newDate || !reason) {
+        return res.status(400).json({ message: "New date and reason are required" });
+      }
+      
+      const task = await storage.rescheduleTask(id, userData.claims.sub, new Date(newDate), reason);
+      
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      console.error("Error rescheduling task:", error);
+      res.status(500).json({ message: "Failed to reschedule task" });
+    }
+  });
+
+  app.patch("/api/tasks/:id/start", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userData = req.user as any;
+      const id = parseInt(req.params.id);
+      
+      const task = await storage.startTask(id, userData.claims.sub);
+      
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      console.error("Error starting task:", error);
+      res.status(500).json({ message: "Failed to start task" });
+    }
+  });
+
+  // Task history routes
+  app.get("/api/tasks/:id/history", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const history = await storage.getTaskHistory(id);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching task history:", error);
+      res.status(500).json({ message: "Failed to fetch task history" });
+    }
+  });
+
+  app.get("/api/properties/:id/task-history", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.id);
+      const history = await storage.getTaskHistoryByProperty(propertyId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching property task history:", error);
+      res.status(500).json({ message: "Failed to fetch property task history" });
+    }
+  });
+
   // Booking routes
   app.get("/api/bookings", isAuthenticated, async (req, res) => {
     try {

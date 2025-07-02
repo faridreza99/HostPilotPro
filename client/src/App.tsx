@@ -9,6 +9,7 @@ import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Properties from "@/pages/Properties";
 import Tasks from "@/pages/Tasks";
+import StaffTasks from "@/pages/StaffTasks";
 import Bookings from "@/pages/Bookings";
 import Services from "@/pages/Services";
 import Finances from "@/pages/Finances";
@@ -29,6 +30,7 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/properties" component={Properties} />
           <Route path="/tasks" component={Tasks} />
+          <Route path="/staff-tasks" component={StaffTasks} />
           <Route path="/bookings" component={Bookings} />
           <Route path="/services" component={Services} />
           <Route path="/welcome-packs" component={WelcomePacks} />
