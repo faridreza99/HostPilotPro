@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,15 @@ import {
   MapPin,
   User
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import AdminBalanceResetCard from "@/components/ui/AdminBalanceResetCard";
 
 export default function ReferralAgentDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch assigned properties
   const { data: properties = [], isLoading: propertiesLoading } = useQuery({
@@ -364,6 +369,20 @@ export default function ReferralAgentDashboard() {
                     </div>
                   )}
                 </div>
+
+                {/* Admin Balance Reset Card - Only visible to admin users */}
+                {user && (
+                  <AdminBalanceResetCard
+                    userId={user.id}
+                    userRole="referral-agent"
+                    userEmail={user.email || ""}
+                    userName={`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email || ""}
+                    currentBalance={(commissionSummary as any)?.currentBalance}
+                    onBalanceReset={() => {
+                      queryClient.invalidateQueries({ queryKey: ["/api/referral-agent"] });
+                    }}
+                  />
+                )}
 
                 <Separator />
 

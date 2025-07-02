@@ -15,6 +15,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import AdminBalanceResetCard from "@/components/ui/AdminBalanceResetCard";
 import { CalendarDays, Search, Filter, DollarSign, Users, Bed, MapPin, ExternalLink, Phone, Mail, Clock, CheckCircle, AlertCircle, TrendingUp, LogOut } from "lucide-react";
 
 // Form schemas
@@ -64,6 +66,7 @@ export default function RetailAgentBooking() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Search form
   const searchForm = useForm<BookingSearchForm>({
@@ -569,6 +572,21 @@ export default function RetailAgentBooking() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Admin Balance Reset Card - Only visible to admin users */}
+          {user && (
+            <AdminBalanceResetCard
+              userId={user.id}
+              userRole="retail-agent"
+              userEmail={user.email || ""}
+              userName={`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email || ""}
+              currentBalance={commissionSummary?.currentBalance}
+              onBalanceReset={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/agent/commission-summary"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/agent/payouts"] });
+              }}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="payout-requests" className="space-y-4">

@@ -40,6 +40,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import AdminBalanceResetCard from "@/components/ui/AdminBalanceResetCard";
 
 // Types for PM dashboard data
 interface FinancialOverview {
@@ -153,6 +155,7 @@ const invoiceSchema = z.object({
 export default function PortfolioManagerDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -643,6 +646,20 @@ export default function PortfolioManagerDashboard() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Admin Balance Reset Card - Only visible to admin users */}
+            {user && (
+              <AdminBalanceResetCard
+                userId={user.id}
+                userRole="portfolio-manager"
+                userEmail={user.email || ""}
+                userName={`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email || ""}
+                currentBalance={balance?.currentBalance}
+                onBalanceReset={() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/pm/dashboard"] });
+                }}
+              />
+            )}
 
             {/* Payout History */}
             <Card>

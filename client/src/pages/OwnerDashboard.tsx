@@ -65,6 +65,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
+import AdminBalanceResetCard from "@/components/ui/AdminBalanceResetCard";
 
 // Enhanced types for comprehensive owner dashboard
 interface DashboardStats {
@@ -619,6 +620,22 @@ export default function OwnerDashboard() {
                 </div>
                 
                 <div className="pt-4">
+                  {/* Admin Balance Reset Card - Only visible to admin users */}
+                  {user && (
+                    <div className="mb-4">
+                      <AdminBalanceResetCard
+                        userId={user.id}
+                        userRole="owner"
+                        userEmail={user.email || ""}
+                        userName={`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email || ""}
+                        currentBalance={financialSummary?.netBalance}
+                        onBalanceReset={() => {
+                          queryClient.invalidateQueries({ queryKey: ["/api/owner/dashboard"] });
+                        }}
+                      />
+                    </div>
+                  )}
+                  
                   <Dialog open={showPayoutDialog} onOpenChange={setShowPayoutDialog}>
                     <DialogTrigger asChild>
                       <Button className="w-full">
