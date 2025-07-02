@@ -10,593 +10,690 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, parseISO } from "date-fns";
-import { Calendar, DollarSign, Clock, CheckCircle, AlertCircle, TrendingUp, Settings, FileText, Bell, Download, Upload, X } from "lucide-react";
+import { format, parseISO, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+import { 
+  Calendar, 
+  DollarSign, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  TrendingUp, 
+  Settings, 
+  FileText, 
+  Bell, 
+  Download, 
+  Upload, 
+  X,
+  Home,
+  Users,
+  Star,
+  MapPin,
+  ChevronDown,
+  Eye,
+  Filter,
+  PlusCircle,
+  Camera,
+  Brain,
+  Lightbulb,
+  ThumbsUp,
+  ThumbsDown,
+  ExternalLink,
+  CreditCard,
+  Receipt,
+  BarChart3,
+  Activity,
+  BookOpen
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 
-// Types for owner dashboard data
+// Enhanced types for owner dashboard
 interface DashboardStats {
-  totalRevenue: number;
-  totalBookings: number;
+  currentBalance: number;
+  averageNightlyRate: number;
+  totalEarnings: {
+    thisMonth: number;
+    thisYear: number;
+    customPeriod?: number;
+  };
   upcomingBookings: number;
-  completedTasks: number;
-  pendingPayouts: number;
-  pendingPayoutAmount: number;
-  properties: any[];
+  bookingSources: {
+    airbnb: number;
+    vrbo: number;
+    bookingcom: number;
+    direct: number;
+    marriott: number;
+  };
+  properties: Property[];
 }
 
-interface FinancialSummary {
-  rentalIncome: number;
-  managementFees: number;
-  addonRevenue: number;
-  utilityDeductions: number;
-  serviceDeductions: number;
-  netBalance: number;
-  breakdown: any[];
+interface Property {
+  id: number;
+  name: string;
+  address: string;
+  status: string;
+  currentOccupancy?: {
+    guestName: string;
+    checkIn: string;
+    checkOut: string;
+  };
 }
 
 interface ActivityItem {
   id: number;
-  activityType: string;
+  type: 'booking' | 'task' | 'maintenance' | 'ai_suggestion';
   title: string;
-  description?: string;
+  description: string;
+  timestamp: string;
+  propertyId?: number;
   propertyName?: string;
-  createdAt: string;
-  metadata?: any;
+  metadata?: {
+    photos?: string[];
+    guestName?: string;
+    taskType?: string;
+    priority?: string;
+    estimatedCost?: number;
+    requiresApproval?: boolean;
+    reviewData?: any;
+  };
 }
 
-interface Booking {
+interface AISuggestion {
   id: number;
-  guestName: string;
-  propertyName: string;
-  startDate: string;
-  endDate: string;
-  totalAmount: string;
-  status: string;
-  source: string;
-  revenue: number;
-}
-
-interface PayoutRequest {
-  id: number;
-  amount: number;
-  currency: string;
-  periodStart: string;
-  periodEnd: string;
-  status: string;
-  requestNotes?: string;
-  adminNotes?: string;
-  requestedAt: string;
-  approvedAt?: string;
-  completedAt?: string;
-  paymentMethod?: string;
-  paymentReference?: string;
-}
-
-interface Invoice {
-  id: number;
-  invoiceNumber: string;
-  invoiceType: string;
+  type: 'improvement' | 'maintenance' | 'amenity';
   title: string;
-  amount: number;
-  currency: string;
-  status: string;
-  dueDate?: string;
+  description: string;
+  reasoning: string;
+  estimatedCost: number;
+  priority: 'low' | 'medium' | 'high';
+  basedOnReviews: string[];
+  status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
+  propertyId: number;
+}
+
+interface FinancialBreakdown {
+  rentalIncome: number;
+  managementCommission: number;
+  expenses: {
+    maintenance: number;
+    addons: number;
+    utilities: number;
+    welcomePacks: number;
+    other: number;
+  };
+  netBalance: number;
+  transactions: FinancialTransaction[];
+}
+
+interface FinancialTransaction {
+  id: number;
+  date: string;
+  type: 'income' | 'expense';
+  category: string;
+  amount: number;
+  description: string;
   propertyName?: string;
-  pdfUrl?: string;
+  source?: string;
 }
 
-interface OwnerPreferences {
-  taskApprovalRequired: boolean;
-  maintenanceAlerts: boolean;
-  guestAddonNotifications: boolean;
-  financialNotifications: boolean;
-  weeklyReports: boolean;
-  preferredCurrency: string;
-  notificationEmail?: string;
-}
-
-// Schema for payout request form
 const payoutRequestSchema = z.object({
-  amount: z.string().min(1, "Amount is required"),
-  periodStart: z.string().min(1, "Start date is required"),
-  periodEnd: z.string().min(1, "End date is required"),
-  requestNotes: z.string().optional(),
-});
-
-// Schema for preferences form
-const preferencesSchema = z.object({
-  taskApprovalRequired: z.boolean(),
-  maintenanceAlerts: z.boolean(),
-  guestAddonNotifications: z.boolean(),
-  financialNotifications: z.boolean(),
-  weeklyReports: z.boolean(),
-  preferredCurrency: z.string(),
-  notificationEmail: z.string().email().optional(),
+  amount: z.number().positive("Amount must be positive"),
+  accountDetails: z.string().min(1, "Account details required"),
+  notes: z.string().optional(),
 });
 
 export default function OwnerDashboard() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
-  });
-  const [selectedProperty, setSelectedProperty] = useState<string>("all");
+  
+  // State management
+  const [selectedPeriod, setSelectedPeriod] = useState('thisMonth');
+  const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
+  const [selectedProperty, setSelectedProperty] = useState<number | null>(null);
+  const [activityFilter, setActivityFilter] = useState('all');
   const [showPayoutDialog, setShowPayoutDialog] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<AISuggestion | null>(null);
 
-  // Dashboard stats query
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/owner/dashboard/stats", dateRange.startDate, dateRange.endDate, selectedProperty],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        ...(selectedProperty !== "all" && { propertyId: selectedProperty }),
-      });
-      return apiRequest("GET", `/api/owner/dashboard/stats?${params}`);
+  // Form for payout requests
+  const payoutForm = useForm({
+    resolver: zodResolver(payoutRequestSchema),
+    defaultValues: {
+      amount: 0,
+      accountDetails: '',
+      notes: '',
     },
   });
 
-  // Financial summary query
-  const { data: financialSummary, isLoading: financialLoading } = useQuery<FinancialSummary>({
-    queryKey: ["/api/owner/dashboard/financial-summary", dateRange.startDate, dateRange.endDate, selectedProperty],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        ...(selectedProperty !== "all" && { propertyId: selectedProperty }),
-      });
-      return apiRequest("GET", `/api/owner/dashboard/financial-summary?${params}`);
-    },
+  // Main dashboard data query
+  const { data: dashboardStats, isLoading: statsLoading } = useQuery({
+    queryKey: ["/api/owner/dashboard/stats", selectedPeriod, customDateRange],
+    enabled: !!user,
   });
 
-  // Activity timeline query
-  const { data: activities, isLoading: activitiesLoading } = useQuery<ActivityItem[]>({
-    queryKey: ["/api/owner/dashboard/activity", selectedProperty],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        limit: "20",
-        ...(selectedProperty !== "all" && { propertyId: selectedProperty }),
-      });
-      return apiRequest("GET", `/api/owner/dashboard/activity?${params}`);
-    },
+  // Recent activity timeline
+  const { data: recentActivity = [], isLoading: activityLoading } = useQuery({
+    queryKey: ["/api/owner/activity", selectedProperty, activityFilter],
+    enabled: !!user,
   });
 
-  // Bookings query
-  const { data: bookings, isLoading: bookingsLoading } = useQuery<Booking[]>({
-    queryKey: ["/api/owner/dashboard/bookings", dateRange.startDate, dateRange.endDate, selectedProperty],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        ...(selectedProperty !== "all" && { propertyId: selectedProperty }),
-      });
-      return apiRequest("GET", `/api/owner/dashboard/bookings?${params}`);
-    },
+  // AI suggestions
+  const { data: aiSuggestions = [], isLoading: suggestionsLoading } = useQuery({
+    queryKey: ["/api/owner/ai-suggestions"],
+    enabled: !!user,
   });
 
-  // Payout requests query
-  const { data: payouts, isLoading: payoutsLoading } = useQuery<PayoutRequest[]>({
-    queryKey: ["/api/owner/dashboard/payouts"],
-    queryFn: () => apiRequest("GET", "/api/owner/dashboard/payouts"),
-  });
-
-  // Invoices query
-  const { data: invoices, isLoading: invoicesLoading } = useQuery<Invoice[]>({
-    queryKey: ["/api/owner/dashboard/invoices", selectedProperty],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        ...(selectedProperty !== "all" && { propertyId: selectedProperty }),
-      });
-      return apiRequest("GET", `/api/owner/dashboard/invoices?${params}`);
-    },
-  });
-
-  // Preferences query
-  const { data: preferences } = useQuery<OwnerPreferences>({
-    queryKey: ["/api/owner/dashboard/preferences"],
-    queryFn: () => apiRequest("GET", "/api/owner/dashboard/preferences"),
+  // Financial breakdown
+  const { data: financialData, isLoading: financialLoading } = useQuery({
+    queryKey: ["/api/owner/financial-breakdown", selectedPeriod, customDateRange],
+    enabled: !!user,
   });
 
   // Payout request mutation
   const payoutMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/owner/dashboard/payouts", data),
+    mutationFn: async (data: any) => {
+      return apiRequest("POST", "/api/owner/payout-request", data);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/owner/dashboard/payouts"] });
-      toast({ title: "Payout Request Submitted", description: "Your payout request has been submitted for approval." });
+      toast({
+        title: "Payout Requested",
+        description: "Your payout request has been submitted for approval.",
+      });
       setShowPayoutDialog(false);
+      payoutForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/dashboard/stats"] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit payout request",
+        variant: "destructive",
+      });
     },
   });
 
-  // Preferences mutation
-  const preferencesMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/owner/dashboard/preferences", data),
+  // AI suggestion approval mutation
+  const suggestionMutation = useMutation({
+    mutationFn: async ({ id, action }: { id: number; action: 'approve' | 'reject' }) => {
+      return apiRequest("POST", `/api/owner/ai-suggestions/${id}/${action}`);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/owner/dashboard/preferences"] });
-      toast({ title: "Preferences Updated", description: "Your notification preferences have been saved." });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  // Payout request form
-  const payoutForm = useForm({
-    resolver: zodResolver(payoutRequestSchema),
-    defaultValues: {
-      amount: "",
-      periodStart: dateRange.startDate,
-      periodEnd: dateRange.endDate,
-      requestNotes: "",
+      toast({
+        title: "Suggestion Updated",
+        description: "AI suggestion status has been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/ai-suggestions"] });
     },
   });
 
-  // Preferences form
-  const preferencesForm = useForm({
-    resolver: zodResolver(preferencesSchema),
-    defaultValues: preferences || {
-      taskApprovalRequired: false,
-      maintenanceAlerts: true,
-      guestAddonNotifications: true,
-      financialNotifications: true,
-      weeklyReports: true,
-      preferredCurrency: "AUD",
-      notificationEmail: "",
-    },
-  });
-
-  // Update preferences form when data loads
-  useEffect(() => {
-    if (preferences) {
-      preferencesForm.reset(preferences);
-    }
-  }, [preferences, preferencesForm]);
-
-  const onPayoutSubmit = (data: any) => {
-    payoutMutation.mutate(data);
-  };
-
-  const onPreferencesSubmit = (data: any) => {
-    preferencesMutation.mutate(data);
-  };
-
-  // Status badge component
-  const StatusBadge = ({ status }: { status: string }) => {
-    const variants: Record<string, string> = {
-      confirmed: "bg-green-100 text-green-800",
-      "checked-in": "bg-blue-100 text-blue-800",
-      "checked-out": "bg-gray-100 text-gray-800",
-      cancelled: "bg-red-100 text-red-800",
-      pending: "bg-yellow-100 text-yellow-800",
-      approved: "bg-blue-100 text-blue-800",
-      completed: "bg-green-100 text-green-800",
-      paid: "bg-green-100 text-green-800",
-      overdue: "bg-red-100 text-red-800",
-    };
-
+  // Loading state
+  if (statsLoading || activityLoading || financialLoading) {
     return (
-      <Badge className={variants[status] || "bg-gray-100 text-gray-800"}>
-        {status}
-      </Badge>
-    );
-  };
-
-  // Activity type icons
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'check_in':
-      case 'check_out':
-        return <Calendar className="h-4 w-4" />;
-      case 'task_completed':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'guest_feedback':
-        return <Bell className="h-4 w-4" />;
-      case 'addon_booking':
-        return <TrendingUp className="h-4 w-4" />;
-      case 'bill_uploaded':
-        return <FileText className="h-4 w-4" />;
-      default:
-        return <AlertCircle className="h-4 w-4" />;
-    }
-  };
-
-  if (statsLoading || financialLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-300 rounded w-1/2 mb-2"></div>
+                  <div className="h-8 bg-gray-300 rounded w-3/4"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'booking': return <Calendar className="h-4 w-4 text-blue-500" />;
+      case 'task': return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'maintenance': return <AlertCircle className="h-4 w-4 text-orange-500" />;
+      case 'ai_suggestion': return <Brain className="h-4 w-4 text-purple-500" />;
+      default: return <Activity className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    const colors = {
+      low: 'bg-green-100 text-green-800',
+      medium: 'bg-yellow-100 text-yellow-800',
+      high: 'bg-red-100 text-red-800',
+    };
+    return colors[priority as keyof typeof colors] || colors.medium;
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Owner Dashboard</h1>
           <p className="text-muted-foreground">
-            Manage your properties, view financial reports, and track activity
+            Manage your properties and track performance
           </p>
         </div>
-        
-        {/* Filters */}
-        <div className="flex gap-4">
-          <div className="flex gap-2">
-            <Input
-              type="date"
-              value={dateRange.startDate}
-              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-              className="w-40"
-            />
-            <Input
-              type="date"
-              value={dateRange.endDate}
-              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-              className="w-40"
-            />
-          </div>
-          
-          <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Properties" />
+        <div className="flex items-center gap-3">
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Properties</SelectItem>
-              {stats?.properties?.map((property) => (
-                <SelectItem key={property.id} value={property.id.toString()}>
-                  {property.name}
-                </SelectItem>
-              ))}
+              <SelectItem value="thisMonth">This Month</SelectItem>
+              <SelectItem value="thisYear">This Year</SelectItem>
+              <SelectItem value="custom">Custom Period</SelectItem>
             </SelectContent>
           </Select>
+          
+          <Dialog open={showPayoutDialog} onOpenChange={setShowPayoutDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-green-600 hover:bg-green-700">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Request Payout
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Request Payout</DialogTitle>
+                <DialogDescription>
+                  Request a payout from your available balance of {formatCurrency(dashboardStats?.currentBalance || 0)}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <Form {...payoutForm}>
+                <form onSubmit={payoutForm.handleSubmit((data) => payoutMutation.mutate(data))} className="space-y-4">
+                  <FormField
+                    control={payoutForm.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payout Amount</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Enter amount"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={payoutForm.control}
+                    name="accountDetails"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Account Details</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Enter your bank account details"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={payoutForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Additional Notes (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Any additional notes"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setShowPayoutDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={payoutMutation.isPending}>
+                      {payoutMutation.isPending ? "Submitting..." : "Request Payout"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Custom Date Range */}
+      {selectedPeriod === 'custom' && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              <div>
+                <Label htmlFor="start-date">Start Date</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={customDateRange.start}
+                  onChange={(e) => setCustomDateRange(prev => ({ ...prev, start: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="end-date">End Date</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={customDateRange.end}
+                  onChange={(e) => setCustomDateRange(prev => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dashboard Overview Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${financialSummary?.netBalance?.toLocaleString() || '0'}
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Current Balance</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(dashboardStats?.currentBalance || 0)}
+                </p>
+              </div>
+              <DollarSign className="h-8 w-8 text-green-600" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Net balance after fees
-            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalBookings || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.upcomingBookings || 0} upcoming
-            </p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Avg Nightly Rate</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(dashboardStats?.averageNightlyRate || 0)}
+                </p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-blue-600" />
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Tasks</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.completedTasks || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              This period
-            </p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {selectedPeriod === 'thisMonth' ? 'This Month' : 
+                   selectedPeriod === 'thisYear' ? 'This Year' : 'Custom Period'}
+                </p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(
+                    selectedPeriod === 'thisMonth' ? dashboardStats?.totalEarnings.thisMonth || 0 :
+                    selectedPeriod === 'thisYear' ? dashboardStats?.totalEarnings.thisYear || 0 :
+                    dashboardStats?.totalEarnings.customPeriod || 0
+                  )}
+                </p>
+              </div>
+              <BarChart3 className="h-8 w-8 text-purple-600" />
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payouts</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.pendingPayouts || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              ${stats?.pendingPayoutAmount?.toLocaleString() || '0'} total
-            </p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Upcoming Bookings</p>
+                <p className="text-2xl font-bold">{dashboardStats?.upcomingBookings || 0}</p>
+              </div>
+              <Calendar className="h-8 w-8 text-orange-600" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Booking Sources Breakdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Booking Sources</CardTitle>
+          <CardDescription>Revenue distribution by booking platform</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {Object.entries(dashboardStats?.bookingSources || {}).map(([source, count]) => (
+              <div key={source} className="text-center">
+                <div className="bg-gray-100 rounded-lg p-4">
+                  <p className="text-2xl font-bold">{count as number}</p>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {source === 'bookingcom' ? 'Booking.com' : source}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="bookings">Bookings</TabsTrigger>
-          <TabsTrigger value="timeline">Activity</TabsTrigger>
+      <Tabs defaultValue="activity" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="activity">Recent Activity</TabsTrigger>
+          <TabsTrigger value="ai-suggestions">AI Suggestions</TabsTrigger>
           <TabsTrigger value="finances">Finances</TabsTrigger>
-          <TabsTrigger value="payouts">Payouts</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="logbook">Villa Logbook</TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Financial Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Financial Summary</CardTitle>
-                <CardDescription>Revenue breakdown for the selected period</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span>Rental Income</span>
-                  <span className="font-semibold text-green-600">
-                    +${financialSummary?.rentalIncome?.toLocaleString() || '0'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Add-on Revenue</span>
-                  <span className="font-semibold text-green-600">
-                    +${financialSummary?.addonRevenue?.toLocaleString() || '0'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Management Fees</span>
-                  <span className="font-semibold text-red-600">
-                    -${financialSummary?.managementFees?.toLocaleString() || '0'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Utility Deductions</span>
-                  <span className="font-semibold text-red-600">
-                    -${financialSummary?.utilityDeductions?.toLocaleString() || '0'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Service Deductions</span>
-                  <span className="font-semibold text-red-600">
-                    -${financialSummary?.serviceDeductions?.toLocaleString() || '0'}
-                  </span>
-                </div>
-                <hr />
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Net Balance</span>
-                  <span className={financialSummary?.netBalance >= 0 ? "text-green-600" : "text-red-600"}>
-                    ${financialSummary?.netBalance?.toLocaleString() || '0'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest property activity and updates</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {activitiesLoading ? (
-                    <div className="text-center py-4">Loading...</div>
-                  ) : activities?.slice(0, 5).map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-3">
-                      <div className="mt-1">
-                        {getActivityIcon(activity.activityType)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{activity.title}</p>
-                        {activity.propertyName && (
-                          <p className="text-xs text-muted-foreground">{activity.propertyName}</p>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          {format(parseISO(activity.createdAt), 'MMM d, yyyy HH:mm')}
-                        </p>
-                      </div>
-                    </div>
-                  )) || (
-                    <div className="text-center py-4 text-muted-foreground">
-                      No recent activity
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Bookings Tab */}
-        <TabsContent value="bookings" className="space-y-4">
+        {/* Recent Activity Timeline */}
+        <TabsContent value="activity" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Booking Overview</CardTitle>
-              <CardDescription>All bookings for the selected period</CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Recent Activity Timeline</CardTitle>
+                  <CardDescription>Latest bookings, tasks, and maintenance updates</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={activityFilter} onValueChange={setActivityFilter}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Activity</SelectItem>
+                      <SelectItem value="booking">Bookings</SelectItem>
+                      <SelectItem value="task">Tasks</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={selectedProperty?.toString() || 'all'} onValueChange={(value) => 
+                    setSelectedProperty(value === 'all' ? null : parseInt(value))}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="All Properties" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Properties</SelectItem>
+                      {dashboardStats?.properties?.map((property) => (
+                        <SelectItem key={property.id} value={property.id.toString()}>
+                          {property.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {bookingsLoading ? (
-                <div className="text-center py-8">Loading bookings...</div>
-              ) : (
-                <div className="space-y-4">
-                  {bookings?.map((booking) => (
-                    <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <p className="font-medium">{booking.guestName}</p>
-                        <p className="text-sm text-muted-foreground">{booking.propertyName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(parseISO(booking.startDate), 'MMM d')} - {format(parseISO(booking.endDate), 'MMM d, yyyy')}
-                        </p>
-                      </div>
-                      
-                      <div className="text-right space-y-1">
-                        <p className="font-semibold">${booking.revenue?.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">{booking.source}</p>
-                        <StatusBadge status={booking.status} />
+              <div className="space-y-4">
+                {recentActivity.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No recent activity found</p>
+                  </div>
+                ) : (
+                  recentActivity.map((activity: ActivityItem) => (
+                    <div key={activity.id} className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50">
+                      {getActivityIcon(activity.type)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">{activity.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(activity.timestamp), 'MMM d, h:mm a')}
+                          </p>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{activity.description}</p>
+                        {activity.propertyName && (
+                          <Badge variant="secondary" className="mt-2">
+                            <Home className="mr-1 h-3 w-3" />
+                            {activity.propertyName}
+                          </Badge>
+                        )}
+                        
+                        {/* Special handling for maintenance requests */}
+                        {activity.type === 'maintenance' && activity.metadata?.requiresApproval && (
+                          <div className="mt-3 flex items-center gap-2">
+                            <Button size="sm" variant="outline" className="text-green-600">
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              Approve ({formatCurrency(activity.metadata.estimatedCost || 0)})
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              <ExternalLink className="mr-1 h-3 w-3" />
+                              View Details
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {/* Photo attachments */}
+                        {activity.metadata?.photos && activity.metadata.photos.length > 0 && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Camera className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {activity.metadata.photos.length} photo(s) attached
+                            </span>
+                            <Button size="sm" variant="ghost" className="h-auto p-0 text-xs">
+                              View Photos
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )) || (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No bookings found for the selected period
-                    </div>
-                  )}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Timeline Tab */}
-        <TabsContent value="timeline" className="space-y-4">
+        {/* AI Suggestions Tab */}
+        <TabsContent value="ai-suggestions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Activity Timeline</CardTitle>
-              <CardDescription>Chronological activity across all properties</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-purple-600" />
+                AI-Powered Improvement Suggestions
+              </CardTitle>
+              <CardDescription>
+                Smart recommendations based on guest reviews and property data
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {activitiesLoading ? (
-                <div className="text-center py-8">Loading activity...</div>
-              ) : (
-                <div className="space-y-4">
-                  {activities?.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-4 p-4 border rounded-lg">
-                      <div className="mt-1">
-                        {getActivityIcon(activity.activityType)}
-                      </div>
-                      
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">{activity.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(parseISO(activity.createdAt), 'MMM d, yyyy HH:mm')}
+              <div className="space-y-4">
+                {aiSuggestions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Lightbulb className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No AI suggestions available at this time</p>
+                  </div>
+                ) : (
+                  aiSuggestions.map((suggestion: AISuggestion) => (
+                    <div key={suggestion.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-medium">{suggestion.title}</h3>
+                            <Badge className={getPriorityBadge(suggestion.priority)}>
+                              {suggestion.priority} priority
+                            </Badge>
+                            <Badge variant="outline">
+                              {formatCurrency(suggestion.estimatedCost)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">{suggestion.description}</p>
+                          <p className="text-xs text-gray-600">
+                            <strong>Based on:</strong> {suggestion.reasoning}
                           </p>
                         </div>
-                        
-                        {activity.propertyName && (
-                          <p className="text-sm text-muted-foreground">{activity.propertyName}</p>
-                        )}
-                        
-                        {activity.description && (
-                          <p className="text-sm">{activity.description}</p>
-                        )}
                       </div>
+                      
+                      {/* Review snippets */}
+                      {suggestion.basedOnReviews.length > 0 && (
+                        <div className="bg-gray-50 rounded p-3">
+                          <p className="text-xs font-medium text-gray-700 mb-2">Recent Guest Feedback:</p>
+                          {suggestion.basedOnReviews.slice(0, 2).map((review, index) => (
+                            <p key={index} className="text-xs text-gray-600 italic mb-1">
+                              "{review}"
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Action buttons */}
+                      {suggestion.status === 'pending' && (
+                        <div className="flex items-center gap-2 pt-2">
+                          <Button 
+                            size="sm" 
+                            onClick={() => suggestionMutation.mutate({ id: suggestion.id, action: 'approve' })}
+                            disabled={suggestionMutation.isPending}
+                          >
+                            <ThumbsUp className="mr-1 h-3 w-3" />
+                            Approve & Get Quote
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => suggestionMutation.mutate({ id: suggestion.id, action: 'reject' })}
+                            disabled={suggestionMutation.isPending}
+                          >
+                            <ThumbsDown className="mr-1 h-3 w-3" />
+                            Not Interested
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {suggestion.status !== 'pending' && (
+                        <Badge variant={suggestion.status === 'approved' ? 'default' : 'secondary'}>
+                          {suggestion.status === 'approved' ? 'Approved - Quote Requested' : 'Declined'}
+                        </Badge>
+                      )}
                     </div>
-                  )) || (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No activity found
-                    </div>
-                  )}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -604,388 +701,108 @@ export default function OwnerDashboard() {
         {/* Finances Tab */}
         <TabsContent value="finances" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Detailed Financial Breakdown */}
+            {/* Financial Breakdown */}
             <Card>
               <CardHeader>
-                <CardTitle>Detailed Breakdown</CardTitle>
-                <CardDescription>Financial transactions by category</CardDescription>
+                <CardTitle>Financial Breakdown</CardTitle>
+                <CardDescription>Income and expense summary</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-green-600">Rental Income</span>
+                    <span className="font-medium text-green-600">
+                      +{formatCurrency(financialData?.rentalIncome || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-red-600">Management Commission</span>
+                    <span className="font-medium text-red-600">
+                      -{formatCurrency(financialData?.managementCommission || 0)}
+                    </span>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm">Expenses:</p>
+                    {Object.entries(financialData?.expenses || {}).map(([category, amount]) => (
+                      <div key={category} className="flex justify-between text-sm">
+                        <span className="capitalize text-red-600">{category}</span>
+                        <span className="text-red-600">-{formatCurrency(amount as number)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span>Net Balance</span>
+                    <span className={financialData?.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {formatCurrency(financialData?.netBalance || 0)}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Transactions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Transactions</CardTitle>
+                <CardDescription>Latest financial activity</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {financialSummary?.breakdown?.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium capitalize">
-                          {item.category?.replace('_', ' ') || item.source}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.count} transaction(s)
-                        </p>
+                  {financialData?.transactions?.slice(0, 8).map((transaction: FinancialTransaction) => (
+                    <div key={transaction.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'
+                        }`} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{transaction.description}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(transaction.date), 'MMM d')} • {transaction.category}
+                          </p>
+                        </div>
                       </div>
-                      <span className={`font-semibold ${
-                        item.type === 'income' ? 'text-green-600' : 'text-red-600'
+                      <span className={`text-sm font-medium ${
+                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {item.type === 'income' ? '+' : '-'}${item.totalAmount?.toLocaleString()}
+                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                       </span>
                     </div>
-                  ))}
-                </div>
-                
-                <div className="mt-4 pt-4 border-t">
-                  <Button className="w-full" variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Financial Report
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Invoices */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Invoices</CardTitle>
-                <CardDescription>Monthly summaries and service charges</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {invoicesLoading ? (
-                  <div className="text-center py-4">Loading invoices...</div>
-                ) : (
-                  <div className="space-y-3">
-                    {invoices?.slice(0, 5).map((invoice) => (
-                      <div key={invoice.id} className="flex items-center justify-between p-3 border rounded">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">{invoice.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {invoice.invoiceNumber}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(parseISO(invoice.createdAt), 'MMM d, yyyy')}
-                          </p>
-                        </div>
-                        
-                        <div className="text-right space-y-1">
-                          <p className="font-semibold">${invoice.amount?.toLocaleString()}</p>
-                          <StatusBadge status={invoice.status} />
-                          {invoice.pdfUrl && (
-                            <Button size="sm" variant="outline" className="ml-2">
-                              <Download className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )) || (
-                      <div className="text-center py-4 text-muted-foreground">
-                        No invoices available
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Payouts Tab */}
-        <TabsContent value="payouts" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold">Payout Requests</h3>
-              <p className="text-sm text-muted-foreground">
-                Request payouts and track payment status
-              </p>
-            </div>
-            
-            <Dialog open={showPayoutDialog} onOpenChange={setShowPayoutDialog}>
-              <DialogTrigger asChild>
-                <Button>
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Request Payout
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Request Payout</DialogTitle>
-                  <DialogDescription>
-                    Submit a payout request for approval by the management team
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <Form {...payoutForm}>
-                  <form onSubmit={payoutForm.handleSubmit(onPayoutSubmit)} className="space-y-4">
-                    <FormField
-                      control={payoutForm.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Amount</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter amount" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={payoutForm.control}
-                        name="periodStart"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Period Start</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={payoutForm.control}
-                        name="periodEnd"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Period End</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <FormField
-                      control={payoutForm.control}
-                      name="requestNotes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Notes (Optional)</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Additional details..." {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setShowPayoutDialog(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={payoutMutation.isPending}>
-                        {payoutMutation.isPending ? "Submitting..." : "Submit Request"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <Card>
-            <CardContent className="pt-6">
-              {payoutsLoading ? (
-                <div className="text-center py-8">Loading payout requests...</div>
-              ) : (
-                <div className="space-y-4">
-                  {payouts?.map((payout) => (
-                    <div key={payout.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <p className="font-medium">${payout.amount?.toLocaleString()} {payout.currency}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Period: {format(parseISO(payout.periodStart), 'MMM d')} - {format(parseISO(payout.periodEnd), 'MMM d, yyyy')}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Requested: {format(parseISO(payout.requestedAt), 'MMM d, yyyy')}
-                        </p>
-                        {payout.requestNotes && (
-                          <p className="text-xs text-muted-foreground">
-                            Notes: {payout.requestNotes}
-                          </p>
-                        )}
-                      </div>
-                      
-                      <div className="text-right space-y-2">
-                        <StatusBadge status={payout.status} />
-                        {payout.paymentMethod && (
-                          <p className="text-xs text-muted-foreground">
-                            {payout.paymentMethod}
-                            {payout.paymentReference && ` - ${payout.paymentReference}`}
-                          </p>
-                        )}
-                        {payout.status === 'completed' && payout.completedAt && (
-                          <p className="text-xs text-muted-foreground">
-                            Completed: {format(parseISO(payout.completedAt), 'MMM d, yyyy')}
-                          </p>
-                        )}
-                      </div>
-                    </div>
                   )) || (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No payout requests found
+                    <div className="text-center py-4 text-muted-foreground">
+                      <Receipt className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No transactions found</p>
                     </div>
                   )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        {/* Settings Tab */}
-        <TabsContent value="settings" className="space-y-4">
+        {/* Villa Logbook Tab */}
+        <TabsContent value="logbook" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Villa Logbook
+              </CardTitle>
               <CardDescription>
-                Configure how and when you receive notifications
+                Comprehensive property activity log and maintenance history
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...preferencesForm}>
-                <form onSubmit={preferencesForm.handleSubmit(onPreferencesSubmit)} className="space-y-6">
-                  <div className="space-y-4">
-                    <FormField
-                      control={preferencesForm.control}
-                      name="taskApprovalRequired"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Task Approval Required</FormLabel>
-                            <FormDescription>
-                              Require your approval before tasks are marked as complete
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={preferencesForm.control}
-                      name="maintenanceAlerts"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Maintenance Alerts</FormLabel>
-                            <FormDescription>
-                              Receive notifications about maintenance suggestions and issues
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={preferencesForm.control}
-                      name="guestAddonNotifications"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Guest Add-on Notifications</FormLabel>
-                            <FormDescription>
-                              Get notified when guests book additional services
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={preferencesForm.control}
-                      name="financialNotifications"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Financial Notifications</FormLabel>
-                            <FormDescription>
-                              Receive updates about payments, invoices, and financial summaries
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={preferencesForm.control}
-                      name="weeklyReports"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Weekly Reports</FormLabel>
-                            <FormDescription>
-                              Get weekly summary reports of property performance
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <FormField
-                      control={preferencesForm.control}
-                      name="preferredCurrency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Preferred Currency</FormLabel>
-                          <FormControl>
-                            <Select value={field.value} onValueChange={field.onChange}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="AUD">AUD (Australian Dollar)</SelectItem>
-                                <SelectItem value="USD">USD (US Dollar)</SelectItem>
-                                <SelectItem value="EUR">EUR (Euro)</SelectItem>
-                                <SelectItem value="GBP">GBP (British Pound)</SelectItem>
-                                <SelectItem value="THB">THB (Thai Baht)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={preferencesForm.control}
-                      name="notificationEmail"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Notification Email</FormLabel>
-                          <FormControl>
-                            <Input placeholder="your@email.com" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Alternative email for receiving notifications (optional)
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <Button type="submit" disabled={preferencesMutation.isPending}>
-                    {preferencesMutation.isPending ? "Saving..." : "Save Preferences"}
-                  </Button>
-                </form>
-              </Form>
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Villa Logbook feature coming soon</p>
+                <p className="text-sm">This will include detailed property logs, maintenance schedules, and guest interaction history.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
