@@ -62,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/properties", isDemoAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const propertyData = insertPropertySchema.parse({ ...req.body, ownerId: userId });
       const property = await storage.createProperty(propertyData);
       res.status(201).json(property);
@@ -111,7 +111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task routes
   app.get("/api/tasks", isDemoAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       let tasks;
@@ -130,7 +130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tasks", isDemoAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const taskData = insertTaskSchema.parse({ ...req.body, createdBy: userId });
       const task = await storage.createTask(taskData);
       
@@ -365,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Platform Settings routes (Admin only)
   app.get("/api/admin/settings", isDemoAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (user?.role !== 'admin') {
@@ -382,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/settings/:category", isDemoAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (user?.role !== 'admin') {
@@ -400,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/settings/:key", isDemoAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (user?.role !== 'admin') {
@@ -428,7 +428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/settings/:key", isDemoAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (user?.role !== 'admin') {

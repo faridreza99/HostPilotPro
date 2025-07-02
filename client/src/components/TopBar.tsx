@@ -66,6 +66,16 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
   const RoleIcon = roleIcons[userRole as keyof typeof roleIcons] || Clock;
   const roleColor = roleColors[userRole as keyof typeof roleColors] || "bg-gray-500";
 
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/auth/demo-logout", {});
+      return await response.json();
+    },
+    onSuccess: () => {
+      window.location.href = "/";
+    },
+  });
+
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
       <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
@@ -134,34 +144,59 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
             <Settings className="h-4 w-4" />
           </Button>
 
-          {/* User profile */}
-          <div className="flex items-center gap-3 pl-2">
-            <div className="hidden sm:block text-right">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {(user as any)?.firstName} {(user as any)?.lastName}
-              </p>
-              <div className="flex justify-end">
-                <Badge variant="secondary" className="text-xs">
-                  {userRole === "portfolio-manager" ? "PM" : 
-                   userRole === "retail-agent" ? "Retail" :
-                   userRole === "referral-agent" ? "Referral" :
-                   userRole.charAt(0).toUpperCase() + userRole.slice(1)}
-                </Badge>
-              </div>
-            </div>
-            
-            <div className="relative">
-              <Avatar className="h-8 w-8 lg:h-9 lg:w-9">
-                <AvatarImage src={(user as any)?.profileImageUrl} />
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                  {((user as any)?.firstName || "U").charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${roleColor} rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900`}>
-                <RoleIcon className="w-1.5 h-1.5 text-white" />
-              </div>
-            </div>
-          </div>
+          {/* User profile dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-3 pl-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+                <div className="hidden sm:block text-right">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {(user as any)?.firstName} {(user as any)?.lastName}
+                  </p>
+                  <div className="flex justify-end">
+                    <Badge variant="secondary" className="text-xs">
+                      {userRole === "portfolio-manager" ? "PM" : 
+                       userRole === "retail-agent" ? "Retail" :
+                       userRole === "referral-agent" ? "Referral" :
+                       userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="relative">
+                  <Avatar className="h-8 w-8 lg:h-9 lg:w-9">
+                    <AvatarImage src={(user as any)?.profileImageUrl} />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
+                      {((user as any)?.firstName || "U").charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${roleColor} rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900`}>
+                    <RoleIcon className="w-1.5 h-1.5 text-white" />
+                  </div>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                className="flex items-center gap-2 text-red-600 focus:text-red-600"
+                onClick={() => logoutMutation.mutate()}
+                disabled={logoutMutation.isPending}
+              >
+                <LogOut className="h-4 w-4" />
+                {logoutMutation.isPending ? "Logging out..." : "Logout"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
