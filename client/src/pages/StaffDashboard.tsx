@@ -44,6 +44,7 @@ import {
   ArrowRight,
   Timer,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
 
 const completionSchema = z.object({
@@ -289,6 +290,14 @@ export default function StaffDashboard() {
               <span className="font-mono text-blue-600">{formatTime(taskTimer)}</span>
             </div>
           )}
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = '/api/auth/demo-logout'}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
         </div>
       </div>
 

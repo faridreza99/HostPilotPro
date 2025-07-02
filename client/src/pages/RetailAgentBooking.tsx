@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarDays, Search, Filter, DollarSign, Users, Bed, MapPin, ExternalLink, Phone, Mail, Clock, CheckCircle, AlertCircle, TrendingUp } from "lucide-react";
+import { CalendarDays, Search, Filter, DollarSign, Users, Bed, MapPin, ExternalLink, Phone, Mail, Clock, CheckCircle, AlertCircle, TrendingUp, LogOut } from "lucide-react";
 
 // Form schemas
 const bookingSearchSchema = z.object({
@@ -193,51 +193,62 @@ export default function RetailAgentBooking() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold">Retail Agent Booking Engine</h1>
           <p className="text-muted-foreground">Live property booking system with commission tracking</p>
         </div>
         
-        {commissionSummary && (
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Earned</p>
-                    <p className="text-lg font-semibold">${commissionSummary.totalEarned || 0}</p>
+        <div className="flex items-center space-x-4">
+          {commissionSummary && (
+            <div className="grid grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Earned</p>
+                      <p className="text-lg font-semibold">${commissionSummary.totalEarned || 0}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <TrendingUp className="h-4 w-4 text-blue-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Current Balance</p>
-                    <p className="text-lg font-semibold">${commissionSummary.currentBalance || 0}</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Current Balance</p>
+                      <p className="text-lg font-semibold">${commissionSummary.currentBalance || 0}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-purple-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Bookings</p>
-                    <p className="text-lg font-semibold">{commissionSummary.totalBookings || 0}</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 text-purple-600" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Bookings</p>
+                      <p className="text-lg font-semibold">{commissionSummary.totalBookings || 0}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = '/api/auth/demo-logout'}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="booking-engine" className="space-y-4">
