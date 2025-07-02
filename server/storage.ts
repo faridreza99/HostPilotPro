@@ -6012,6 +6012,119 @@ export class DatabaseStorage implements IStorage {
 
     return query.orderBy(desc(referralEarnings.year), desc(referralEarnings.month));
   }
+
+  // Guest Add-On Service operations
+  async getGuestAddonServices(organizationId: string): Promise<GuestAddonService[]> {
+    return await db.select()
+      .from(guestAddonServices)
+      .where(eq(guestAddonServices.organizationId, organizationId))
+      .orderBy(desc(guestAddonServices.createdAt));
+  }
+
+  async getActiveGuestAddonServices(organizationId: string): Promise<GuestAddonService[]> {
+    return await db.select()
+      .from(guestAddonServices)
+      .where(
+        and(
+          eq(guestAddonServices.organizationId, organizationId),
+          eq(guestAddonServices.isActive, true)
+        )
+      )
+      .orderBy(desc(guestAddonServices.createdAt));
+  }
+
+  async createGuestAddonService(service: InsertGuestAddonService): Promise<GuestAddonService> {
+    const [created] = await db.insert(guestAddonServices)
+      .values(service)
+      .returning();
+    return created;
+  }
+
+  async updateGuestAddonService(id: number, organizationId: string, updates: Partial<InsertGuestAddonService>): Promise<GuestAddonService | undefined> {
+    const [updated] = await db.update(guestAddonServices)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(guestAddonServices.id, id),
+          eq(guestAddonServices.organizationId, organizationId)
+        )
+      )
+      .returning();
+    return updated;
+  }
+
+  // Guest Add-On Booking operations
+  async getGuestAddonBookings(organizationId: string): Promise<(GuestAddonBooking & { serviceName: string; propertyName: string })[]> {
+    return await db.select({
+      id: guestAddonBookings.id,
+      serviceId: guestAddonBookings.serviceId,
+      propertyId: guestAddonBookings.propertyId,
+      guestName: guestAddonBookings.guestName,
+      guestEmail: guestAddonBookings.guestEmail,
+      guestPhone: guestAddonBookings.guestPhone,
+      serviceDate: guestAddonBookings.serviceDate,
+      specialRequests: guestAddonBookings.specialRequests,
+      quantity: guestAddonBookings.quantity,
+      totalAmount: guestAddonBookings.totalAmount,
+      currency: guestAddonBookings.currency,
+      status: guestAddonBookings.status,
+      billingRoute: guestAddonBookings.billingRoute,
+      complimentaryType: guestAddonBookings.complimentaryType,
+      internalNotes: guestAddonBookings.internalNotes,
+      bookedBy: guestAddonBookings.bookedBy,
+      confirmedBy: guestAddonBookings.confirmedBy,
+      cancelledBy: guestAddonBookings.cancelledBy,
+      cancellationReason: guestAddonBookings.cancellationReason,
+      organizationId: guestAddonBookings.organizationId,
+      createdAt: guestAddonBookings.createdAt,
+      updatedAt: guestAddonBookings.updatedAt,
+      serviceName: guestAddonServices.serviceName,
+      propertyName: properties.name
+    })
+    .from(guestAddonBookings)
+    .leftJoin(guestAddonServices, eq(guestAddonBookings.serviceId, guestAddonServices.id))
+    .leftJoin(properties, eq(guestAddonBookings.propertyId, properties.id))
+    .where(eq(guestAddonBookings.organizationId, organizationId))
+    .orderBy(desc(guestAddonBookings.createdAt));
+  }
+
+  async createGuestAddonBooking(booking: InsertGuestAddonBooking): Promise<GuestAddonBooking> {
+    const [created] = await db.insert(guestAddonBookings)
+      .values(booking)
+      .returning();
+    return created;
+  }
+
+  async updateGuestAddonBooking(id: number, organizationId: string, updates: Partial<InsertGuestAddonBooking>): Promise<GuestAddonBooking | undefined> {
+    const [updated] = await db.update(guestAddonBookings)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(guestAddonBookings.id, id),
+          eq(guestAddonBookings.organizationId, organizationId)
+        )
+      )
+      .returning();
+    return updated;
+  }
+
+  async getGuestAddonBookingById(id: number, organizationId: string): Promise<GuestAddonBooking | undefined> {
+    const [booking] = await db.select()
+      .from(guestAddonBookings)
+      .where(
+        and(
+          eq(guestAddonBookings.id, id),
+          eq(guestAddonBookings.organizationId, organizationId)
+        )
+      );
+    return booking;
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -4267,6 +4267,245 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== GUEST ADD-ON SERVICE API =====
+
+  // Get active guest add-on services for booking
+  app.get("/api/guest/addon-services", async (req: any, res) => {
+    try {
+      const organizationId = req.query.organizationId || "default-org";
+      const services = await storage.getActiveGuestAddonServices(organizationId);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching guest addon services:", error);
+      res.status(500).json({ message: "Failed to fetch guest addon services" });
+    }
+  });
+
+  // Create a new guest addon booking (public endpoint)
+  app.post("/api/guest/addon-bookings", async (req: any, res) => {
+    try {
+      const {
+        serviceId,
+        propertyId,
+        guestName,
+        guestEmail,
+        guestPhone,
+        serviceDate,
+        specialRequests,
+        quantity,
+        totalAmount,
+        currency = "USD",
+        organizationId = "default-org"
+      } = req.body;
+
+      const booking = await storage.createGuestAddonBooking({
+        serviceId,
+        propertyId,
+        guestName,
+        guestEmail,
+        guestPhone,
+        serviceDate: new Date(serviceDate),
+        specialRequests: specialRequests || "",
+        quantity: quantity || 1,
+        totalAmount: totalAmount.toString(),
+        currency,
+        status: "pending",
+        billingRoute: "guest-bill",
+        bookedBy: "guest",
+        organizationId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      res.status(201).json(booking);
+    } catch (error) {
+      console.error("Error creating guest addon booking:", error);
+      res.status(500).json({ message: "Failed to create guest addon booking" });
+    }
+  });
+
+  // ===== ADMIN ADD-ON BOOKING MANAGEMENT API =====
+
+  // Get all guest addon bookings (Admin/PM access)
+  app.get("/api/admin/addon-bookings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { role } = req.user;
+
+      // Check role permissions
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied. Admin or PM role required." });
+      }
+
+      const bookings = await storage.getGuestAddonBookings(organizationId);
+      
+      // Map the booking data to match the frontend interface
+      const formattedBookings = bookings.map(booking => ({
+        id: booking.id,
+        serviceName: booking.serviceName,
+        propertyName: booking.propertyName,
+        guestName: booking.guestName,
+        guestEmail: booking.guestEmail,
+        guestPhone: booking.guestPhone,
+        bookingDate: booking.createdAt?.toISOString() || new Date().toISOString(),
+        serviceDate: booking.serviceDate.toISOString(),
+        status: booking.status,
+        totalAmount: booking.totalAmount,
+        currency: booking.currency,
+        billingRoute: booking.billingRoute,
+        complimentaryType: booking.complimentaryType,
+        specialRequests: booking.specialRequests,
+        internalNotes: booking.internalNotes,
+        bookedBy: booking.bookedBy,
+        confirmedBy: booking.confirmedBy,
+        cancelledBy: booking.cancelledBy,
+        cancellationReason: booking.cancellationReason
+      }));
+
+      res.json(formattedBookings);
+    } catch (error) {
+      console.error("Error fetching admin addon bookings:", error);
+      res.status(500).json({ message: "Failed to fetch admin addon bookings" });
+    }
+  });
+
+  // Update guest addon booking (Admin/PM access)
+  app.put("/api/admin/addon-bookings/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId, role } = req.user;
+      const { id } = req.params;
+      const updateData = req.body;
+
+      // Check role permissions
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied. Admin or PM role required." });
+      }
+
+      // Add tracking fields based on status change
+      if (updateData.status === "confirmed") {
+        updateData.confirmedBy = userId;
+      } else if (updateData.status === "cancelled") {
+        updateData.cancelledBy = userId;
+      }
+
+      const updatedBooking = await storage.updateGuestAddonBooking(
+        parseInt(id),
+        organizationId,
+        updateData
+      );
+
+      if (!updatedBooking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      res.json(updatedBooking);
+    } catch (error) {
+      console.error("Error updating addon booking:", error);
+      res.status(500).json({ message: "Failed to update addon booking" });
+    }
+  });
+
+  // Export guest addon bookings as CSV (Admin access)
+  app.get("/api/admin/addon-bookings/export", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      // Check role permissions
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied. Admin or PM role required." });
+      }
+
+      const bookings = await storage.getGuestAddonBookings(organizationId);
+
+      const csv = [
+        'ID,Service,Property,Guest Name,Guest Email,Guest Phone,Service Date,Amount,Currency,Status,Billing Route,Special Requests,Booked Date',
+        ...bookings.map(b => 
+          `${b.id},"${b.serviceName}","${b.propertyName}","${b.guestName}","${b.guestEmail || ''}","${b.guestPhone || ''}","${b.serviceDate.toISOString().split('T')[0]}","${b.totalAmount}","${b.currency}","${b.status}","${b.billingRoute}","${b.specialRequests || ''}","${b.createdAt?.toISOString().split('T')[0] || ''}"`
+        )
+      ].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="addon-bookings-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    } catch (error) {
+      console.error("Error exporting addon bookings:", error);
+      res.status(500).json({ message: "Failed to export addon bookings" });
+    }
+  });
+
+  // ===== ADMIN ADD-ON SERVICE SETTINGS API =====
+
+  // Get all guest addon services (Admin access)
+  app.get("/api/admin/addon-services", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      // Check role permissions
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied. Admin or PM role required." });
+      }
+
+      const services = await storage.getGuestAddonServices(organizationId);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching admin addon services:", error);
+      res.status(500).json({ message: "Failed to fetch admin addon services" });
+    }
+  });
+
+  // Create new guest addon service (Admin access)
+  app.post("/api/admin/addon-services", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      // Check role permissions
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "Access denied. Admin role required." });
+      }
+
+      const serviceData = {
+        ...req.body,
+        organizationId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const service = await storage.createGuestAddonService(serviceData);
+      res.status(201).json(service);
+    } catch (error) {
+      console.error("Error creating addon service:", error);
+      res.status(500).json({ message: "Failed to create addon service" });
+    }
+  });
+
+  // Update guest addon service (Admin access)
+  app.put("/api/admin/addon-services/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { id } = req.params;
+
+      // Check role permissions
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "Access denied. Admin role required." });
+      }
+
+      const updatedService = await storage.updateGuestAddonService(
+        parseInt(id),
+        organizationId,
+        req.body
+      );
+
+      if (!updatedService) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      res.json(updatedService);
+    } catch (error) {
+      console.error("Error updating addon service:", error);
+      res.status(500).json({ message: "Failed to update addon service" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

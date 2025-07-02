@@ -1,80 +1,115 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { 
-  Clock, 
-  DollarSign, 
-  User, 
   CheckCircle, 
   XCircle, 
-  AlertCircle, 
-  Settings,
-  Calendar,
-  Phone,
-  Mail,
+  Clock, 
+  User, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  DollarSign, 
+  MapPin, 
+  Gift, 
+  Building, 
+  CreditCard,
   FileText,
-  CreditCard
+  Download,
+  Filter
 } from "lucide-react";
-import type { GuestAddonBooking, GuestAddonService, Property, User as UserType } from "@shared/schema";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+
+interface AddonBooking {
+  id: number;
+  serviceName: string;
+  propertyName: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  bookingDate: string;
+  serviceDate: string;
+  status: string;
+  totalAmount: string;
+  currency: string;
+  billingRoute: string;
+  complimentaryType: string | null;
+  specialRequests: string;
+  internalNotes: string;
+  bookedBy: string;
+  confirmedBy: string | null;
+  cancelledBy: string | null;
+  cancellationReason: string | null;
+}
+
+interface BookingUpdate {
+  status: string;
+  billingRoute: string;
+  complimentaryType?: string;
+  internalNotes?: string;
+  cancellationReason?: string;
+}
+
+const statusColors: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  confirmed: "bg-blue-100 text-blue-800",
+  completed: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
+};
+
+const billingRouteColors: Record<string, string> = {
+  "guest-bill": "bg-blue-100 text-blue-800",
+  "owner-bill": "bg-purple-100 text-purple-800",
+  "company-expense": "bg-gray-100 text-gray-800",
+  "owner-gift": "bg-green-100 text-green-800",
+  "company-gift": "bg-yellow-100 text-yellow-800",
+};
 
 export default function AdminAddonBookings() {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
-  const [selectedBooking, setSelectedBooking] = useState<GuestAddonBooking | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<AddonBooking | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [billingFilter, setBillingFilter] = useState<string>("all");
-  const [internalNotes, setInternalNotes] = useState("");
-
-  // Fetch bookings with filters
-  const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
-    queryKey: ["/api/guest-addon-bookings", { 
-      status: statusFilter !== "all" ? statusFilter : undefined,
-      billingRoute: billingFilter !== "all" ? billingFilter : undefined
-    }],
+  const [dateRange, setDateRange] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  
+  const [updateData, setUpdateData] = useState<BookingUpdate>({
+    status: "",
+    billingRoute: "",
+    complimentaryType: "",
+    internalNotes: "",
+    cancellationReason: "",
   });
 
-  // Fetch services for display
-  const { data: services = [] } = useQuery({
-    queryKey: ["/api/guest-addon-services"],
+  // Fetch all addon bookings
+  const { data: bookings = [], isLoading, refetch } = useQuery({
+    queryKey: ["/api/admin/addon-bookings"],
   });
 
-  // Fetch properties for display
-  const { data: properties = [] } = useQuery<Property[]>({
-    queryKey: ["/api/properties"],
-  });
-
-  // Fetch staff users for assignment
-  const { data: staffUsers = [] } = useQuery<UserType[]>({
-    queryKey: ["/api/users", { role: "staff" }],
-  });
-
-  // Update booking status mutation
+  // Update booking mutation
   const updateBookingMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return apiRequest("PATCH", `/api/guest-addon-bookings/${id}`, data);
+    mutationFn: async ({ id, updateData }: { id: number; updateData: BookingUpdate }) => {
+      return apiRequest("PUT", `/api/admin/addon-bookings/${id}`, updateData);
     },
-    onSuccess: (_, { data }) => {
+    onSuccess: () => {
       toast({
         title: "Booking Updated",
-        description: `Booking ${data.status === "confirmed" ? "confirmed" : data.status === "cancelled" ? "cancelled" : "updated"} successfully.`,
+        description: "The booking has been successfully updated.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-addon-bookings"] });
       setSelectedBooking(null);
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/addon-bookings"] });
     },
     onError: (error: Error) => {
       toast({
@@ -85,163 +120,266 @@ export default function AdminAddonBookings() {
     },
   });
 
-  // Confirm booking
-  const handleConfirmBooking = (booking: GuestAddonBooking) => {
-    updateBookingMutation.mutate({
-      id: booking.id,
-      data: {
-        status: "confirmed",
-        confirmedBy: user?.id,
-        internalNotes: internalNotes || booking.internalNotes
+  // Export bookings mutation
+  const exportBookingsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/addon-bookings/export", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) throw new Error("Export failed");
+      return response.blob();
+    },
+    onSuccess: (blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `addon-bookings-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast({
+        title: "Export Complete",
+        description: "Booking data has been exported successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Export Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredBookings = bookings.filter((booking: AddonBooking) => {
+    const matchesStatus = statusFilter === "all" || booking.status === statusFilter;
+    const matchesBilling = billingFilter === "all" || booking.billingRoute === billingFilter;
+    const matchesSearch = searchTerm === "" || 
+      booking.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.propertyName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    let matchesDate = true;
+    if (dateRange !== "all") {
+      const bookingDate = new Date(booking.serviceDate);
+      const now = new Date();
+      
+      switch (dateRange) {
+        case "today":
+          matchesDate = bookingDate.toDateString() === now.toDateString();
+          break;
+        case "week":
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          matchesDate = bookingDate >= weekAgo;
+          break;
+        case "month":
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          matchesDate = bookingDate >= monthAgo;
+          break;
       }
-    });
-  };
-
-  // Cancel booking
-  const handleCancelBooking = (booking: GuestAddonBooking, reason: string) => {
-    updateBookingMutation.mutate({
-      id: booking.id,
-      data: {
-        status: "cancelled",
-        cancelledBy: user?.id,
-        cancellationReason: reason,
-        internalNotes: internalNotes || booking.internalNotes
-      }
-    });
-  };
-
-  // Complete booking
-  const handleCompleteBooking = (booking: GuestAddonBooking) => {
-    updateBookingMutation.mutate({
-      id: booking.id,
-      data: {
-        status: "completed",
-        internalNotes: internalNotes || booking.internalNotes
-      }
-    });
-  };
-
-  // Update billing route
-  const handleUpdateBilling = (booking: GuestAddonBooking, billingRoute: string, complimentaryType?: string) => {
-    updateBookingMutation.mutate({
-      id: booking.id,
-      data: {
-        billingRoute,
-        complimentaryType,
-        internalNotes: internalNotes || booking.internalNotes
-      }
-    });
-  };
-
-  const getService = (serviceId: number) => {
-    return services.find((s: GuestAddonService) => s.id === serviceId);
-  };
-
-  const getProperty = (propertyId: number) => {
-    return properties.find((p: Property) => p.id === propertyId);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Badge variant="secondary"><AlertCircle className="h-3 w-3 mr-1" />Pending</Badge>;
-      case "confirmed":
-        return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Confirmed</Badge>;
-      case "completed":
-        return <Badge variant="outline" className="text-green-600"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
-      case "cancelled":
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
     }
+    
+    return matchesStatus && matchesBilling && matchesSearch && matchesDate;
+  });
+
+  const handleApprove = (booking: AddonBooking) => {
+    setSelectedBooking(booking);
+    setUpdateData({
+      status: "confirmed",
+      billingRoute: "guest-bill",
+      complimentaryType: "",
+      internalNotes: "",
+      cancellationReason: "",
+    });
   };
 
-  const getBillingBadge = (billingRoute: string, complimentaryType?: string) => {
-    switch (billingRoute) {
-      case "guest_billable":
-        return <Badge variant="default">Guest Paid</Badge>;
-      case "owner_billable":
-        return <Badge variant="secondary">Owner Charge</Badge>;
-      case "company_expense":
-        return <Badge variant="outline">Company Expense</Badge>;
-      case "complimentary":
-        return <Badge variant="outline" className="text-green-600">
-          {complimentaryType === "owner_gift" ? "Owner Gift" : "Company Gift"}
-        </Badge>;
-      default:
-        return <Badge variant="secondary">{billingRoute}</Badge>;
-    }
+  const handleDecline = (booking: AddonBooking) => {
+    setSelectedBooking(booking);
+    setUpdateData({
+      status: "cancelled",
+      billingRoute: booking.billingRoute,
+      complimentaryType: "",
+      internalNotes: "",
+      cancellationReason: "",
+    });
   };
 
-  if (bookingsLoading) {
+  const handleSubmitUpdate = () => {
+    if (!selectedBooking) return;
+    
+    updateBookingMutation.mutate({
+      id: selectedBooking.id,
+      updateData,
+    });
+  };
+
+  const pendingCount = bookings.filter((b: AddonBooking) => b.status === "pending").length;
+  const confirmedCount = bookings.filter((b: AddonBooking) => b.status === "confirmed").length;
+  const completedCount = bookings.filter((b: AddonBooking) => b.status === "completed").length;
+
+  if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/3" />
+          <div className="h-4 bg-gray-200 rounded w-2/3" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded" />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Add-On Service Bookings</h1>
-          <p className="text-muted-foreground">Manage guest add-on service requests and bookings</p>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Add-On Service Bookings</h1>
+        <p className="text-gray-600">Manage guest service requests and billing assignments</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Pending Requests</p>
+                <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
+              </div>
+              <Clock className="w-8 h-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Confirmed</p>
+                <p className="text-2xl font-bold text-blue-600">{confirmedCount}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Completed</p>
+                <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
+              </div>
+              <FileText className="w-8 h-8 text-gray-600" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 items-center">
-        <div className="flex gap-2 items-center">
-          <Label htmlFor="status">Status:</Label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex gap-2 items-center">
-          <Label htmlFor="billing">Billing:</Label>
-          <Select value={billingFilter} onValueChange={setBillingFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Billing Types</SelectItem>
-              <SelectItem value="guest_billable">Guest Paid</SelectItem>
-              <SelectItem value="owner_billable">Owner Charge</SelectItem>
-              <SelectItem value="company_expense">Company Expense</SelectItem>
-              <SelectItem value="complimentary">Complimentary</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <Card className="mb-6">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div>
+              <Label htmlFor="search">Search</Label>
+              <Input
+                id="search"
+                placeholder="Guest, service, or property..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="billing">Billing Route</Label>
+              <Select value={billingFilter} onValueChange={setBillingFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Routes</SelectItem>
+                  <SelectItem value="guest-bill">Guest Bill</SelectItem>
+                  <SelectItem value="owner-bill">Owner Bill</SelectItem>
+                  <SelectItem value="company-expense">Company Expense</SelectItem>
+                  <SelectItem value="owner-gift">Owner Gift</SelectItem>
+                  <SelectItem value="company-gift">Company Gift</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="date">Date Range</Label>
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">Last 7 Days</SelectItem>
+                  <SelectItem value="month">Last 30 Days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-end">
+              <Button 
+                onClick={() => exportBookingsMutation.mutate()}
+                disabled={exportBookingsMutation.isPending}
+                variant="outline"
+                className="w-full"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Bookings Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Service Bookings</CardTitle>
-          <CardDescription>
-            All guest add-on service requests and their current status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Service</TableHead>
                 <TableHead>Guest</TableHead>
+                <TableHead>Service</TableHead>
                 <TableHead>Property</TableHead>
-                <TableHead>Service Date</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Billing</TableHead>
@@ -249,222 +387,283 @@ export default function AdminAddonBookings() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bookings.map((booking: GuestAddonBooking) => {
-                const service = getService(booking.serviceId);
-                const property = getProperty(booking.propertyId);
-                
-                return (
-                  <TableRow key={booking.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{service?.serviceName || "Unknown Service"}</div>
-                        <div className="text-sm text-muted-foreground">{service?.category}</div>
+              {filteredBookings.map((booking: AddonBooking) => (
+                <TableRow key={booking.id}>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{booking.guestName}</p>
+                      <p className="text-sm text-gray-500">{booking.guestEmail}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium">{booking.serviceName}</p>
+                  </TableCell>
+                  <TableCell>
+                    <p>{booking.propertyName}</p>
+                  </TableCell>
+                  <TableCell>
+                    <p>{format(new Date(booking.serviceDate), "MMM dd, yyyy")}</p>
+                    <p className="text-sm text-gray-500">{format(new Date(booking.serviceDate), "h:mm a")}</p>
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium">{booking.totalAmount} {booking.currency}</p>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[booking.status] || "bg-gray-100 text-gray-800"}>
+                      {booking.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={billingRouteColors[booking.billingRoute] || "bg-gray-100 text-gray-800"}>
+                      {booking.billingRoute.replace("-", " ")}
+                    </Badge>
+                    {booking.complimentaryType && (
+                      <div className="mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          <Gift className="w-3 h-3 mr-1" />
+                          {booking.complimentaryType}
+                        </Badge>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{booking.guestName}</div>
-                        <div className="text-sm text-muted-foreground">{booking.guestEmail}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{property?.name || "Unknown Property"}</TableCell>
-                    <TableCell>{format(new Date(booking.serviceDate), "MMM dd, yyyy")}</TableCell>
-                    <TableCell>${booking.totalAmount} {booking.currency}</TableCell>
-                    <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                    <TableCell>{getBillingBadge(booking.billingRoute, booking.complimentaryType || undefined)}</TableCell>
-                    <TableCell>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      {booking.status === "pending" && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => handleApprove(booking)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDecline(booking)}
+                            className="text-red-600 border-red-600 hover:bg-red-50"
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Decline
+                          </Button>
+                        </>
+                      )}
+                      
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button 
-                            variant="outline" 
-                            size="sm"
+                            size="sm" 
+                            variant="outline"
                             onClick={() => setSelectedBooking(booking)}
                           >
-                            Manage
+                            <FileText className="w-4 h-4 mr-1" />
+                            Details
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
+                        <DialogContent className="max-w-lg">
                           <DialogHeader>
-                            <DialogTitle>Manage Booking</DialogTitle>
+                            <DialogTitle>Booking Details</DialogTitle>
                             <DialogDescription>
-                              Update booking status, billing route, and add internal notes
+                              {booking.serviceName} - {booking.guestName}
                             </DialogDescription>
                           </DialogHeader>
-
-                          {selectedBooking && (
-                            <div className="space-y-6">
-                              {/* Booking Details */}
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label className="text-sm font-medium">Service</Label>
-                                  <p className="text-sm">{service?.serviceName}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm font-medium">Guest</Label>
-                                  <p className="text-sm">{selectedBooking.guestName}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm font-medium">Property</Label>
-                                  <p className="text-sm">{property?.name}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm font-medium">Service Date</Label>
-                                  <p className="text-sm">{format(new Date(selectedBooking.serviceDate), "PPP")}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm font-medium">Amount</Label>
-                                  <p className="text-sm">${selectedBooking.totalAmount} {selectedBooking.currency}</p>
-                                </div>
-                                <div>
-                                  <Label className="text-sm font-medium">Current Status</Label>
-                                  <p className="text-sm">{getStatusBadge(selectedBooking.status)}</p>
+                          
+                          <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-sm font-medium text-gray-600">Guest Details</Label>
+                                <div className="mt-1 space-y-1">
+                                  <p className="flex items-center gap-2">
+                                    <User className="w-4 h-4" />
+                                    {booking.guestName}
+                                  </p>
+                                  <p className="flex items-center gap-2">
+                                    <Mail className="w-4 h-4" />
+                                    {booking.guestEmail}
+                                  </p>
+                                  {booking.guestPhone && (
+                                    <p className="flex items-center gap-2">
+                                      <Phone className="w-4 h-4" />
+                                      {booking.guestPhone}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
-
-                              {selectedBooking.specialRequests && (
-                                <div>
-                                  <Label className="text-sm font-medium">Special Requests</Label>
-                                  <p className="text-sm bg-muted p-2 rounded">{selectedBooking.specialRequests}</p>
+                              
+                              <div>
+                                <Label className="text-sm font-medium text-gray-600">Service Details</Label>
+                                <div className="mt-1 space-y-1">
+                                  <p className="flex items-center gap-2">
+                                    <MapPin className="w-4 h-4" />
+                                    {booking.propertyName}
+                                  </p>
+                                  <p className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" />
+                                    {format(new Date(booking.serviceDate), "PPp")}
+                                  </p>
+                                  <p className="flex items-center gap-2">
+                                    <DollarSign className="w-4 h-4" />
+                                    {booking.totalAmount} {booking.currency}
+                                  </p>
                                 </div>
-                              )}
-
-                              <Tabs defaultValue="status" className="w-full">
-                                <TabsList className="grid w-full grid-cols-3">
-                                  <TabsTrigger value="status">Update Status</TabsTrigger>
-                                  <TabsTrigger value="billing">Billing Route</TabsTrigger>
-                                  <TabsTrigger value="notes">Notes</TabsTrigger>
-                                </TabsList>
-
-                                <TabsContent value="status" className="space-y-4">
-                                  <div className="flex gap-2">
-                                    {selectedBooking.status === "pending" && (
-                                      <>
-                                        <Button 
-                                          onClick={() => handleConfirmBooking(selectedBooking)}
-                                          disabled={updateBookingMutation.isPending}
-                                          className="flex-1"
-                                        >
-                                          <CheckCircle className="h-4 w-4 mr-2" />
-                                          Confirm Booking
-                                        </Button>
-                                        <Button 
-                                          variant="destructive"
-                                          onClick={() => handleCancelBooking(selectedBooking, "Cancelled by staff")}
-                                          disabled={updateBookingMutation.isPending}
-                                          className="flex-1"
-                                        >
-                                          <XCircle className="h-4 w-4 mr-2" />
-                                          Cancel Booking
-                                        </Button>
-                                      </>
-                                    )}
-                                    {selectedBooking.status === "confirmed" && (
-                                      <Button 
-                                        onClick={() => handleCompleteBooking(selectedBooking)}
-                                        disabled={updateBookingMutation.isPending}
-                                        className="w-full"
-                                      >
-                                        <CheckCircle className="h-4 w-4 mr-2" />
-                                        Mark as Completed
-                                      </Button>
-                                    )}
-                                    {selectedBooking.status === "completed" && (
-                                      <div className="text-center text-muted-foreground py-4">
-                                        Booking is completed
-                                      </div>
-                                    )}
-                                    {selectedBooking.status === "cancelled" && (
-                                      <div className="text-center text-muted-foreground py-4">
-                                        Booking is cancelled
-                                        {selectedBooking.cancellationReason && (
-                                          <p className="text-sm mt-2">Reason: {selectedBooking.cancellationReason}</p>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </TabsContent>
-
-                                <TabsContent value="billing" className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <Button 
-                                      variant={selectedBooking.billingRoute === "guest_billable" ? "default" : "outline"}
-                                      onClick={() => handleUpdateBilling(selectedBooking, "guest_billable")}
-                                      disabled={updateBookingMutation.isPending}
-                                    >
-                                      Guest Paid
-                                    </Button>
-                                    <Button 
-                                      variant={selectedBooking.billingRoute === "owner_billable" ? "default" : "outline"}
-                                      onClick={() => handleUpdateBilling(selectedBooking, "owner_billable")}
-                                      disabled={updateBookingMutation.isPending}
-                                    >
-                                      Owner Charge
-                                    </Button>
-                                    <Button 
-                                      variant={selectedBooking.billingRoute === "company_expense" ? "default" : "outline"}
-                                      onClick={() => handleUpdateBilling(selectedBooking, "company_expense")}
-                                      disabled={updateBookingMutation.isPending}
-                                    >
-                                      Company Expense
-                                    </Button>
-                                    <Select 
-                                      onValueChange={(value) => handleUpdateBilling(selectedBooking, "complimentary", value)}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Complimentary" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="owner_gift">Owner Gift</SelectItem>
-                                        <SelectItem value="company_gift">Company Gift</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </TabsContent>
-
-                                <TabsContent value="notes" className="space-y-4">
-                                  <div>
-                                    <Label htmlFor="internalNotes">Internal Notes</Label>
-                                    <Textarea
-                                      id="internalNotes"
-                                      value={internalNotes || selectedBooking.internalNotes || ""}
-                                      onChange={(e) => setInternalNotes(e.target.value)}
-                                      placeholder="Add internal notes about this booking..."
-                                      rows={4}
-                                    />
-                                  </div>
-                                  <Button 
-                                    onClick={() => {
-                                      updateBookingMutation.mutate({
-                                        id: selectedBooking.id,
-                                        data: { internalNotes }
-                                      });
-                                    }}
-                                    disabled={updateBookingMutation.isPending}
-                                  >
-                                    Save Notes
-                                  </Button>
-                                </TabsContent>
-                              </Tabs>
+                              </div>
                             </div>
-                          )}
+                            
+                            {booking.specialRequests && (
+                              <div>
+                                <Label className="text-sm font-medium text-gray-600">Special Requests</Label>
+                                <p className="mt-1 text-sm">{booking.specialRequests}</p>
+                              </div>
+                            )}
+                            
+                            {booking.internalNotes && (
+                              <div>
+                                <Label className="text-sm font-medium text-gray-600">Internal Notes</Label>
+                                <p className="mt-1 text-sm">{booking.internalNotes}</p>
+                              </div>
+                            )}
+                          </div>
                         </DialogContent>
                       </Dialog>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
-
-          {bookings.length === 0 && (
+          
+          {filteredBookings.length === 0 && (
             <div className="text-center py-12">
-              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No Bookings Found</h3>
-              <p className="text-muted-foreground">No add-on service bookings match your current filters.</p>
+              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings found</h3>
+              <p className="text-gray-500">No bookings match your current filters.</p>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Update Booking Dialog */}
+      {selectedBooking && (
+        <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                {updateData.status === "confirmed" ? "Approve Booking" : "Update Booking"}
+              </DialogTitle>
+              <DialogDescription>
+                {selectedBooking.serviceName} - {selectedBooking.guestName}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select value={updateData.status} onValueChange={(value) => setUpdateData(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="billing">Billing Route</Label>
+                <Select value={updateData.billingRoute} onValueChange={(value) => setUpdateData(prev => ({ ...prev, billingRoute: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="guest-bill">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" />
+                        Guest Bill (added to stay invoice)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="owner-bill">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Owner Bill (goes to owner financial log)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="company-expense">
+                      <div className="flex items-center gap-2">
+                        <Building className="w-4 h-4" />
+                        Company Expense (tracked internally)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="owner-gift">
+                      <div className="flex items-center gap-2">
+                        <Gift className="w-4 h-4" />
+                        Owner Gift (complimentary)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="company-gift">
+                      <div className="flex items-center gap-2">
+                        <Gift className="w-4 h-4" />
+                        Company Gift (complimentary)
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {(updateData.billingRoute === "owner-gift" || updateData.billingRoute === "company-gift") && (
+                <div>
+                  <Label htmlFor="complimentaryType">Gift Type</Label>
+                  <Input
+                    id="complimentaryType"
+                    value={updateData.complimentaryType || ""}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, complimentaryType: e.target.value }))}
+                    placeholder="e.g., Welcome gift, Birthday surprise..."
+                  />
+                </div>
+              )}
+              
+              <div>
+                <Label htmlFor="internalNotes">Internal Notes</Label>
+                <Textarea
+                  id="internalNotes"
+                  value={updateData.internalNotes || ""}
+                  onChange={(e) => setUpdateData(prev => ({ ...prev, internalNotes: e.target.value }))}
+                  placeholder="Add any internal notes..."
+                  rows={3}
+                />
+              </div>
+              
+              {updateData.status === "cancelled" && (
+                <div>
+                  <Label htmlFor="cancellationReason">Cancellation Reason</Label>
+                  <Textarea
+                    id="cancellationReason"
+                    value={updateData.cancellationReason || ""}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, cancellationReason: e.target.value }))}
+                    placeholder="Reason for cancellation..."
+                    rows={2}
+                  />
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectedBooking(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitUpdate}
+                disabled={updateBookingMutation.isPending}
+              >
+                {updateBookingMutation.isPending ? "Updating..." : "Update Booking"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
