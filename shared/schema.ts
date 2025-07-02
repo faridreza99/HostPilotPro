@@ -1443,38 +1443,6 @@ export const aiTaskRules = pgTable("ai_task_rules", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// AI suggestions for property improvements
-export const aiSuggestions = pgTable("ai_suggestions", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
-  type: varchar("type").notNull(), // improvement, maintenance, amenity
-  title: varchar("title").notNull(),
-  description: text("description").notNull(),
-  reasoning: text("reasoning").notNull(),
-  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }).notNull(),
-  priority: varchar("priority").default("medium"), // low, medium, high
-  basedOnReviews: jsonb("based_on_reviews"), // Array of review snippets
-  status: varchar("status").default("pending"), // pending, approved, rejected
-  approvedBy: varchar("approved_by").references(() => users.id),
-  approvedAt: timestamp("approved_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Owner activity log for dashboard timeline
-export const ownerActivity = pgTable("owner_activity", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  ownerId: varchar("owner_id").references(() => users.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id),
-  type: varchar("type").notNull(), // booking, task, maintenance, ai_suggestion
-  title: varchar("title").notNull(),
-  description: text("description").notNull(),
-  metadata: jsonb("metadata"), // Store photos, guest names, costs, etc.
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Feedback processing log - audit trail for AI decisions
 export const feedbackProcessingLog = pgTable("feedback_processing_log", {
   id: serial("id").primaryKey(),
@@ -2089,23 +2057,6 @@ export type ReferralProgramRule = typeof referralProgramRules.$inferSelect;
 export type InsertReferralProgramRule = z.infer<typeof insertReferralProgramRulesSchema>;
 export type PropertyAgent = typeof propertyAgents.$inferSelect;
 export type InsertPropertyAgent = z.infer<typeof insertPropertyAgentsSchema>;
-
-// AI Suggestions and Owner Activity type definitions
-export const insertAiSuggestionsSchema = createInsertSchema(aiSuggestions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertOwnerActivitySchema = createInsertSchema(ownerActivity).omit({
-  id: true,
-  createdAt: true,
-});
-
-export type AiSuggestion = typeof aiSuggestions.$inferSelect;
-export type InsertAiSuggestion = z.infer<typeof insertAiSuggestionsSchema>;
-export type OwnerActivity = typeof ownerActivity.$inferSelect;
-export type InsertOwnerActivity = z.infer<typeof insertOwnerActivitySchema>;
 
 // ===== STAFF DASHBOARD TYPES =====
 
