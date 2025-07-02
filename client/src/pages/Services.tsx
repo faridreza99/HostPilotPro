@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Utensils, Massage, Car, MapPin, Users, Calendar } from "lucide-react";
+import { Plus, Utensils, Heart, Car, MapPin, Users, Calendar } from "lucide-react";
 
 export default function Services() {
   const [activeTab, setActiveTab] = useState("addon-services");
@@ -27,7 +27,7 @@ export default function Services() {
   const getServiceIcon = (category: string) => {
     switch (category) {
       case 'chef': return <Utensils className="w-5 h-5" />;
-      case 'massage': return <Massage className="w-5 h-5" />;
+      case 'massage': return <Heart className="w-5 h-5" />;
       case 'transportation': return <Car className="w-5 h-5" />;
       case 'activities': return <MapPin className="w-5 h-5" />;
       default: return <Users className="w-5 h-5" />;

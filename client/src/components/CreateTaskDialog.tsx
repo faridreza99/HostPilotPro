@@ -19,10 +19,14 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
     title: "",
     description: "",
     type: "",
+    department: "",
     priority: "medium",
     propertyId: "",
     dueDate: "",
     estimatedCost: "",
+    isRecurring: false,
+    recurringType: "",
+    recurringInterval: "1",
   });
 
   const queryClient = useQueryClient();
@@ -48,10 +52,14 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
         title: "",
         description: "",
         type: "",
+        department: "",
         priority: "medium",
         propertyId: "",
         dueDate: "",
         estimatedCost: "",
+        isRecurring: false,
+        recurringType: "",
+        recurringInterval: "1",
       });
     },
     onError: (error) => {
@@ -112,6 +120,39 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
                   <SelectItem value="pool-service">Pool Service</SelectItem>
                   <SelectItem value="garden">Garden</SelectItem>
                   <SelectItem value="inspection">Inspection</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="department">Department</Label>
+              <Select value={formData.department} onValueChange={(value) => handleChange("department", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="housekeeping">Housekeeping</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="landscaping">Landscaping</SelectItem>
+                  <SelectItem value="pool">Pool Services</SelectItem>
+                  <SelectItem value="guest-services">Guest Services</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={formData.priority} onValueChange={(value) => handleChange("priority", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
                 </SelectContent>
               </Select>
             </div>

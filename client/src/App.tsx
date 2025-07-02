@@ -10,7 +10,9 @@ import Dashboard from "@/pages/Dashboard";
 import Properties from "@/pages/Properties";
 import Tasks from "@/pages/Tasks";
 import Bookings from "@/pages/Bookings";
+import Services from "@/pages/Services";
 import Finances from "@/pages/Finances";
+import Payouts from "@/pages/Payouts";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -25,7 +27,9 @@ function Router() {
           <Route path="/properties" component={Properties} />
           <Route path="/tasks" component={Tasks} />
           <Route path="/bookings" component={Bookings} />
+          <Route path="/services" component={Services} />
           <Route path="/finances" component={Finances} />
+          <Route path="/payouts" component={Payouts} />
         </>
       )}
       <Route component={NotFound} />
