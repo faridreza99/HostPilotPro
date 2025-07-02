@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Home, MapPin } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface PropertyCardProps {
   property: any;
@@ -9,16 +10,29 @@ interface PropertyCardProps {
 }
 
 export default function PropertyCard({ property, onDelete }: PropertyCardProps) {
+  const [, setLocation] = useLocation();
   const statusColor = property.status === 'active' ? 'default' : 
                      property.status === 'maintenance' ? 'secondary' : 'destructive';
 
+  const handleViewProperty = () => {
+    // For now, navigate to dashboard with property context
+    setLocation(`/?propertyId=${property.id}`);
+  };
+
+  const handleManageProperty = () => {
+    // Navigate to tasks filtered for this property
+    setLocation(`/tasks?propertyId=${property.id}`);
+  };
+
   return (
-    <Card className="overflow-hidden">
-      <div className="h-48 bg-gray-200 flex items-center justify-center">
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+      <div className="h-48 bg-gray-200 flex items-center justify-center" onClick={handleViewProperty}>
         <Home className="w-12 h-12 text-gray-400" />
       </div>
       <CardContent className="p-6">
-        <h3 className="font-semibold text-lg text-gray-900 mb-2">{property.name}</h3>
+        <h3 className="font-semibold text-lg text-gray-900 mb-2 hover:text-primary cursor-pointer" onClick={handleViewProperty}>
+          {property.name}
+        </h3>
         <div className="flex items-start space-x-2 text-gray-600 text-sm mb-4">
           <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>{property.address}</span>
@@ -39,10 +53,10 @@ export default function PropertyCard({ property, onDelete }: PropertyCardProps) 
         </div>
         
         <div className="flex space-x-2">
-          <Button variant="outline" className="flex-1" size="sm">
+          <Button variant="outline" className="flex-1" size="sm" onClick={handleViewProperty}>
             View
           </Button>
-          <Button variant="outline" className="flex-1" size="sm">
+          <Button variant="outline" className="flex-1" size="sm" onClick={handleManageProperty}>
             Manage
           </Button>
           <Button 
