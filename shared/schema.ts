@@ -591,6 +591,74 @@ export const balanceResetAudit = pgTable("balance_reset_audit", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Global Utility Providers and Custom Expense Categories for Multi-Country Support
+export const utilityProviders = pgTable("utility_providers", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  utilityType: varchar("utility_type").notNull(), // internet, electricity, water, gas, etc.
+  providerName: varchar("provider_name").notNull(),
+  country: varchar("country").default("Thailand"),
+  region: varchar("region"), // state, province, city for regional providers
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  contactInfo: text("contact_info"), // phone, website, email
+  billingCycle: varchar("billing_cycle").default("monthly"), // monthly, quarterly, annual
+  notes: text("notes"),
+  displayOrder: integer("display_order").default(0),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const customExpenseCategories = pgTable("custom_expense_categories", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  categoryName: varchar("category_name").notNull(),
+  description: text("description"),
+  isRecurring: boolean("is_recurring").default(true),
+  billingCycle: varchar("billing_cycle").default("monthly"), // monthly, quarterly, annual, one-time
+  defaultAmount: decimal("default_amount", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  autoReminder: boolean("auto_reminder").default(true),
+  reminderDays: integer("reminder_days").default(5), // days before due
+  isActive: boolean("is_active").default(true),
+  displayOrder: integer("display_order").default(0),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const propertyUtilitySettings = pgTable("property_utility_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").notNull(),
+  utilityType: varchar("utility_type").notNull(), // internet, electricity, water
+  providerId: integer("provider_id"), // references utilityProviders.id
+  customProviderName: varchar("custom_provider_name"), // for "Other" option
+  accountNumber: varchar("account_number"),
+  monthlyBudget: decimal("monthly_budget", { precision: 10, scale: 2 }),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const propertyCustomExpenses = pgTable("property_custom_expenses", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").notNull(),
+  categoryId: integer("category_id").notNull(), // references customExpenseCategories.id
+  monthlyAmount: decimal("monthly_amount", { precision: 10, scale: 2 }),
+  nextDueDate: timestamp("next_due_date"),
+  lastBillDate: timestamp("last_bill_date"),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Commission earnings table
 export const commissionEarnings = pgTable("commission_earnings", {
   id: serial("id").primaryKey(),
@@ -2085,6 +2153,71 @@ export const insertBalanceResetAuditSchema = createInsertSchema(balanceResetAudi
 
 export type BalanceResetAudit = typeof balanceResetAudit.$inferSelect;
 export type InsertBalanceResetAudit = z.infer<typeof insertBalanceResetAuditSchema>;
+
+// Utility Providers Relations
+export const utilityProvidersRelations = relations(utilityProviders, ({ one, many }) => ({
+  organization: one(organizations, { fields: [utilityProviders.organizationId], references: [organizations.id] }),
+  createdByUser: one(users, { fields: [utilityProviders.createdBy], references: [users.id] }),
+  propertySettings: many(propertyUtilitySettings),
+}));
+
+// Custom Expense Categories Relations
+export const customExpenseCategoriesRelations = relations(customExpenseCategories, ({ one, many }) => ({
+  organization: one(organizations, { fields: [customExpenseCategories.organizationId], references: [organizations.id] }),
+  createdByUser: one(users, { fields: [customExpenseCategories.createdBy], references: [users.id] }),
+  propertyExpenses: many(propertyCustomExpenses),
+}));
+
+// Property Utility Settings Relations
+export const propertyUtilitySettingsRelations = relations(propertyUtilitySettings, ({ one }) => ({
+  organization: one(organizations, { fields: [propertyUtilitySettings.organizationId], references: [organizations.id] }),
+  property: one(properties, { fields: [propertyUtilitySettings.propertyId], references: [properties.id] }),
+  provider: one(utilityProviders, { fields: [propertyUtilitySettings.providerId], references: [utilityProviders.id] }),
+  createdByUser: one(users, { fields: [propertyUtilitySettings.createdBy], references: [users.id] }),
+}));
+
+// Property Custom Expenses Relations
+export const propertyCustomExpensesRelations = relations(propertyCustomExpenses, ({ one }) => ({
+  organization: one(organizations, { fields: [propertyCustomExpenses.organizationId], references: [organizations.id] }),
+  property: one(properties, { fields: [propertyCustomExpenses.propertyId], references: [properties.id] }),
+  category: one(customExpenseCategories, { fields: [propertyCustomExpenses.categoryId], references: [customExpenseCategories.id] }),
+  createdByUser: one(users, { fields: [propertyCustomExpenses.createdBy], references: [users.id] }),
+}));
+
+// Utility and Custom Expense Insert Schemas
+export const insertUtilityProviderSchema = createInsertSchema(utilityProviders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCustomExpenseCategorySchema = createInsertSchema(customExpenseCategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyUtilitySettingsSchema = createInsertSchema(propertyUtilitySettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyCustomExpensesSchema = createInsertSchema(propertyCustomExpenses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Utility and Custom Expense Types
+export type UtilityProvider = typeof utilityProviders.$inferSelect;
+export type InsertUtilityProvider = z.infer<typeof insertUtilityProviderSchema>;
+export type CustomExpenseCategory = typeof customExpenseCategories.$inferSelect;
+export type InsertCustomExpenseCategory = z.infer<typeof insertCustomExpenseCategorySchema>;
+export type PropertyUtilitySettings = typeof propertyUtilitySettings.$inferSelect;
+export type InsertPropertyUtilitySettings = z.infer<typeof insertPropertyUtilitySettingsSchema>;
+export type PropertyCustomExpenses = typeof propertyCustomExpenses.$inferSelect;
+export type InsertPropertyCustomExpenses = z.infer<typeof insertPropertyCustomExpensesSchema>;
 
 // ===== STAFF DASHBOARD TYPES =====
 

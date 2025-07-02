@@ -5329,6 +5329,173 @@ export class DatabaseStorage implements IStorage {
 
     return activities;
   }
+
+  // ==================== UTILITY PROVIDERS & CUSTOM EXPENSE MANAGEMENT ====================
+
+  async getUtilityProviders(organizationId: string, utilityType?: string): Promise<UtilityProvider[]> {
+    let query = db
+      .select()
+      .from(utilityProviders)
+      .where(eq(utilityProviders.organizationId, organizationId));
+
+    if (utilityType) {
+      query = query.where(eq(utilityProviders.utilityType, utilityType));
+    }
+
+    return await query
+      .orderBy(asc(utilityProviders.displayOrder), asc(utilityProviders.providerName));
+  }
+
+  async createUtilityProvider(data: InsertUtilityProvider): Promise<UtilityProvider> {
+    const [provider] = await db.insert(utilityProviders).values(data).returning();
+    return provider;
+  }
+
+  async updateUtilityProvider(id: number, data: Partial<InsertUtilityProvider>): Promise<UtilityProvider> {
+    const [provider] = await db
+      .update(utilityProviders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(utilityProviders.id, id))
+      .returning();
+    return provider;
+  }
+
+  async deleteUtilityProvider(id: number): Promise<void> {
+    await db.delete(utilityProviders).where(eq(utilityProviders.id, id));
+  }
+
+  async getCustomExpenseCategories(organizationId: string): Promise<CustomExpenseCategory[]> {
+    return await db
+      .select()
+      .from(customExpenseCategories)
+      .where(eq(customExpenseCategories.organizationId, organizationId))
+      .orderBy(asc(customExpenseCategories.displayOrder), asc(customExpenseCategories.categoryName));
+  }
+
+  async createCustomExpenseCategory(data: InsertCustomExpenseCategory): Promise<CustomExpenseCategory> {
+    const [category] = await db.insert(customExpenseCategories).values(data).returning();
+    return category;
+  }
+
+  async updateCustomExpenseCategory(id: number, data: Partial<InsertCustomExpenseCategory>): Promise<CustomExpenseCategory> {
+    const [category] = await db
+      .update(customExpenseCategories)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customExpenseCategories.id, id))
+      .returning();
+    return category;
+  }
+
+  async deleteCustomExpenseCategory(id: number): Promise<void> {
+    await db.delete(customExpenseCategories).where(eq(customExpenseCategories.id, id));
+  }
+
+  async getPropertyUtilitySettings(organizationId: string, propertyId?: number): Promise<PropertyUtilitySettings[]> {
+    let query = db
+      .select()
+      .from(propertyUtilitySettings)
+      .where(eq(propertyUtilitySettings.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(propertyUtilitySettings.propertyId, propertyId));
+    }
+
+    return await query.orderBy(asc(propertyUtilitySettings.utilityType));
+  }
+
+  async createPropertyUtilitySettings(data: InsertPropertyUtilitySettings): Promise<PropertyUtilitySettings> {
+    const [settings] = await db.insert(propertyUtilitySettings).values(data).returning();
+    return settings;
+  }
+
+  async updatePropertyUtilitySettings(id: number, data: Partial<InsertPropertyUtilitySettings>): Promise<PropertyUtilitySettings> {
+    const [settings] = await db
+      .update(propertyUtilitySettings)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(propertyUtilitySettings.id, id))
+      .returning();
+    return settings;
+  }
+
+  async deletePropertyUtilitySettings(id: number): Promise<void> {
+    await db.delete(propertyUtilitySettings).where(eq(propertyUtilitySettings.id, id));
+  }
+
+  async getPropertyCustomExpenses(organizationId: string, propertyId?: number): Promise<PropertyCustomExpenses[]> {
+    let query = db
+      .select()
+      .from(propertyCustomExpenses)
+      .where(eq(propertyCustomExpenses.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(propertyCustomExpenses.propertyId, propertyId));
+    }
+
+    return await query.orderBy(asc(propertyCustomExpenses.propertyId));
+  }
+
+  async createPropertyCustomExpenses(data: InsertPropertyCustomExpenses): Promise<PropertyCustomExpenses> {
+    const [expense] = await db.insert(propertyCustomExpenses).values(data).returning();
+    return expense;
+  }
+
+  async updatePropertyCustomExpenses(id: number, data: Partial<InsertPropertyCustomExpenses>): Promise<PropertyCustomExpenses> {
+    const [expense] = await db
+      .update(propertyCustomExpenses)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(propertyCustomExpenses.id, id))
+      .returning();
+    return expense;
+  }
+
+  async deletePropertyCustomExpenses(id: number): Promise<void> {
+    await db.delete(propertyCustomExpenses).where(eq(propertyCustomExpenses.id, id));
+  }
+
+  async seedDefaultUtilityProviders(organizationId: string, createdBy: string): Promise<void> {
+    const defaultProviders = [
+      // Internet providers (Thailand)
+      { utilityType: 'internet', providerName: 'True Online', country: 'Thailand', isDefault: true, displayOrder: 1 },
+      { utilityType: 'internet', providerName: '3BB', country: 'Thailand', displayOrder: 2 },
+      { utilityType: 'internet', providerName: 'NT', country: 'Thailand', displayOrder: 3 },
+      { utilityType: 'internet', providerName: 'CAT', country: 'Thailand', displayOrder: 4 },
+      { utilityType: 'internet', providerName: 'TOT', country: 'Thailand', displayOrder: 5 },
+      { utilityType: 'internet', providerName: 'AIS', country: 'Thailand', displayOrder: 6 },
+      
+      // Electric providers (Thailand)
+      { utilityType: 'electricity', providerName: 'PEA', country: 'Thailand', isDefault: true, displayOrder: 1 },
+      
+      // Water providers (Thailand)
+      { utilityType: 'water', providerName: 'Government', country: 'Thailand', isDefault: true, displayOrder: 1 },
+      { utilityType: 'water', providerName: 'Deepwell', country: 'Thailand', displayOrder: 2 },
+    ];
+
+    for (const provider of defaultProviders) {
+      await this.createUtilityProvider({
+        organizationId,
+        createdBy,
+        ...provider
+      });
+    }
+  }
+
+  async seedDefaultCustomExpenseCategories(organizationId: string, createdBy: string): Promise<void> {
+    const defaultCategories = [
+      { categoryName: 'Gas', description: 'Cooking gas and propane cylinders', billingCycle: 'monthly', defaultAmount: '500', currency: 'THB', displayOrder: 1 },
+      { categoryName: 'Pest Control', description: 'Regular pest control services', billingCycle: 'monthly', defaultAmount: '800', currency: 'THB', displayOrder: 2 },
+      { categoryName: 'Residence Fee', description: 'Building or community fees', billingCycle: 'monthly', defaultAmount: '1200', currency: 'THB', displayOrder: 3 },
+      { categoryName: 'Security Service', description: 'Security guard or monitoring service', billingCycle: 'monthly', defaultAmount: '2000', currency: 'THB', displayOrder: 4 },
+      { categoryName: 'Landscaping', description: 'Garden maintenance and landscaping', billingCycle: 'monthly', defaultAmount: '1500', currency: 'THB', displayOrder: 5 },
+    ];
+
+    for (const category of defaultCategories) {
+      await this.createCustomExpenseCategory({
+        organizationId,
+        createdBy,
+        ...category
+      });
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
