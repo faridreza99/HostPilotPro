@@ -85,6 +85,8 @@ export const users = pgTable("users", {
 
 export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  externalId: varchar("external_id"), // ID from external system (Hostaway, etc.)
   name: varchar("name").notNull(),
   address: text("address").notNull(),
   description: text("description"),
@@ -92,6 +94,7 @@ export const properties = pgTable("properties", {
   bathrooms: integer("bathrooms"),
   maxGuests: integer("max_guests"),
   pricePerNight: decimal("price_per_night", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("AUD"),
   status: varchar("status").notNull().default("active"), // active, inactive, maintenance
   amenities: text("amenities").array(),
   images: text("images").array(),
@@ -99,10 +102,15 @@ export const properties = pgTable("properties", {
   ownerId: varchar("owner_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("IDX_property_org").on(table.organizationId),
+  index("IDX_property_owner").on(table.ownerId),
+  index("IDX_property_external").on(table.externalId),
+]);
 
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
   title: varchar("title").notNull(),
   description: text("description"),
   type: varchar("type").notNull(), // cleaning, maintenance, pool-service, garden, inspection
@@ -127,6 +135,8 @@ export const tasks = pgTable("tasks", {
 
 export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  externalId: varchar("external_id"), // ID from external system (Hostaway, etc.)
   propertyId: integer("property_id").references(() => properties.id),
   guestName: varchar("guest_name").notNull(),
   guestEmail: varchar("guest_email"),
@@ -135,6 +145,8 @@ export const bookings = pgTable("bookings", {
   checkOut: date("check_out").notNull(),
   guests: integer("guests").notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("AUD"),
+  status: varchar("status").default("confirmed"), // confirmed, cancelled, pending
   status: varchar("status").notNull().default("confirmed"), // pending, confirmed, checked-in, checked-out, cancelled
   hostawayId: varchar("hostaway_id"),
   specialRequests: text("special_requests"),

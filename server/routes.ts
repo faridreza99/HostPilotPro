@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
 import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -330,6 +331,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting platform setting:", error);
       res.status(500).json({ message: "Failed to delete platform setting" });
+    }
+  });
+
+  // Hostaway API routes
+  app.post("/api/hostaway/sync", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(400).json({ message: "User ID required" });
+      }
+
+      const { syncHostawayData } = await import("./hostaway");
+      const result = await syncHostawayData(req, userId);
+      
+      res.json({
+        message: "Hostaway sync completed successfully",
+        ...result
+      });
+    } catch (error) {
+      console.error("Error syncing Hostaway data:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to sync Hostaway data"
+      });
+    }
+  });
+
+  app.get("/api/hostaway/properties", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { getHostawayAPI } = await import("./hostaway");
+      const hostaway = await getHostawayAPI(req);
+      
+      if (!hostaway) {
+        return res.status(404).json({ message: "Hostaway API not configured" });
+      }
+
+      const properties = await hostaway.getProperties();
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching Hostaway properties:", error);
+      res.status(500).json({ message: "Failed to fetch Hostaway properties" });
+    }
+  });
+
+  app.get("/api/hostaway/bookings", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { getHostawayAPI } = await import("./hostaway");
+      const hostaway = await getHostawayAPI(req);
+      
+      if (!hostaway) {
+        return res.status(404).json({ message: "Hostaway API not configured" });
+      }
+
+      const bookings = await hostaway.getBookings();
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching Hostaway bookings:", error);
+      res.status(500).json({ message: "Failed to fetch Hostaway bookings" });
+    }
+  });
+
+  app.get("/api/hostaway/calendar", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { getHostawayAPI } = await import("./hostaway");
+      const hostaway = await getHostawayAPI(req);
+      
+      if (!hostaway) {
+        return res.status(404).json({ message: "Hostaway API not configured" });
+      }
+
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined;
+      const calendar = await hostaway.getCalendar(propertyId);
+      res.json(calendar);
+    } catch (error) {
+      console.error("Error fetching Hostaway calendar:", error);
+      res.status(500).json({ message: "Failed to fetch Hostaway calendar" });
+    }
+  });
+
+  app.get("/api/hostaway/earnings", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { getHostawayAPI } = await import("./hostaway");
+      const hostaway = await getHostawayAPI(req);
+      
+      if (!hostaway) {
+        return res.status(404).json({ message: "Hostaway API not configured" });
+      }
+
+      const earnings = await hostaway.getEarnings();
+      res.json(earnings);
+    } catch (error) {
+      console.error("Error fetching Hostaway earnings:", error);
+      res.status(500).json({ message: "Failed to fetch Hostaway earnings" });
     }
   });
 
