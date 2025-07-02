@@ -1408,3 +1408,120 @@ export type InsertPropertyInternalNotes = z.infer<typeof insertPropertyInternalN
 export type PropertyInternalNotes = typeof propertyInternalNotes.$inferSelect;
 export type InsertAgentMediaAccess = z.infer<typeof insertAgentMediaAccessSchema>;
 export type AgentMediaAccess = typeof agentMediaAccess.$inferSelect;
+
+// ===== OWNER DASHBOARD PLATFORM =====
+
+// Owner Activity Timeline
+export const ownerActivityTimeline = pgTable("owner_activity_timeline", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  activityType: varchar("activity_type").notNull(), // check_in, check_out, task_completed, guest_feedback, addon_booking, bill_uploaded
+  title: varchar("title").notNull(),
+  description: text("description"),
+  metadata: jsonb("metadata"), // Additional data specific to activity type
+  referenceId: integer("reference_id"), // ID of related record (booking, task, etc)
+  referenceType: varchar("reference_type"), // booking, task, guest_addon_booking, etc
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
+// Owner Payout Requests
+export const ownerPayoutRequests = pgTable("owner_payout_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("AUD"),
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  status: varchar("status").notNull().default("pending"), // pending, approved, processing, completed
+  requestNotes: text("request_notes"),
+  adminNotes: text("admin_notes"),
+  paymentReceiptUrl: varchar("payment_receipt_url"),
+  paymentMethod: varchar("payment_method"),
+  paymentReference: varchar("payment_reference"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  paymentUploadedAt: timestamp("payment_uploaded_at"),
+  paymentUploadedBy: varchar("payment_uploaded_by").references(() => users.id),
+  completedAt: timestamp("completed_at"),
+  completedBy: varchar("completed_by").references(() => users.id),
+});
+
+// Owner Invoices
+export const ownerInvoices = pgTable("owner_invoices", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  invoiceNumber: varchar("invoice_number").notNull().unique(),
+  invoiceType: varchar("invoice_type").notNull(), // monthly_summary, utility_cost, service_charge, management_fee
+  title: varchar("title").notNull(),
+  description: text("description"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("AUD"),
+  periodStart: date("period_start"),
+  periodEnd: date("period_end"),
+  dueDate: date("due_date"),
+  status: varchar("status").default("pending"), // pending, paid, overdue, cancelled
+  pdfUrl: varchar("pdf_url"),
+  metadata: jsonb("metadata"), // Breakdown details
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Owner Preferences
+export const ownerPreferences = pgTable("owner_preferences", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  taskApprovalRequired: boolean("task_approval_required").default(false),
+  maintenanceAlerts: boolean("maintenance_alerts").default(true),
+  guestAddonNotifications: boolean("guest_addon_notifications").default(true),
+  financialNotifications: boolean("financial_notifications").default(true),
+  weeklyReports: boolean("weekly_reports").default(true),
+  preferredCurrency: varchar("preferred_currency").default("AUD"),
+  notificationEmail: varchar("notification_email"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas for owner dashboard
+export const insertOwnerActivityTimelineSchema = createInsertSchema(ownerActivityTimeline).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertOwnerPayoutRequestSchema = createInsertSchema(ownerPayoutRequests).omit({
+  id: true,
+  requestedAt: true,
+  approvedAt: true,
+  paymentUploadedAt: true,
+  completedAt: true,
+});
+
+export const insertOwnerInvoiceSchema = createInsertSchema(ownerInvoices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOwnerPreferencesSchema = createInsertSchema(ownerPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Owner Dashboard types
+export type OwnerActivityTimeline = typeof ownerActivityTimeline.$inferSelect;
+export type InsertOwnerActivityTimeline = z.infer<typeof insertOwnerActivityTimelineSchema>;
+export type OwnerPayoutRequest = typeof ownerPayoutRequests.$inferSelect;
+export type InsertOwnerPayoutRequest = z.infer<typeof insertOwnerPayoutRequestSchema>;
+export type OwnerInvoice = typeof ownerInvoices.$inferSelect;
+export type InsertOwnerInvoice = z.infer<typeof insertOwnerInvoiceSchema>;
+export type OwnerPreferences = typeof ownerPreferences.$inferSelect;
+export type InsertOwnerPreferences = z.infer<typeof insertOwnerPreferencesSchema>;

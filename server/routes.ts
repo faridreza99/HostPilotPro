@@ -2379,6 +2379,316 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== OWNER DASHBOARD ROUTES =====
+
+  // Get owner dashboard stats
+  app.get("/api/owner/dashboard/stats", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { startDate, endDate, propertyId } = req.query;
+      const filters = {
+        startDate: startDate as string,
+        endDate: endDate as string,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+      };
+      
+      const stats = await storage.getOwnerDashboardStats(req.user.organizationId, req.user.id, filters);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching owner dashboard stats:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Get owner financial summary
+  app.get("/api/owner/dashboard/financial-summary", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { startDate, endDate, propertyId, currency } = req.query;
+      const filters = {
+        startDate: startDate as string,
+        endDate: endDate as string,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        currency: currency as string,
+      };
+      
+      const summary = await storage.getOwnerFinancialSummary(req.user.organizationId, req.user.id, filters);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching owner financial summary:", error);
+      res.status(500).json({ message: "Failed to fetch financial summary" });
+    }
+  });
+
+  // Get owner activity timeline
+  app.get("/api/owner/dashboard/activity", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, activityType, startDate, endDate, limit } = req.query;
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        activityType: activityType as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+      };
+      
+      const activities = await storage.getOwnerActivityTimeline(req.user.organizationId, req.user.id, filters);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching owner activity timeline:", error);
+      res.status(500).json({ message: "Failed to fetch activity timeline" });
+    }
+  });
+
+  // Create owner activity timeline entry (for system use)
+  app.post("/api/owner/dashboard/activity", isDemoAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertOwnerActivityTimelineSchema.parse({
+        ...req.body,
+        organizationId: req.user.organizationId,
+        createdBy: req.user.id,
+      });
+      
+      const activity = await storage.createOwnerActivityTimeline(validatedData);
+      res.json(activity);
+    } catch (error) {
+      console.error("Error creating owner activity:", error);
+      res.status(500).json({ message: "Failed to create activity" });
+    }
+  });
+
+  // Get owner payout requests
+  app.get("/api/owner/dashboard/payouts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { status, startDate, endDate } = req.query;
+      const filters = {
+        status: status as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      };
+      
+      const payouts = await storage.getOwnerPayoutRequests(req.user.organizationId, req.user.id, filters);
+      res.json(payouts);
+    } catch (error) {
+      console.error("Error fetching owner payout requests:", error);
+      res.status(500).json({ message: "Failed to fetch payout requests" });
+    }
+  });
+
+  // Create owner payout request
+  app.post("/api/owner/dashboard/payouts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertOwnerPayoutRequestSchema.parse({
+        ...req.body,
+        organizationId: req.user.organizationId,
+        ownerId: req.user.id,
+        status: 'pending',
+      });
+      
+      const payout = await storage.createOwnerPayoutRequest(validatedData);
+      res.json(payout);
+    } catch (error) {
+      console.error("Error creating owner payout request:", error);
+      res.status(500).json({ message: "Failed to create payout request" });
+    }
+  });
+
+  // Update payout request (mark as received by owner)
+  app.patch("/api/owner/dashboard/payouts/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const payout = await storage.updateOwnerPayoutRequest(parseInt(id), updates);
+      if (!payout) {
+        return res.status(404).json({ message: "Payout request not found" });
+      }
+      
+      res.json(payout);
+    } catch (error) {
+      console.error("Error updating payout request:", error);
+      res.status(500).json({ message: "Failed to update payout request" });
+    }
+  });
+
+  // Admin approve payout request
+  app.post("/api/owner/dashboard/payouts/:id/approve", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      
+      const payout = await storage.approvePayoutRequest(parseInt(id), req.user.id, notes);
+      if (!payout) {
+        return res.status(404).json({ message: "Payout request not found" });
+      }
+      
+      res.json(payout);
+    } catch (error) {
+      console.error("Error approving payout request:", error);
+      res.status(500).json({ message: "Failed to approve payout request" });
+    }
+  });
+
+  // Admin complete payout request
+  app.post("/api/owner/dashboard/payouts/:id/complete", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentMethod, paymentReference, paymentReceiptUrl } = req.body;
+      
+      const payout = await storage.completePayoutRequest(parseInt(id), req.user.id, {
+        paymentMethod,
+        paymentReference,
+        paymentReceiptUrl,
+      });
+      
+      if (!payout) {
+        return res.status(404).json({ message: "Payout request not found" });
+      }
+      
+      res.json(payout);
+    } catch (error) {
+      console.error("Error completing payout request:", error);
+      res.status(500).json({ message: "Failed to complete payout request" });
+    }
+  });
+
+  // Get owner invoices
+  app.get("/api/owner/dashboard/invoices", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, invoiceType, status, startDate, endDate } = req.query;
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        invoiceType: invoiceType as string,
+        status: status as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      };
+      
+      const invoices = await storage.getOwnerInvoices(req.user.organizationId, req.user.id, filters);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching owner invoices:", error);
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  // Create owner invoice (admin only)
+  app.post("/api/owner/dashboard/invoices", isDemoAuthenticated, async (req, res) => {
+    try {
+      // Generate unique invoice number
+      const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const validatedData = insertOwnerInvoiceSchema.parse({
+        ...req.body,
+        organizationId: req.user.organizationId,
+        invoiceNumber,
+        createdBy: req.user.id,
+      });
+      
+      const invoice = await storage.createOwnerInvoice(validatedData);
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error creating owner invoice:", error);
+      res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  // Update owner invoice
+  app.patch("/api/owner/dashboard/invoices/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const invoice = await storage.updateOwnerInvoice(parseInt(id), updates);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error updating invoice:", error);
+      res.status(500).json({ message: "Failed to update invoice" });
+    }
+  });
+
+  // Get owner preferences
+  app.get("/api/owner/dashboard/preferences", isDemoAuthenticated, async (req, res) => {
+    try {
+      const preferences = await storage.getOwnerPreferences(req.user.organizationId, req.user.id);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error fetching owner preferences:", error);
+      res.status(500).json({ message: "Failed to fetch preferences" });
+    }
+  });
+
+  // Update owner preferences
+  app.post("/api/owner/dashboard/preferences", isDemoAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertOwnerPreferencesSchema.parse({
+        ...req.body,
+        organizationId: req.user.organizationId,
+        ownerId: req.user.id,
+      });
+      
+      const preferences = await storage.upsertOwnerPreferences(validatedData);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error updating owner preferences:", error);
+      res.status(500).json({ message: "Failed to update preferences" });
+    }
+  });
+
+  // Get owner bookings with enhanced details
+  app.get("/api/owner/dashboard/bookings", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { startDate, endDate, status, propertyId } = req.query;
+      
+      // Get owner's properties first
+      const ownerProperties = await storage.getProperties(req.user.organizationId, { ownerId: req.user.id });
+      const propertyIds = ownerProperties.map(p => p.id);
+      
+      if (propertyIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Build filters for bookings
+      const filters: any = { propertyIds };
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      if (status) filters.status = status as string;
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+
+      const bookings = await storage.getBookings(req.user.organizationId, filters);
+      
+      // Enhance bookings with property details and revenue information
+      const enhancedBookings = await Promise.all(
+        bookings.map(async (booking) => {
+          const property = ownerProperties.find(p => p.id === booking.propertyId);
+          
+          // Get financial data for this booking
+          const finances = await storage.getFinances(req.user.organizationId, { 
+            bookingId: booking.id 
+          });
+          
+          const revenue = finances
+            .filter(f => f.type === 'income')
+            .reduce((sum, f) => sum + parseFloat(f.amount), 0);
+
+          return {
+            ...booking,
+            propertyName: property?.name,
+            revenue,
+            source: booking.source || 'Direct',
+          };
+        })
+      );
+      
+      res.json(enhancedBookings);
+    } catch (error) {
+      console.error("Error fetching owner bookings:", error);
+      res.status(500).json({ message: "Failed to fetch bookings" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

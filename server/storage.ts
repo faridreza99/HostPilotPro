@@ -3000,6 +3000,417 @@ export class DatabaseStorage implements IStorage {
 
     return mediaData;
   }
+
+  // ===== OWNER DASHBOARD PLATFORM =====
+
+  // Owner Activity Timeline Operations
+  async createOwnerActivityTimeline(activity: InsertOwnerActivityTimeline): Promise<OwnerActivityTimeline> {
+    const [newActivity] = await db.insert(ownerActivityTimeline).values(activity).returning();
+    return newActivity;
+  }
+
+  async getOwnerActivityTimeline(organizationId: string, ownerId: string, filters?: {
+    propertyId?: number;
+    activityType?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }): Promise<OwnerActivityTimeline[]> {
+    let query = db
+      .select({
+        id: ownerActivityTimeline.id,
+        organizationId: ownerActivityTimeline.organizationId,
+        propertyId: ownerActivityTimeline.propertyId,
+        ownerId: ownerActivityTimeline.ownerId,
+        activityType: ownerActivityTimeline.activityType,
+        title: ownerActivityTimeline.title,
+        description: ownerActivityTimeline.description,
+        metadata: ownerActivityTimeline.metadata,
+        referenceId: ownerActivityTimeline.referenceId,
+        referenceType: ownerActivityTimeline.referenceType,
+        createdAt: ownerActivityTimeline.createdAt,
+        createdBy: ownerActivityTimeline.createdBy,
+        propertyName: properties.name,
+      })
+      .from(ownerActivityTimeline)
+      .leftJoin(properties, eq(ownerActivityTimeline.propertyId, properties.id))
+      .where(and(
+        eq(ownerActivityTimeline.organizationId, organizationId),
+        eq(ownerActivityTimeline.ownerId, ownerId)
+      ));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(ownerActivityTimeline.propertyId, filters.propertyId));
+    }
+    if (filters?.activityType) {
+      query = query.where(eq(ownerActivityTimeline.activityType, filters.activityType));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(ownerActivityTimeline.createdAt, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(ownerActivityTimeline.createdAt, new Date(filters.endDate)));
+    }
+
+    const result = await query
+      .orderBy(desc(ownerActivityTimeline.createdAt))
+      .limit(filters?.limit || 50);
+
+    return result as OwnerActivityTimeline[];
+  }
+
+  // Owner Payout Request Operations
+  async createOwnerPayoutRequest(request: InsertOwnerPayoutRequest): Promise<OwnerPayoutRequest> {
+    const [newRequest] = await db.insert(ownerPayoutRequests).values(request).returning();
+    return newRequest;
+  }
+
+  async getOwnerPayoutRequests(organizationId: string, ownerId: string, filters?: {
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<OwnerPayoutRequest[]> {
+    let query = db
+      .select()
+      .from(ownerPayoutRequests)
+      .where(and(
+        eq(ownerPayoutRequests.organizationId, organizationId),
+        eq(ownerPayoutRequests.ownerId, ownerId)
+      ));
+
+    if (filters?.status) {
+      query = query.where(eq(ownerPayoutRequests.status, filters.status));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(ownerPayoutRequests.requestedAt, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(ownerPayoutRequests.requestedAt, new Date(filters.endDate)));
+    }
+
+    return query.orderBy(desc(ownerPayoutRequests.requestedAt));
+  }
+
+  async updateOwnerPayoutRequest(id: number, updates: Partial<OwnerPayoutRequest>): Promise<OwnerPayoutRequest | undefined> {
+    const [updated] = await db
+      .update(ownerPayoutRequests)
+      .set(updates)
+      .where(eq(ownerPayoutRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  async approvePayoutRequest(id: number, approvedBy: string, notes?: string): Promise<OwnerPayoutRequest | undefined> {
+    const [updated] = await db
+      .update(ownerPayoutRequests)
+      .set({
+        status: 'approved',
+        approvedAt: new Date(),
+        approvedBy,
+        adminNotes: notes,
+      })
+      .where(eq(ownerPayoutRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  async completePayoutRequest(id: number, completedBy: string, paymentData: {
+    paymentMethod?: string;
+    paymentReference?: string;
+    paymentReceiptUrl?: string;
+  }): Promise<OwnerPayoutRequest | undefined> {
+    const [updated] = await db
+      .update(ownerPayoutRequests)
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+        completedBy,
+        paymentUploadedAt: new Date(),
+        paymentUploadedBy: completedBy,
+        ...paymentData,
+      })
+      .where(eq(ownerPayoutRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Owner Invoice Operations
+  async createOwnerInvoice(invoice: InsertOwnerInvoice): Promise<OwnerInvoice> {
+    const [newInvoice] = await db.insert(ownerInvoices).values(invoice).returning();
+    return newInvoice;
+  }
+
+  async getOwnerInvoices(organizationId: string, ownerId: string, filters?: {
+    propertyId?: number;
+    invoiceType?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<OwnerInvoice[]> {
+    let query = db
+      .select({
+        ...ownerInvoices,
+        propertyName: properties.name,
+      })
+      .from(ownerInvoices)
+      .leftJoin(properties, eq(ownerInvoices.propertyId, properties.id))
+      .where(and(
+        eq(ownerInvoices.organizationId, organizationId),
+        eq(ownerInvoices.ownerId, ownerId)
+      ));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(ownerInvoices.propertyId, filters.propertyId));
+    }
+    if (filters?.invoiceType) {
+      query = query.where(eq(ownerInvoices.invoiceType, filters.invoiceType));
+    }
+    if (filters?.status) {
+      query = query.where(eq(ownerInvoices.status, filters.status));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(ownerInvoices.createdAt, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(ownerInvoices.createdAt, new Date(filters.endDate)));
+    }
+
+    return query.orderBy(desc(ownerInvoices.createdAt));
+  }
+
+  async updateOwnerInvoice(id: number, updates: Partial<InsertOwnerInvoice>): Promise<OwnerInvoice | undefined> {
+    const [updated] = await db
+      .update(ownerInvoices)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(ownerInvoices.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Owner Preferences Operations
+  async getOwnerPreferences(organizationId: string, ownerId: string): Promise<OwnerPreferences | undefined> {
+    const [preferences] = await db
+      .select()
+      .from(ownerPreferences)
+      .where(and(
+        eq(ownerPreferences.organizationId, organizationId),
+        eq(ownerPreferences.ownerId, ownerId)
+      ));
+    return preferences;
+  }
+
+  async upsertOwnerPreferences(preferences: InsertOwnerPreferences): Promise<OwnerPreferences> {
+    const [result] = await db
+      .insert(ownerPreferences)
+      .values(preferences)
+      .onConflictDoUpdate({
+        target: ownerPreferences.ownerId,
+        set: {
+          ...preferences,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  // Owner Dashboard Analytics
+  async getOwnerDashboardStats(organizationId: string, ownerId: string, filters?: {
+    startDate?: string;
+    endDate?: string;
+    propertyId?: number;
+  }) {
+    // Get owner's properties
+    const ownerProperties = await db
+      .select()
+      .from(properties)
+      .where(and(
+        eq(properties.organizationId, organizationId),
+        eq(properties.ownerId, ownerId)
+      ));
+
+    const propertyIds = ownerProperties.map(p => p.id);
+
+    if (propertyIds.length === 0) {
+      return {
+        totalRevenue: 0,
+        totalBookings: 0,
+        upcomingBookings: 0,
+        completedTasks: 0,
+        pendingPayouts: 0,
+        recentActivity: [],
+      };
+    }
+
+    // Get booking stats
+    let bookingsQuery = db
+      .select({
+        count: count(),
+        totalAmount: sum(finances.amount),
+      })
+      .from(bookings)
+      .leftJoin(finances, eq(bookings.id, finances.bookingId))
+      .where(and(
+        eq(bookings.organizationId, organizationId),
+        inArray(bookings.propertyId, propertyIds)
+      ));
+
+    if (filters?.startDate) {
+      bookingsQuery = bookingsQuery.where(gte(bookings.startDate, filters.startDate));
+    }
+    if (filters?.endDate) {
+      bookingsQuery = bookingsQuery.where(lte(bookings.endDate, filters.endDate));
+    }
+
+    const [bookingStats] = await bookingsQuery;
+
+    // Get completed tasks count
+    const [taskStats] = await db
+      .select({ count: count() })
+      .from(tasks)
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        inArray(tasks.propertyId, propertyIds),
+        eq(tasks.status, 'completed')
+      ));
+
+    // Get pending payouts
+    const [payoutStats] = await db
+      .select({ 
+        count: count(),
+        totalAmount: sum(ownerPayoutRequests.amount)
+      })
+      .from(ownerPayoutRequests)
+      .where(and(
+        eq(ownerPayoutRequests.organizationId, organizationId),
+        eq(ownerPayoutRequests.ownerId, ownerId),
+        eq(ownerPayoutRequests.status, 'pending')
+      ));
+
+    // Get upcoming bookings (next 30 days)
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    const [upcomingStats] = await db
+      .select({ count: count() })
+      .from(bookings)
+      .where(and(
+        eq(bookings.organizationId, organizationId),
+        inArray(bookings.propertyId, propertyIds),
+        gte(bookings.startDate, new Date().toISOString()),
+        lte(bookings.startDate, thirtyDaysFromNow.toISOString())
+      ));
+
+    return {
+      totalRevenue: Number(bookingStats?.totalAmount || 0),
+      totalBookings: bookingStats?.count || 0,
+      upcomingBookings: upcomingStats?.count || 0,
+      completedTasks: taskStats?.count || 0,
+      pendingPayouts: payoutStats?.count || 0,
+      pendingPayoutAmount: Number(payoutStats?.totalAmount || 0),
+      properties: ownerProperties,
+    };
+  }
+
+  // Financial Summary for Owner
+  async getOwnerFinancialSummary(organizationId: string, ownerId: string, filters?: {
+    startDate?: string;
+    endDate?: string;
+    propertyId?: number;
+    currency?: string;
+  }) {
+    // Get owner's properties
+    const ownerProperties = await db
+      .select()
+      .from(properties)
+      .where(and(
+        eq(properties.organizationId, organizationId),
+        eq(properties.ownerId, ownerId)
+      ));
+
+    const propertyIds = ownerProperties.map(p => p.id);
+
+    if (propertyIds.length === 0) {
+      return {
+        rentalIncome: 0,
+        managementFees: 0,
+        addonRevenue: 0,
+        utilityDeductions: 0,
+        serviceDeductions: 0,
+        netBalance: 0,
+        breakdown: [],
+      };
+    }
+
+    let financeQuery = db
+      .select({
+        type: finances.type,
+        source: finances.source,
+        category: finances.category,
+        totalAmount: sum(finances.amount),
+        count: count(),
+      })
+      .from(finances)
+      .where(and(
+        eq(finances.organizationId, organizationId),
+        inArray(finances.propertyId, propertyIds)
+      ));
+
+    if (filters?.startDate) {
+      financeQuery = financeQuery.where(gte(finances.date, filters.startDate));
+    }
+    if (filters?.endDate) {
+      financeQuery = financeQuery.where(lte(finances.date, filters.endDate));
+    }
+    if (filters?.propertyId) {
+      financeQuery = financeQuery.where(eq(finances.propertyId, filters.propertyId));
+    }
+
+    const breakdown = await financeQuery
+      .groupBy(finances.type, finances.source, finances.category)
+      .orderBy(finances.type, finances.category);
+
+    let rentalIncome = 0;
+    let managementFees = 0;
+    let addonRevenue = 0;
+    let utilityDeductions = 0;
+    let serviceDeductions = 0;
+
+    breakdown.forEach(item => {
+      const amount = Number(item.totalAmount || 0);
+      
+      if (item.type === 'income') {
+        if (item.source === 'booking_payment') {
+          rentalIncome += amount;
+        } else if (item.category?.startsWith('addon_')) {
+          addonRevenue += amount;
+        }
+      } else if (item.type === 'expense') {
+        if (item.category === 'management_fee') {
+          managementFees += amount;
+        } else if (item.category?.startsWith('utility_')) {
+          utilityDeductions += amount;
+        } else if (item.category?.includes('service')) {
+          serviceDeductions += amount;
+        }
+      }
+    });
+
+    const netBalance = rentalIncome + addonRevenue - managementFees - utilityDeductions - serviceDeductions;
+
+    return {
+      rentalIncome,
+      managementFees,
+      addonRevenue,
+      utilityDeductions,
+      serviceDeductions,
+      netBalance,
+      breakdown: breakdown.map(item => ({
+        ...item,
+        totalAmount: Number(item.totalAmount || 0)
+      })),
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();
