@@ -2837,6 +2837,425 @@ export type InsertUniversalInvoiceLineItem = z.infer<typeof insertUniversalInvoi
 export type PaymentConfirmation = typeof paymentConfirmations.$inferSelect;
 export type InsertPaymentConfirmation = z.infer<typeof insertPaymentConfirmationSchema>;
 
+// ===== LIVE BOOKING CALENDAR & AGENT SYSTEM =====
+
+// Live booking calendar with API connectivity
+export const liveBookingCalendar = pgTable("live_booking_calendar", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Booking Details
+  bookingReference: varchar("booking_reference").notNull(), // External booking ID
+  externalBookingId: varchar("external_booking_id"), // Hostaway/Airbnb/etc ID
+  guestName: varchar("guest_name").notNull(),
+  guestEmail: varchar("guest_email"),
+  guestPhone: varchar("guest_phone"),
+  
+  // Dates and Duration
+  checkInDate: date("check_in_date").notNull(),
+  checkOutDate: date("check_out_date").notNull(),
+  nightCount: integer("night_count").notNull(),
+  guestCount: integer("guest_count").default(2),
+  
+  // Financial Information
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  cleaningFee: decimal("cleaning_fee", { precision: 10, scale: 2 }).default("0.00"),
+  
+  // Booking Status and Source
+  bookingStatus: varchar("booking_status").notNull(), // confirmed, cancelled, completed, no-show
+  bookingSource: varchar("booking_source").notNull(), // airbnb, vrbo, booking.com, direct, etc.
+  platformFee: decimal("platform_fee", { precision: 10, scale: 2 }).default("0.00"),
+  
+  // Revenue Split Configuration
+  ownerSplit: decimal("owner_split", { precision: 5, scale: 2 }).default("70.00"), // percentage
+  managementSplit: decimal("management_split", { precision: 5, scale: 2 }).default("30.00"), // percentage
+  splitRoutingNotes: text("split_routing_notes"), // Explanation for routing decision
+  
+  // API Integration
+  apiSource: varchar("api_source").default("hostaway"), // hostaway, hostify, ownerrez
+  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+  syncStatus: varchar("sync_status").default("active"), // active, failed, manual
+  apiBookingData: jsonb("api_booking_data"), // Raw API response for debugging
+  
+  // Property Details
+  bedroomCount: integer("bedroom_count"),
+  bathroomCount: integer("bathroom_count"),
+  maxGuests: integer("max_guests"),
+  
+  // Special Requirements
+  specialRequests: text("special_requests"),
+  guestNotes: text("guest_notes"),
+  internalNotes: text("internal_notes"), // Staff/PM notes
+  
+  // Commission Tracking
+  agentCommissionApplicable: boolean("agent_commission_applicable").default(false),
+  referralAgentId: varchar("referral_agent_id").references(() => users.id),
+  retailAgentId: varchar("retail_agent_id").references(() => users.id),
+  agentCommissionAmount: decimal("agent_commission_amount", { precision: 10, scale: 2 }).default("0.00"),
+  agentCommissionStatus: varchar("agent_commission_status").default("pending"), // pending, approved, paid
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
+// Property availability calendar (blocked dates, maintenance, etc.)
+export const propertyAvailability = pgTable("property_availability", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Date Range
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  
+  // Availability Status
+  availabilityType: varchar("availability_type").notNull(), // blocked, maintenance, available, booked
+  blockReason: varchar("block_reason"), // owner_personal, maintenance, cleaning, buffer
+  
+  // Pricing Information
+  basePrice: decimal("base_price", { precision: 10, scale: 2 }),
+  weekendPrice: decimal("weekend_price", { precision: 10, scale: 2 }),
+  holidayPrice: decimal("holiday_price", { precision: 10, scale: 2 }),
+  minimumStay: integer("minimum_stay").default(1),
+  
+  // API Sync
+  externalCalendarId: varchar("external_calendar_id"), // From booking platforms
+  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+  
+  // Notes
+  internalNotes: text("internal_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
+// Agent search filters and preferences
+export const agentSearchPreferences = pgTable("agent_search_preferences", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  
+  // Saved Filter Preferences
+  preferredLocations: jsonb("preferred_locations"), // Array of location/zone preferences
+  preferredBedroomRange: jsonb("preferred_bedroom_range"), // {min: 2, max: 5}
+  preferredPriceRange: jsonb("preferred_price_range"), // {min: 1000, max: 5000}
+  preferredAmenities: jsonb("preferred_amenities"), // Array of amenity IDs
+  
+  // Search Behavior
+  defaultSearchRadius: integer("default_search_radius").default(50), // km
+  showCommissionUpfront: boolean("show_commission_upfront").default(true),
+  autoRefreshResults: boolean("auto_refresh_results").default(true),
+  
+  // Notification Preferences
+  newListingAlerts: boolean("new_listing_alerts").default(true),
+  priceDropAlerts: boolean("price_drop_alerts").default(false),
+  availabilityAlerts: boolean("availability_alerts").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property search index for agents
+export const propertySearchIndex = pgTable("property_search_index", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Enhanced Property Information
+  propertyTitle: varchar("property_title").notNull(),
+  propertyDescription: text("property_description"),
+  shortDescription: varchar("short_description"), // For search results
+  
+  // Location Details
+  country: varchar("country").default("Thailand"),
+  province: varchar("province"), // Phuket, Bangkok, etc.
+  district: varchar("district"),
+  zone: varchar("zone"), // Patong, Kata, etc.
+  coordinates: jsonb("coordinates"), // {lat: 7.8804, lng: 98.3923}
+  
+  // Property Features
+  bedrooms: integer("bedrooms").notNull(),
+  bathrooms: integer("bathrooms").notNull(),
+  maxGuests: integer("max_guests").notNull(),
+  propertySize: integer("property_size"), // sqm
+  
+  // Amenities and Features
+  amenities: jsonb("amenities"), // Pool, WiFi, Kitchen, etc.
+  specialFeatures: jsonb("special_features"), // Sea view, private beach, etc.
+  
+  // Pricing Information
+  baseNightlyRate: decimal("base_nightly_rate", { precision: 10, scale: 2 }).notNull(),
+  weekendRate: decimal("weekend_rate", { precision: 10, scale: 2 }),
+  peakSeasonRate: decimal("peak_season_rate", { precision: 10, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  
+  // Commission Structure
+  standardCommissionRate: decimal("standard_commission_rate", { precision: 5, scale: 2 }).default("10.00"),
+  specialCommissionRate: decimal("special_commission_rate", { precision: 5, scale: 2 }),
+  commissionNotes: text("commission_notes"),
+  
+  // Media and Marketing
+  primaryImageUrl: varchar("primary_image_url"),
+  imageGallery: jsonb("image_gallery"), // Array of image URLs
+  virtualTourUrl: varchar("virtual_tour_url"),
+  propertyFactSheetUrl: varchar("property_fact_sheet_url"),
+  
+  // Availability and Booking
+  isActive: boolean("is_active").default(true),
+  minimumBookingNotice: integer("minimum_booking_notice").default(1), // days
+  maximumBookingAdvance: integer("maximum_booking_advance").default(365), // days
+  instantBookingEnabled: boolean("instant_booking_enabled").default(false),
+  
+  // Search Optimization
+  searchTags: jsonb("search_tags"), // Additional search keywords
+  popularityScore: integer("popularity_score").default(0), // Based on booking frequency
+  lastBookingDate: date("last_booking_date"),
+  averageOccupancyRate: decimal("average_occupancy_rate", { precision: 5, scale: 2 }),
+  averageReviewScore: decimal("average_review_score", { precision: 3, scale: 2 }),
+  
+  // API Integration
+  hostawayPropertyId: varchar("hostaway_property_id"),
+  airbnbListingId: varchar("airbnb_listing_id"),
+  vrboListingId: varchar("vrbo_listing_id"),
+  bookingComListingId: varchar("booking_com_listing_id"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  lastIndexedAt: timestamp("last_indexed_at").defaultNow(),
+});
+
+// Agent booking enquiries and interactions
+export const agentBookingEnquiries = pgTable("agent_booking_enquiries", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  agentId: varchar("agent_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Enquiry Details
+  enquiryType: varchar("enquiry_type").notNull(), // booking_request, availability_check, price_quote
+  enquiryReference: varchar("enquiry_reference").notNull(), // Agent reference number
+  
+  // Guest Information
+  guestName: varchar("guest_name").notNull(),
+  guestEmail: varchar("guest_email").notNull(),
+  guestPhone: varchar("guest_phone"),
+  guestNationality: varchar("guest_nationality"),
+  
+  // Booking Request Details
+  requestedCheckIn: date("requested_check_in").notNull(),
+  requestedCheckOut: date("requested_check_out").notNull(),
+  guestCount: integer("guest_count").notNull(),
+  specialRequests: text("special_requests"),
+  
+  // Pricing and Commission
+  quotedPrice: decimal("quoted_price", { precision: 12, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  calculatedCommission: decimal("calculated_commission", { precision: 10, scale: 2 }),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("10.00"),
+  
+  // Status and Processing
+  enquiryStatus: varchar("enquiry_status").default("pending"), // pending, quoted, confirmed, cancelled, expired
+  responseDeadline: timestamp("response_deadline"),
+  processedBy: varchar("processed_by").references(() => users.id),
+  processedAt: timestamp("processed_at"),
+  
+  // Communication
+  agentNotes: text("agent_notes"),
+  internalNotes: text("internal_notes"),
+  communicationHistory: jsonb("communication_history"), // Array of messages/emails
+  
+  // Booking Conversion
+  convertedToBooking: boolean("converted_to_booking").default(false),
+  bookingId: integer("booking_id").references(() => liveBookingCalendar.id),
+  conversionDate: timestamp("conversion_date"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Booking platform sync configuration
+export const bookingPlatformSync = pgTable("booking_platform_sync", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Platform Configuration
+  platformName: varchar("platform_name").notNull(), // hostaway, hostify, ownerrez
+  apiEndpoint: varchar("api_endpoint").notNull(),
+  apiKeyEncrypted: text("api_key_encrypted").notNull(), // Encrypted API key
+  isActive: boolean("is_active").default(true),
+  
+  // Sync Settings
+  syncFrequency: integer("sync_frequency").default(15), // minutes
+  lastSyncAt: timestamp("last_sync_at"),
+  nextSyncAt: timestamp("next_sync_at"),
+  syncStatus: varchar("sync_status").default("pending"), // pending, syncing, completed, failed
+  
+  // Error Handling
+  lastError: text("last_error"),
+  errorCount: integer("error_count").default(0),
+  maxRetries: integer("max_retries").default(3),
+  
+  // Sync Statistics
+  totalBookingsImported: integer("total_bookings_imported").default(0),
+  lastImportCount: integer("last_import_count").default(0),
+  totalSyncTime: integer("total_sync_time").default(0), // milliseconds
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
+// Property occupancy analytics
+export const propertyOccupancyAnalytics = pgTable("property_occupancy_analytics", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Time Period
+  periodType: varchar("period_type").notNull(), // daily, weekly, monthly, yearly
+  periodDate: date("period_date").notNull(), // Start date of the period
+  
+  // Occupancy Metrics
+  totalNights: integer("total_nights").notNull(),
+  bookedNights: integer("booked_nights").notNull(),
+  blockedNights: integer("blocked_nights").default(0),
+  maintenanceNights: integer("maintenance_nights").default(0),
+  occupancyRate: decimal("occupancy_rate", { precision: 5, scale: 2 }).notNull(),
+  
+  // Revenue Metrics
+  totalRevenue: decimal("total_revenue", { precision: 12, scale: 2 }).default("0.00"),
+  averageNightlyRate: decimal("average_nightly_rate", { precision: 10, scale: 2 }).default("0.00"),
+  revenuePerAvailableNight: decimal("revenue_per_available_night", { precision: 10, scale: 2 }).default("0.00"),
+  
+  // Booking Metrics
+  totalBookings: integer("total_bookings").default(0),
+  averageStayDuration: decimal("average_stay_duration", { precision: 4, scale: 2 }).default("0.00"),
+  averageGuestCount: decimal("average_guest_count", { precision: 4, scale: 2 }).default("0.00"),
+  
+  // Platform Breakdown
+  platformBreakdown: jsonb("platform_breakdown"), // {airbnb: {bookings: 5, revenue: 25000}, vrbo: {...}}
+  
+  // Performance Indicators
+  bookingLeadTime: decimal("booking_lead_time", { precision: 5, scale: 2 }).default("0.00"), // days
+  cancellationRate: decimal("cancellation_rate", { precision: 5, scale: 2 }).default("0.00"),
+  reviewScore: decimal("review_score", { precision: 3, scale: 2 }),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+});
+
+// ===== RELATIONSHIPS =====
+
+export const liveBookingCalendarRelations = relations(liveBookingCalendar, ({ one }) => ({
+  property: one(properties, {
+    fields: [liveBookingCalendar.propertyId],
+    references: [properties.id],
+  }),
+  referralAgent: one(users, {
+    fields: [liveBookingCalendar.referralAgentId],
+    references: [users.id],
+  }),
+  retailAgent: one(users, {
+    fields: [liveBookingCalendar.retailAgentId],
+    references: [users.id],
+  }),
+}));
+
+export const propertyAvailabilityRelations = relations(propertyAvailability, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyAvailability.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const propertySearchIndexRelations = relations(propertySearchIndex, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertySearchIndex.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const agentBookingEnquiriesRelations = relations(agentBookingEnquiries, ({ one }) => ({
+  agent: one(users, {
+    fields: [agentBookingEnquiries.agentId],
+    references: [users.id],
+  }),
+  property: one(properties, {
+    fields: [agentBookingEnquiries.propertyId],
+    references: [properties.id],
+  }),
+  booking: one(liveBookingCalendar, {
+    fields: [agentBookingEnquiries.bookingId],
+    references: [liveBookingCalendar.id],
+  }),
+}));
+
+// ===== INSERT SCHEMAS =====
+
+export const insertLiveBookingCalendarSchema = createInsertSchema(liveBookingCalendar).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyAvailabilitySchema = createInsertSchema(propertyAvailability).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAgentSearchPreferencesSchema = createInsertSchema(agentSearchPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertySearchIndexSchema = createInsertSchema(propertySearchIndex).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAgentBookingEnquiriesSchema = createInsertSchema(agentBookingEnquiries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBookingPlatformSyncSchema = createInsertSchema(bookingPlatformSync).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyOccupancyAnalyticsSchema = createInsertSchema(propertyOccupancyAnalytics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== TYPE EXPORTS =====
+
+export type LiveBookingCalendar = typeof liveBookingCalendar.$inferSelect;
+export type InsertLiveBookingCalendar = z.infer<typeof insertLiveBookingCalendarSchema>;
+export type PropertyAvailability = typeof propertyAvailability.$inferSelect;
+export type InsertPropertyAvailability = z.infer<typeof insertPropertyAvailabilitySchema>;
+export type AgentSearchPreferences = typeof agentSearchPreferences.$inferSelect;
+export type InsertAgentSearchPreferences = z.infer<typeof insertAgentSearchPreferencesSchema>;
+export type PropertySearchIndex = typeof propertySearchIndex.$inferSelect;
+export type InsertPropertySearchIndex = z.infer<typeof insertPropertySearchIndexSchema>;
+export type AgentBookingEnquiries = typeof agentBookingEnquiries.$inferSelect;
+export type InsertAgentBookingEnquiries = z.infer<typeof insertAgentBookingEnquiriesSchema>;
+export type BookingPlatformSync = typeof bookingPlatformSync.$inferSelect;
+export type InsertBookingPlatformSync = z.infer<typeof insertBookingPlatformSyncSchema>;
+export type PropertyOccupancyAnalytics = typeof propertyOccupancyAnalytics.$inferSelect;
+export type InsertPropertyOccupancyAnalytics = z.infer<typeof insertPropertyOccupancyAnalyticsSchema>;
+
 // ===== STAFF DASHBOARD TYPES =====
 
 

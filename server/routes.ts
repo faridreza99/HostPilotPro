@@ -5320,6 +5320,449 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== LIVE BOOKING CALENDAR & AGENT SYSTEM API =====
+
+  // Get booking calendar data
+  app.get("/api/booking-calendar", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { propertyId, startDate, endDate, bookingStatus, bookingSource } = req.query;
+
+      // Check access permissions
+      if (!['admin', 'portfolio-manager', 'owner', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const bookings = await storage.getBookingCalendar(organizationId, {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        startDate: startDate as string,
+        endDate: endDate as string,
+        bookingStatus: bookingStatus as string,
+        bookingSource: bookingSource as string,
+      });
+
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching booking calendar:", error);
+      res.status(500).json({ message: "Failed to fetch booking calendar" });
+    }
+  });
+
+  // Create new booking entry
+  app.post("/api/booking-calendar", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const bookingData = {
+        ...req.body,
+        organizationId,
+        createdBy: userId,
+      };
+
+      const booking = await storage.createBookingEntry(bookingData);
+      res.json(booking);
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      res.status(500).json({ message: "Failed to create booking" });
+    }
+  });
+
+  // Get upcoming bookings for property
+  app.get("/api/properties/:propertyId/upcoming-bookings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { propertyId } = req.params;
+      const { days = 30 } = req.query;
+
+      if (!['admin', 'portfolio-manager', 'owner', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const bookings = await storage.getUpcomingBookings(organizationId, parseInt(propertyId), parseInt(days as string));
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching upcoming bookings:", error);
+      res.status(500).json({ message: "Failed to fetch upcoming bookings" });
+    }
+  });
+
+  // Get booking analytics
+  app.get("/api/booking-analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { propertyId } = req.query;
+
+      if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const analytics = await storage.getBookingAnalytics(organizationId, propertyId ? parseInt(propertyId as string) : undefined);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching booking analytics:", error);
+      res.status(500).json({ message: "Failed to fetch booking analytics" });
+    }
+  });
+
+  // ===== PROPERTY AVAILABILITY API =====
+
+  // Get property availability
+  app.get("/api/property-availability", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, startDate, endDate, availabilityType } = req.query;
+
+      const availability = await storage.getPropertyAvailability(organizationId, {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        startDate: startDate as string,
+        endDate: endDate as string,
+        availabilityType: availabilityType as string,
+      });
+
+      res.json(availability);
+    } catch (error) {
+      console.error("Error fetching property availability:", error);
+      res.status(500).json({ message: "Failed to fetch property availability" });
+    }
+  });
+
+  // Create availability entry (block dates, maintenance, etc.)
+  app.post("/api/property-availability", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const availabilityData = {
+        ...req.body,
+        organizationId,
+        createdBy: userId,
+      };
+
+      const availability = await storage.createPropertyAvailability(availabilityData);
+      res.json(availability);
+    } catch (error) {
+      console.error("Error creating availability entry:", error);
+      res.status(500).json({ message: "Failed to create availability entry" });
+    }
+  });
+
+  // Check property availability for specific dates
+  app.get("/api/properties/:propertyId/check-availability", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { propertyId } = req.params;
+      const { checkIn, checkOut } = req.query;
+
+      if (!checkIn || !checkOut) {
+        return res.status(400).json({ message: "Check-in and check-out dates are required" });
+      }
+
+      const isAvailable = await storage.checkPropertyAvailability(parseInt(propertyId), checkIn as string, checkOut as string);
+      res.json({ available: isAvailable });
+    } catch (error) {
+      console.error("Error checking property availability:", error);
+      res.status(500).json({ message: "Failed to check property availability" });
+    }
+  });
+
+  // ===== AGENT SEARCH SYSTEM API =====
+
+  // Search properties for agents (retail agents access)
+  app.get("/api/agent/search-properties", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (role !== 'retail-agent') {
+        return res.status(403).json({ message: "Retail agent access required" });
+      }
+
+      const {
+        location, zone, minBedrooms, maxBedrooms, minPrice, maxPrice,
+        amenities, checkIn, checkOut, maxGuests
+      } = req.query;
+
+      const filters = {
+        location: location as string,
+        zone: zone as string,
+        minBedrooms: minBedrooms ? parseInt(minBedrooms as string) : undefined,
+        maxBedrooms: maxBedrooms ? parseInt(maxBedrooms as string) : undefined,
+        minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
+        maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
+        amenities: amenities ? JSON.parse(amenities as string) : undefined,
+        checkIn: checkIn as string,
+        checkOut: checkOut as string,
+        maxGuests: maxGuests ? parseInt(maxGuests as string) : undefined,
+      };
+
+      const properties = await storage.searchPropertiesForAgents(organizationId, filters);
+      res.json(properties);
+    } catch (error) {
+      console.error("Error searching properties for agents:", error);
+      res.status(500).json({ message: "Failed to search properties" });
+    }
+  });
+
+  // Get/update agent search preferences
+  app.get("/api/agent/search-preferences", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: agentId } = req.user;
+
+      if (role !== 'retail-agent') {
+        return res.status(403).json({ message: "Retail agent access required" });
+      }
+
+      const preferences = await storage.getAgentSearchPreferences(organizationId, agentId);
+      res.json(preferences || {});
+    } catch (error) {
+      console.error("Error fetching agent preferences:", error);
+      res.status(500).json({ message: "Failed to fetch agent preferences" });
+    }
+  });
+
+  app.put("/api/agent/search-preferences", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: agentId } = req.user;
+
+      if (role !== 'retail-agent') {
+        return res.status(403).json({ message: "Retail agent access required" });
+      }
+
+      const preferences = await storage.updateAgentSearchPreferences(organizationId, agentId, req.body);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error updating agent preferences:", error);
+      res.status(500).json({ message: "Failed to update agent preferences" });
+    }
+  });
+
+  // ===== AGENT BOOKING ENQUIRIES API =====
+
+  // Create booking enquiry
+  app.post("/api/agent/booking-enquiry", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: agentId } = req.user;
+
+      if (role !== 'retail-agent') {
+        return res.status(403).json({ message: "Retail agent access required" });
+      }
+
+      // Generate enquiry reference
+      const enquiryReference = `ENQ-${Date.now()}-${agentId.slice(-4).toUpperCase()}`;
+
+      const enquiryData = {
+        ...req.body,
+        organizationId,
+        agentId,
+        enquiryReference,
+        commissionRate: "10.00", // Standard 10% commission
+      };
+
+      // Calculate commission
+      if (enquiryData.quotedPrice) {
+        enquiryData.calculatedCommission = (parseFloat(enquiryData.quotedPrice) * 0.10).toString();
+      }
+
+      const enquiry = await storage.createBookingEnquiry(enquiryData);
+      res.json(enquiry);
+    } catch (error) {
+      console.error("Error creating booking enquiry:", error);
+      res.status(500).json({ message: "Failed to create booking enquiry" });
+    }
+  });
+
+  // Get agent's booking enquiries
+  app.get("/api/agent/booking-enquiries", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: agentId } = req.user;
+
+      if (role !== 'retail-agent') {
+        return res.status(403).json({ message: "Retail agent access required" });
+      }
+
+      const { status, propertyId } = req.query;
+
+      const enquiries = await storage.getAgentBookingEnquiries(organizationId, {
+        agentId,
+        enquiryStatus: status as string,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+      });
+
+      res.json(enquiries);
+    } catch (error) {
+      console.error("Error fetching booking enquiries:", error);
+      res.status(500).json({ message: "Failed to fetch booking enquiries" });
+    }
+  });
+
+  // Get all booking enquiries (admin/PM access)
+  app.get("/api/booking-enquiries", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { agentId, propertyId, status } = req.query;
+
+      const enquiries = await storage.getAgentBookingEnquiries(organizationId, {
+        agentId: agentId as string,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        enquiryStatus: status as string,
+      });
+
+      res.json(enquiries);
+    } catch (error) {
+      console.error("Error fetching booking enquiries:", error);
+      res.status(500).json({ message: "Failed to fetch booking enquiries" });
+    }
+  });
+
+  // Update enquiry status (admin/PM access)
+  app.put("/api/booking-enquiries/:id/status", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role, id: userId } = req.user;
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const enquiry = await storage.updateEnquiryStatus(parseInt(id), status, userId);
+      res.json(enquiry);
+    } catch (error) {
+      console.error("Error updating enquiry status:", error);
+      res.status(500).json({ message: "Failed to update enquiry status" });
+    }
+  });
+
+  // Convert enquiry to booking (admin/PM access)
+  app.post("/api/booking-enquiries/:id/convert", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+      const { id } = req.params;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const bookingData = {
+        ...req.body,
+        organizationId,
+        createdBy: userId,
+        agentCommissionApplicable: true,
+        retailAgentId: req.body.retailAgentId,
+        agentCommissionAmount: req.body.calculatedCommission,
+      };
+
+      const result = await storage.convertEnquiryToBooking(parseInt(id), bookingData);
+      res.json(result);
+    } catch (error) {
+      console.error("Error converting enquiry to booking:", error);
+      res.status(500).json({ message: "Failed to convert enquiry to booking" });
+    }
+  });
+
+  // ===== PROPERTY SEARCH INDEX MANAGEMENT API =====
+
+  // Update property search index (admin/PM access)
+  app.put("/api/properties/:propertyId/search-index", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { propertyId } = req.params;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const indexData = {
+        ...req.body,
+        organizationId,
+      };
+
+      const searchIndex = await storage.updatePropertySearchIndex(parseInt(propertyId), indexData);
+      res.json(searchIndex);
+    } catch (error) {
+      console.error("Error updating property search index:", error);
+      res.status(500).json({ message: "Failed to update property search index" });
+    }
+  });
+
+  // ===== BOOKING PLATFORM SYNC API =====
+
+  // Get platform sync configurations (admin only)
+  app.get("/api/booking-platform-sync", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const syncs = await storage.getBookingPlatformSyncs(organizationId);
+      res.json(syncs);
+    } catch (error) {
+      console.error("Error fetching platform syncs:", error);
+      res.status(500).json({ message: "Failed to fetch platform syncs" });
+    }
+  });
+
+  // Update platform sync configuration (admin only)
+  app.put("/api/booking-platform-sync", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const syncData = {
+        ...req.body,
+        organizationId,
+        createdBy: userId,
+      };
+
+      const sync = await storage.updateBookingPlatformSync(organizationId, syncData);
+      res.json(sync);
+    } catch (error) {
+      console.error("Error updating platform sync:", error);
+      res.status(500).json({ message: "Failed to update platform sync" });
+    }
+  });
+
+  // ===== OCCUPANCY ANALYTICS API =====
+
+  // Get occupancy analytics
+  app.get("/api/occupancy-analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { propertyId, periodType, startDate, endDate } = req.query;
+
+      if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const analytics = await storage.getOccupancyAnalytics(organizationId, {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        periodType: periodType as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      });
+
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching occupancy analytics:", error);
+      res.status(500).json({ message: "Failed to fetch occupancy analytics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

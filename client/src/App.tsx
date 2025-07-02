@@ -38,6 +38,8 @@ import FinanceResetControl from "@/pages/FinanceResetControl";
 import UtilityCustomization from "@/pages/UtilityCustomization";
 import AgentCommissionDashboard from "@/pages/AgentCommissionDashboard";
 import LoyaltyGuestTracker from "@/pages/LoyaltyGuestTracker";
+import LiveBookingCalendar from "@/pages/LiveBookingCalendar";
+import RetailAgentBookingEngine from "@/pages/RetailAgentBookingEngine";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -124,6 +126,8 @@ function Router() {
           <Route path="/admin/utility-customization" component={UtilityCustomization} />
           <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
           <Route path="/hostaway" component={Hostaway} />
+          <Route path="/booking-calendar" component={LiveBookingCalendar} />
+          <Route path="/retail-agent-booking" component={RetailAgentBookingEngine} />
           <Route path="/settings" component={Settings} />
         </>
       )}

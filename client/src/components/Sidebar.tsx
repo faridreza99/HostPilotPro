@@ -129,6 +129,20 @@ const navigationModules = [
         description: "Reservation management"
       },
       { 
+        path: "/booking-calendar", 
+        icon: Calendar, 
+        label: "Live Booking Calendar", 
+        roles: ["admin", "portfolio-manager", "owner", "staff"],
+        description: "Real-time booking calendar with API connectivity"
+      },
+      { 
+        path: "/retail-agent-booking", 
+        icon: ShoppingCart, 
+        label: "Property Search Engine", 
+        roles: ["retail-agent"],
+        description: "Advanced property search and booking enquiries"
+      },
+      { 
         path: "/services", 
         icon: Users, 
         label: "Services", 

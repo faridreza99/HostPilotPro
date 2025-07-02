@@ -155,6 +155,27 @@ import {
   type InsertUniversalInvoiceLineItem,
   type PaymentConfirmation,
   type InsertPaymentConfirmation,
+  liveBookingCalendar,
+  propertyAvailability,
+  agentSearchPreferences,
+  propertySearchIndex,
+  agentBookingEnquiries,
+  bookingPlatformSync,
+  propertyOccupancyAnalytics,
+  type LiveBookingCalendar,
+  type InsertLiveBookingCalendar,
+  type PropertyAvailability,
+  type InsertPropertyAvailability,
+  type AgentSearchPreferences,
+  type InsertAgentSearchPreferences,
+  type PropertySearchIndex,
+  type InsertPropertySearchIndex,
+  type AgentBookingEnquiries,
+  type InsertAgentBookingEnquiries,
+  type BookingPlatformSync,
+  type InsertBookingPlatformSync,
+  type PropertyOccupancyAnalytics,
+  type InsertPropertyOccupancyAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
@@ -6971,6 +6992,542 @@ export class DatabaseStorage implements IStorage {
       referralAgentEarnings,
       monthlyGrowth,
     };
+  }
+
+  // ===== LIVE BOOKING CALENDAR SYSTEM =====
+
+  // Create booking entry
+  async createBookingEntry(booking: InsertLiveBookingCalendar): Promise<LiveBookingCalendar> {
+    const [newBooking] = await db.insert(liveBookingCalendar).values(booking).returning();
+    return newBooking;
+  }
+
+  // Get bookings for calendar view
+  async getBookingCalendar(organizationId: string, filters?: {
+    propertyId?: number;
+    startDate?: string;
+    endDate?: string;
+    bookingStatus?: string;
+    bookingSource?: string;
+  }): Promise<LiveBookingCalendar[]> {
+    let query = db
+      .select()
+      .from(liveBookingCalendar)
+      .where(eq(liveBookingCalendar.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(liveBookingCalendar.propertyId, filters.propertyId));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(liveBookingCalendar.checkInDate, filters.startDate));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(liveBookingCalendar.checkOutDate, filters.endDate));
+    }
+    if (filters?.bookingStatus) {
+      query = query.where(eq(liveBookingCalendar.bookingStatus, filters.bookingStatus));
+    }
+    if (filters?.bookingSource) {
+      query = query.where(eq(liveBookingCalendar.bookingSource, filters.bookingSource));
+    }
+
+    return query.orderBy(asc(liveBookingCalendar.checkInDate));
+  }
+
+  // Get upcoming bookings for a property
+  async getUpcomingBookings(organizationId: string, propertyId: number, days: number = 30): Promise<LiveBookingCalendar[]> {
+    const today = new Date().toISOString().split('T')[0];
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + days);
+    const futureString = futureDate.toISOString().split('T')[0];
+
+    return db
+      .select()
+      .from(liveBookingCalendar)
+      .where(
+        and(
+          eq(liveBookingCalendar.organizationId, organizationId),
+          eq(liveBookingCalendar.propertyId, propertyId),
+          gte(liveBookingCalendar.checkInDate, today),
+          lte(liveBookingCalendar.checkInDate, futureString),
+          eq(liveBookingCalendar.bookingStatus, 'confirmed')
+        )
+      )
+      .orderBy(asc(liveBookingCalendar.checkInDate));
+  }
+
+  // Update booking from API sync
+  async updateBookingFromAPI(externalBookingId: string, updateData: Partial<InsertLiveBookingCalendar>): Promise<LiveBookingCalendar | undefined> {
+    const [updated] = await db
+      .update(liveBookingCalendar)
+      .set({
+        ...updateData,
+        lastSyncedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(liveBookingCalendar.externalBookingId, externalBookingId))
+      .returning();
+    return updated;
+  }
+
+  // Get booking analytics for dashboard
+  async getBookingAnalytics(organizationId: string, propertyId?: number): Promise<{
+    totalBookings: number;
+    confirmedBookings: number;
+    totalRevenue: number;
+    occupancyRate: number;
+    averageStayDuration: number;
+    platformBreakdown: { platform: string; bookings: number; revenue: number }[];
+  }> {
+    let query = db
+      .select()
+      .from(liveBookingCalendar)
+      .where(eq(liveBookingCalendar.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(liveBookingCalendar.propertyId, propertyId));
+    }
+
+    const bookings = await query;
+
+    const totalBookings = bookings.length;
+    const confirmedBookings = bookings.filter(b => b.bookingStatus === 'confirmed').length;
+    const totalRevenue = bookings.reduce((sum, b) => sum + parseFloat(b.totalAmount), 0);
+    const averageStayDuration = bookings.length > 0 
+      ? bookings.reduce((sum, b) => sum + b.nightCount, 0) / bookings.length 
+      : 0;
+
+    // Calculate platform breakdown
+    const platformBreakdown = Object.entries(
+      bookings.reduce((acc, booking) => {
+        const platform = booking.bookingSource;
+        if (!acc[platform]) {
+          acc[platform] = { bookings: 0, revenue: 0 };
+        }
+        acc[platform].bookings++;
+        acc[platform].revenue += parseFloat(booking.totalAmount);
+        return acc;
+      }, {} as Record<string, { bookings: number; revenue: number }>)
+    ).map(([platform, data]) => ({ platform, ...data }));
+
+    // Calculate occupancy rate (simplified)
+    const occupancyRate = confirmedBookings > 0 ? (confirmedBookings / totalBookings) * 100 : 0;
+
+    return {
+      totalBookings,
+      confirmedBookings,
+      totalRevenue,
+      occupancyRate,
+      averageStayDuration,
+      platformBreakdown,
+    };
+  }
+
+  // ===== PROPERTY AVAILABILITY MANAGEMENT =====
+
+  // Create availability entry
+  async createPropertyAvailability(availability: InsertPropertyAvailability): Promise<PropertyAvailability> {
+    const [newAvailability] = await db.insert(propertyAvailability).values(availability).returning();
+    return newAvailability;
+  }
+
+  // Get property availability
+  async getPropertyAvailability(organizationId: string, filters?: {
+    propertyId?: number;
+    startDate?: string;
+    endDate?: string;
+    availabilityType?: string;
+  }): Promise<PropertyAvailability[]> {
+    let query = db
+      .select()
+      .from(propertyAvailability)
+      .where(eq(propertyAvailability.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(propertyAvailability.propertyId, filters.propertyId));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(propertyAvailability.startDate, filters.startDate));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(propertyAvailability.endDate, filters.endDate));
+    }
+    if (filters?.availabilityType) {
+      query = query.where(eq(propertyAvailability.availabilityType, filters.availabilityType));
+    }
+
+    return query.orderBy(asc(propertyAvailability.startDate));
+  }
+
+  // Check if property is available for dates
+  async checkPropertyAvailability(propertyId: number, checkIn: string, checkOut: string): Promise<boolean> {
+    // Check for existing bookings
+    const existingBookings = await db
+      .select()
+      .from(liveBookingCalendar)
+      .where(
+        and(
+          eq(liveBookingCalendar.propertyId, propertyId),
+          eq(liveBookingCalendar.bookingStatus, 'confirmed'),
+          or(
+            and(
+              gte(liveBookingCalendar.checkInDate, checkIn),
+              lt(liveBookingCalendar.checkInDate, checkOut)
+            ),
+            and(
+              gt(liveBookingCalendar.checkOutDate, checkIn),
+              lte(liveBookingCalendar.checkOutDate, checkOut)
+            ),
+            and(
+              lte(liveBookingCalendar.checkInDate, checkIn),
+              gte(liveBookingCalendar.checkOutDate, checkOut)
+            )
+          )
+        )
+      );
+
+    // Check for blocked dates
+    const blockedDates = await db
+      .select()
+      .from(propertyAvailability)
+      .where(
+        and(
+          eq(propertyAvailability.propertyId, propertyId),
+          eq(propertyAvailability.availabilityType, 'blocked'),
+          or(
+            and(
+              gte(propertyAvailability.startDate, checkIn),
+              lt(propertyAvailability.startDate, checkOut)
+            ),
+            and(
+              gt(propertyAvailability.endDate, checkIn),
+              lte(propertyAvailability.endDate, checkOut)
+            ),
+            and(
+              lte(propertyAvailability.startDate, checkIn),
+              gte(propertyAvailability.endDate, checkOut)
+            )
+          )
+        )
+      );
+
+    return existingBookings.length === 0 && blockedDates.length === 0;
+  }
+
+  // ===== AGENT SEARCH AND PREFERENCES =====
+
+  // Get/create agent search preferences
+  async getAgentSearchPreferences(organizationId: string, agentId: string): Promise<AgentSearchPreferences | undefined> {
+    const [preferences] = await db
+      .select()
+      .from(agentSearchPreferences)
+      .where(
+        and(
+          eq(agentSearchPreferences.organizationId, organizationId),
+          eq(agentSearchPreferences.agentId, agentId)
+        )
+      );
+    return preferences;
+  }
+
+  async updateAgentSearchPreferences(organizationId: string, agentId: string, preferences: Partial<InsertAgentSearchPreferences>): Promise<AgentSearchPreferences> {
+    const existing = await this.getAgentSearchPreferences(organizationId, agentId);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(agentSearchPreferences)
+        .set({ ...preferences, updatedAt: new Date() })
+        .where(eq(agentSearchPreferences.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(agentSearchPreferences)
+        .values({ organizationId, agentId, ...preferences })
+        .returning();
+      return created;
+    }
+  }
+
+  // ===== PROPERTY SEARCH INDEX FOR AGENTS =====
+
+  // Get available properties for agent search
+  async searchPropertiesForAgents(organizationId: string, filters?: {
+    location?: string;
+    zone?: string;
+    minBedrooms?: number;
+    maxBedrooms?: number;
+    minPrice?: number;
+    maxPrice?: number;
+    amenities?: string[];
+    checkIn?: string;
+    checkOut?: string;
+    maxGuests?: number;
+  }): Promise<PropertySearchIndex[]> {
+    let query = db
+      .select()
+      .from(propertySearchIndex)
+      .where(
+        and(
+          eq(propertySearchIndex.organizationId, organizationId),
+          eq(propertySearchIndex.isActive, true)
+        )
+      );
+
+    if (filters?.location) {
+      query = query.where(eq(propertySearchIndex.province, filters.location));
+    }
+    if (filters?.zone) {
+      query = query.where(eq(propertySearchIndex.zone, filters.zone));
+    }
+    if (filters?.minBedrooms) {
+      query = query.where(gte(propertySearchIndex.bedrooms, filters.minBedrooms));
+    }
+    if (filters?.maxBedrooms) {
+      query = query.where(lte(propertySearchIndex.bedrooms, filters.maxBedrooms));
+    }
+    if (filters?.minPrice) {
+      query = query.where(gte(propertySearchIndex.baseNightlyRate, filters.minPrice.toString()));
+    }
+    if (filters?.maxPrice) {
+      query = query.where(lte(propertySearchIndex.baseNightlyRate, filters.maxPrice.toString()));
+    }
+    if (filters?.maxGuests) {
+      query = query.where(gte(propertySearchIndex.maxGuests, filters.maxGuests));
+    }
+
+    const results = await query.orderBy(desc(propertySearchIndex.popularityScore));
+
+    // If date range is provided, filter by availability
+    if (filters?.checkIn && filters?.checkOut) {
+      const availableProperties = [];
+      for (const property of results) {
+        const isAvailable = await this.checkPropertyAvailability(property.propertyId, filters.checkIn, filters.checkOut);
+        if (isAvailable) {
+          availableProperties.push(property);
+        }
+      }
+      return availableProperties;
+    }
+
+    return results;
+  }
+
+  // Create/update property search index
+  async updatePropertySearchIndex(propertyId: number, indexData: Partial<InsertPropertySearchIndex>): Promise<PropertySearchIndex> {
+    const existing = await db
+      .select()
+      .from(propertySearchIndex)
+      .where(eq(propertySearchIndex.propertyId, propertyId));
+
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(propertySearchIndex)
+        .set({ ...indexData, lastIndexedAt: new Date() })
+        .where(eq(propertySearchIndex.propertyId, propertyId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(propertySearchIndex)
+        .values({ propertyId, ...indexData })
+        .returning();
+      return created;
+    }
+  }
+
+  // ===== AGENT BOOKING ENQUIRIES =====
+
+  // Create booking enquiry
+  async createBookingEnquiry(enquiry: InsertAgentBookingEnquiries): Promise<AgentBookingEnquiries> {
+    const [newEnquiry] = await db.insert(agentBookingEnquiries).values(enquiry).returning();
+    return newEnquiry;
+  }
+
+  // Get agent booking enquiries
+  async getAgentBookingEnquiries(organizationId: string, filters?: {
+    agentId?: string;
+    propertyId?: number;
+    enquiryStatus?: string;
+    dateRange?: { start: Date; end: Date };
+  }): Promise<AgentBookingEnquiries[]> {
+    let query = db
+      .select()
+      .from(agentBookingEnquiries)
+      .where(eq(agentBookingEnquiries.organizationId, organizationId));
+
+    if (filters?.agentId) {
+      query = query.where(eq(agentBookingEnquiries.agentId, filters.agentId));
+    }
+    if (filters?.propertyId) {
+      query = query.where(eq(agentBookingEnquiries.propertyId, filters.propertyId));
+    }
+    if (filters?.enquiryStatus) {
+      query = query.where(eq(agentBookingEnquiries.enquiryStatus, filters.enquiryStatus));
+    }
+    if (filters?.dateRange) {
+      query = query.where(
+        and(
+          gte(agentBookingEnquiries.requestedCheckIn, filters.dateRange.start.toISOString().split('T')[0]),
+          lte(agentBookingEnquiries.requestedCheckOut, filters.dateRange.end.toISOString().split('T')[0])
+        )
+      );
+    }
+
+    return query.orderBy(desc(agentBookingEnquiries.createdAt));
+  }
+
+  // Update enquiry status
+  async updateEnquiryStatus(enquiryId: number, status: string, processedBy?: string): Promise<AgentBookingEnquiries | undefined> {
+    const [updated] = await db
+      .update(agentBookingEnquiries)
+      .set({
+        enquiryStatus: status,
+        processedBy,
+        processedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(agentBookingEnquiries.id, enquiryId))
+      .returning();
+    return updated;
+  }
+
+  // Convert enquiry to booking
+  async convertEnquiryToBooking(enquiryId: number, bookingData: InsertLiveBookingCalendar): Promise<{ enquiry: AgentBookingEnquiries; booking: LiveBookingCalendar }> {
+    const booking = await this.createBookingEntry(bookingData);
+    
+    const [updatedEnquiry] = await db
+      .update(agentBookingEnquiries)
+      .set({
+        convertedToBooking: true,
+        bookingId: booking.id,
+        conversionDate: new Date(),
+        enquiryStatus: 'confirmed',
+        updatedAt: new Date(),
+      })
+      .where(eq(agentBookingEnquiries.id, enquiryId))
+      .returning();
+
+    return { enquiry: updatedEnquiry, booking };
+  }
+
+  // ===== BOOKING PLATFORM SYNC =====
+
+  // Create/update platform sync configuration
+  async updateBookingPlatformSync(organizationId: string, syncData: Partial<InsertBookingPlatformSync>): Promise<BookingPlatformSync> {
+    const existing = await db
+      .select()
+      .from(bookingPlatformSync)
+      .where(
+        and(
+          eq(bookingPlatformSync.organizationId, organizationId),
+          eq(bookingPlatformSync.platformName, syncData.platformName!)
+        )
+      );
+
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(bookingPlatformSync)
+        .set({ ...syncData, updatedAt: new Date() })
+        .where(eq(bookingPlatformSync.id, existing[0].id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(bookingPlatformSync)
+        .values({ organizationId, ...syncData })
+        .returning();
+      return created;
+    }
+  }
+
+  // Get platform sync configurations
+  async getBookingPlatformSyncs(organizationId: string, isActive?: boolean): Promise<BookingPlatformSync[]> {
+    let query = db
+      .select()
+      .from(bookingPlatformSync)
+      .where(eq(bookingPlatformSync.organizationId, organizationId));
+
+    if (isActive !== undefined) {
+      query = query.where(eq(bookingPlatformSync.isActive, isActive));
+    }
+
+    return query.orderBy(asc(bookingPlatformSync.platformName));
+  }
+
+  // Update sync status
+  async updateSyncStatus(syncId: number, status: string, error?: string): Promise<BookingPlatformSync | undefined> {
+    const [updated] = await db
+      .update(bookingPlatformSync)
+      .set({
+        syncStatus: status,
+        lastSyncAt: new Date(),
+        lastError: error || null,
+        errorCount: error ? sql`${bookingPlatformSync.errorCount} + 1` : 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookingPlatformSync.id, syncId))
+      .returning();
+    return updated;
+  }
+
+  // ===== OCCUPANCY ANALYTICS =====
+
+  // Create/update occupancy analytics
+  async updateOccupancyAnalytics(analytics: InsertPropertyOccupancyAnalytics): Promise<PropertyOccupancyAnalytics> {
+    const existing = await db
+      .select()
+      .from(propertyOccupancyAnalytics)
+      .where(
+        and(
+          eq(propertyOccupancyAnalytics.propertyId, analytics.propertyId!),
+          eq(propertyOccupancyAnalytics.periodType, analytics.periodType!),
+          eq(propertyOccupancyAnalytics.periodDate, analytics.periodDate!)
+        )
+      );
+
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(propertyOccupancyAnalytics)
+        .set({ ...analytics, calculatedAt: new Date() })
+        .where(eq(propertyOccupancyAnalytics.id, existing[0].id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(propertyOccupancyAnalytics)
+        .values(analytics)
+        .returning();
+      return created;
+    }
+  }
+
+  // Get occupancy analytics
+  async getOccupancyAnalytics(organizationId: string, filters?: {
+    propertyId?: number;
+    periodType?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<PropertyOccupancyAnalytics[]> {
+    let query = db
+      .select()
+      .from(propertyOccupancyAnalytics)
+      .where(eq(propertyOccupancyAnalytics.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(propertyOccupancyAnalytics.propertyId, filters.propertyId));
+    }
+    if (filters?.periodType) {
+      query = query.where(eq(propertyOccupancyAnalytics.periodType, filters.periodType));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(propertyOccupancyAnalytics.periodDate, filters.startDate));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(propertyOccupancyAnalytics.periodDate, filters.endDate));
+    }
+
+    return query.orderBy(desc(propertyOccupancyAnalytics.periodDate));
   }
 }
 
