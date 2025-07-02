@@ -944,6 +944,212 @@ export class DatabaseStorage implements IStorage {
       netBalance: totalIncome - totalExpenses - commissionDeductions
     };
   }
+  
+  // Notification operations
+  async getNotifications(userId: string): Promise<Notification[]> {
+    const result = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+    return result;
+  }
+
+  async getUnreadNotifications(userId: string): Promise<Notification[]> {
+    const result = await db
+      .select()
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ))
+      .orderBy(desc(notifications.createdAt));
+    return result;
+  }
+
+  async getNotificationsByType(userId: string, type: string): Promise<Notification[]> {
+    const result = await db
+      .select()
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.type, type)
+      ))
+      .orderBy(desc(notifications.createdAt));
+    return result;
+  }
+
+  async getNotification(id: number): Promise<Notification | undefined> {
+    const [notification] = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.id, id));
+    return notification;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [created] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
+    return created;
+  }
+
+  async markNotificationRead(id: number): Promise<boolean> {
+    const result = await db
+      .update(notifications)
+      .set({ 
+        isRead: true, 
+        readAt: new Date() 
+      })
+      .where(eq(notifications.id, id));
+    return result.rowCount! > 0;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<boolean> {
+    const result = await db
+      .update(notifications)
+      .set({ 
+        isRead: true, 
+        readAt: new Date() 
+      })
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+    return result.rowCount! > 0;
+  }
+
+  async deleteNotification(id: number): Promise<boolean> {
+    const result = await db
+      .delete(notifications)
+      .where(eq(notifications.id, id));
+    return result.rowCount! > 0;
+  }
+
+  // Notification preferences operations
+  async getUserNotificationPreferences(userId: string): Promise<NotificationPreference | undefined> {
+    const [preferences] = await db
+      .select()
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId));
+    return preferences;
+  }
+
+  async upsertNotificationPreferences(preferences: InsertNotificationPreference): Promise<NotificationPreference> {
+    const [upserted] = await db
+      .insert(notificationPreferences)
+      .values(preferences)
+      .onConflictDoUpdate({
+        target: notificationPreferences.userId,
+        set: {
+          ...preferences,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return upserted;
+  }
+
+  // Notification trigger methods
+  async notifyTaskAssignment(taskId: number, assigneeId: string, assignedBy: string): Promise<void> {
+    const task = await this.getTask(taskId);
+    if (!task) return;
+
+    const property = await this.getProperty(task.propertyId);
+    const notification: InsertNotification = {
+      organizationId: task.organizationId,
+      userId: assigneeId,
+      type: 'task_assignment',
+      title: 'New Task Assigned',
+      message: `You have been assigned a new ${task.type} task at ${property?.name || 'Property'}: ${task.title}`,
+      relatedEntityType: 'task',
+      relatedEntityId: taskId,
+      priority: task.priority === 'high' ? 'high' : 'normal',
+      actionUrl: `/tasks`,
+      actionLabel: 'View Task',
+      createdBy: assignedBy,
+    };
+
+    await this.createNotification(notification);
+  }
+
+  async notifyBookingUpdate(bookingId: number, userIds: string[], updateType: string, message: string): Promise<void> {
+    const booking = await this.getBooking(bookingId);
+    if (!booking) return;
+
+    const property = await this.getProperty(booking.propertyId);
+    
+    for (const userId of userIds) {
+      const notification: InsertNotification = {
+        organizationId: booking.organizationId,
+        userId,
+        type: 'booking_update',
+        title: `Booking ${updateType}`,
+        message: `${message} for ${booking.guestName} at ${property?.name || 'Property'}`,
+        relatedEntityType: 'booking',
+        relatedEntityId: bookingId,
+        priority: updateType === 'cancelled' ? 'high' : 'normal',
+        actionUrl: `/bookings`,
+        actionLabel: 'View Booking',
+      };
+
+      await this.createNotification(notification);
+    }
+  }
+
+  async notifyPayoutAction(payoutId: number, userId: string, action: string, actionBy: string): Promise<void> {
+    const payout = await this.getOwnerPayout(payoutId);
+    if (!payout) return;
+
+    const actionMessages = {
+      approved: 'Your payout request has been approved',
+      paid: 'Your payout has been processed',
+      completed: 'Your payout has been completed',
+      rejected: 'Your payout request has been rejected',
+    };
+
+    const notification: InsertNotification = {
+      organizationId: payout.organizationId,
+      userId,
+      type: 'payout_action',
+      title: `Payout ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: actionMessages[action as keyof typeof actionMessages] || `Payout status changed to ${action}`,
+      relatedEntityType: 'payout',
+      relatedEntityId: payoutId,
+      priority: action === 'rejected' ? 'high' : 'normal',
+      actionUrl: `/payouts`,
+      actionLabel: 'View Payout',
+      createdBy: actionBy,
+    };
+
+    await this.createNotification(notification);
+  }
+
+  async notifyMaintenanceApproval(taskId: number, requesterId: string, approverIds: string[]): Promise<void> {
+    const task = await this.getTask(taskId);
+    if (!task) return;
+
+    const property = await this.getProperty(task.propertyId);
+    
+    for (const approverId of approverIds) {
+      const notification: InsertNotification = {
+        organizationId: task.organizationId,
+        userId: approverId,
+        type: 'maintenance_approval',
+        title: 'Maintenance Approval Required',
+        message: `${task.type} task at ${property?.name || 'Property'} requires approval: ${task.title}`,
+        relatedEntityType: 'task',
+        relatedEntityId: taskId,
+        priority: 'high',
+        actionUrl: `/tasks`,
+        actionLabel: 'Review Task',
+        createdBy: requesterId,
+      };
+
+      await this.createNotification(notification);
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

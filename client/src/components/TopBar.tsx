@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { NotificationDropdown } from "./NotificationDropdown";
 import { 
   Menu, 
   Bell, 
@@ -102,19 +103,7 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
           </Button>
 
           {/* Notifications */}
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setShowNotifications(!showNotifications)}
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-                3
-              </span>
-            </Button>
-          </div>
+          <NotificationDropdown />
 
           {/* Help */}
           <Button

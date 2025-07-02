@@ -131,6 +131,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const taskData = insertTaskSchema.parse({ ...req.body, createdBy: userId });
       const task = await storage.createTask(taskData);
+      
+      // Send notification to assigned user
+      if (task.assignedTo && task.assignedTo !== userId) {
+        await storage.notifyTaskAssignment(task.id, task.assignedTo, userId);
+      }
+      
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -913,6 +919,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error calculating owner balance:", error);
       res.status(500).json({ message: "Failed to calculate owner balance" });
+    }
+  });
+
+  // Notification API routes
+  app.get("/api/notifications", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const notifications = await storage.getNotifications(userId);
+      const filteredNotifications = notifications.filter(n => n.organizationId === organizationId);
+      res.json(filteredNotifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/notifications/unread", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const notifications = await storage.getUnreadNotifications(userId);
+      const filteredNotifications = notifications.filter(n => n.organizationId === organizationId);
+      res.json(filteredNotifications);
+    } catch (error) {
+      console.error("Error fetching unread notifications:", error);
+      res.status(500).json({ message: "Failed to fetch unread notifications" });
+    }
+  });
+
+  app.post("/api/notifications/:id/read", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.markNotificationRead(parseInt(id));
+      if (success) {
+        res.json({ message: "Notification marked as read" });
+      } else {
+        res.status(404).json({ message: "Notification not found" });
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.post("/api/notifications/read-all", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const success = await storage.markAllNotificationsRead(userId);
+      res.json({ message: "All notifications marked as read", success });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteNotification(parseInt(id));
+      if (success) {
+        res.json({ message: "Notification deleted" });
+      } else {
+        res.status(404).json({ message: "Notification not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      res.status(500).json({ message: "Failed to delete notification" });
+    }
+  });
+
+  // Notification preferences API routes
+  app.get("/api/notification-preferences", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const preferences = await storage.getUserNotificationPreferences(userId);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error fetching notification preferences:", error);
+      res.status(500).json({ message: "Failed to fetch notification preferences" });
+    }
+  });
+
+  app.post("/api/notification-preferences", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const preferencesData = {
+        ...req.body,
+        organizationId,
+        userId,
+      };
+
+      const preferences = await storage.upsertNotificationPreferences(preferencesData);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error updating notification preferences:", error);
+      res.status(500).json({ message: "Failed to update notification preferences" });
     }
   });
 
