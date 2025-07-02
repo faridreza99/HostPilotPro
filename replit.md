@@ -67,6 +67,14 @@ HostPilotPro is a comprehensive property management platform designed for hospit
 - **Cost Tracking**: Property-specific expense monitoring
 - **Commission Management**: Agent commission calculations
 
+### Platform Administration
+- **Global Settings**: Admin-only configuration panel for platform defaults
+- **Currency & VAT**: Default currency, tax rates, and display symbols
+- **Commission Rules**: Automated commission rates for retail and referral agents
+- **Auto-billing**: Toggles for add-on services and utility tracking automation
+- **Task Automation**: Reminder systems and cleanup cycles
+- **API Integration**: Secure credential management for Hostaway, PEA, and other services
+
 ## Data Flow
 
 1. **Authentication Flow**: User authenticates via Replit → Session created → Role determined → Route access granted
@@ -110,6 +118,7 @@ HostPilotPro is a comprehensive property management platform designed for hospit
 - **Development Banner**: Replit environment detection
 
 ## Changelog
+- July 02, 2025. Added comprehensive global Admin Settings panel with platform defaults (currency, VAT, commission rules), auto-billing toggles, task automation settings, and API credential management (Hostaway, PEA)
 - July 02, 2025. Added modular navigation system with role-based access control and collapsible sidebar
 - July 02, 2025. Enhanced navigation with Services and Payouts pages, department tagging for tasks
 - July 02, 2025. Initial setup

@@ -13,6 +13,7 @@ import Bookings from "@/pages/Bookings";
 import Services from "@/pages/Services";
 import Finances from "@/pages/Finances";
 import Payouts from "@/pages/Payouts";
+import Settings from "@/pages/Settings";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,6 +31,7 @@ function Router() {
           <Route path="/services" component={Services} />
           <Route path="/finances" component={Finances} />
           <Route path="/payouts" component={Payouts} />
+          <Route path="/settings" component={Settings} />
         </>
       )}
       <Route component={NotFound} />
