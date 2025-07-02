@@ -6,6 +6,9 @@ import {
   finances,
   inventory,
   platformSettings,
+  addonServices,
+  addonBookings,
+  utilityBills,
   type User,
   type UpsertUser,
   type Property,
@@ -20,6 +23,12 @@ import {
   type InsertInventory,
   type PlatformSetting,
   type InsertPlatformSetting,
+  type AddonService,
+  type InsertAddonService,
+  type AddonBooking,
+  type InsertAddonBooking,
+  type UtilityBill,
+  type InsertUtilityBill,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -71,6 +80,31 @@ export interface IStorage {
   getPlatformSetting(key: string): Promise<PlatformSetting | undefined>;
   upsertPlatformSetting(setting: InsertPlatformSetting): Promise<PlatformSetting>;
   deletePlatformSetting(key: string): Promise<boolean>;
+
+  // Add-on services operations
+  getAddonServices(): Promise<AddonService[]>;
+  getAddonServicesByCategory(category: string): Promise<AddonService[]>;
+  getAddonService(id: number): Promise<AddonService | undefined>;
+  createAddonService(service: InsertAddonService): Promise<AddonService>;
+  updateAddonService(id: number, service: Partial<InsertAddonService>): Promise<AddonService | undefined>;
+  deleteAddonService(id: number): Promise<boolean>;
+
+  // Add-on bookings operations
+  getAddonBookings(): Promise<AddonBooking[]>;
+  getAddonBookingsByProperty(propertyId: number): Promise<AddonBooking[]>;
+  getAddonBookingsByService(serviceId: number): Promise<AddonBooking[]>;
+  getAddonBooking(id: number): Promise<AddonBooking | undefined>;
+  createAddonBooking(booking: InsertAddonBooking): Promise<AddonBooking>;
+  updateAddonBooking(id: number, booking: Partial<InsertAddonBooking>): Promise<AddonBooking | undefined>;
+  deleteAddonBooking(id: number): Promise<boolean>;
+
+  // Utility bills operations
+  getUtilityBills(): Promise<UtilityBill[]>;
+  getUtilityBillsByProperty(propertyId: number): Promise<UtilityBill[]>;
+  getUtilityBill(id: number): Promise<UtilityBill | undefined>;
+  createUtilityBill(bill: InsertUtilityBill): Promise<UtilityBill>;
+  updateUtilityBill(id: number, bill: Partial<InsertUtilityBill>): Promise<UtilityBill | undefined>;
+  deleteUtilityBill(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -276,6 +310,126 @@ export class DatabaseStorage implements IStorage {
 
   async deletePlatformSetting(key: string): Promise<boolean> {
     const result = await db.delete(platformSettings).where(eq(platformSettings.settingKey, key));
+    return result.rowCount! > 0;
+  }
+
+  // Add-on services operations
+  async getAddonServices(): Promise<AddonService[]> {
+    return await db.select().from(addonServices).orderBy(addonServices.category, addonServices.name);
+  }
+
+  async getAddonServicesByCategory(category: string): Promise<AddonService[]> {
+    return await db.select().from(addonServices)
+      .where(eq(addonServices.category, category))
+      .orderBy(addonServices.name);
+  }
+
+  async getAddonService(id: number): Promise<AddonService | undefined> {
+    const [service] = await db.select().from(addonServices).where(eq(addonServices.id, id));
+    return service;
+  }
+
+  async createAddonService(service: InsertAddonService): Promise<AddonService> {
+    const [newService] = await db
+      .insert(addonServices)
+      .values(service)
+      .returning();
+    return newService;
+  }
+
+  async updateAddonService(id: number, service: Partial<InsertAddonService>): Promise<AddonService | undefined> {
+    const [updatedService] = await db
+      .update(addonServices)
+      .set({ ...service, updatedAt: new Date() })
+      .where(eq(addonServices.id, id))
+      .returning();
+    return updatedService;
+  }
+
+  async deleteAddonService(id: number): Promise<boolean> {
+    const result = await db.delete(addonServices).where(eq(addonServices.id, id));
+    return result.rowCount! > 0;
+  }
+
+  // Add-on bookings operations
+  async getAddonBookings(): Promise<AddonBooking[]> {
+    return await db.select().from(addonBookings).orderBy(addonBookings.scheduledDate);
+  }
+
+  async getAddonBookingsByProperty(propertyId: number): Promise<AddonBooking[]> {
+    return await db.select().from(addonBookings)
+      .where(eq(addonBookings.propertyId, propertyId))
+      .orderBy(addonBookings.scheduledDate);
+  }
+
+  async getAddonBookingsByService(serviceId: number): Promise<AddonBooking[]> {
+    return await db.select().from(addonBookings)
+      .where(eq(addonBookings.serviceId, serviceId))
+      .orderBy(addonBookings.scheduledDate);
+  }
+
+  async getAddonBooking(id: number): Promise<AddonBooking | undefined> {
+    const [booking] = await db.select().from(addonBookings).where(eq(addonBookings.id, id));
+    return booking;
+  }
+
+  async createAddonBooking(booking: InsertAddonBooking): Promise<AddonBooking> {
+    const [newBooking] = await db
+      .insert(addonBookings)
+      .values(booking)
+      .returning();
+    return newBooking;
+  }
+
+  async updateAddonBooking(id: number, booking: Partial<InsertAddonBooking>): Promise<AddonBooking | undefined> {
+    const [updatedBooking] = await db
+      .update(addonBookings)
+      .set({ ...booking, updatedAt: new Date() })
+      .where(eq(addonBookings.id, id))
+      .returning();
+    return updatedBooking;
+  }
+
+  async deleteAddonBooking(id: number): Promise<boolean> {
+    const result = await db.delete(addonBookings).where(eq(addonBookings.id, id));
+    return result.rowCount! > 0;
+  }
+
+  // Utility bills operations
+  async getUtilityBills(): Promise<UtilityBill[]> {
+    return await db.select().from(utilityBills).orderBy(utilityBills.dueDate);
+  }
+
+  async getUtilityBillsByProperty(propertyId: number): Promise<UtilityBill[]> {
+    return await db.select().from(utilityBills)
+      .where(eq(utilityBills.propertyId, propertyId))
+      .orderBy(utilityBills.dueDate);
+  }
+
+  async getUtilityBill(id: number): Promise<UtilityBill | undefined> {
+    const [bill] = await db.select().from(utilityBills).where(eq(utilityBills.id, id));
+    return bill;
+  }
+
+  async createUtilityBill(bill: InsertUtilityBill): Promise<UtilityBill> {
+    const [newBill] = await db
+      .insert(utilityBills)
+      .values(bill)
+      .returning();
+    return newBill;
+  }
+
+  async updateUtilityBill(id: number, bill: Partial<InsertUtilityBill>): Promise<UtilityBill | undefined> {
+    const [updatedBill] = await db
+      .update(utilityBills)
+      .set({ ...bill, updatedAt: new Date() })
+      .where(eq(utilityBills.id, id))
+      .returning();
+    return updatedBill;
+  }
+
+  async deleteUtilityBill(id: number): Promise<boolean> {
+    const result = await db.delete(utilityBills).where(eq(utilityBills.id, id));
     return result.rowCount! > 0;
   }
 }

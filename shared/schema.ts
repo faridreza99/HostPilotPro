@@ -199,14 +199,21 @@ export const inventory = pgTable("inventory", {
 // Add-on services for guests
 export const addonServices = pgTable("addon_services", {
   id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
   name: varchar("name").notNull(),
   description: text("description"),
-  category: varchar("category").notNull(), // cleaning, massage, chef, transportation, activities
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  duration: integer("duration"), // in minutes
+  category: varchar("category").notNull(), // cleaning, massage, chef, transportation, activities, concierge
+  pricingModel: varchar("pricing_model").notNull().default("fixed"), // fixed, variable, complimentary
+  basePrice: decimal("base_price", { precision: 10, scale: 2 }),
+  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
+  minimumCharge: decimal("minimum_charge", { precision: 10, scale: 2 }),
+  duration: integer("duration"), // in minutes for fixed services
   isActive: boolean("is_active").default(true),
   availableProperties: integer("available_properties").array(),
   maxAdvanceBookingDays: integer("max_advance_booking_days").default(30),
+  requiresApproval: boolean("requires_approval").default(false),
+  allowGuestBooking: boolean("allow_guest_booking").default(true),
+  allowManagerBooking: boolean("allow_manager_booking").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -214,6 +221,7 @@ export const addonServices = pgTable("addon_services", {
 // Bookings for add-on services
 export const addonBookings = pgTable("addon_bookings", {
   id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
   serviceId: integer("service_id").references(() => addonServices.id).notNull(),
   bookingId: integer("booking_id").references(() => bookings.id),
   propertyId: integer("property_id").references(() => properties.id).notNull(),
@@ -221,11 +229,20 @@ export const addonBookings = pgTable("addon_bookings", {
   guestEmail: varchar("guest_email"),
   guestPhone: varchar("guest_phone"),
   scheduledDate: timestamp("scheduled_date").notNull(),
-  duration: integer("duration"),
+  duration: integer("duration"), // actual duration for variable pricing
+  quantity: integer("quantity").default(1), // for multiple units
+  basePrice: decimal("base_price", { precision: 10, scale: 2 }),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status").notNull().default("pending"), // pending, confirmed, completed, cancelled
-  chargedTo: varchar("charged_to").notNull(), // guest, owner, company
+  billingType: varchar("billing_type").notNull(), // auto-bill-guest, auto-bill-owner, owner-gift, company-gift
+  chargedTo: varchar("charged_to"), // guest, owner, company (derived from billingType)
+  giftReason: text("gift_reason"), // reason for gift bookings
+  bookedBy: varchar("booked_by").references(() => users.id).notNull(), // user who made the booking
+  bookedByRole: varchar("booked_by_role").notNull(), // manager, guest, staff
+  approvedBy: varchar("approved_by").references(() => users.id), // for services requiring approval
+  approvalStatus: varchar("approval_status").default("auto-approved"), // pending, approved, denied, auto-approved
   notes: text("notes"),
+  internalNotes: text("internal_notes"), // staff-only notes
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -233,6 +250,7 @@ export const addonBookings = pgTable("addon_bookings", {
 // Utility bills and recurring expenses
 export const utilityBills = pgTable("utility_bills", {
   id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
   propertyId: integer("property_id").references(() => properties.id).notNull(),
   type: varchar("type").notNull(), // electricity, water, gas, internet, maintenance
   provider: varchar("provider"),
