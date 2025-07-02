@@ -545,6 +545,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Welcome Pack Inventory routes
+  app.get("/api/welcome-pack-items", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const items = await storage.getWelcomePackItems();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching welcome pack items:", error);
+      res.status(500).json({ message: "Failed to fetch welcome pack items" });
+    }
+  });
+
+  app.post("/api/welcome-pack-items", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      
+      const validatedData = {
+        ...req.body,
+        organizationId,
+      };
+
+      const item = await storage.createWelcomePackItem(validatedData);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating welcome pack item:", error);
+      res.status(500).json({ message: "Failed to create welcome pack item" });
+    }
+  });
+
+  app.get("/api/welcome-pack-templates", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const templates = await storage.getWelcomePackTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching welcome pack templates:", error);
+      res.status(500).json({ message: "Failed to fetch welcome pack templates" });
+    }
+  });
+
+  app.get("/api/welcome-pack-templates/property/:propertyId", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const templates = await storage.getWelcomePackTemplatesByProperty(propertyId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching property welcome pack templates:", error);
+      res.status(500).json({ message: "Failed to fetch property welcome pack templates" });
+    }
+  });
+
+  app.post("/api/welcome-pack-templates", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      
+      const validatedData = {
+        ...req.body,
+        organizationId,
+      };
+
+      const template = await storage.createWelcomePackTemplate(validatedData);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating welcome pack template:", error);
+      res.status(500).json({ message: "Failed to create welcome pack template" });
+    }
+  });
+
+  app.get("/api/welcome-pack-usage", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const usage = await storage.getWelcomePackUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching welcome pack usage:", error);
+      res.status(500).json({ message: "Failed to fetch welcome pack usage" });
+    }
+  });
+
+  app.post("/api/welcome-pack-usage/checkout", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userData = req.user as any;
+      const { bookingId, propertyId } = req.body;
+      
+      const usageRecords = await storage.logWelcomePackUsageFromCheckout(
+        bookingId, 
+        propertyId, 
+        userData.claims.sub
+      );
+      
+      res.status(201).json(usageRecords);
+    } catch (error) {
+      console.error("Error logging welcome pack checkout usage:", error);
+      res.status(500).json({ message: "Failed to log welcome pack checkout usage" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

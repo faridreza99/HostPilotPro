@@ -569,7 +569,7 @@ export class DatabaseStorage implements IStorage {
       const item = await this.getWelcomePackItem(template.itemId);
       if (!item) continue;
 
-      const totalCost = template.isComplimentary ? 0 : (template.defaultQuantity * item.unitCost);
+      const totalCost = template.isComplimentary ? 0 : (template.defaultQuantity * Number(item.unitCost));
       
       const usage = await this.createWelcomePackUsage({
         organizationId: item.organizationId,
@@ -578,7 +578,7 @@ export class DatabaseStorage implements IStorage {
         itemId: template.itemId,
         quantityUsed: template.defaultQuantity,
         unitCost: item.unitCost,
-        totalCost: totalCost,
+        totalCost: totalCost.toString(),
         billingOption: template.isComplimentary ? 'complimentary' : 'owner_bill',
         processedBy: processedBy,
         usageDate: new Date().toISOString().split('T')[0],

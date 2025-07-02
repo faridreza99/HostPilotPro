@@ -25,7 +25,8 @@ import {
   Shield,
   UserCheck,
   Clock,
-  TrendingUp
+  TrendingUp,
+  Gift
 } from "lucide-react";
 
 // Define navigation modules with hierarchical structure
@@ -68,6 +69,13 @@ const navigationModules = [
         label: "Inventory", 
         roles: ["admin", "portfolio-manager", "owner", "staff"],
         description: "Stock and supplies management"
+      },
+      { 
+        path: "/welcome-packs", 
+        icon: Gift, 
+        label: "Welcome Packs", 
+        roles: ["admin", "portfolio-manager", "owner", "staff"],
+        description: "Guest welcome pack inventory and templates"
       },
     ]
   },
