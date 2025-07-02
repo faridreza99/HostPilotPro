@@ -60,8 +60,15 @@ const navigationModules = [
         path: "/tasks", 
         icon: ListTodo, 
         label: "Tasks", 
-        roles: ["admin", "portfolio-manager", "owner", "staff"],
+        roles: ["admin", "portfolio-manager", "owner"],
         description: "Track maintenance and operations"
+      },
+      { 
+        path: "/staff-tasks", 
+        icon: ListTodo, 
+        label: "My Tasks", 
+        roles: ["staff"],
+        description: "Complete assigned tasks with photo evidence"
       },
       { 
         path: "/inventory", 
