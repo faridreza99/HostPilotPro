@@ -1042,11 +1042,6 @@ export type InsertNotificationPreference = z.infer<typeof insertNotificationPref
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 
 // Financial & Invoice Toolkit schemas and types
-export const insertStaffSalarySchema = createInsertSchema(staffSalaries).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
 
 export const insertCommissionEarningSchema = createInsertSchema(commissionEarnings).omit({
   id: true,
@@ -1244,7 +1239,7 @@ export const insertGuestPortalAccessSchema = createInsertSchema(guestPortalAcces
   createdAt: true,
 });
 
-export type InsertStaffSalary = z.infer<typeof insertStaffSalarySchema>;
+export type InsertStaffSalary = z.infer<typeof insertStaffSalariesSchema>;
 export type StaffSalary = typeof staffSalaries.$inferSelect;
 export type InsertCommissionEarning = z.infer<typeof insertCommissionEarningSchema>;
 export type CommissionEarning = typeof commissionEarnings.$inferSelect;
@@ -2065,11 +2060,4 @@ export type InsertPropertyAgent = z.infer<typeof insertPropertyAgentsSchema>;
 
 // ===== STAFF DASHBOARD TYPES =====
 
-export type StaffSalary = typeof staffSalaries.$inferSelect;
-export type InsertStaffSalary = z.infer<typeof insertStaffSalariesSchema>;
-export type TaskChecklist = typeof taskChecklists.$inferSelect;
-export type InsertTaskChecklist = z.infer<typeof insertTaskChecklistsSchema>;
-export type TaskCompletion = typeof taskCompletions.$inferSelect;
-export type InsertTaskCompletion = z.infer<typeof insertTaskCompletionsSchema>;
-export type StaffExpense = typeof staffExpenses.$inferSelect;
-export type InsertStaffExpense = z.infer<typeof insertStaffExpensesSchema>;
+

@@ -23,6 +23,7 @@ import FinancialToolkit from "@/pages/FinancialToolkit";
 import UtilityTracking from "@/pages/UtilityTracking";
 import RetailAgentBooking from "@/pages/RetailAgentBooking";
 import ReferralAgentDashboard from "@/pages/ReferralAgentDashboard";
+import StaffDashboard from "@/pages/StaffDashboard";
 import AiFeedbackMonitor from "@/pages/AiFeedbackMonitor";
 import GuestAddonServices from "@/pages/GuestAddonServices";
 import RecurringServicesBilling from "@/pages/RecurringServicesBilling";
@@ -55,6 +56,8 @@ function Router() {
         return ReferralAgentDashboard;
       case 'retail-agent':
         return RetailAgentBooking;
+      case 'staff':
+        return StaffDashboard;
       default:
         return Dashboard;
     }

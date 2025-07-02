@@ -3305,6 +3305,239 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== STAFF DASHBOARD API ENDPOINTS =====
+
+  // Staff Dashboard Overview
+  app.get("/api/staff/dashboard/overview", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1"; // Demo organization
+      const staffId = user.id;
+      const department = user.department;
+
+      const overview = await storage.getStaffDashboardOverview(organizationId, staffId, department);
+      res.json(overview);
+    } catch (error) {
+      console.error("Error fetching staff dashboard overview:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard overview" });
+    }
+  });
+
+  // Staff Tasks Management
+  app.get("/api/staff/tasks", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const staffId = user.id;
+      const filters = req.query;
+
+      const tasks = await storage.getStaffTasks(organizationId, staffId, filters);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching staff tasks:", error);
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  // Start Task
+  app.post("/api/staff/tasks/:taskId/start", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const taskId = parseInt(req.params.taskId);
+      const staffId = user.id;
+
+      const task = await storage.startTask(organizationId, taskId, staffId);
+      res.json(task);
+    } catch (error) {
+      console.error("Error starting task:", error);
+      res.status(500).json({ message: "Failed to start task" });
+    }
+  });
+
+  // Complete Task
+  app.post("/api/staff/tasks/:taskId/complete", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const taskId = parseInt(req.params.taskId);
+      const staffId = user.id;
+      const completionData = req.body;
+
+      const task = await storage.completeTask(organizationId, taskId, staffId, completionData);
+      res.json(task);
+    } catch (error) {
+      console.error("Error completing task:", error);
+      res.status(500).json({ message: "Failed to complete task" });
+    }
+  });
+
+  // Skip Task
+  app.post("/api/staff/tasks/:taskId/skip", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const taskId = parseInt(req.params.taskId);
+      const staffId = user.id;
+      const { reason } = req.body;
+
+      const task = await storage.skipTask(organizationId, taskId, staffId, reason);
+      res.json(task);
+    } catch (error) {
+      console.error("Error skipping task:", error);
+      res.status(500).json({ message: "Failed to skip task" });
+    }
+  });
+
+  // Reschedule Task
+  app.post("/api/staff/tasks/:taskId/reschedule", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const taskId = parseInt(req.params.taskId);
+      const staffId = user.id;
+      const { newDate, reason } = req.body;
+
+      const task = await storage.rescheduleTask(organizationId, taskId, staffId, new Date(newDate), reason);
+      res.json(task);
+    } catch (error) {
+      console.error("Error rescheduling task:", error);
+      res.status(500).json({ message: "Failed to reschedule task" });
+    }
+  });
+
+  // Staff Salary Information
+  app.get("/api/staff/salary", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const staffId = user.id;
+      const { period } = req.query;
+
+      const salary = await storage.getStaffSalary(organizationId, staffId, period as string);
+      res.json(salary);
+    } catch (error) {
+      console.error("Error fetching staff salary:", error);
+      res.status(500).json({ message: "Failed to fetch salary information" });
+    }
+  });
+
+  // Staff Expense Management
+  app.get("/api/staff/expenses", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const staffId = user.id;
+      const filters = req.query;
+
+      const expenses = await storage.getStaffExpenses(organizationId, staffId, filters);
+      res.json(expenses);
+    } catch (error) {
+      console.error("Error fetching staff expenses:", error);
+      res.status(500).json({ message: "Failed to fetch expenses" });
+    }
+  });
+
+  // Create Staff Expense
+  app.post("/api/staff/expenses", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const staffId = user.id;
+      const expenseData = { 
+        ...req.body, 
+        organizationId, 
+        staffId 
+      };
+
+      const expense = await storage.createStaffExpense(expenseData);
+      res.status(201).json(expense);
+    } catch (error) {
+      console.error("Error creating staff expense:", error);
+      res.status(500).json({ message: "Failed to create expense" });
+    }
+  });
+
+  // Staff Task History
+  app.get("/api/staff/task-history", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const staffId = user.id;
+      const filters = req.query;
+
+      const history = await storage.getStaffTaskHistory(organizationId, staffId, filters);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching task history:", error);
+      res.status(500).json({ message: "Failed to fetch task history" });
+    }
+  });
+
+  // Task Checklist
+  app.get("/api/staff/task-checklist/:taskType", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = "demo-org-1";
+      const { taskType } = req.params;
+      const { propertyId } = req.query;
+
+      const checklist = await storage.getTaskChecklist(
+        organizationId, 
+        taskType, 
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      res.json(checklist);
+    } catch (error) {
+      console.error("Error fetching task checklist:", error);
+      res.status(500).json({ message: "Failed to fetch checklist" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
