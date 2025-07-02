@@ -13,6 +13,7 @@ import {
   type InsertFinance,
   type InsertAddonService
 } from "@shared/schema";
+import { seedAiDemoData } from "./seedAiDemoData";
 import { syncHostawayData } from "./hostaway";
 import type { Request } from "express";
 
@@ -419,6 +420,9 @@ export async function seedDemoData(): Promise<void> {
     
     await db.insert(finances).values(demoFinances);
     console.log(`Created ${demoFinances.length} demo finance records`);
+    
+    // Seed AI demo data
+    await seedAiDemoData();
     
     console.log("Demo data seeding completed successfully!");
     
