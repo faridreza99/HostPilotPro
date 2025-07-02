@@ -2,6 +2,7 @@ import {
   users,
   properties,
   tasks,
+  taskHistory,
   bookings,
   finances,
   inventory,
@@ -41,6 +42,8 @@ import {
   type InsertWelcomePackUsage,
   type OwnerPayout,
   type InsertOwnerPayout,
+  type TaskHistory,
+  type InsertTaskHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -66,6 +69,17 @@ export interface IStorage {
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: number): Promise<boolean>;
+  
+  // Enhanced staff task management
+  completeTask(id: number, userId: string, evidencePhotos: string[], issuesFound: string[], notes?: string): Promise<Task | undefined>;
+  skipTask(id: number, userId: string, reason: string): Promise<Task | undefined>;
+  rescheduleTask(id: number, userId: string, newDate: Date, reason: string): Promise<Task | undefined>;
+  startTask(id: number, userId: string): Promise<Task | undefined>;
+  
+  // Task history operations
+  getTaskHistory(taskId: number): Promise<TaskHistory[]>;
+  getTaskHistoryByProperty(propertyId: number): Promise<TaskHistory[]>;
+  createTaskHistory(history: InsertTaskHistory): Promise<TaskHistory>;
 
   // Booking operations
   getBookings(): Promise<Booking[]>;

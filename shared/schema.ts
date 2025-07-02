@@ -115,7 +115,7 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   type: varchar("type").notNull(), // cleaning, maintenance, pool-service, garden, inspection
   department: varchar("department"), // housekeeping, maintenance, landscaping, pool, guest-services
-  status: varchar("status").notNull().default("pending"), // pending, in-progress, completed, cancelled
+  status: varchar("status").notNull().default("pending"), // pending, in-progress, completed, cancelled, skipped, rescheduled
   priority: varchar("priority").notNull().default("medium"), // low, medium, high, urgent
   propertyId: integer("property_id").references(() => properties.id),
   assignedTo: varchar("assigned_to").references(() => users.id),
@@ -129,9 +129,35 @@ export const tasks = pgTable("tasks", {
   recurringInterval: integer("recurring_interval").default(1),
   nextDueDate: timestamp("next_due_date"),
   parentTaskId: integer("parent_task_id").references(() => tasks.id),
+  // New staff management fields
+  completionNotes: text("completion_notes"),
+  skipReason: text("skip_reason"),
+  rescheduleReason: text("reschedule_reason"),
+  rescheduledDate: timestamp("rescheduled_date"),
+  evidencePhotos: text("evidence_photos").array().default([]),
+  issuesFound: text("issues_found").array().default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const taskHistory = pgTable("task_history", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  action: varchar("action").notNull(), // created, assigned, started, completed, skipped, rescheduled, cancelled
+  previousStatus: varchar("previous_status"),
+  newStatus: varchar("new_status"),
+  performedBy: varchar("performed_by").references(() => users.id),
+  notes: text("notes"),
+  evidencePhotos: text("evidence_photos").array().default([]),
+  issuesFound: text("issues_found").array().default([]),
+  timestamp: timestamp("timestamp").defaultNow(),
+}, (table) => [
+  index("IDX_task_history_task").on(table.taskId),
+  index("IDX_task_history_property").on(table.propertyId),
+  index("IDX_task_history_user").on(table.performedBy),
+]);
 
 export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
@@ -583,3 +609,8 @@ export type InsertWelcomePackUsage = z.infer<typeof insertWelcomePackUsageSchema
 export type WelcomePackUsage = typeof welcomePackUsage.$inferSelect;
 export type InsertOwnerPayout = z.infer<typeof insertOwnerPayoutSchema>;
 export type OwnerPayout = typeof ownerPayouts.$inferSelect;
+
+// Task History schemas and types
+export const insertTaskHistorySchema = createInsertSchema(taskHistory);
+export type InsertTaskHistory = z.infer<typeof insertTaskHistorySchema>;
+export type TaskHistory = typeof taskHistory.$inferSelect;
