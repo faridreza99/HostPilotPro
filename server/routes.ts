@@ -7767,6 +7767,331 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== PLATFORM-BASED REVENUE ROUTING RULES ====================
+
+  // Platform routing rules endpoints
+  app.get("/api/platform-routing-rules", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const rules = await storage.getPlatformRoutingRules(organizationId);
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching platform routing rules:", error);
+      res.status(500).json({ message: "Failed to fetch platform routing rules" });
+    }
+  });
+
+  app.post("/api/platform-routing-rules", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      
+      // Only allow admin users to create platform rules
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only administrators can create platform routing rules" });
+      }
+
+      const ruleData = {
+        ...req.body,
+        organizationId,
+        createdBy: userId,
+      };
+
+      const newRule = await storage.createPlatformRoutingRule(ruleData);
+
+      // Create audit log
+      await storage.createRoutingAuditLog({
+        organizationId,
+        relatedType: 'platform_rule',
+        relatedId: newRule.id,
+        actionType: 'created',
+        newValues: newRule,
+        changeReason: 'Platform rule created',
+        performedBy: userId,
+      });
+
+      res.json(newRule);
+    } catch (error) {
+      console.error("Error creating platform routing rule:", error);
+      res.status(500).json({ message: "Failed to create platform routing rule" });
+    }
+  });
+
+  app.put("/api/platform-routing-rules/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      const { id } = req.params;
+      
+      // Only allow admin users to update platform rules
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only administrators can update platform routing rules" });
+      }
+
+      // Get the previous values for audit
+      const previousRule = await storage.getPlatformRoutingRule(parseInt(id));
+      if (!previousRule) {
+        return res.status(404).json({ message: "Platform rule not found" });
+      }
+
+      const updatedRule = await storage.updatePlatformRoutingRule(parseInt(id), req.body);
+      
+      if (!updatedRule) {
+        return res.status(404).json({ message: "Platform rule not found" });
+      }
+
+      // Create audit log
+      await storage.createRoutingAuditLog({
+        organizationId,
+        relatedType: 'platform_rule',
+        relatedId: updatedRule.id,
+        actionType: 'updated',
+        previousValues: previousRule,
+        newValues: updatedRule,
+        changeReason: 'Platform rule updated',
+        performedBy: userId,
+      });
+
+      res.json(updatedRule);
+    } catch (error) {
+      console.error("Error updating platform routing rule:", error);
+      res.status(500).json({ message: "Failed to update platform routing rule" });
+    }
+  });
+
+  // Property platform rules endpoints
+  app.get("/api/property-platform-rules", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, platformRuleId } = req.query;
+      
+      const rules = await storage.getPropertyPlatformRules(organizationId, {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        platformRuleId: platformRuleId ? parseInt(platformRuleId as string) : undefined,
+      });
+      
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching property platform rules:", error);
+      res.status(500).json({ message: "Failed to fetch property platform rules" });
+    }
+  });
+
+  app.post("/api/property-platform-rules", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      
+      // Only allow admin users to create property rules
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only administrators can create property routing rules" });
+      }
+
+      const ruleData = {
+        ...req.body,
+        organizationId,
+        setBy: userId,
+        propertyId: parseInt(req.body.propertyId),
+        platformRuleId: parseInt(req.body.platformRuleId),
+      };
+
+      const newRule = await storage.createPropertyPlatformRule(ruleData);
+
+      // Create audit log
+      await storage.createRoutingAuditLog({
+        organizationId,
+        relatedType: 'property_rule',
+        relatedId: newRule.id,
+        actionType: 'created',
+        newValues: newRule,
+        changeReason: 'Property-specific routing rule created',
+        performedBy: userId,
+      });
+
+      res.json(newRule);
+    } catch (error) {
+      console.error("Error creating property platform rule:", error);
+      res.status(500).json({ message: "Failed to create property platform rule" });
+    }
+  });
+
+  // Booking platform routing endpoints
+  app.get("/api/booking-platform-routing", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { bookingId, platformRuleId, routingStatus } = req.query;
+      
+      const routing = await storage.getBookingPlatformRouting(organizationId, {
+        bookingId: bookingId ? parseInt(bookingId as string) : undefined,
+        platformRuleId: platformRuleId ? parseInt(platformRuleId as string) : undefined,
+        routingStatus: routingStatus as string,
+      });
+      
+      res.json(routing);
+    } catch (error) {
+      console.error("Error fetching booking platform routing:", error);
+      res.status(500).json({ message: "Failed to fetch booking platform routing" });
+    }
+  });
+
+  app.post("/api/booking-platform-routing", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      
+      // Only allow admin users to create booking overrides
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only administrators can create booking routing overrides" });
+      }
+
+      // Calculate routing amounts
+      const { bookingId, platformRuleId, actualOwnerPercentage, actualManagementPercentage, overrideReason } = req.body;
+      
+      // Get booking details to calculate amounts
+      const booking = await storage.getBooking(parseInt(bookingId));
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      const totalAmount = parseFloat(booking.totalAmount || '0');
+      const platformRule = await storage.getPlatformRoutingRule(parseInt(platformRuleId));
+      if (!platformRule) {
+        return res.status(404).json({ message: "Platform rule not found" });
+      }
+
+      // Calculate amounts
+      const ownerPercentage = parseFloat(actualOwnerPercentage);
+      const managementPercentage = parseFloat(actualManagementPercentage);
+      const platformFeePercentage = parseFloat(platformRule.platformFeePercentage || '0');
+      
+      const platformFeeAmount = totalAmount * (platformFeePercentage / 100);
+      const netAmount = totalAmount - platformFeeAmount;
+      const ownerAmount = netAmount * (ownerPercentage / 100);
+      const managementAmount = netAmount * (managementPercentage / 100);
+
+      const routingData = {
+        organizationId,
+        bookingId: parseInt(bookingId),
+        platformRuleId: parseInt(platformRuleId),
+        actualOwnerPercentage: ownerPercentage.toString(),
+        actualManagementPercentage: managementPercentage.toString(),
+        actualRoutingType: req.body.actualRoutingType,
+        totalBookingAmount: totalAmount.toString(),
+        ownerAmount: ownerAmount.toString(),
+        managementAmount: managementAmount.toString(),
+        platformFeeAmount: platformFeeAmount.toString(),
+        overrideReason,
+        isOverride: true,
+        routingStatus: 'pending',
+        createdBy: userId,
+      };
+
+      const newRouting = await storage.createBookingPlatformRouting(routingData);
+
+      // Create audit log
+      await storage.createRoutingAuditLog({
+        organizationId,
+        relatedType: 'booking_routing',
+        relatedId: newRouting.id,
+        actionType: 'override_applied',
+        newValues: newRouting,
+        changeReason: overrideReason,
+        impactedBookings: 1,
+        financialImpact: totalAmount.toString(),
+        performedBy: userId,
+      });
+
+      res.json(newRouting);
+    } catch (error) {
+      console.error("Error creating booking platform routing:", error);
+      res.status(500).json({ message: "Failed to create booking platform routing" });
+    }
+  });
+
+  app.patch("/api/booking-platform-routing/:id/process", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      const { id } = req.params;
+      
+      // Only allow admin users to process routing
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only administrators can process routing" });
+      }
+
+      const processed = await storage.processBookingRouting(parseInt(id), userId);
+      
+      if (!processed) {
+        return res.status(404).json({ message: "Booking routing not found" });
+      }
+
+      // Create audit log
+      await storage.createRoutingAuditLog({
+        organizationId,
+        relatedType: 'booking_routing',
+        relatedId: processed.id,
+        actionType: 'routing_processed',
+        changeReason: 'Routing marked as processed',
+        performedBy: userId,
+      });
+
+      res.json(processed);
+    } catch (error) {
+      console.error("Error processing booking routing:", error);
+      res.status(500).json({ message: "Failed to process booking routing" });
+    }
+  });
+
+  // Routing audit logs endpoint
+  app.get("/api/routing-audit-logs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { relatedType, relatedId, actionType, performedBy, fromDate, toDate } = req.query;
+      
+      const logs = await storage.getRoutingAuditLogs(organizationId, {
+        relatedType: relatedType as string,
+        relatedId: relatedId ? parseInt(relatedId as string) : undefined,
+        actionType: actionType as string,
+        performedBy: performedBy as string,
+        fromDate: fromDate ? new Date(fromDate as string) : undefined,
+        toDate: toDate ? new Date(toDate as string) : undefined,
+      });
+      
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching routing audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch routing audit logs" });
+    }
+  });
+
+  // Utility endpoint to calculate routing for a booking
+  app.post("/api/calculate-booking-routing", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { bookingId, platformRuleId, totalAmount, overrides } = req.body;
+      
+      const calculation = await storage.calculateBookingRouting(
+        parseInt(bookingId),
+        parseInt(platformRuleId),
+        parseFloat(totalAmount),
+        overrides
+      );
+      
+      res.json(calculation);
+    } catch (error) {
+      console.error("Error calculating booking routing:", error);
+      res.status(500).json({ message: "Failed to calculate booking routing" });
+    }
+  });
+
+  // Get routing rules for a specific property
+  app.get("/api/properties/:propertyId/routing-rules", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { propertyId } = req.params;
+      
+      const rules = await storage.getRoutingRulesForProperty(parseInt(propertyId));
+      
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching property routing rules:", error);
+      res.status(500).json({ message: "Failed to fetch property routing rules" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

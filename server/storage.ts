@@ -43,6 +43,10 @@ import {
   ownerPaymentLogs,
   ownerDebtTrackers,
   propertyPayoutSettings,
+  platformRoutingRules,
+  propertyPlatformRules,
+  bookingPlatformRouting,
+  routingAuditLog,
   type User,
   type UpsertUser,
   type Property,
@@ -202,6 +206,14 @@ import {
   type InsertGuestPropertyLocalInfo,
   type GuestMaintenanceReport,
   type InsertGuestMaintenanceReport,
+  type PlatformRoutingRule,
+  type InsertPlatformRoutingRule,
+  type PropertyPlatformRule,
+  type InsertPropertyPlatformRule,
+  type BookingPlatformRouting,
+  type InsertBookingPlatformRouting,
+  type RoutingAuditLog,
+  type InsertRoutingAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
@@ -9266,6 +9278,372 @@ Plant Care:
       totalCommissions: totalCommissions.toFixed(2),
       netBalance: netBalance.toFixed(2),
     };
+  }
+
+  // ==================== PLATFORM-BASED REVENUE ROUTING RULES ====================
+
+  // Platform Routing Rules Operations
+  async getPlatformRoutingRules(organizationId: string): Promise<PlatformRoutingRule[]> {
+    return db
+      .select()
+      .from(platformRoutingRules)
+      .where(eq(platformRoutingRules.organizationId, organizationId))
+      .orderBy(platformRoutingRules.platformDisplayName);
+  }
+
+  async getPlatformRoutingRule(id: number): Promise<PlatformRoutingRule | undefined> {
+    const [rule] = await db
+      .select()
+      .from(platformRoutingRules)
+      .where(eq(platformRoutingRules.id, id));
+    return rule;
+  }
+
+  async createPlatformRoutingRule(rule: InsertPlatformRoutingRule): Promise<PlatformRoutingRule> {
+    const [newRule] = await db
+      .insert(platformRoutingRules)
+      .values(rule)
+      .returning();
+    return newRule;
+  }
+
+  async updatePlatformRoutingRule(id: number, updates: Partial<InsertPlatformRoutingRule>): Promise<PlatformRoutingRule | undefined> {
+    const [updated] = await db
+      .update(platformRoutingRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(platformRoutingRules.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePlatformRoutingRule(id: number): Promise<boolean> {
+    const result = await db
+      .delete(platformRoutingRules)
+      .where(eq(platformRoutingRules.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Property Platform Rules Operations
+  async getPropertyPlatformRules(organizationId: string, filters?: {
+    propertyId?: number;
+    platformRuleId?: number;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: propertyPlatformRules.id,
+        organizationId: propertyPlatformRules.organizationId,
+        propertyId: propertyPlatformRules.propertyId,
+        platformRuleId: propertyPlatformRules.platformRuleId,
+        overrideOwnerPercentage: propertyPlatformRules.overrideOwnerPercentage,
+        overrideManagementPercentage: propertyPlatformRules.overrideManagementPercentage,
+        overrideRoutingType: propertyPlatformRules.overrideRoutingType,
+        isActive: propertyPlatformRules.isActive,
+        specialInstructions: propertyPlatformRules.specialInstructions,
+        setBy: propertyPlatformRules.setBy,
+        createdAt: propertyPlatformRules.createdAt,
+        updatedAt: propertyPlatformRules.updatedAt,
+        // Platform rule details
+        platformDisplayName: platformRoutingRules.platformDisplayName,
+        defaultOwnerPercentage: platformRoutingRules.defaultOwnerPercentage,
+        defaultManagementPercentage: platformRoutingRules.defaultManagementPercentage,
+        routingType: platformRoutingRules.routingType,
+        // Property details
+        propertyName: properties.name,
+      })
+      .from(propertyPlatformRules)
+      .leftJoin(platformRoutingRules, eq(propertyPlatformRules.platformRuleId, platformRoutingRules.id))
+      .leftJoin(properties, eq(propertyPlatformRules.propertyId, properties.id))
+      .where(eq(propertyPlatformRules.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(propertyPlatformRules.propertyId, filters.propertyId));
+    }
+    if (filters?.platformRuleId) {
+      query = query.where(eq(propertyPlatformRules.platformRuleId, filters.platformRuleId));
+    }
+
+    return query.orderBy(properties.name, platformRoutingRules.platformDisplayName);
+  }
+
+  async getPropertyPlatformRule(id: number): Promise<PropertyPlatformRule | undefined> {
+    const [rule] = await db
+      .select()
+      .from(propertyPlatformRules)
+      .where(eq(propertyPlatformRules.id, id));
+    return rule;
+  }
+
+  async createPropertyPlatformRule(rule: InsertPropertyPlatformRule): Promise<PropertyPlatformRule> {
+    const [newRule] = await db
+      .insert(propertyPlatformRules)
+      .values(rule)
+      .returning();
+    return newRule;
+  }
+
+  async updatePropertyPlatformRule(id: number, updates: Partial<InsertPropertyPlatformRule>): Promise<PropertyPlatformRule | undefined> {
+    const [updated] = await db
+      .update(propertyPlatformRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyPlatformRules.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyPlatformRule(id: number): Promise<boolean> {
+    const result = await db
+      .delete(propertyPlatformRules)
+      .where(eq(propertyPlatformRules.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Booking Platform Routing Operations
+  async getBookingPlatformRouting(organizationId: string, filters?: {
+    bookingId?: number;
+    platformRuleId?: number;
+    routingStatus?: string;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: bookingPlatformRouting.id,
+        organizationId: bookingPlatformRouting.organizationId,
+        bookingId: bookingPlatformRouting.bookingId,
+        platformRuleId: bookingPlatformRouting.platformRuleId,
+        actualOwnerPercentage: bookingPlatformRouting.actualOwnerPercentage,
+        actualManagementPercentage: bookingPlatformRouting.actualManagementPercentage,
+        actualRoutingType: bookingPlatformRouting.actualRoutingType,
+        totalBookingAmount: bookingPlatformRouting.totalBookingAmount,
+        ownerAmount: bookingPlatformRouting.ownerAmount,
+        managementAmount: bookingPlatformRouting.managementAmount,
+        platformFeeAmount: bookingPlatformRouting.platformFeeAmount,
+        overrideReason: bookingPlatformRouting.overrideReason,
+        isOverride: bookingPlatformRouting.isOverride,
+        routingStatus: bookingPlatformRouting.routingStatus,
+        processedAt: bookingPlatformRouting.processedAt,
+        processedBy: bookingPlatformRouting.processedBy,
+        createdBy: bookingPlatformRouting.createdBy,
+        createdAt: bookingPlatformRouting.createdAt,
+        updatedAt: bookingPlatformRouting.updatedAt,
+        // Platform rule details
+        platformDisplayName: platformRoutingRules.platformDisplayName,
+        // Booking details
+        guestName: bookings.guestName,
+        propertyName: properties.name,
+      })
+      .from(bookingPlatformRouting)
+      .leftJoin(platformRoutingRules, eq(bookingPlatformRouting.platformRuleId, platformRoutingRules.id))
+      .leftJoin(bookings, eq(bookingPlatformRouting.bookingId, bookings.id))
+      .leftJoin(properties, eq(bookings.propertyId, properties.id))
+      .where(eq(bookingPlatformRouting.organizationId, organizationId));
+
+    if (filters?.bookingId) {
+      query = query.where(eq(bookingPlatformRouting.bookingId, filters.bookingId));
+    }
+    if (filters?.platformRuleId) {
+      query = query.where(eq(bookingPlatformRouting.platformRuleId, filters.platformRuleId));
+    }
+    if (filters?.routingStatus) {
+      query = query.where(eq(bookingPlatformRouting.routingStatus, filters.routingStatus));
+    }
+
+    return query.orderBy(desc(bookingPlatformRouting.createdAt));
+  }
+
+  async getBookingPlatformRoutingById(id: number): Promise<BookingPlatformRouting | undefined> {
+    const [routing] = await db
+      .select()
+      .from(bookingPlatformRouting)
+      .where(eq(bookingPlatformRouting.id, id));
+    return routing;
+  }
+
+  async createBookingPlatformRouting(routing: InsertBookingPlatformRouting): Promise<BookingPlatformRouting> {
+    const [newRouting] = await db
+      .insert(bookingPlatformRouting)
+      .values(routing)
+      .returning();
+    return newRouting;
+  }
+
+  async updateBookingPlatformRouting(id: number, updates: Partial<InsertBookingPlatformRouting>): Promise<BookingPlatformRouting | undefined> {
+    const [updated] = await db
+      .update(bookingPlatformRouting)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(bookingPlatformRouting.id, id))
+      .returning();
+    return updated;
+  }
+
+  async processBookingRouting(id: number, processedBy: string): Promise<BookingPlatformRouting | undefined> {
+    const [updated] = await db
+      .update(bookingPlatformRouting)
+      .set({
+        routingStatus: 'processed',
+        processedAt: new Date(),
+        processedBy: processedBy,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookingPlatformRouting.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Routing Audit Log Operations
+  async getRoutingAuditLogs(organizationId: string, filters?: {
+    relatedType?: string;
+    relatedId?: number;
+    actionType?: string;
+    performedBy?: string;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<RoutingAuditLog[]> {
+    let query = db
+      .select()
+      .from(routingAuditLog)
+      .where(eq(routingAuditLog.organizationId, organizationId));
+
+    if (filters?.relatedType) {
+      query = query.where(eq(routingAuditLog.relatedType, filters.relatedType));
+    }
+    if (filters?.relatedId) {
+      query = query.where(eq(routingAuditLog.relatedId, filters.relatedId));
+    }
+    if (filters?.actionType) {
+      query = query.where(eq(routingAuditLog.actionType, filters.actionType));
+    }
+    if (filters?.performedBy) {
+      query = query.where(eq(routingAuditLog.performedBy, filters.performedBy));
+    }
+    if (filters?.fromDate) {
+      query = query.where(gte(routingAuditLog.performedAt, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      query = query.where(lte(routingAuditLog.performedAt, filters.toDate));
+    }
+
+    return query.orderBy(desc(routingAuditLog.performedAt));
+  }
+
+  async createRoutingAuditLog(log: InsertRoutingAuditLog): Promise<RoutingAuditLog> {
+    const [newLog] = await db
+      .insert(routingAuditLog)
+      .values(log)
+      .returning();
+    return newLog;
+  }
+
+  // Utility methods for routing calculations
+  async calculateBookingRouting(
+    bookingId: number,
+    platformRuleId: number,
+    totalAmount: number,
+    overrides?: {
+      ownerPercentage?: number;
+      managementPercentage?: number;
+      routingType?: string;
+    }
+  ): Promise<{
+    ownerAmount: number;
+    managementAmount: number;
+    platformFeeAmount: number;
+    ownerPercentage: number;
+    managementPercentage: number;
+    routingType: string;
+  }> {
+    // Get platform rule
+    const platformRule = await this.getPlatformRoutingRule(platformRuleId);
+    if (!platformRule) {
+      throw new Error('Platform rule not found');
+    }
+
+    // Check for property-specific overrides
+    const booking = await this.getBooking(bookingId);
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    const propertyRules = await this.getPropertyPlatformRules(booking.organizationId, {
+      propertyId: booking.propertyId,
+      platformRuleId: platformRuleId,
+    });
+
+    const propertyRule = propertyRules.length > 0 ? propertyRules[0] : null;
+
+    // Determine final percentages
+    let ownerPercentage = parseFloat(platformRule.defaultOwnerPercentage);
+    let managementPercentage = parseFloat(platformRule.defaultManagementPercentage);
+    let routingType = platformRule.routingType;
+
+    // Apply property overrides if they exist
+    if (propertyRule) {
+      if (propertyRule.overrideOwnerPercentage) {
+        ownerPercentage = parseFloat(propertyRule.overrideOwnerPercentage);
+      }
+      if (propertyRule.overrideManagementPercentage) {
+        managementPercentage = parseFloat(propertyRule.overrideManagementPercentage);
+      }
+      if (propertyRule.overrideRoutingType) {
+        routingType = propertyRule.overrideRoutingType;
+      }
+    }
+
+    // Apply booking-specific overrides
+    if (overrides) {
+      if (overrides.ownerPercentage !== undefined) {
+        ownerPercentage = overrides.ownerPercentage;
+      }
+      if (overrides.managementPercentage !== undefined) {
+        managementPercentage = overrides.managementPercentage;
+      }
+      if (overrides.routingType) {
+        routingType = overrides.routingType;
+      }
+    }
+
+    // Calculate amounts
+    const platformFeePercentage = parseFloat(platformRule.platformFeePercentage || '0');
+    const platformFeeAmount = totalAmount * (platformFeePercentage / 100);
+    const netAmount = totalAmount - platformFeeAmount;
+
+    const ownerAmount = netAmount * (ownerPercentage / 100);
+    const managementAmount = netAmount * (managementPercentage / 100);
+
+    return {
+      ownerAmount: Math.round(ownerAmount * 100) / 100,
+      managementAmount: Math.round(managementAmount * 100) / 100,
+      platformFeeAmount: Math.round(platformFeeAmount * 100) / 100,
+      ownerPercentage,
+      managementPercentage,
+      routingType,
+    };
+  }
+
+  async getRoutingRulesForProperty(propertyId: number): Promise<any[]> {
+    return db
+      .select({
+        platformRuleId: platformRoutingRules.id,
+        platformName: platformRoutingRules.platformName,
+        platformDisplayName: platformRoutingRules.platformDisplayName,
+        defaultOwnerPercentage: platformRoutingRules.defaultOwnerPercentage,
+        defaultManagementPercentage: platformRoutingRules.defaultManagementPercentage,
+        routingType: platformRoutingRules.routingType,
+        // Property override details
+        hasOverride: sql<boolean>`CASE WHEN ${propertyPlatformRules.id} IS NOT NULL THEN true ELSE false END`,
+        overrideOwnerPercentage: propertyPlatformRules.overrideOwnerPercentage,
+        overrideManagementPercentage: propertyPlatformRules.overrideManagementPercentage,
+        overrideRoutingType: propertyPlatformRules.overrideRoutingType,
+        specialInstructions: propertyPlatformRules.specialInstructions,
+      })
+      .from(platformRoutingRules)
+      .leftJoin(
+        propertyPlatformRules,
+        and(
+          eq(propertyPlatformRules.platformRuleId, platformRoutingRules.id),
+          eq(propertyPlatformRules.propertyId, propertyId)
+        )
+      )
+      .where(eq(platformRoutingRules.isActive, true))
+      .orderBy(platformRoutingRules.platformDisplayName);
   }
 }
 

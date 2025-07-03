@@ -4299,6 +4299,157 @@ export type InsertOwnerDebtTracker = z.infer<typeof insertOwnerDebtTrackerSchema
 export type PropertyPayoutSettings = typeof propertyPayoutSettings.$inferSelect;
 export type InsertPropertyPayoutSettings = z.infer<typeof insertPropertyPayoutSettingsSchema>;
 
+// ===== PLATFORM-BASED REVENUE ROUTING RULES =====
+
+// Global platform routing rules (admin configurable defaults)
+export const platformRoutingRules = pgTable("platform_routing_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Platform Information
+  platformName: varchar("platform_name").notNull(), // airbnb, booking_com, vrbo, direct_stripe, marriott, expedia
+  platformDisplayName: varchar("platform_display_name").notNull(),
+  
+  // Default Routing Settings
+  defaultOwnerPercentage: decimal("default_owner_percentage", { precision: 5, scale: 2 }).notNull(), // 70.00 for 70%
+  defaultManagementPercentage: decimal("default_management_percentage", { precision: 5, scale: 2 }).notNull(), // 30.00 for 30%
+  
+  // Platform Settings
+  isActive: boolean("is_active").default(true),
+  supportsSplitPayout: boolean("supports_split_payout").default(false), // Airbnb supports this
+  platformFeePercentage: decimal("platform_fee_percentage", { precision: 5, scale: 2 }).default("0.00"), // e.g., 5% for Stripe
+  
+  // Routing Options
+  routingType: varchar("routing_type").notNull(), // split_payout, full_to_owner, full_to_management
+  paymentMethod: varchar("payment_method"), // automatic, manual_invoice, direct_transfer
+  
+  // Admin Settings
+  adminNotes: text("admin_notes"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property-specific platform routing overrides
+export const propertyPlatformRules = pgTable("property_platform_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  platformRuleId: integer("platform_rule_id").references(() => platformRoutingRules.id).notNull(),
+  
+  // Override Settings
+  overrideOwnerPercentage: decimal("override_owner_percentage", { precision: 5, scale: 2 }),
+  overrideManagementPercentage: decimal("override_management_percentage", { precision: 5, scale: 2 }),
+  overrideRoutingType: varchar("override_routing_type"), // split_payout, full_to_owner, full_to_management
+  
+  // Property-specific settings
+  isActive: boolean("is_active").default(true),
+  specialInstructions: text("special_instructions"),
+  
+  // Audit
+  setBy: varchar("set_by").references(() => users.id).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Booking-specific routing overrides (for special arrangements)
+export const bookingPlatformRouting = pgTable("booking_platform_routing", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  platformRuleId: integer("platform_rule_id").references(() => platformRoutingRules.id).notNull(),
+  
+  // Booking-specific override
+  actualOwnerPercentage: decimal("actual_owner_percentage", { precision: 5, scale: 2 }).notNull(),
+  actualManagementPercentage: decimal("actual_management_percentage", { precision: 5, scale: 2 }).notNull(),
+  actualRoutingType: varchar("actual_routing_type").notNull(),
+  
+  // Financial Breakdown
+  totalBookingAmount: decimal("total_booking_amount", { precision: 12, scale: 2 }).notNull(),
+  ownerAmount: decimal("owner_amount", { precision: 12, scale: 2 }).notNull(),
+  managementAmount: decimal("management_amount", { precision: 12, scale: 2 }).notNull(),
+  platformFeeAmount: decimal("platform_fee_amount", { precision: 12, scale: 2 }).default("0.00"),
+  
+  // Override Reason (if different from default)
+  overrideReason: text("override_reason"),
+  isOverride: boolean("is_override").default(false),
+  
+  // Processing Status
+  routingStatus: varchar("routing_status").default("pending"), // pending, processed, disputed, corrected
+  processedAt: timestamp("processed_at"),
+  processedBy: varchar("processed_by").references(() => users.id),
+  
+  // Audit Trail
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Routing audit log for transparency
+export const routingAuditLog = pgTable("routing_audit_log", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Reference
+  relatedType: varchar("related_type").notNull(), // platform_rule, property_rule, booking_routing
+  relatedId: integer("related_id").notNull(),
+  
+  // Action Details
+  actionType: varchar("action_type").notNull(), // created, updated, override_applied, routing_processed
+  previousValues: jsonb("previous_values"),
+  newValues: jsonb("new_values"),
+  changeReason: text("change_reason"),
+  
+  // Impact
+  impactedBookings: integer("impacted_bookings").default(0),
+  financialImpact: decimal("financial_impact", { precision: 12, scale: 2 }).default("0.00"),
+  
+  // Audit
+  performedBy: varchar("performed_by").references(() => users.id).notNull(),
+  performedAt: timestamp("performed_at").defaultNow(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ===== PLATFORM ROUTING INSERT SCHEMAS =====
+
+export const insertPlatformRoutingRuleSchema = createInsertSchema(platformRoutingRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyPlatformRuleSchema = createInsertSchema(propertyPlatformRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBookingPlatformRoutingSchema = createInsertSchema(bookingPlatformRouting).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRoutingAuditLogSchema = createInsertSchema(routingAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+// ===== PLATFORM ROUTING TYPES =====
+
+export type PlatformRoutingRule = typeof platformRoutingRules.$inferSelect;
+export type InsertPlatformRoutingRule = z.infer<typeof insertPlatformRoutingRuleSchema>;
+export type PropertyPlatformRule = typeof propertyPlatformRules.$inferSelect;
+export type InsertPropertyPlatformRule = z.infer<typeof insertPropertyPlatformRuleSchema>;
+export type BookingPlatformRouting = typeof bookingPlatformRouting.$inferSelect;
+export type InsertBookingPlatformRouting = z.infer<typeof insertBookingPlatformRoutingSchema>;
+export type RoutingAuditLog = typeof routingAuditLog.$inferSelect;
+export type InsertRoutingAuditLog = z.infer<typeof insertRoutingAuditLogSchema>;
+
 // ===== INVOICE GENERATOR SYSTEM =====
 
 export const invoices = pgTable("invoices", {
