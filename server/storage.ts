@@ -8773,6 +8773,251 @@ Plant Care:
       exportedBy: exportData.exportedBy || "system",
     };
   }
+
+  // === AI-TRIGGERED TASK SYSTEM ===
+  
+  // Enhanced AI Suggestions with Review Analysis
+  async createEnhancedAiSuggestion(suggestion: InsertEnhancedAiSuggestion): Promise<EnhancedAiSuggestion> {
+    const [newSuggestion] = await db
+      .insert(enhancedAiSuggestions)
+      .values(suggestion)
+      .returning();
+    return newSuggestion;
+  }
+
+  async getEnhancedAiSuggestions(organizationId: string, filters?: {
+    propertyId?: number;
+    status?: string;
+    urgencyLevel?: string;
+  }): Promise<EnhancedAiSuggestion[]> {
+    let query = db
+      .select()
+      .from(enhancedAiSuggestions)
+      .where(eq(enhancedAiSuggestions.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(enhancedAiSuggestions.propertyId, filters.propertyId));
+    }
+    if (filters?.status) {
+      query = query.where(eq(enhancedAiSuggestions.status, filters.status));
+    }
+    if (filters?.urgencyLevel) {
+      query = query.where(eq(enhancedAiSuggestions.urgencyLevel, filters.urgencyLevel));
+    }
+
+    return await query.orderBy(desc(enhancedAiSuggestions.createdAt));
+  }
+
+  async acceptAiSuggestion(suggestionId: number, reviewedBy: string, createdTaskId: number): Promise<void> {
+    await db
+      .update(enhancedAiSuggestions)
+      .set({
+        status: 'accepted',
+        reviewedBy,
+        reviewedAt: new Date(),
+        createdTaskId,
+      })
+      .where(eq(enhancedAiSuggestions.id, suggestionId));
+  }
+
+  async rejectAiSuggestion(suggestionId: number, reviewedBy: string): Promise<void> {
+    await db
+      .update(enhancedAiSuggestions)
+      .set({
+        status: 'rejected',
+        reviewedBy,
+        reviewedAt: new Date(),
+      })
+      .where(eq(enhancedAiSuggestions.id, suggestionId));
+  }
+
+  // Property Timeline Management
+  async createTimelineEvent(event: InsertPropertyTimeline): Promise<PropertyTimeline> {
+    const [newEvent] = await db
+      .insert(propertyTimeline)
+      .values(event)
+      .returning();
+    return newEvent;
+  }
+
+  async getPropertyTimeline(organizationId: string, propertyId: number, limit = 50): Promise<PropertyTimeline[]> {
+    return await db
+      .select()
+      .from(propertyTimeline)
+      .where(
+        and(
+          eq(propertyTimeline.organizationId, organizationId),
+          eq(propertyTimeline.propertyId, propertyId),
+          eq(propertyTimeline.isVisible, true)
+        )
+      )
+      .orderBy(desc(propertyTimeline.createdAt))
+      .limit(limit);
+  }
+
+  // Smart Notification System
+  async createSmartNotification(notification: InsertSmartNotification): Promise<SmartNotification> {
+    const [newNotification] = await db
+      .insert(smartNotifications)
+      .values(notification)
+      .returning();
+    return newNotification;
+  }
+
+  async getSmartNotifications(organizationId: string, recipientId: string): Promise<SmartNotification[]> {
+    return await db
+      .select()
+      .from(smartNotifications)
+      .where(
+        and(
+          eq(smartNotifications.organizationId, organizationId),
+          eq(smartNotifications.recipientId, recipientId)
+        )
+      )
+      .orderBy(desc(smartNotifications.createdAt));
+  }
+
+  async markNotificationRead(notificationId: number): Promise<void> {
+    await db
+      .update(smartNotifications)
+      .set({
+        isRead: true,
+        readAt: new Date(),
+      })
+      .where(eq(smartNotifications.id, notificationId));
+  }
+
+  // Fast Action Suggestions
+  async createFastActionSuggestion(suggestion: InsertFastActionSuggestion): Promise<FastActionSuggestion> {
+    const [newSuggestion] = await db
+      .insert(fastActionSuggestions)
+      .values(suggestion)
+      .returning();
+    return newSuggestion;
+  }
+
+  async getFastActionSuggestions(organizationId: string, propertyId?: number): Promise<FastActionSuggestion[]> {
+    let query = db
+      .select()
+      .from(fastActionSuggestions)
+      .where(eq(fastActionSuggestions.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(fastActionSuggestions.propertyId, propertyId));
+    }
+
+    return await query.orderBy(desc(fastActionSuggestions.createdAt));
+  }
+
+  async approveFastAction(actionId: number, approvedBy: string): Promise<void> {
+    await db
+      .update(fastActionSuggestions)
+      .set({
+        status: 'approved',
+        approvedBy,
+        approvedAt: new Date(),
+      })
+      .where(eq(fastActionSuggestions.id, actionId));
+  }
+
+  async rejectFastAction(actionId: number, approvedBy: string, rejectionReason: string): Promise<void> {
+    await db
+      .update(fastActionSuggestions)
+      .set({
+        status: 'rejected',
+        approvedBy,
+        approvedAt: new Date(),
+        rejectionReason,
+      })
+      .where(eq(fastActionSuggestions.id, actionId));
+  }
+
+  // AI Task Processing
+  async processGuestReviewFeedback(organizationId: string, bookingId: number, reviewText: string): Promise<EnhancedAiSuggestion[]> {
+    // AI analysis keywords and their corresponding task suggestions
+    const taskRules = [
+      {
+        keywords: ['dirty', 'unclean', 'not clean', 'messy', 'needs cleaning'],
+        taskType: 'cleaning',
+        title: 'Deep Cleaning Required',
+        urgency: 'high',
+        estimatedCost: 150,
+      },
+      {
+        keywords: ['pool', 'swim', 'water dirty', 'cloudy water'],
+        taskType: 'pool-maintenance',
+        title: 'Pool Maintenance & Cleaning',
+        urgency: 'medium',
+        estimatedCost: 100,
+      },
+      {
+        keywords: ['garden', 'plants', 'landscaping', 'overgrown'],
+        taskType: 'garden',
+        title: 'Garden Maintenance',
+        urgency: 'low',
+        estimatedCost: 75,
+      },
+      {
+        keywords: ['broken', 'not working', 'repair', 'fix', 'maintenance'],
+        taskType: 'maintenance',
+        title: 'Repair Required',
+        urgency: 'high',
+        estimatedCost: 200,
+      }
+    ];
+
+    const suggestions: EnhancedAiSuggestion[] = [];
+    const reviewLower = reviewText.toLowerCase();
+
+    for (const rule of taskRules) {
+      const matchedKeywords = rule.keywords.filter(keyword => reviewLower.includes(keyword));
+      
+      if (matchedKeywords.length > 0) {
+        const suggestion = await this.createEnhancedAiSuggestion({
+          organizationId,
+          propertyId: 1, // This should come from the booking
+          bookingId,
+          suggestionType: 'review-feedback',
+          sourceData: { reviewText, matchedKeywords },
+          suggestedTaskType: rule.taskType,
+          suggestedTitle: rule.title,
+          suggestedDescription: `Guest feedback indicates: "${reviewText.substring(0, 200)}..."`,
+          confidenceScore: (matchedKeywords.length / rule.keywords.length * 100).toString(),
+          urgencyLevel: rule.urgency,
+          estimatedCost: rule.estimatedCost.toString(),
+          aiAnalysis: `Detected ${matchedKeywords.length} relevant keywords: ${matchedKeywords.join(', ')}`,
+          triggerKeywords: matchedKeywords,
+          notificationRouting: { roles: ['admin', 'staff'], urgency: rule.urgency },
+        });
+        
+        suggestions.push(suggestion);
+      }
+    }
+
+    return suggestions;
+  }
+
+  // Long-stay cleaning automation
+  async createLongStayCleaningTasks(organizationId: string, bookingId: number): Promise<EnhancedAiSuggestion[]> {
+    const suggestions = await this.createEnhancedAiSuggestion({
+      organizationId,
+      propertyId: 1, // Should come from booking
+      bookingId,
+      suggestionType: 'long-stay',
+      sourceData: { reason: 'stay_duration_6_nights_plus' },
+      suggestedTaskType: 'cleaning',
+      suggestedTitle: 'Mid-Stay Cleaning Service',
+      suggestedDescription: 'Automatic cleaning service for long-stay guests (6+ nights)',
+      confidenceScore: '95',
+      urgencyLevel: 'medium',
+      estimatedCost: '120',
+      aiAnalysis: 'Long-stay booking detected - mid-stay cleaning recommended for guest comfort',
+      triggerKeywords: ['long-stay', 'mid-stay-cleaning'],
+      notificationRouting: { roles: ['admin', 'staff'], urgency: 'medium' },
+    });
+
+    return [suggestions];
+  }
 }
 
 export const storage = new DatabaseStorage();

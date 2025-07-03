@@ -371,7 +371,7 @@ export default function TaskChecklistProofSystem() {
                   <SelectValue placeholder="All Properties" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Properties</SelectItem>
+                  <SelectItem value="all">All Properties</SelectItem>
                   {properties.map((property: any) => (
                     <SelectItem key={property.id} value={property.id.toString()}>
                       {property.name}

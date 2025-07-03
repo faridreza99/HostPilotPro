@@ -269,6 +269,13 @@ const navigationModules = [
         description: "Smart guest feedback monitoring and automatic task creation"
       },
       { 
+        path: "/ai-task-manager", 
+        icon: Brain, 
+        label: "AI Task Manager", 
+        roles: ["admin", "portfolio-manager"],
+        description: "Advanced AI-powered task automation with review analysis and smart notifications"
+      },
+      { 
         path: "/admin/finance-reset", 
         icon: Shield, 
         label: "Finance Reset Control", 

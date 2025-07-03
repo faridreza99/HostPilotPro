@@ -6738,6 +6738,274 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === AI-TRIGGERED TASK SYSTEM API ROUTES ===
+  
+  // Enhanced AI Suggestions
+  app.get('/api/enhanced-ai-suggestions', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const { propertyId, status, urgencyLevel } = req.query;
+      
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        status: status as string,
+        urgencyLevel: urgencyLevel as string,
+      };
+      
+      const suggestions = await storage.getEnhancedAiSuggestions(organizationId, filters);
+      res.json(suggestions);
+    } catch (error) {
+      console.error('Error fetching AI suggestions:', error);
+      res.status(500).json({ message: 'Failed to fetch AI suggestions' });
+    }
+  });
+
+  app.post('/api/enhanced-ai-suggestions', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userData = req.user as any;
+      
+      const suggestionData = {
+        ...req.body,
+        organizationId,
+      };
+      
+      const suggestion = await storage.createEnhancedAiSuggestion(suggestionData);
+      res.status(201).json(suggestion);
+    } catch (error) {
+      console.error('Error creating AI suggestion:', error);
+      res.status(500).json({ message: 'Failed to create AI suggestion' });
+    }
+  });
+
+  app.post('/api/enhanced-ai-suggestions/:id/accept', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const suggestionId = parseInt(req.params.id);
+      const userData = req.user as any;
+      const { taskTitle, taskDescription, assignedTo, priority } = req.body;
+      
+      // Create a new task from the suggestion
+      const task = await storage.createTask({
+        organizationId: getTenantContext(req).organizationId,
+        title: taskTitle,
+        description: taskDescription,
+        status: 'pending',
+        priority: priority || 'medium',
+        assignedTo,
+        propertyId: req.body.propertyId,
+        department: req.body.department || 'general',
+      });
+      
+      // Mark suggestion as accepted
+      await storage.acceptAiSuggestion(suggestionId, userData.claims.sub, task.id);
+      
+      // Create timeline event
+      await storage.createTimelineEvent({
+        organizationId: getTenantContext(req).organizationId,
+        propertyId: req.body.propertyId,
+        eventType: 'suggestion',
+        title: '🤖 AI Suggestion Accepted',
+        description: `AI suggestion "${taskTitle}" was accepted and converted to a task.`,
+        emoji: '🤖',
+        linkedId: task.id,
+        linkedType: 'task',
+        createdBy: userData.claims.sub,
+        createdByRole: userData.role || 'admin',
+      });
+      
+      res.json({ success: true, taskId: task.id });
+    } catch (error) {
+      console.error('Error accepting AI suggestion:', error);
+      res.status(500).json({ message: 'Failed to accept AI suggestion' });
+    }
+  });
+
+  app.post('/api/enhanced-ai-suggestions/:id/reject', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const suggestionId = parseInt(req.params.id);
+      const userData = req.user as any;
+      
+      await storage.rejectAiSuggestion(suggestionId, userData.claims.sub);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error rejecting AI suggestion:', error);
+      res.status(500).json({ message: 'Failed to reject AI suggestion' });
+    }
+  });
+
+  // Property Timeline
+  app.get('/api/property-timeline/:propertyId', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const propertyId = parseInt(req.params.propertyId);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      
+      const timeline = await storage.getPropertyTimeline(organizationId, propertyId, limit);
+      res.json(timeline);
+    } catch (error) {
+      console.error('Error fetching property timeline:', error);
+      res.status(500).json({ message: 'Failed to fetch property timeline' });
+    }
+  });
+
+  app.post('/api/property-timeline', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userData = req.user as any;
+      
+      const eventData = {
+        ...req.body,
+        organizationId,
+        createdBy: userData.claims.sub,
+        createdByRole: userData.role || 'admin',
+      };
+      
+      const event = await storage.createTimelineEvent(eventData);
+      res.status(201).json(event);
+    } catch (error) {
+      console.error('Error creating timeline event:', error);
+      res.status(500).json({ message: 'Failed to create timeline event' });
+    }
+  });
+
+  // Smart Notifications
+  app.get('/api/smart-notifications', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userData = req.user as any;
+      
+      const notifications = await storage.getSmartNotifications(organizationId, userData.claims.sub);
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error fetching smart notifications:', error);
+      res.status(500).json({ message: 'Failed to fetch smart notifications' });
+    }
+  });
+
+  app.post('/api/smart-notifications/:id/read', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      await storage.markNotificationRead(notificationId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ message: 'Failed to mark notification as read' });
+    }
+  });
+
+  // Fast Action Suggestions
+  app.get('/api/fast-action-suggestions', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined;
+      
+      const suggestions = await storage.getFastActionSuggestions(organizationId, propertyId);
+      res.json(suggestions);
+    } catch (error) {
+      console.error('Error fetching fast action suggestions:', error);
+      res.status(500).json({ message: 'Failed to fetch fast action suggestions' });
+    }
+  });
+
+  app.post('/api/fast-action-suggestions', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userData = req.user as any;
+      
+      const suggestionData = {
+        ...req.body,
+        organizationId,
+        suggestedBy: userData.claims.sub,
+        suggestedByRole: userData.role || 'admin',
+      };
+      
+      const suggestion = await storage.createFastActionSuggestion(suggestionData);
+      res.status(201).json(suggestion);
+    } catch (error) {
+      console.error('Error creating fast action suggestion:', error);
+      res.status(500).json({ message: 'Failed to create fast action suggestion' });
+    }
+  });
+
+  app.post('/api/fast-action-suggestions/:id/approve', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const actionId = parseInt(req.params.id);
+      const userData = req.user as any;
+      
+      await storage.approveFastAction(actionId, userData.claims.sub);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error approving fast action:', error);
+      res.status(500).json({ message: 'Failed to approve fast action' });
+    }
+  });
+
+  app.post('/api/fast-action-suggestions/:id/reject', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const actionId = parseInt(req.params.id);
+      const userData = req.user as any;
+      const { reason } = req.body;
+      
+      await storage.rejectFastAction(actionId, userData.claims.sub, reason);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error rejecting fast action:', error);
+      res.status(500).json({ message: 'Failed to reject fast action' });
+    }
+  });
+
+  // AI Processing Endpoints
+  app.post('/api/ai/process-review-feedback', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const { bookingId, reviewText } = req.body;
+      
+      if (!reviewText || reviewText.trim().length === 0) {
+        return res.status(400).json({ message: 'Review text is required' });
+      }
+      
+      const suggestions = await storage.processGuestReviewFeedback(organizationId, bookingId, reviewText);
+      
+      // Create smart notifications for each suggestion
+      for (const suggestion of suggestions) {
+        await storage.createSmartNotification({
+          organizationId,
+          recipientId: 'admin@test.com', // Should route to appropriate admin/PM
+          recipientRole: 'admin',
+          notificationType: 'ai-suggestion',
+          title: '🤖 New AI Task Suggestion',
+          message: `AI detected potential issue: ${suggestion.suggestedTitle}`,
+          priority: suggestion.urgencyLevel === 'high' ? 'high' : 'medium',
+          sourceId: suggestion.id,
+          sourceType: 'ai_suggestion',
+          actionRequired: true,
+          actionButtons: [
+            { action: 'accept', label: 'Accept & Create Task', style: 'primary' },
+            { action: 'reject', label: 'Dismiss', style: 'secondary' }
+          ],
+        });
+      }
+      
+      res.json({ success: true, suggestions });
+    } catch (error) {
+      console.error('Error processing review feedback:', error);
+      res.status(500).json({ message: 'Failed to process review feedback' });
+    }
+  });
+
+  app.post('/api/ai/create-longstay-tasks', authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const { bookingId } = req.body;
+      
+      const suggestions = await storage.createLongStayCleaningTasks(organizationId, bookingId);
+      res.json({ success: true, suggestions });
+    } catch (error) {
+      console.error('Error creating long-stay tasks:', error);
+      res.status(500).json({ message: 'Failed to create long-stay tasks' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

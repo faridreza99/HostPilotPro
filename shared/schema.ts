@@ -190,6 +190,94 @@ export const aiTaskSuggestions = pgTable("ai_task_suggestions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Enhanced AI Task Suggestions with Review Analysis
+export const enhancedAiSuggestions = pgTable("enhanced_ai_suggestions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  suggestionType: varchar("suggestion_type").notNull(), // 'review-feedback', 'long-stay', 'maintenance-due', 'manual'
+  sourceData: jsonb("source_data"), // original review/feedback data
+  suggestedTaskType: varchar("suggested_task_type").notNull(),
+  suggestedTitle: varchar("suggested_title").notNull(),
+  suggestedDescription: text("suggested_description"),
+  confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }),
+  urgencyLevel: varchar("urgency_level").default("medium"), // 'low', 'medium', 'high', 'urgent'
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  aiAnalysis: text("ai_analysis"),
+  notificationRouting: jsonb("notification_routing"), // who to notify (roles/specific users)
+  escalationLevel: integer("escalation_level").default(0), // 0=new, 1=24hr, 2=48hr, 3=escalated
+  status: varchar("status").default("pending"), // 'pending', 'accepted', 'rejected', 'auto-created'
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  createdTaskId: integer("created_task_id").references(() => tasks.id),
+  triggerKeywords: jsonb("trigger_keywords"), // keywords that triggered the suggestion
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property Timeline Feed (Logbook)
+export const propertyTimeline = pgTable("property_timeline", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  eventType: varchar("event_type").notNull(), // 'checkin', 'checkout', 'cleaning', 'maintenance', 'garden', 'suggestion', 'manual-note'
+  title: varchar("title").notNull(),
+  description: text("description"),
+  emoji: varchar("emoji"), // for visual representation
+  linkedId: integer("linked_id"), // booking_id, task_id, or suggestion_id
+  linkedType: varchar("linked_type"), // 'booking', 'task', 'suggestion', 'manual'
+  attachments: jsonb("attachments"), // photos, documents
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdByRole: varchar("created_by_role"),
+  isVisible: boolean("is_visible").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Smart Notification Routing
+export const smartNotifications = pgTable("smart_notifications", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  recipientId: varchar("recipient_id").references(() => users.id).notNull(),
+  recipientRole: varchar("recipient_role").notNull(),
+  notificationType: varchar("notification_type").notNull(), // 'ai-suggestion', 'escalation', 'approval-request', 'timeline-update'
+  title: varchar("title").notNull(),
+  message: text("message"),
+  priority: varchar("priority").default("medium"), // 'low', 'medium', 'high', 'urgent'
+  sourceId: integer("source_id"), // ai_suggestion_id, task_id, etc.
+  sourceType: varchar("source_type"), // 'ai_suggestion', 'task', 'timeline'
+  actionRequired: boolean("action_required").default(false),
+  actionButtons: jsonb("action_buttons"), // approve/reject buttons with actions
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  autoEscalateAt: timestamp("auto_escalate_at"), // when to escalate if no action
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Fast Action Suggestions & Approvals
+export const fastActionSuggestions = pgTable("fast_action_suggestions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  suggestedBy: varchar("suggested_by").references(() => users.id).notNull(),
+  suggestedByRole: varchar("suggested_by_role").notNull(),
+  actionType: varchar("action_type").notNull(), // 'purchase', 'repair', 'replace', 'service'
+  title: varchar("title").notNull(),
+  description: text("description"),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  urgency: varchar("urgency").default("medium"),
+  attachments: jsonb("attachments"), // photos, quotes
+  requiresApproval: boolean("requires_approval").default(true),
+  approvalLevel: varchar("approval_level").default("manager"), // 'owner', 'manager', 'admin'
+  status: varchar("status").default("pending"), // 'pending', 'approved', 'rejected', 'completed'
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Task expenses tracking
 export const taskExpenses = pgTable("task_expenses", {
   id: serial("id").primaryKey(),
@@ -4098,6 +4186,14 @@ export type TaskExpense = typeof taskExpenses.$inferSelect;
 export type InsertTaskExpense = typeof taskExpenses.$inferInsert;
 export type ArchivedTask = typeof archivedTasks.$inferSelect;
 export type InsertArchivedTask = typeof archivedTasks.$inferInsert;
+export type EnhancedAiSuggestion = typeof enhancedAiSuggestions.$inferSelect;
+export type InsertEnhancedAiSuggestion = typeof enhancedAiSuggestions.$inferInsert;
+export type PropertyTimeline = typeof propertyTimeline.$inferSelect;
+export type InsertPropertyTimeline = typeof propertyTimeline.$inferInsert;
+export type SmartNotification = typeof smartNotifications.$inferSelect;
+export type InsertSmartNotification = typeof smartNotifications.$inferInsert;
+export type FastActionSuggestion = typeof fastActionSuggestions.$inferSelect;
+export type InsertFastActionSuggestion = typeof fastActionSuggestions.$inferInsert;
 
 // ===== STAFF DASHBOARD TYPES =====
 

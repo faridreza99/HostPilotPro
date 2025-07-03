@@ -45,6 +45,7 @@ import GuestPortal from "@/pages/GuestPortal";
 import FinanceEngine from "@/pages/FinanceEngine";
 import MaintenanceTaskSystem from "@/pages/MaintenanceTaskSystem";
 import TaskChecklistProofSystem from "@/pages/TaskChecklistProofSystem";
+import AiTaskManager from "@/pages/AiTaskManager";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -110,6 +111,7 @@ function Router() {
           <Route path="/tasks" component={Tasks} />
           <Route path="/staff-tasks" component={StaffTasks} />
           <Route path="/maintenance-task-system" component={MaintenanceTaskSystem} />
+          <Route path="/ai-task-manager" component={AiTaskManager} />
           <Route path="/task-checklist-proof" component={TaskChecklistProofSystem} />
           <Route path="/bookings" component={Bookings} />
           <Route path="/services" component={Services} />
