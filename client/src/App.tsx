@@ -49,6 +49,7 @@ import LoyaltyGuestTracker from "@/pages/LoyaltyGuestTracker";
 import LiveBookingCalendar from "@/pages/LiveBookingCalendar";
 import RetailAgentBookingEngine from "@/pages/RetailAgentBookingEngine";
 import GuestPortal from "@/pages/GuestPortal";
+import GuestPortalMessaging from "@/pages/GuestPortalMessaging";
 import FinanceEngine from "@/pages/FinanceEngine";
 import MaintenanceTaskSystem from "@/pages/MaintenanceTaskSystem";
 import TaskAttachmentsNotes from "@/pages/TaskAttachmentsNotes";
@@ -143,6 +144,7 @@ function Router() {
           <Route path="/utility-tracker" component={EnhancedUtilityTracker} />
           <Route path="/utility-tracking" component={UtilityTracking} />
           <Route path="/ai-feedback" component={AiFeedbackMonitor} />
+          <Route path="/guest-portal-messaging" component={GuestPortalMessaging} />
           <Route path="/guest-portal-ai-feedback" component={GuestPortalAiFeedbackDashboard} />
           <Route path="/guest-addon-services" component={GuestAddonServices} />
           <Route path="/recurring-services" component={RecurringServicesBilling} />

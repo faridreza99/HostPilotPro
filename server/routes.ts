@@ -1383,6 +1383,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== GUEST MESSAGING SYSTEM API ENDPOINTS =====
+
+  // Get guest messages
+  app.get("/api/guest-messages/:guestId", async (req, res) => {
+    try {
+      const guestId = req.params.guestId;
+      const organizationId = "default-org"; // Use demo org for now
+      
+      const messages = await storage.getGuestMessages(organizationId, guestId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching guest messages:", error);
+      res.status(500).json({ message: "Failed to fetch guest messages" });
+    }
+  });
+
+  // Create new guest message
+  app.post("/api/guest-messages", async (req, res) => {
+    try {
+      const messageData = {
+        ...req.body,
+        organizationId: "default-org",
+      };
+      
+      const newMessage = await storage.createGuestMessage(messageData);
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error creating guest message:", error);
+      res.status(500).json({ message: "Failed to create guest message" });
+    }
+  });
+
+  // Get guest service requests
+  app.get("/api/guest-service-requests/:guestId", async (req, res) => {
+    try {
+      const guestId = req.params.guestId;
+      const organizationId = "default-org";
+      
+      const requests = await storage.getGuestServiceRequests(organizationId, guestId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching guest service requests:", error);
+      res.status(500).json({ message: "Failed to fetch guest service requests" });
+    }
+  });
+
+  // Create new guest service request
+  app.post("/api/guest-service-requests", async (req, res) => {
+    try {
+      const requestData = {
+        ...req.body,
+        organizationId: "default-org",
+      };
+      
+      const newRequest = await storage.createGuestServiceRequest(requestData);
+      res.status(201).json(newRequest);
+    } catch (error) {
+      console.error("Error creating guest service request:", error);
+      res.status(500).json({ message: "Failed to create guest service request" });
+    }
+  });
+
+  // Get guest bookings
+  app.get("/api/guest-bookings/:guestId", async (req, res) => {
+    try {
+      const guestId = req.params.guestId;
+      
+      const bookings = await storage.getGuestBookings(guestId);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching guest bookings:", error);
+      res.status(500).json({ message: "Failed to fetch guest bookings" });
+    }
+  });
+
+  // Get AI generated tasks
+  app.get("/api/ai-generated-tasks", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "default-org";
+      
+      const tasks = await storage.getAIGeneratedTasks(organizationId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching AI generated tasks:", error);
+      res.status(500).json({ message: "Failed to fetch AI generated tasks" });
+    }
+  });
+
   // AI Task Rules endpoints
   app.get("/api/ai/rules", isDemoAuthenticated, async (req, res) => {
     try {

@@ -37,6 +37,7 @@ import {
   ClipboardList,
   Plus,
   MessageSquare,
+  MessageCircle,
   Receipt,
   Hammer
 } from "lucide-react";
@@ -186,6 +187,13 @@ const navigationModules = [
         label: "AI Guest Portal", 
         roles: ["admin", "portfolio-manager", "staff"],
         description: "Smart communication center with AI-powered task automation"
+      },
+      { 
+        path: "/guest-portal-messaging", 
+        icon: MessageCircle, 
+        label: "Guest Messaging Hub", 
+        roles: ["admin", "portfolio-manager", "staff"],
+        description: "Guest communication center with AI-powered replies and smart routing"
       },
       { 
         path: "/guest-addon-services", 

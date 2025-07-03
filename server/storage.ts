@@ -13864,6 +13864,416 @@ Plant Care:
       ))
       .orderBy(desc(maintenanceSuggestions.urgencyLevel), desc(maintenanceSuggestions.createdAt));
   }
+
+  // ===== GUEST MESSAGING SYSTEM =====
+  
+  // Guest Messages Operations
+  async getGuestMessages(organizationId: string, guestId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(guestMessages)
+      .where(and(
+        eq(guestMessages.organizationId, organizationId),
+        eq(guestMessages.guestId, guestId)
+      ))
+      .orderBy(desc(guestMessages.createdAt));
+  }
+
+  async createGuestMessage(message: any): Promise<any> {
+    const [newMessage] = await db
+      .insert(guestMessages)
+      .values({
+        organizationId: message.organizationId || "default-org",
+        guestId: message.guestId,
+        guestName: message.guestName,
+        guestEmail: message.guestEmail,
+        bookingId: message.bookingId,
+        propertyId: message.propertyId,
+        messageContent: message.messageContent,
+        messageType: message.messageType,
+        priority: message.priority,
+        status: "new",
+        aiProcessed: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    // Auto-generate AI response for demo purposes
+    setTimeout(() => {
+      this.processMessageWithAI(newMessage);
+    }, 2000);
+    
+    return newMessage;
+  }
+
+  async updateGuestMessage(id: number, updates: any): Promise<any> {
+    const [updated] = await db
+      .update(guestMessages)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(guestMessages.id, id))
+      .returning();
+    return updated;
+  }
+
+  // AI Processing for Guest Messages
+  private async processMessageWithAI(message: any): Promise<void> {
+    // Simulate AI processing
+    const keywords = this.extractKeywords(message.messageContent);
+    const sentiment = this.analyzeSentiment(message.messageContent);
+    const aiResponse = this.generateAIResponse(message.messageContent, keywords);
+    const urgentIssue = this.detectUrgentIssue(message.messageContent, keywords);
+    
+    // Update message with AI processing results
+    await this.updateGuestMessage(message.id, {
+      aiProcessed: true,
+      aiKeywords: keywords,
+      aiSentiment: sentiment,
+      aiConfidence: 0.85,
+      aiSuggestions: aiResponse.suggestions,
+      staffResponse: aiResponse.response,
+      respondedBy: "ai-assistant",
+      respondedAt: new Date(),
+      status: "acknowledged",
+    });
+
+    // Create urgent task if needed
+    if (urgentIssue) {
+      await this.createAIGeneratedTask({
+        organizationId: message.organizationId,
+        messageId: message.id,
+        guestId: message.guestId,
+        propertyId: message.propertyId || 1,
+        department: this.routeToDepartment(keywords),
+        taskType: "issue_report",
+        urgency: urgentIssue.urgency,
+        aiDescription: urgentIssue.description,
+        aiKeywords: keywords,
+        confidence: 0.9,
+        status: "pending",
+      });
+    }
+  }
+
+  private extractKeywords(content: string): string[] {
+    const keywords = [];
+    const text = content.toLowerCase();
+    
+    // AC related keywords
+    if (text.includes('ac') || text.includes('air') || text.includes('conditioning') || text.includes('cold') || text.includes('hot') || text.includes('temperature')) {
+      keywords.push('air_conditioning');
+    }
+    
+    // Pool related keywords
+    if (text.includes('pool') || text.includes('swimming') || text.includes('water') || text.includes('chlorine') || text.includes('filter')) {
+      keywords.push('pool');
+    }
+    
+    // Cleaning related keywords
+    if (text.includes('clean') || text.includes('dirty') || text.includes('mess') || text.includes('towel') || text.includes('linen')) {
+      keywords.push('cleaning');
+    }
+    
+    // Maintenance keywords
+    if (text.includes('broken') || text.includes('repair') || text.includes('fix') || text.includes('maintenance') || text.includes('not working')) {
+      keywords.push('maintenance');
+    }
+    
+    // Urgent keywords
+    if (text.includes('urgent') || text.includes('emergency') || text.includes('immediately') || text.includes('asap')) {
+      keywords.push('urgent');
+    }
+    
+    return keywords;
+  }
+
+  private analyzeSentiment(content: string): 'positive' | 'neutral' | 'negative' {
+    const text = content.toLowerCase();
+    const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'perfect', 'love', 'beautiful', 'fantastic'];
+    const negativeWords = ['bad', 'terrible', 'awful', 'horrible', 'broken', 'dirty', 'disappointed', 'problem', 'issue', 'complaint'];
+    
+    let positiveCount = 0;
+    let negativeCount = 0;
+    
+    positiveWords.forEach(word => {
+      if (text.includes(word)) positiveCount++;
+    });
+    
+    negativeWords.forEach(word => {
+      if (text.includes(word)) negativeCount++;
+    });
+    
+    if (positiveCount > negativeCount) return 'positive';
+    if (negativeCount > positiveCount) return 'negative';
+    return 'neutral';
+  }
+
+  private generateAIResponse(content: string, keywords: string[]): { response: string; suggestions: string[] } {
+    const text = content.toLowerCase();
+    
+    // AC related responses
+    if (keywords.includes('air_conditioning')) {
+      return {
+        response: "I understand you're having an issue with the air conditioning. I've notified our maintenance team who will check on this within the next 2 hours. In the meantime, you can try adjusting the thermostat or checking if the unit is properly plugged in.",
+        suggestions: [
+          "Check thermostat settings",
+          "Ensure AC unit is plugged in",
+          "Try switching between heating and cooling modes",
+          "Clean or replace air filter if accessible"
+        ]
+      };
+    }
+    
+    // Pool related responses
+    if (keywords.includes('pool')) {
+      return {
+        response: "Thank you for letting us know about the pool issue. Our pool maintenance team has been notified and will address this within the next 4 hours. Pool safety is our top priority.",
+        suggestions: [
+          "Check pool equipment is turned on",
+          "Avoid using pool until maintenance arrives",
+          "Report any safety concerns immediately",
+          "Check pool chemicals are balanced"
+        ]
+      };
+    }
+    
+    // Cleaning related responses
+    if (keywords.includes('cleaning')) {
+      return {
+        response: "I apologize for the cleaning issue. Our housekeeping team has been notified and will address this immediately. We'll also provide fresh linens and towels within the next hour.",
+        suggestions: [
+          "Request additional cleaning supplies",
+          "Schedule extra housekeeping visit",
+          "Report specific areas that need attention",
+          "Request fresh linens and towels"
+        ]
+      };
+    }
+    
+    // General maintenance responses
+    if (keywords.includes('maintenance')) {
+      return {
+        response: "I've received your maintenance request and our technical team has been notified. They'll investigate and resolve the issue within the next 2-4 hours. We'll keep you updated on the progress.",
+        suggestions: [
+          "Provide photos of the issue if possible",
+          "Avoid using the affected item until repaired",
+          "Report any safety concerns immediately",
+          "Request alternative solutions if needed"
+        ]
+      };
+    }
+    
+    // Default response for general inquiries
+    return {
+      response: "Thank you for your message! I've received your inquiry and our team will respond shortly. If this is urgent, please don't hesitate to call our 24/7 support line.",
+      suggestions: [
+        "Contact support for urgent matters",
+        "Check our local area recommendations",
+        "Review property amenities and instructions",
+        "Browse available additional services"
+      ]
+    };
+  }
+
+  private detectUrgentIssue(content: string, keywords: string[]): { urgency: string; description: string } | null {
+    const text = content.toLowerCase();
+    
+    // Safety or emergency issues
+    if (text.includes('emergency') || text.includes('safety') || text.includes('danger') || text.includes('leak')) {
+      return {
+        urgency: "critical",
+        description: "Emergency safety issue requiring immediate attention"
+      };
+    }
+    
+    // AC issues in hot weather
+    if (keywords.includes('air_conditioning') && (text.includes('hot') || text.includes('not working'))) {
+      return {
+        urgency: "high",
+        description: "Air conditioning malfunction - guest comfort priority"
+      };
+    }
+    
+    // Pool safety issues
+    if (keywords.includes('pool') && (text.includes('broken') || text.includes('dangerous') || text.includes('chemical'))) {
+      return {
+        urgency: "high",
+        description: "Pool safety or equipment issue requiring immediate attention"
+      };
+    }
+    
+    // General urgent requests
+    if (keywords.includes('urgent') || text.includes('immediately') || text.includes('asap')) {
+      return {
+        urgency: "high",
+        description: "Urgent guest request requiring priority response"
+      };
+    }
+    
+    return null;
+  }
+
+  private routeToDepartment(keywords: string[]): string {
+    if (keywords.includes('air_conditioning')) return 'maintenance';
+    if (keywords.includes('pool')) return 'pool';
+    if (keywords.includes('cleaning')) return 'cleaning';
+    if (keywords.includes('maintenance')) return 'maintenance';
+    return 'general';
+  }
+
+  // Guest Service Requests Operations
+  async getGuestServiceRequests(organizationId: string, guestId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(guestServiceRequests)
+      .where(and(
+        eq(guestServiceRequests.organizationId, organizationId),
+        eq(guestServiceRequests.guestId, guestId)
+      ))
+      .orderBy(desc(guestServiceRequests.createdAt));
+  }
+
+  async createGuestServiceRequest(request: any): Promise<any> {
+    const [newRequest] = await db
+      .insert(guestServiceRequests)
+      .values({
+        organizationId: request.organizationId || "default-org",
+        guestId: request.guestId,
+        guestName: request.guestName,
+        bookingId: request.bookingId,
+        propertyId: request.propertyId,
+        serviceType: request.serviceType,
+        serviceName: request.serviceName,
+        requestedDate: request.requestedDate,
+        requestedTime: request.requestedTime,
+        numberOfGuests: request.numberOfGuests,
+        specialRequests: request.specialRequests,
+        estimatedCost: request.estimatedCost,
+        currency: request.currency,
+        paymentMethod: request.paymentMethod,
+        status: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    // Auto-confirm service request for demo purposes
+    setTimeout(() => {
+      this.updateGuestServiceRequest(newRequest.id, {
+        status: "confirmed",
+        confirmedBy: "system",
+        confirmedAt: new Date(),
+      });
+    }, 3000);
+    
+    return newRequest;
+  }
+
+  async updateGuestServiceRequest(id: number, updates: any): Promise<any> {
+    const [updated] = await db
+      .update(guestServiceRequests)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(guestServiceRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  // AI Generated Tasks Operations
+  async createAIGeneratedTask(task: any): Promise<any> {
+    const [newTask] = await db
+      .insert(aiGeneratedTasks)
+      .values({
+        organizationId: task.organizationId,
+        messageId: task.messageId,
+        guestId: task.guestId,
+        propertyId: task.propertyId,
+        department: task.department,
+        taskType: task.taskType,
+        urgency: task.urgency,
+        aiDescription: task.aiDescription,
+        aiKeywords: task.aiKeywords,
+        confidence: task.confidence,
+        status: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    // Auto-assign task to appropriate team member
+    setTimeout(() => {
+      this.assignAITask(newTask);
+    }, 1000);
+    
+    return newTask;
+  }
+
+  private async assignAITask(task: any): Promise<void> {
+    // Simulate assignment logic
+    let assignedTo = "maintenance-team";
+    
+    switch (task.department) {
+      case 'maintenance':
+        assignedTo = "maintenance-team";
+        break;
+      case 'pool':
+        assignedTo = "pool-team";
+        break;
+      case 'cleaning':
+        assignedTo = "housekeeping-team";
+        break;
+      default:
+        assignedTo = "portfolio-manager";
+    }
+    
+    await db
+      .update(aiGeneratedTasks)
+      .set({
+        assignedTo,
+        status: "approved",
+        approvedBy: "ai-system",
+        approvedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(aiGeneratedTasks.id, task.id));
+  }
+
+  async getAIGeneratedTasks(organizationId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(aiGeneratedTasks)
+      .where(eq(aiGeneratedTasks.organizationId, organizationId))
+      .orderBy(desc(aiGeneratedTasks.createdAt));
+  }
+
+  // Mock guest bookings for demo purposes
+  async getGuestBookings(guestId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        guestName: "John Smith",
+        propertyId: 1,
+        propertyName: "Luxury Beach Villa",
+        checkIn: new Date("2024-07-05"),
+        checkOut: new Date("2024-07-12"),
+        status: "confirmed"
+      },
+      {
+        id: 2,
+        guestName: "John Smith",
+        propertyId: 2,
+        propertyName: "Mountain Retreat",
+        checkIn: new Date("2024-08-15"),
+        checkOut: new Date("2024-08-22"),
+        status: "confirmed"
+      }
+    ];
+  }
 }
 
 export const storage = new DatabaseStorage();
