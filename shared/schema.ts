@@ -4794,6 +4794,185 @@ export type InsertStaffTimeSummary = z.infer<typeof insertStaffTimeSummarySchema
 export type StaffClockAuditLog = typeof staffClockAuditLog.$inferSelect;
 export type InsertStaffClockAuditLog = z.infer<typeof insertStaffClockAuditLogSchema>;
 
+// ===== MAINTENANCE SUGGESTIONS & APPROVAL FLOW =====
+
+// Maintenance suggestions submitted by admin/PM for owner approval
+export const maintenanceSuggestions = pgTable("maintenance_suggestions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Suggestion Details
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  maintenanceType: varchar("maintenance_type").notNull(), // repair, replacement, upgrade, other
+  urgencyLevel: varchar("urgency_level").default("normal"), // low, normal, high, urgent
+  
+  // Cost Information
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("AUD"),
+  costBreakdown: jsonb("cost_breakdown"), // Array of cost items with descriptions
+  whoPaysCost: varchar("who_pays_cost").default("owner"), // owner, management, shared, guest
+  
+  // Attachments & Evidence
+  attachments: text("attachments").array(), // Array of file URLs/paths
+  evidencePhotos: text("evidence_photos").array(),
+  supportingDocuments: text("supporting_documents").array(),
+  
+  // Submission Information
+  submittedBy: varchar("submitted_by").references(() => users.id).notNull(),
+  submittedByRole: varchar("submitted_by_role").notNull(), // admin, portfolio-manager
+  submissionReason: text("submission_reason"),
+  
+  // Owner Response
+  ownerResponse: varchar("owner_response"), // approved, declined, request_more_info
+  ownerComments: text("owner_comments"),
+  ownerRespondedAt: timestamp("owner_responded_at"),
+  
+  // Status Tracking
+  status: varchar("status").default("pending"), // pending, approved, declined, in_progress, completed, cancelled
+  approvalDeadline: timestamp("approval_deadline"),
+  remindersSent: integer("reminders_sent").default(0),
+  lastReminderSent: timestamp("last_reminder_sent"),
+  
+  // Task Creation (if approved)
+  taskCreated: boolean("task_created").default(false),
+  createdTaskId: integer("created_task_id").references(() => tasks.id),
+  taskCreatedAt: timestamp("task_created_at"),
+  
+  // Completion Information
+  completedAt: timestamp("completed_at"),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  completionNotes: text("completion_notes"),
+  completionPhotos: text("completion_photos").array(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Approval flow logs for maintenance suggestions
+export const maintenanceApprovalLogs = pgTable("maintenance_approval_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  suggestionId: integer("suggestion_id").references(() => maintenanceSuggestions.id).notNull(),
+  
+  // Log Details
+  actionType: varchar("action_type").notNull(), // submitted, approved, declined, commented, reminded, completed
+  actionBy: varchar("action_by").references(() => users.id).notNull(),
+  actionByRole: varchar("action_by_role").notNull(),
+  
+  // Action Details
+  previousStatus: varchar("previous_status"),
+  newStatus: varchar("new_status"),
+  comments: text("comments"),
+  
+  // Metadata
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Settings for maintenance suggestion system
+export const maintenanceSuggestionSettings = pgTable("maintenance_suggestion_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Approval Timeouts
+  defaultApprovalTimeoutDays: integer("default_approval_timeout_days").default(7),
+  urgentApprovalTimeoutDays: integer("urgent_approval_timeout_days").default(3),
+  reminderIntervalDays: integer("reminder_interval_days").default(3),
+  maxReminders: integer("max_reminders").default(3),
+  
+  // Auto-approval Thresholds
+  enableAutoApproval: boolean("enable_auto_approval").default(false),
+  autoApprovalThreshold: decimal("auto_approval_threshold", { precision: 10, scale: 2 }).default("100.00"),
+  autoApprovalTypes: text("auto_approval_types").array(), // repair, maintenance, etc.
+  
+  // Notification Settings
+  notifyOwnersViaEmail: boolean("notify_owners_via_email").default(true),
+  notifyOwnersViaSms: boolean("notify_owners_via_sms").default(false),
+  notifyManagersOnApproval: boolean("notify_managers_on_approval").default(true),
+  notifyStaffOnTaskCreation: boolean("notify_staff_on_task_creation").default(true),
+  
+  // Cost Management
+  requireCostBreakdown: boolean("require_cost_breakdown").default(true),
+  requireMultipleQuotes: boolean("require_multiple_quotes").default(false),
+  multipleQuotesThreshold: decimal("multiple_quotes_threshold", { precision: 10, scale: 2 }).default("500.00"),
+  
+  // Documentation Requirements
+  requirePhotos: boolean("require_photos").default(true),
+  requireDetailedDescription: boolean("require_detailed_description").default(true),
+  maxAttachmentSize: integer("max_attachment_size").default(10485760), // 10MB in bytes
+  allowedFileTypes: text("allowed_file_types").array().default('["jpg","jpeg","png","pdf","doc","docx"]'),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Timeline entries for maintenance suggestions (for property timeline integration)
+export const maintenanceTimelineEntries = pgTable("maintenance_timeline_entries", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  suggestionId: integer("suggestion_id").references(() => maintenanceSuggestions.id).notNull(),
+  
+  // Timeline Entry Details
+  entryType: varchar("entry_type").notNull(), // suggestion_submitted, approved, declined, completed, reminder_sent
+  entryTitle: varchar("entry_title").notNull(),
+  entryDescription: text("entry_description"),
+  entryIcon: varchar("entry_icon").default("wrench"), // icon identifier
+  
+  // Visibility Settings
+  visibleToOwner: boolean("visible_to_owner").default(true),
+  visibleToStaff: boolean("visible_to_staff").default(true),
+  visibleToGuests: boolean("visible_to_guests").default(false),
+  
+  // Associated Users
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  affectsUsers: text("affects_users").array(), // Array of user IDs who should see this
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ===== MAINTENANCE SUGGESTIONS INSERT SCHEMAS =====
+
+export const insertMaintenanceSuggestionSchema = createInsertSchema(maintenanceSuggestions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMaintenanceApprovalLogSchema = createInsertSchema(maintenanceApprovalLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMaintenanceSuggestionSettingsSchema = createInsertSchema(maintenanceSuggestionSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMaintenanceTimelineEntrySchema = createInsertSchema(maintenanceTimelineEntries).omit({
+  id: true,
+  createdAt: true,
+});
+
+// ===== MAINTENANCE SUGGESTIONS TYPE DEFINITIONS =====
+
+export type MaintenanceSuggestion = typeof maintenanceSuggestions.$inferSelect;
+export type InsertMaintenanceSuggestion = z.infer<typeof insertMaintenanceSuggestionSchema>;
+
+export type MaintenanceApprovalLog = typeof maintenanceApprovalLogs.$inferSelect;
+export type InsertMaintenanceApprovalLog = z.infer<typeof insertMaintenanceApprovalLogSchema>;
+
+export type MaintenanceSuggestionSettings = typeof maintenanceSuggestionSettings.$inferSelect;
+export type InsertMaintenanceSuggestionSettings = z.infer<typeof insertMaintenanceSuggestionSettingsSchema>;
+
+export type MaintenanceTimelineEntry = typeof maintenanceTimelineEntries.$inferSelect;
+export type InsertMaintenanceTimelineEntry = z.infer<typeof insertMaintenanceTimelineEntrySchema>;
+
 // ===== PLATFORM ROUTING TYPES =====
 
 export type PlatformRoutingRule = typeof platformRoutingRules.$inferSelect;

@@ -37,7 +37,8 @@ import {
   ClipboardList,
   Plus,
   MessageSquare,
-  Receipt
+  Receipt,
+  Hammer
 } from "lucide-react";
 
 // Define navigation modules with hierarchical structure
@@ -136,6 +137,13 @@ const navigationModules = [
         label: "Inventory Analytics", 
         roles: ["admin", "portfolio-manager", "owner", "staff"],
         description: "Inventory usage tracking and analytics"
+      },
+      { 
+        path: "/maintenance-suggestions", 
+        icon: Hammer, 
+        label: "Maintenance Suggestions", 
+        roles: ["admin", "portfolio-manager"],
+        description: "Review and approve maintenance suggestions with owner approval workflow"
       },
     ]
   },

@@ -11430,6 +11430,272 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== MAINTENANCE SUGGESTIONS & APPROVAL FLOW ====================
+
+  // Maintenance suggestions CRUD operations
+  app.get("/api/maintenance-suggestions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId, status, submittedBy } = req.query;
+      
+      const suggestions = await storage.getMaintenanceSuggestions(organizationId, {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        status: status as string,
+        submittedBy: submittedBy as string,
+      });
+      
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error fetching maintenance suggestions:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance suggestions" });
+    }
+  });
+
+  app.get("/api/maintenance-suggestions/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const suggestion = await storage.getMaintenanceSuggestion(id);
+      
+      if (!suggestion) {
+        return res.status(404).json({ message: "Maintenance suggestion not found" });
+      }
+      
+      res.json(suggestion);
+    } catch (error) {
+      console.error("Error fetching maintenance suggestion:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance suggestion" });
+    }
+  });
+
+  app.post("/api/maintenance-suggestions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      // Only admin and PM can create suggestions
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admin and portfolio managers can create maintenance suggestions" });
+      }
+
+      const suggestion = await storage.createMaintenanceSuggestion({
+        organizationId,
+        submittedBy: user.id,
+        submittedByRole: user.role,
+        ...req.body,
+      });
+
+      // Create timeline entry
+      await storage.createMaintenanceTimelineEntry({
+        organizationId,
+        suggestionId: suggestion.id,
+        actionType: 'created',
+        actionBy: user.id,
+        actionByRole: user.role,
+        description: `Maintenance suggestion created: ${req.body.title}`,
+      });
+
+      res.json(suggestion);
+    } catch (error) {
+      console.error("Error creating maintenance suggestion:", error);
+      res.status(500).json({ message: "Failed to create maintenance suggestion" });
+    }
+  });
+
+  app.put("/api/maintenance-suggestions/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = req.user;
+      
+      // Only admin and PM can update suggestions
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Only admin and portfolio managers can update maintenance suggestions" });
+      }
+
+      const updated = await storage.updateMaintenanceSuggestion(id, req.body);
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Maintenance suggestion not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating maintenance suggestion:", error);
+      res.status(500).json({ message: "Failed to update maintenance suggestion" });
+    }
+  });
+
+  app.delete("/api/maintenance-suggestions/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = req.user;
+      
+      // Only admin can delete suggestions
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admin can delete maintenance suggestions" });
+      }
+
+      const success = await storage.deleteMaintenanceSuggestion(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting maintenance suggestion:", error);
+      res.status(500).json({ message: "Failed to delete maintenance suggestion" });
+    }
+  });
+
+  // Owner approval workflow
+  app.post("/api/maintenance-suggestions/:id/approve", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = req.user;
+      const { comments } = req.body;
+      
+      // Only owners can approve suggestions
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Only owners can approve maintenance suggestions" });
+      }
+
+      const approved = await storage.approveMaintenanceSuggestion(id, user.id, comments);
+      
+      if (!approved) {
+        return res.status(404).json({ message: "Maintenance suggestion not found" });
+      }
+
+      // Create timeline entry
+      await storage.createMaintenanceTimelineEntry({
+        organizationId: "demo-org",
+        suggestionId: id,
+        actionType: 'approved',
+        actionBy: user.id,
+        actionByRole: user.role,
+        description: `Owner approved maintenance suggestion${comments ? ': ' + comments : ''}`,
+      });
+
+      // TODO: Auto-create task if approved
+      
+      res.json(approved);
+    } catch (error) {
+      console.error("Error approving maintenance suggestion:", error);
+      res.status(500).json({ message: "Failed to approve maintenance suggestion" });
+    }
+  });
+
+  app.post("/api/maintenance-suggestions/:id/decline", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = req.user;
+      const { comments } = req.body;
+      
+      // Only owners can decline suggestions
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Only owners can decline maintenance suggestions" });
+      }
+
+      const declined = await storage.declineMaintenanceSuggestion(id, user.id, comments);
+      
+      if (!declined) {
+        return res.status(404).json({ message: "Maintenance suggestion not found" });
+      }
+
+      // Create timeline entry
+      await storage.createMaintenanceTimelineEntry({
+        organizationId: "demo-org",
+        suggestionId: id,
+        actionType: 'declined',
+        actionBy: user.id,
+        actionByRole: user.role,
+        description: `Owner declined maintenance suggestion${comments ? ': ' + comments : ''}`,
+      });
+
+      res.json(declined);
+    } catch (error) {
+      console.error("Error declining maintenance suggestion:", error);
+      res.status(500).json({ message: "Failed to decline maintenance suggestion" });
+    }
+  });
+
+  // Owner-specific endpoints for dashboard
+  app.get("/api/owner/maintenance-suggestions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Owner access required" });
+      }
+
+      const suggestions = await storage.getOwnerMaintenanceSuggestions(organizationId, user.id);
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error fetching owner maintenance suggestions:", error);
+      res.status(500).json({ message: "Failed to fetch owner maintenance suggestions" });
+    }
+  });
+
+  app.get("/api/owner/pending-approvals", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Owner access required" });
+      }
+
+      const pending = await storage.getPendingOwnerApprovals(organizationId, user.id);
+      res.json(pending);
+    } catch (error) {
+      console.error("Error fetching pending approvals:", error);
+      res.status(500).json({ message: "Failed to fetch pending approvals" });
+    }
+  });
+
+  // Approval logs
+  app.get("/api/maintenance-approval-logs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { suggestionId } = req.query;
+      
+      const logs = await storage.getMaintenanceApprovalLogs(
+        organizationId,
+        suggestionId ? parseInt(suggestionId as string) : undefined
+      );
+      
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching approval logs:", error);
+      res.status(500).json({ message: "Failed to fetch approval logs" });
+    }
+  });
+
+  // Settings management
+  app.get("/api/maintenance-suggestion-settings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const settings = await storage.getMaintenanceSuggestionSettings(organizationId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post("/api/maintenance-suggestion-settings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      // Only admin can update settings
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admin can update settings" });
+      }
+
+      const settings = await storage.updateMaintenanceSuggestionSettings(organizationId, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

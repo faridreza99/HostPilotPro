@@ -59,6 +59,7 @@ import AiTaskManager from "@/pages/AiTaskManager";
 import OwnerBalanceManagement from "@/pages/OwnerBalanceManagement";
 import StaffOverhoursTracker from "@/pages/StaffOverhoursTracker";
 import StaffClockinOvertime from "@/pages/StaffClockinOvertime";
+import MaintenanceSuggestionsApproval from "@/pages/MaintenanceSuggestionsApproval";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -166,6 +167,7 @@ function Router() {
           <Route path="/retail-agent-booking" component={RetailAgentBookingEngine} />
           <Route path="/finance-engine" component={FinanceEngine} />
           <Route path="/booking-income-rules" component={BookingIncomeRules} />
+          <Route path="/maintenance-suggestions" component={MaintenanceSuggestionsApproval} />
           <Route path="/settings" component={Settings} />
         </>
       )}

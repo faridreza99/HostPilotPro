@@ -48,6 +48,10 @@ import {
   propertyPlatformRules,
   bookingPlatformRouting,
   routingAuditLog,
+  maintenanceSuggestions,
+  maintenanceApprovalLogs,
+  maintenanceSuggestionSettings,
+  maintenanceTimelineEntries,
   propertyPayoutRules,
   bookingIncomeRecords,
   ownerBalanceRequests,
@@ -281,6 +285,14 @@ import {
   type InsertPropertyTimelineEvent,
   type PlatformAnalytics,
   type InsertPlatformAnalytics,
+  type MaintenanceSuggestion,
+  type InsertMaintenanceSuggestion,
+  type MaintenanceApprovalLog,
+  type InsertMaintenanceApprovalLog,
+  type MaintenanceSuggestionSettings,
+  type InsertMaintenanceSuggestionSettings,
+  type MaintenanceTimelineEntry,
+  type InsertMaintenanceTimelineEntry,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
@@ -769,6 +781,32 @@ export interface IStorage {
     totalExpenses: number;
     lastPayoutDate: Date | null;
   }>;
+
+  // Maintenance Suggestions & Approval Flow operations
+  getMaintenanceSuggestions(organizationId: string, filters?: { propertyId?: number; status?: string; submittedBy?: string }): Promise<MaintenanceSuggestion[]>;
+  getMaintenanceSuggestion(id: number): Promise<MaintenanceSuggestion | undefined>;
+  createMaintenanceSuggestion(suggestion: InsertMaintenanceSuggestion): Promise<MaintenanceSuggestion>;
+  updateMaintenanceSuggestion(id: number, suggestion: Partial<InsertMaintenanceSuggestion>): Promise<MaintenanceSuggestion | undefined>;
+  deleteMaintenanceSuggestion(id: number): Promise<boolean>;
+
+  // Owner approval workflow
+  approveMaintenanceSuggestion(id: number, ownerId: string, comments?: string): Promise<MaintenanceSuggestion | undefined>;
+  declineMaintenanceSuggestion(id: number, ownerId: string, comments?: string): Promise<MaintenanceSuggestion | undefined>;
+
+  // Approval logs
+  getMaintenanceApprovalLogs(organizationId: string, suggestionId?: number): Promise<MaintenanceApprovalLog[]>;
+  createMaintenanceApprovalLog(log: InsertMaintenanceApprovalLog): Promise<MaintenanceApprovalLog>;
+
+  // Settings
+  getMaintenanceSuggestionSettings(organizationId: string): Promise<MaintenanceSuggestionSettings | undefined>;
+  updateMaintenanceSuggestionSettings(organizationId: string, settings: Partial<InsertMaintenanceSuggestionSettings>): Promise<MaintenanceSuggestionSettings>;
+
+  // Timeline entries
+  createMaintenanceTimelineEntry(entry: InsertMaintenanceTimelineEntry): Promise<MaintenanceTimelineEntry>;
+
+  // Owner-specific methods for dashboard
+  getOwnerMaintenanceSuggestions(organizationId: string, ownerId: string): Promise<MaintenanceSuggestion[]>;
+  getPendingOwnerApprovals(organizationId: string, ownerId: string): Promise<MaintenanceSuggestion[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -13603,6 +13641,228 @@ Plant Care:
       staffReports,
       ...totals,
     };
+  }
+
+  // ==================== MAINTENANCE SUGGESTIONS & APPROVAL FLOW ====================
+
+  // Maintenance suggestions operations
+  async getMaintenanceSuggestions(organizationId: string, filters?: { propertyId?: number; status?: string; submittedBy?: string }): Promise<MaintenanceSuggestion[]> {
+    let query = db
+      .select()
+      .from(maintenanceSuggestions)
+      .where(eq(maintenanceSuggestions.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(maintenanceSuggestions.propertyId, filters.propertyId));
+    }
+    if (filters?.status) {
+      query = query.where(eq(maintenanceSuggestions.status, filters.status));
+    }
+    if (filters?.submittedBy) {
+      query = query.where(eq(maintenanceSuggestions.submittedBy, filters.submittedBy));
+    }
+
+    return query.orderBy(desc(maintenanceSuggestions.createdAt));
+  }
+
+  async getMaintenanceSuggestion(id: number): Promise<MaintenanceSuggestion | undefined> {
+    const [suggestion] = await db
+      .select()
+      .from(maintenanceSuggestions)
+      .where(eq(maintenanceSuggestions.id, id));
+    return suggestion;
+  }
+
+  async createMaintenanceSuggestion(suggestion: InsertMaintenanceSuggestion): Promise<MaintenanceSuggestion> {
+    const [newSuggestion] = await db.insert(maintenanceSuggestions).values(suggestion).returning();
+    return newSuggestion;
+  }
+
+  async updateMaintenanceSuggestion(id: number, suggestion: Partial<InsertMaintenanceSuggestion>): Promise<MaintenanceSuggestion | undefined> {
+    const [updated] = await db
+      .update(maintenanceSuggestions)
+      .set({ ...suggestion, updatedAt: new Date() })
+      .where(eq(maintenanceSuggestions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMaintenanceSuggestion(id: number): Promise<boolean> {
+    const result = await db
+      .delete(maintenanceSuggestions)
+      .where(eq(maintenanceSuggestions.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Owner approval workflow
+  async approveMaintenanceSuggestion(id: number, ownerId: string, comments?: string): Promise<MaintenanceSuggestion | undefined> {
+    const [updated] = await db
+      .update(maintenanceSuggestions)
+      .set({
+        status: 'approved',
+        ownerResponse: 'approved',
+        ownerComments: comments,
+        ownerRespondedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(maintenanceSuggestions.id, id))
+      .returning();
+    
+    if (updated) {
+      // Create approval log
+      await this.createMaintenanceApprovalLog({
+        organizationId: updated.organizationId,
+        suggestionId: id,
+        actionType: 'approved',
+        actionBy: ownerId,
+        actionByRole: 'owner',
+        newStatus: 'approved',
+        comments: comments || '',
+      });
+    }
+    
+    return updated;
+  }
+
+  async declineMaintenanceSuggestion(id: number, ownerId: string, comments?: string): Promise<MaintenanceSuggestion | undefined> {
+    const [updated] = await db
+      .update(maintenanceSuggestions)
+      .set({
+        status: 'declined',
+        ownerResponse: 'declined',
+        ownerComments: comments,
+        ownerRespondedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(maintenanceSuggestions.id, id))
+      .returning();
+      
+    if (updated) {
+      // Create approval log
+      await this.createMaintenanceApprovalLog({
+        organizationId: updated.organizationId,
+        suggestionId: id,
+        actionType: 'declined',
+        actionBy: ownerId,
+        actionByRole: 'owner',
+        newStatus: 'declined',
+        comments: comments || '',
+      });
+    }
+    
+    return updated;
+  }
+
+  // Approval logs
+  async getMaintenanceApprovalLogs(organizationId: string, suggestionId?: number): Promise<MaintenanceApprovalLog[]> {
+    let query = db
+      .select()
+      .from(maintenanceApprovalLogs)
+      .where(eq(maintenanceApprovalLogs.organizationId, organizationId));
+
+    if (suggestionId) {
+      query = query.where(eq(maintenanceApprovalLogs.suggestionId, suggestionId));
+    }
+
+    return query.orderBy(desc(maintenanceApprovalLogs.createdAt));
+  }
+
+  async createMaintenanceApprovalLog(log: InsertMaintenanceApprovalLog): Promise<MaintenanceApprovalLog> {
+    const [newLog] = await db.insert(maintenanceApprovalLogs).values(log).returning();
+    return newLog;
+  }
+
+  // Settings
+  async getMaintenanceSuggestionSettings(organizationId: string): Promise<MaintenanceSuggestionSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(maintenanceSuggestionSettings)
+      .where(eq(maintenanceSuggestionSettings.organizationId, organizationId));
+    return settings;
+  }
+
+  async updateMaintenanceSuggestionSettings(organizationId: string, settings: Partial<InsertMaintenanceSuggestionSettings>): Promise<MaintenanceSuggestionSettings> {
+    // Try to update first
+    const [existing] = await db
+      .select()
+      .from(maintenanceSuggestionSettings)
+      .where(eq(maintenanceSuggestionSettings.organizationId, organizationId));
+
+    if (existing) {
+      const [updated] = await db
+        .update(maintenanceSuggestionSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(maintenanceSuggestionSettings.organizationId, organizationId))
+        .returning();
+      return updated;
+    } else {
+      // Create new settings
+      const [newSettings] = await db
+        .insert(maintenanceSuggestionSettings)
+        .values({ organizationId, ...settings })
+        .returning();
+      return newSettings;
+    }
+  }
+
+  // Timeline entries
+  async createMaintenanceTimelineEntry(entry: InsertMaintenanceTimelineEntry): Promise<MaintenanceTimelineEntry> {
+    const [newEntry] = await db.insert(maintenanceTimelineEntries).values(entry).returning();
+    return newEntry;
+  }
+
+  // Owner-specific methods for dashboard
+  async getOwnerMaintenanceSuggestions(organizationId: string, ownerId: string): Promise<MaintenanceSuggestion[]> {
+    // Get all properties owned by this owner
+    const ownerProperties = await db
+      .select({ id: properties.id })
+      .from(properties)
+      .where(and(
+        eq(properties.organizationId, organizationId),
+        eq(properties.ownerId, ownerId)
+      ));
+
+    const propertyIds = ownerProperties.map(p => p.id);
+    
+    if (propertyIds.length === 0) {
+      return [];
+    }
+
+    return await db
+      .select()
+      .from(maintenanceSuggestions)
+      .where(and(
+        eq(maintenanceSuggestions.organizationId, organizationId),
+        sql`${maintenanceSuggestions.propertyId} IN (${propertyIds.join(',')})`
+      ))
+      .orderBy(desc(maintenanceSuggestions.createdAt));
+  }
+
+  async getPendingOwnerApprovals(organizationId: string, ownerId: string): Promise<MaintenanceSuggestion[]> {
+    // Get all properties owned by this owner
+    const ownerProperties = await db
+      .select({ id: properties.id })
+      .from(properties)
+      .where(and(
+        eq(properties.organizationId, organizationId),
+        eq(properties.ownerId, ownerId)
+      ));
+
+    const propertyIds = ownerProperties.map(p => p.id);
+    
+    if (propertyIds.length === 0) {
+      return [];
+    }
+
+    return await db
+      .select()
+      .from(maintenanceSuggestions)
+      .where(and(
+        eq(maintenanceSuggestions.organizationId, organizationId),
+        eq(maintenanceSuggestions.status, 'pending'),
+        sql`${maintenanceSuggestions.propertyId} IN (${propertyIds.join(',')})`
+      ))
+      .orderBy(desc(maintenanceSuggestions.urgencyLevel), desc(maintenanceSuggestions.createdAt));
   }
 }
 
