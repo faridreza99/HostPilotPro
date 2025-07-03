@@ -221,6 +221,19 @@ import {
   portfolioManagerAssignments,
   type OwnerStatementExport,
   type InsertOwnerStatementExport,
+  // Document Center tables
+  propertyDocuments,
+  documentAccessLog,
+  documentExpirationAlerts,
+  documentExportHistory,
+  type PropertyDocument,
+  type InsertPropertyDocument,
+  type DocumentAccessLog,
+  type InsertDocumentAccessLog,
+  type DocumentExpirationAlert,
+  type InsertDocumentExpirationAlert,
+  type DocumentExportHistory,
+  type InsertDocumentExportHistory,
   type AuditTrail,
   type InsertAuditTrail,
   type AdminOverridePermission,
@@ -1097,6 +1110,42 @@ export interface IStorage {
     filters: any;
     templateId?: number;
   }): Promise<{ fileUrl: string; fileName: string; fileSize: number; recordCount: number }>;
+
+  // ===== DOCUMENT CENTER OPERATIONS =====
+  
+  // Property documents operations
+  getPropertyDocuments(organizationId: string, filters?: { propertyId?: number; category?: string; visibility?: string; hasExpiration?: boolean }): Promise<PropertyDocument[]>;
+  getPropertyDocument(id: number): Promise<PropertyDocument | undefined>;
+  createPropertyDocument(document: InsertPropertyDocument): Promise<PropertyDocument>;
+  updatePropertyDocument(id: number, document: Partial<InsertPropertyDocument>): Promise<PropertyDocument | undefined>;
+  deletePropertyDocument(id: number): Promise<boolean>;
+  
+  // Document access control
+  getDocumentsByProperty(propertyId: number, userRole?: string): Promise<PropertyDocument[]>;
+  getDocumentsByCategory(organizationId: string, category: string): Promise<PropertyDocument[]>;
+  getExpiringDocuments(organizationId: string, daysAhead?: number): Promise<PropertyDocument[]>;
+  
+  // Document access logging
+  getDocumentAccessLogs(organizationId: string, filters?: { documentId?: number; accessedBy?: string; actionType?: string }): Promise<DocumentAccessLog[]>;
+  createDocumentAccessLog(log: InsertDocumentAccessLog): Promise<DocumentAccessLog>;
+  
+  // Document expiration alerts
+  getDocumentExpirationAlerts(organizationId: string, filters?: { documentId?: number; isProcessed?: boolean }): Promise<DocumentExpirationAlert[]>;
+  createDocumentExpirationAlert(alert: InsertDocumentExpirationAlert): Promise<DocumentExpirationAlert>;
+  updateDocumentExpirationAlert(id: number, alert: Partial<InsertDocumentExpirationAlert>): Promise<DocumentExpirationAlert | undefined>;
+  
+  // Document export history
+  getDocumentExportHistory(organizationId: string, filters?: { propertyId?: number; exportedBy?: string; status?: string }): Promise<DocumentExportHistory[]>;
+  createDocumentExportHistory(exportRecord: InsertDocumentExportHistory): Promise<DocumentExportHistory>;
+  updateDocumentExportHistory(id: number, exportRecord: Partial<InsertDocumentExportHistory>): Promise<DocumentExportHistory | undefined>;
+  
+  // Document analytics and summary
+  getDocumentSummary(organizationId: string, propertyId?: number): Promise<{
+    totalDocuments: number;
+    documentsByCategory: Array<{ category: string; count: number }>;
+    expiringCount: number;
+    recentUploads: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -19679,6 +19728,281 @@ Plant Care:
       severity: actionData.severity || 'medium',
       isOverride: actionData.isOverride || false
     });
+  }
+
+  // ===== DOCUMENT CENTER IMPLEMENTATIONS =====
+  
+  // Property documents operations
+  async getPropertyDocuments(organizationId: string, filters?: { propertyId?: number; category?: string; visibility?: string; hasExpiration?: boolean }): Promise<PropertyDocument[]> {
+    let query = db.select().from(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.organizationId, organizationId),
+        eq(propertyDocuments.isActive, true)
+      ));
+
+    if (filters) {
+      const conditions = [
+        eq(propertyDocuments.organizationId, organizationId),
+        eq(propertyDocuments.isActive, true)
+      ];
+
+      if (filters.propertyId) {
+        conditions.push(eq(propertyDocuments.propertyId, filters.propertyId));
+      }
+      if (filters.category) {
+        conditions.push(eq(propertyDocuments.category, filters.category));
+      }
+      if (filters.visibility) {
+        conditions.push(eq(propertyDocuments.visibility, filters.visibility));
+      }
+      if (filters.hasExpiration !== undefined) {
+        conditions.push(eq(propertyDocuments.hasExpiration, filters.hasExpiration));
+      }
+
+      query = db.select().from(propertyDocuments).where(and(...conditions));
+    }
+
+    return await query.orderBy(desc(propertyDocuments.createdAt));
+  }
+
+  async getPropertyDocument(id: number): Promise<PropertyDocument | undefined> {
+    const [document] = await db.select().from(propertyDocuments)
+      .where(eq(propertyDocuments.id, id));
+    return document;
+  }
+
+  async createPropertyDocument(document: InsertPropertyDocument): Promise<PropertyDocument> {
+    const [newDocument] = await db.insert(propertyDocuments)
+      .values(document)
+      .returning();
+    return newDocument;
+  }
+
+  async updatePropertyDocument(id: number, document: Partial<InsertPropertyDocument>): Promise<PropertyDocument | undefined> {
+    const [updatedDocument] = await db.update(propertyDocuments)
+      .set(document)
+      .where(eq(propertyDocuments.id, id))
+      .returning();
+    return updatedDocument;
+  }
+
+  async deletePropertyDocument(id: number): Promise<boolean> {
+    const result = await db.update(propertyDocuments)
+      .set({ isActive: false })
+      .where(eq(propertyDocuments.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Document access control
+  async getDocumentsByProperty(propertyId: number, userRole?: string): Promise<PropertyDocument[]> {
+    let query = db.select().from(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.propertyId, propertyId),
+        eq(propertyDocuments.isActive, true)
+      ));
+
+    // Apply role-based visibility filtering
+    if (userRole === 'owner') {
+      query = db.select().from(propertyDocuments)
+        .where(and(
+          eq(propertyDocuments.propertyId, propertyId),
+          eq(propertyDocuments.isActive, true),
+          or(
+            eq(propertyDocuments.visibility, 'visible_to_owner'),
+            eq(propertyDocuments.uploadedByRole, 'owner')
+          )
+        ));
+    }
+
+    return await query.orderBy(desc(propertyDocuments.createdAt));
+  }
+
+  async getDocumentsByCategory(organizationId: string, category: string): Promise<PropertyDocument[]> {
+    return await db.select().from(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.organizationId, organizationId),
+        eq(propertyDocuments.category, category),
+        eq(propertyDocuments.isActive, true)
+      ))
+      .orderBy(desc(propertyDocuments.createdAt));
+  }
+
+  async getExpiringDocuments(organizationId: string, daysAhead: number = 30): Promise<PropertyDocument[]> {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + daysAhead);
+    
+    return await db.select().from(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.organizationId, organizationId),
+        eq(propertyDocuments.hasExpiration, true),
+        eq(propertyDocuments.isActive, true),
+        lte(propertyDocuments.expirationDate, futureDate.toISOString().split('T')[0])
+      ))
+      .orderBy(asc(propertyDocuments.expirationDate));
+  }
+
+  // Document access logging
+  async getDocumentAccessLogs(organizationId: string, filters?: { documentId?: number; accessedBy?: string; actionType?: string }): Promise<DocumentAccessLog[]> {
+    let query = db.select().from(documentAccessLog)
+      .where(eq(documentAccessLog.organizationId, organizationId));
+
+    if (filters) {
+      const conditions = [eq(documentAccessLog.organizationId, organizationId)];
+
+      if (filters.documentId) {
+        conditions.push(eq(documentAccessLog.documentId, filters.documentId));
+      }
+      if (filters.accessedBy) {
+        conditions.push(eq(documentAccessLog.accessedBy, filters.accessedBy));
+      }
+      if (filters.actionType) {
+        conditions.push(eq(documentAccessLog.actionType, filters.actionType));
+      }
+
+      query = db.select().from(documentAccessLog).where(and(...conditions));
+    }
+
+    return await query.orderBy(desc(documentAccessLog.accessedAt));
+  }
+
+  async createDocumentAccessLog(log: InsertDocumentAccessLog): Promise<DocumentAccessLog> {
+    const [newLog] = await db.insert(documentAccessLog)
+      .values(log)
+      .returning();
+    return newLog;
+  }
+
+  // Document expiration alerts
+  async getDocumentExpirationAlerts(organizationId: string, filters?: { documentId?: number; isProcessed?: boolean }): Promise<DocumentExpirationAlert[]> {
+    let query = db.select().from(documentExpirationAlerts)
+      .where(eq(documentExpirationAlerts.organizationId, organizationId));
+
+    if (filters) {
+      const conditions = [eq(documentExpirationAlerts.organizationId, organizationId)];
+
+      if (filters.documentId) {
+        conditions.push(eq(documentExpirationAlerts.documentId, filters.documentId));
+      }
+      if (filters.isProcessed !== undefined) {
+        conditions.push(eq(documentExpirationAlerts.isProcessed, filters.isProcessed));
+      }
+
+      query = db.select().from(documentExpirationAlerts).where(and(...conditions));
+    }
+
+    return await query.orderBy(desc(documentExpirationAlerts.createdAt));
+  }
+
+  async createDocumentExpirationAlert(alert: InsertDocumentExpirationAlert): Promise<DocumentExpirationAlert> {
+    const [newAlert] = await db.insert(documentExpirationAlerts)
+      .values(alert)
+      .returning();
+    return newAlert;
+  }
+
+  async updateDocumentExpirationAlert(id: number, alert: Partial<InsertDocumentExpirationAlert>): Promise<DocumentExpirationAlert | undefined> {
+    const [updatedAlert] = await db.update(documentExpirationAlerts)
+      .set(alert)
+      .where(eq(documentExpirationAlerts.id, id))
+      .returning();
+    return updatedAlert;
+  }
+
+  // Document export history
+  async getDocumentExportHistory(organizationId: string, filters?: { propertyId?: number; exportedBy?: string; status?: string }): Promise<DocumentExportHistory[]> {
+    let query = db.select().from(documentExportHistory)
+      .where(eq(documentExportHistory.organizationId, organizationId));
+
+    if (filters) {
+      const conditions = [eq(documentExportHistory.organizationId, organizationId)];
+
+      if (filters.propertyId) {
+        conditions.push(eq(documentExportHistory.propertyId, filters.propertyId));
+      }
+      if (filters.exportedBy) {
+        conditions.push(eq(documentExportHistory.exportedBy, filters.exportedBy));
+      }
+      if (filters.status) {
+        conditions.push(eq(documentExportHistory.status, filters.status));
+      }
+
+      query = db.select().from(documentExportHistory).where(and(...conditions));
+    }
+
+    return await query.orderBy(desc(documentExportHistory.createdAt));
+  }
+
+  async createDocumentExportHistory(exportRecord: InsertDocumentExportHistory): Promise<DocumentExportHistory> {
+    const [newExport] = await db.insert(documentExportHistory)
+      .values(exportRecord)
+      .returning();
+    return newExport;
+  }
+
+  async updateDocumentExportHistory(id: number, exportRecord: Partial<InsertDocumentExportHistory>): Promise<DocumentExportHistory | undefined> {
+    const [updatedExport] = await db.update(documentExportHistory)
+      .set(exportRecord)
+      .where(eq(documentExportHistory.id, id))
+      .returning();
+    return updatedExport;
+  }
+
+  // Document analytics and summary
+  async getDocumentSummary(organizationId: string, propertyId?: number): Promise<{
+    totalDocuments: number;
+    documentsByCategory: Array<{ category: string; count: number }>;
+    expiringCount: number;
+    recentUploads: number;
+  }> {
+    const baseConditions = [
+      eq(propertyDocuments.organizationId, organizationId),
+      eq(propertyDocuments.isActive, true)
+    ];
+
+    if (propertyId) {
+      baseConditions.push(eq(propertyDocuments.propertyId, propertyId));
+    }
+
+    // Total documents
+    const totalResult = await db.select({ count: count() }).from(propertyDocuments)
+      .where(and(...baseConditions));
+    const totalDocuments = totalResult[0]?.count || 0;
+
+    // Documents by category
+    const categoryResult = await db.select({
+      category: propertyDocuments.category,
+      count: count()
+    }).from(propertyDocuments)
+      .where(and(...baseConditions))
+      .groupBy(propertyDocuments.category);
+
+    // Expiring documents (next 30 days)
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 30);
+    const expiringResult = await db.select({ count: count() }).from(propertyDocuments)
+      .where(and(
+        ...baseConditions,
+        eq(propertyDocuments.hasExpiration, true),
+        lte(propertyDocuments.expirationDate, futureDate.toISOString().split('T')[0])
+      ));
+    const expiringCount = expiringResult[0]?.count || 0;
+
+    // Recent uploads (last 7 days)
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const recentResult = await db.select({ count: count() }).from(propertyDocuments)
+      .where(and(
+        ...baseConditions,
+        gte(propertyDocuments.createdAt, weekAgo)
+      ));
+    const recentUploads = recentResult[0]?.count || 0;
+
+    return {
+      totalDocuments,
+      documentsByCategory: categoryResult,
+      expiringCount,
+      recentUploads
+    };
   }
 }
 

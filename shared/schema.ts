@@ -2165,6 +2165,223 @@ export const insertOwnerStatementExportSchema = createInsertSchema(ownerStatemen
 export type OwnerStatementExport = typeof ownerStatementExports.$inferSelect;
 export type InsertOwnerStatementExport = z.infer<typeof insertOwnerStatementExportSchema>;
 
+// ===== DOCUMENT CENTER SYSTEM =====
+
+// Property documents with role-based access and expiration tracking
+export const propertyDocuments = pgTable("property_documents", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // File Information
+  fileName: varchar("file_name").notNull(),
+  originalFileName: varchar("original_file_name").notNull(),
+  fileSize: integer("file_size").notNull(), // in bytes
+  fileType: varchar("file_type").notNull(), // pdf, docx, xlsx, jpg, png, etc.
+  filePath: varchar("file_path").notNull(), // Storage path or URL
+  
+  // Categorization
+  category: varchar("category").notNull(), // contracts, legal, tax_receipts, service_contracts, plans_drawings, owner_notes, others
+  subcategory: varchar("subcategory"), // Custom subcategory
+  title: varchar("title").notNull(),
+  description: text("description"),
+  
+  // Access Control
+  visibility: varchar("visibility").default("visible_to_owner"), // visible_to_owner, admin_pm_only
+  uploadedByRole: varchar("uploaded_by_role").notNull(), // admin, portfolio-manager, owner
+  uploadedBy: varchar("uploaded_by").references(() => users.id).notNull(),
+  
+  // Expiration Tracking
+  hasExpiration: boolean("has_expiration").default(false),
+  expirationDate: date("expiration_date"),
+  expirationReminderDays: integer("expiration_reminder_days").default(30), // Days before expiration to send reminder
+  lastReminderSent: timestamp("last_reminder_sent"),
+  
+  // Document Status
+  isActive: boolean("is_active").default(true),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_documents_property").on(table.propertyId),
+  index("IDX_property_documents_org").on(table.organizationId),
+  index("IDX_property_documents_category").on(table.category),
+  index("IDX_property_documents_expiration").on(table.expirationDate),
+]);
+
+// Document access log for audit trail
+export const documentAccessLog = pgTable("document_access_log", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  documentId: integer("document_id").references(() => propertyDocuments.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Access Details
+  accessedBy: varchar("accessed_by").references(() => users.id).notNull(),
+  accessedByRole: varchar("accessed_by_role").notNull(),
+  actionType: varchar("action_type").notNull(), // view, download, upload, delete, update
+  userAgent: text("user_agent"),
+  ipAddress: varchar("ip_address"),
+  
+  // Timestamps
+  accessedAt: timestamp("accessed_at").defaultNow(),
+}, (table) => [
+  index("IDX_document_access_document").on(table.documentId),
+  index("IDX_document_access_user").on(table.accessedBy),
+  index("IDX_document_access_date").on(table.accessedAt),
+]);
+
+// Document expiration alerts
+export const documentExpirationAlerts = pgTable("document_expiration_alerts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  documentId: integer("document_id").references(() => propertyDocuments.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Alert Details
+  alertType: varchar("alert_type").notNull(), // 30_days, 7_days, expired, custom
+  daysBeforeExpiration: integer("days_before_expiration").notNull(),
+  
+  // Recipients
+  alertSentTo: text("alert_sent_to").array(), // Array of user IDs who received alert
+  
+  // Status
+  isProcessed: boolean("is_processed").default(false),
+  
+  // Timestamps
+  scheduledFor: timestamp("scheduled_for").notNull(),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_expiration_alerts_document").on(table.documentId),
+  index("IDX_expiration_alerts_scheduled").on(table.scheduledFor),
+]);
+
+// Document export records for property-specific document exports
+export const documentExportHistory = pgTable("document_export_history", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Export Details
+  exportType: varchar("export_type").notNull(), // pdf_list, excel_list, zip_archive
+  fileName: varchar("file_name").notNull(),
+  filePath: varchar("file_path"),
+  fileSize: integer("file_size"), // in bytes
+  
+  // Export Filters
+  categories: text("categories").array(), // Categories included in export
+  dateRange: jsonb("date_range"), // {start: date, end: date}
+  includeExpired: boolean("include_expired").default(true),
+  
+  // User Info
+  exportedBy: varchar("exported_by").references(() => users.id).notNull(),
+  exportedByRole: varchar("exported_by_role").notNull(),
+  
+  // Status
+  status: varchar("status").default("generating"), // generating, completed, failed
+  errorMessage: text("error_message"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("IDX_export_history_property").on(table.propertyId),
+  index("IDX_export_history_user").on(table.exportedBy),
+]);
+
+// Relations for Document Center
+export const propertyDocumentsRelations = relations(propertyDocuments, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [propertyDocuments.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [propertyDocuments.propertyId],
+    references: [properties.id],
+  }),
+  uploader: one(users, {
+    fields: [propertyDocuments.uploadedBy],
+    references: [users.id],
+  }),
+  accessLogs: many(documentAccessLog),
+  expirationAlerts: many(documentExpirationAlerts),
+}));
+
+export const documentAccessLogRelations = relations(documentAccessLog, ({ one }) => ({
+  document: one(propertyDocuments, {
+    fields: [documentAccessLog.documentId],
+    references: [propertyDocuments.id],
+  }),
+  property: one(properties, {
+    fields: [documentAccessLog.propertyId],
+    references: [properties.id],
+  }),
+  user: one(users, {
+    fields: [documentAccessLog.accessedBy],
+    references: [users.id],
+  }),
+}));
+
+export const documentExpirationAlertsRelations = relations(documentExpirationAlerts, ({ one }) => ({
+  document: one(propertyDocuments, {
+    fields: [documentExpirationAlerts.documentId],
+    references: [propertyDocuments.id],
+  }),
+  property: one(properties, {
+    fields: [documentExpirationAlerts.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const documentExportHistoryRelations = relations(documentExportHistory, ({ one }) => ({
+  property: one(properties, {
+    fields: [documentExportHistory.propertyId],
+    references: [properties.id],
+  }),
+  exporter: one(users, {
+    fields: [documentExportHistory.exportedBy],
+    references: [users.id],
+  }),
+}));
+
+// Insert Schemas for Document Center
+export const insertPropertyDocumentSchema = createInsertSchema(propertyDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDocumentAccessLogSchema = createInsertSchema(documentAccessLog).omit({
+  id: true,
+  accessedAt: true,
+});
+
+export const insertDocumentExpirationAlertSchema = createInsertSchema(documentExpirationAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDocumentExportHistorySchema = createInsertSchema(documentExportHistory).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+// Type exports for Document Center
+export type PropertyDocument = typeof propertyDocuments.$inferSelect;
+export type InsertPropertyDocument = z.infer<typeof insertPropertyDocumentSchema>;
+
+export type DocumentAccessLog = typeof documentAccessLog.$inferSelect;
+export type InsertDocumentAccessLog = z.infer<typeof insertDocumentAccessLogSchema>;
+
+export type DocumentExpirationAlert = typeof documentExpirationAlerts.$inferSelect;
+export type InsertDocumentExpirationAlert = z.infer<typeof insertDocumentExpirationAlertSchema>;
+
+export type DocumentExportHistory = typeof documentExportHistory.$inferSelect;
+export type InsertDocumentExportHistory = z.infer<typeof insertDocumentExportHistorySchema>;
+
 // Additional Insert Schemas
 export const insertPropertyMarketingMediaSchema = createInsertSchema(propertyMarketingMedia).omit({
   id: true,

@@ -68,6 +68,7 @@ import GuestCommunicationCenter from "@/pages/GuestCommunicationCenter";
 import StaffProfilePayrollLogging from "@/pages/StaffProfilePayrollLogging";
 import OwnerInvoicingPayouts from "@/pages/OwnerInvoicingPayouts";
 import AdminActivityLog from "@/pages/AdminActivityLog";
+import DocumentCenter from "@/pages/DocumentCenter";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -182,6 +183,7 @@ function Router() {
         <Route path="/admin/finance-reset" component={FinanceResetControl} />
         <Route path="/admin/utility-customization" component={UtilityCustomization} />
         <Route path="/admin/activity-log" component={AdminActivityLog} />
+        <Route path="/document-center" component={DocumentCenter} />
         <Route path="/staff-profile-payroll" component={StaffProfilePayrollLogging} />
         <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
         <Route path="/hostaway" component={Hostaway} />

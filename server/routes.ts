@@ -16424,4 +16424,305 @@ async function processGuestIssueForAI(issueReport: any) {
       res.status(500).json({ message: "Failed to process admin override" });
     }
   });
+
+  // ===== DOCUMENT CENTER API ENDPOINTS =====
+
+  // Get property documents
+  app.get("/api/documents", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001"; // Demo organization
+      const { propertyId, category, visibility, hasExpiration } = req.query;
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId);
+      if (category) filters.category = category;
+      if (visibility) filters.visibility = visibility;
+      if (hasExpiration !== undefined) filters.hasExpiration = hasExpiration === 'true';
+      
+      const documents = await storage.getPropertyDocuments(organizationId, filters);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  // Get documents by property (with role-based access)
+  app.get("/api/documents/property/:propertyId", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const userRole = req.user.role;
+      
+      const documents = await storage.getDocumentsByProperty(propertyId, userRole);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching property documents:", error);
+      res.status(500).json({ message: "Failed to fetch property documents" });
+    }
+  });
+
+  // Get single document
+  app.get("/api/documents/:id", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getPropertyDocument(id);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Log document access
+      await storage.createDocumentAccessLog({
+        organizationId: "org_001",
+        documentId: id,
+        propertyId: document.propertyId,
+        accessedBy: req.user.id,
+        accessedByRole: req.user.role,
+        actionType: 'view',
+        userAgent: req.headers['user-agent'] || '',
+        ipAddress: req.ip || req.connection.remoteAddress || ''
+      });
+      
+      res.json(document);
+    } catch (error) {
+      console.error("Error fetching document:", error);
+      res.status(500).json({ message: "Failed to fetch document" });
+    }
+  });
+
+  // Create new document
+  app.post("/api/documents", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const userRole = req.user.role;
+      
+      // Only admin, portfolio-manager, and owner can upload documents
+      if (!['admin', 'portfolio-manager', 'owner'].includes(userRole)) {
+        return res.status(403).json({ message: "Insufficient permissions to upload documents" });
+      }
+      
+      const documentData = {
+        ...req.body,
+        organizationId,
+        uploadedBy: req.user.id,
+        uploadedByRole: userRole
+      };
+      
+      const document = await storage.createPropertyDocument(documentData);
+      
+      // Log document upload
+      await storage.createDocumentAccessLog({
+        organizationId,
+        documentId: document.id,
+        propertyId: document.propertyId,
+        accessedBy: req.user.id,
+        accessedByRole: userRole,
+        actionType: 'upload',
+        userAgent: req.headers['user-agent'] || '',
+        ipAddress: req.ip || req.connection.remoteAddress || ''
+      });
+      
+      res.json(document);
+    } catch (error) {
+      console.error("Error creating document:", error);
+      res.status(500).json({ message: "Failed to create document" });
+    }
+  });
+
+  // Update document
+  app.put("/api/documents/:id", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userRole = req.user.role;
+      
+      // Get existing document to check permissions
+      const existingDocument = await storage.getPropertyDocument(id);
+      if (!existingDocument) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Check permissions: admin/PM can edit all, owners can only edit their own
+      if (userRole === 'owner' && existingDocument.uploadedBy !== req.user.id) {
+        return res.status(403).json({ message: "Insufficient permissions to edit this document" });
+      }
+      
+      if (!['admin', 'portfolio-manager', 'owner'].includes(userRole)) {
+        return res.status(403).json({ message: "Insufficient permissions to edit documents" });
+      }
+      
+      const document = await storage.updatePropertyDocument(id, req.body);
+      
+      // Log document update
+      await storage.createDocumentAccessLog({
+        organizationId: "org_001",
+        documentId: id,
+        propertyId: existingDocument.propertyId,
+        accessedBy: req.user.id,
+        accessedByRole: userRole,
+        actionType: 'update',
+        userAgent: req.headers['user-agent'] || '',
+        ipAddress: req.ip || req.connection.remoteAddress || ''
+      });
+      
+      res.json(document);
+    } catch (error) {
+      console.error("Error updating document:", error);
+      res.status(500).json({ message: "Failed to update document" });
+    }
+  });
+
+  // Delete document
+  app.delete("/api/documents/:id", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userRole = req.user.role;
+      
+      // Get existing document to check permissions
+      const existingDocument = await storage.getPropertyDocument(id);
+      if (!existingDocument) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Only admin and PM can delete documents
+      if (!['admin', 'portfolio-manager'].includes(userRole)) {
+        return res.status(403).json({ message: "Insufficient permissions to delete documents" });
+      }
+      
+      const success = await storage.deletePropertyDocument(id);
+      
+      if (success) {
+        // Log document deletion
+        await storage.createDocumentAccessLog({
+          organizationId: "org_001",
+          documentId: id,
+          propertyId: existingDocument.propertyId,
+          accessedBy: req.user.id,
+          accessedByRole: userRole,
+          actionType: 'delete',
+          userAgent: req.headers['user-agent'] || '',
+          ipAddress: req.ip || req.connection.remoteAddress || ''
+        });
+        
+        res.json({ message: "Document deleted successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to delete document" });
+      }
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+
+  // Get documents by category
+  app.get("/api/documents/category/:category", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const category = req.params.category;
+      
+      const documents = await storage.getDocumentsByCategory(organizationId, category);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching documents by category:", error);
+      res.status(500).json({ message: "Failed to fetch documents by category" });
+    }
+  });
+
+  // Get expiring documents
+  app.get("/api/documents/expiring", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const daysAhead = parseInt(req.query.daysAhead as string) || 30;
+      
+      // Only admin and PM can view expiring documents
+      if (!['admin', 'portfolio-manager'].includes(req.user.role)) {
+        return res.status(403).json({ message: "Insufficient permissions to view expiring documents" });
+      }
+      
+      const documents = await storage.getExpiringDocuments(organizationId, daysAhead);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching expiring documents:", error);
+      res.status(500).json({ message: "Failed to fetch expiring documents" });
+    }
+  });
+
+  // Get document access logs
+  app.get("/api/documents/access-logs", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const { documentId, accessedBy, actionType } = req.query;
+      
+      // Only admin and PM can view access logs
+      if (!['admin', 'portfolio-manager'].includes(req.user.role)) {
+        return res.status(403).json({ message: "Insufficient permissions to view access logs" });
+      }
+      
+      const filters: any = {};
+      if (documentId) filters.documentId = parseInt(documentId as string);
+      if (accessedBy) filters.accessedBy = accessedBy;
+      if (actionType) filters.actionType = actionType;
+      
+      const logs = await storage.getDocumentAccessLogs(organizationId, filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching access logs:", error);
+      res.status(500).json({ message: "Failed to fetch access logs" });
+    }
+  });
+
+  // Get document summary/analytics
+  app.get("/api/documents/summary", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined;
+      
+      const summary = await storage.getDocumentSummary(organizationId, propertyId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching document summary:", error);
+      res.status(500).json({ message: "Failed to fetch document summary" });
+    }
+  });
+
+  // Get document expiration alerts
+  app.get("/api/documents/expiration-alerts", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const { documentId, isProcessed } = req.query;
+      
+      // Only admin and PM can view expiration alerts
+      if (!['admin', 'portfolio-manager'].includes(req.user.role)) {
+        return res.status(403).json({ message: "Insufficient permissions to view expiration alerts" });
+      }
+      
+      const filters: any = {};
+      if (documentId) filters.documentId = parseInt(documentId as string);
+      if (isProcessed !== undefined) filters.isProcessed = isProcessed === 'true';
+      
+      const alerts = await storage.getDocumentExpirationAlerts(organizationId, filters);
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching expiration alerts:", error);
+      res.status(500).json({ message: "Failed to fetch expiration alerts" });
+    }
+  });
+
+  // Get document export history
+  app.get("/api/documents/export-history", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const { propertyId, exportedBy, status } = req.query;
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (exportedBy) filters.exportedBy = exportedBy;
+      if (status) filters.status = status;
+      
+      const history = await storage.getDocumentExportHistory(organizationId, filters);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching export history:", error);
+      res.status(500).json({ message: "Failed to fetch export history" });
+    }
+  });
 }
