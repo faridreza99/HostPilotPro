@@ -41,6 +41,7 @@ import LoyaltyGuestTracker from "@/pages/LoyaltyGuestTracker";
 import LiveBookingCalendar from "@/pages/LiveBookingCalendar";
 import RetailAgentBookingEngine from "@/pages/RetailAgentBookingEngine";
 import GuestPortal from "@/pages/GuestPortal";
+import FinanceEngine from "@/pages/FinanceEngine";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -132,6 +133,7 @@ function Router() {
           <Route path="/hostaway" component={Hostaway} />
           <Route path="/booking-calendar" component={LiveBookingCalendar} />
           <Route path="/retail-agent-booking" component={RetailAgentBookingEngine} />
+          <Route path="/finance-engine" component={FinanceEngine} />
           <Route path="/settings" component={Settings} />
         </>
       )}

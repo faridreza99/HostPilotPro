@@ -798,10 +798,272 @@ export const pmTaskLogs = pgTable("pm_task_logs", {
   status: varchar("status").notNull(),
   completedAt: timestamp("completed_at"),
   evidencePhotos: jsonb("evidence_photos"), // Array of photo URLs
-  receipts: jsonb("receipts"), // Array of receipt URLs
-  result: text("result"),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  completionNotes: text("completion_notes"),
+});
+
+// ===== COMPREHENSIVE FINANCE ENGINE =====
+
+// Owner Financial Balances - Real-time balance tracking
+export const ownerBalances = pgTable("owner_balances", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).default("0"),
+  totalEarnings: decimal("total_earnings", { precision: 12, scale: 2 }).default("0"),
+  totalExpenses: decimal("total_expenses", { precision: 12, scale: 2 }).default("0"),
+  totalPayoutsRequested: decimal("total_payouts_requested", { precision: 12, scale: 2 }).default("0"),
+  totalPayoutsPaid: decimal("total_payouts_paid", { precision: 12, scale: 2 }).default("0"),
+  thisMonthEarnings: decimal("this_month_earnings", { precision: 12, scale: 2 }).default("0"),
+  thisMonthExpenses: decimal("this_month_expenses", { precision: 12, scale: 2 }).default("0"),
+  thisMonthNet: decimal("this_month_net", { precision: 12, scale: 2 }).default("0"),
+  lastCalculated: timestamp("last_calculated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Owner Payout Requests - Request and track payouts
+export const ownerPayoutRequests = pgTable("owner_payout_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("AUD"),
+  requestNotes: text("request_notes"),
+  adminNotes: text("admin_notes"),
+  status: varchar("status").default("pending"), // pending, approved, transferred, received, completed
+  
+  // Transfer tracking
+  transferMethod: varchar("transfer_method"), // bank, paypal, crypto, cash
+  transferReference: varchar("transfer_reference"),
+  transferReceiptUrl: varchar("transfer_receipt_url"), // Admin uploaded receipt
+  
+  // Owner confirmation
+  ownerConfirmed: boolean("owner_confirmed").default(false),
+  ownerConfirmedAt: timestamp("owner_confirmed_at"),
+  
+  // Workflow timestamps
+  requestedAt: timestamp("requested_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  transferredAt: timestamp("transferred_at"),
+  completedAt: timestamp("completed_at"),
+  
+  // Processing tracking
+  processedBy: varchar("processed_by"), // Admin who processed
+  approvedBy: varchar("approved_by"), // PM or Admin who approved
+});
+
+// Reverse Payments - When owner owes management
+export const ownerChargeRequests = pgTable("owner_charge_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  chargedBy: varchar("charged_by").references(() => users.id).notNull(), // Admin/PM creating charge
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("AUD"),
+  reason: text("reason").notNull(),
+  description: text("description"),
+  dueDate: date("due_date"),
+  
+  // Payment tracking
+  paymentMethod: varchar("payment_method"), // bank, paypal, cash, offset
+  paymentReference: varchar("payment_reference"),
+  paymentReceiptUrl: varchar("payment_receipt_url"),
+  
+  status: varchar("status").default("pending"), // pending, paid, overdue, cancelled
+  
+  // Workflow timestamps
+  chargedAt: timestamp("charged_at").defaultNow(),
+  paidAt: timestamp("paid_at"),
+  processedBy: varchar("processed_by"), // Admin who confirmed payment
+});
+
+// Property Payout Routing Rules - Platform-specific payout logic
+export const propertyPayoutRules = pgTable("property_payout_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  
+  // Platform rules
+  airbnbOwnerPercent: decimal("airbnb_owner_percent", { precision: 5, scale: 2 }).default("70"),
+  airbnbManagementPercent: decimal("airbnb_management_percent", { precision: 5, scale: 2 }).default("30"),
+  
+  vrboOwnerPercent: decimal("vrbo_owner_percent", { precision: 5, scale: 2 }).default("0"),
+  vrboManagementPercent: decimal("vrbo_management_percent", { precision: 5, scale: 2 }).default("100"),
+  
+  bookingOwnerPercent: decimal("booking_owner_percent", { precision: 5, scale: 2 }).default("0"),
+  bookingManagementPercent: decimal("booking_management_percent", { precision: 5, scale: 2 }).default("100"),
+  
+  directOwnerPercent: decimal("direct_owner_percent", { precision: 5, scale: 2 }).default("0"),
+  directManagementPercent: decimal("direct_management_percent", { precision: 5, scale: 2 }).default("100"),
+  
+  // Fee rules
+  stripeFeePercent: decimal("stripe_fee_percent", { precision: 5, scale: 2 }).default("5"),
+  stripeFeeNote: text("stripe_fee_note").default("5% processing fee applied"),
+  
+  // Override settings
+  allowBookingOverride: boolean("allow_booking_override").default(true),
+  defaultCurrency: varchar("default_currency", { length: 3 }).default("AUD"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Enhanced Property Utility Accounts - Complete utility tracking
+export const propertyUtilityAccountsNew = pgTable("property_utility_accounts_new", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  
+  // Utility details
+  utilityType: varchar("utility_type").notNull(), // electricity, water, internet, gas, custom
+  providerName: varchar("provider_name").notNull(), // PEA, 3BB, CAT, AIS, True, NT, Deepwell
+  accountNumber: varchar("account_number").notNull(),
+  contractHolder: varchar("contract_holder"), // Owner name or company
+  
+  // Billing schedule
+  expectedBillDate: integer("expected_bill_date").notNull(), // Day of month (1-31)
+  billingCycle: varchar("billing_cycle").default("monthly"), // monthly, quarterly
+  averageMonthlyAmount: decimal("average_monthly_amount", { precision: 10, scale: 2 }),
+  
+  // Contact info
+  customerServicePhone: varchar("customer_service_phone"),
+  onlinePortalUrl: varchar("online_portal_url"),
+  emergencyContactPhone: varchar("emergency_contact_phone"),
+  
+  // Auto-reminder settings
+  autoRemindersEnabled: boolean("auto_reminders_enabled").default(true),
+  reminderDaysAfterDue: integer("reminder_days_after_due").default(4),
+  
+  isActive: boolean("is_active").default(true),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Enhanced Utility Bills - Complete bill tracking with auto-reminders
+export const utilityBillsNew = pgTable("utility_bills_new", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  utilityAccountId: integer("utility_account_id").references(() => propertyUtilityAccountsNew.id),
+  
+  // Bill details
+  billNumber: varchar("bill_number"),
+  billingPeriodStart: date("billing_period_start"),
+  billingPeriodEnd: date("billing_period_end"),
+  dueDate: date("due_date").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  
+  // Usage tracking
+  currentReading: varchar("current_reading"),
+  previousReading: varchar("previous_reading"),
+  unitsUsed: decimal("units_used", { precision: 10, scale: 2 }),
+  ratePerUnit: decimal("rate_per_unit", { precision: 10, scale: 4 }),
+  
+  // Status tracking
+  status: varchar("status").default("pending"), // pending, uploaded, paid, overdue
+  billScanUrl: varchar("bill_scan_url"), // Uploaded bill image
+  paymentReceiptUrl: varchar("payment_receipt_url"), // Payment proof
+  paymentMethod: varchar("payment_method"), // bank, online, cash, auto-debit
+  
+  // Payment details
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }),
+  paidDate: date("paid_date"),
+  paymentReference: varchar("payment_reference"),
+  
+  // Assignment
+  responsibleParty: varchar("responsible_party").default("owner"), // owner, company
+  uploadedBy: varchar("uploaded_by"), // User who uploaded bill
+  paidBy: varchar("paid_by"), // User who confirmed payment
+  
+  // Auto-tracking
+  autoReminderSent: boolean("auto_reminder_sent").default(false),
+  reminderSentAt: timestamp("reminder_sent_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Recurring Service Charges - Auto-deducted property services
+export const recurringServiceCharges = pgTable("recurring_service_charges", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  
+  // Service details
+  serviceName: varchar("service_name").notNull(), // Pool, Garden, Pest, Cleaning, Staff
+  serviceCategory: varchar("service_category").notNull(), // maintenance, cleaning, security, utilities
+  providerName: varchar("provider_name"),
+  providerContact: varchar("provider_contact"),
+  
+  // Billing details
+  monthlyRate: decimal("monthly_rate", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  billingDay: integer("billing_day").default(1), // Day of month to charge
+  
+  // Assignment rules
+  chargeAssignment: varchar("charge_assignment").default("owner"), // owner, company
+  autoDeduct: boolean("auto_deduct").default(true),
+  requiresApproval: boolean("requires_approval").default(false),
+  
+  // Service schedule
+  serviceFrequency: varchar("service_frequency").default("weekly"), // daily, weekly, bi-weekly, monthly
+  serviceDay: varchar("service_day"), // monday, tuesday, etc.
+  serviceTime: varchar("service_time"), // "morning", "afternoon", specific time
+  
+  // Status tracking
+  isActive: boolean("is_active").default(true),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"), // Contract end date
+  lastChargedDate: date("last_charged_date"),
+  nextChargeDate: date("next_charge_date"),
+  
+  notes: text("notes"),
+  contractUrl: varchar("contract_url"), // Service contract document
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Financial Transaction Log - All money movements
+export const financialTransactions = pgTable("financial_transactions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  
+  // Transaction basics
+  transactionType: varchar("transaction_type").notNull(), // earning, expense, payout, charge, refund
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("AUD"),
+  
+  // Parties involved
+  fromParty: varchar("from_party"), // user_id or 'company' or external party
+  toParty: varchar("to_party"), // user_id or 'company' or external party
+  
+  // Reference tracking
+  referenceType: varchar("reference_type"), // booking, property, service, payout, bill
+  referenceId: integer("reference_id"),
+  bookingReference: varchar("booking_reference"),
+  
+  // Platform tracking
+  sourceplatform: varchar("source_platform"), // airbnb, vrbo, booking, direct, stripe
+  platformBookingId: varchar("platform_booking_id"),
+  
+  // Details
+  description: text("description").notNull(),
+  category: varchar("category"), // commission, maintenance, utility, service, management_fee
+  
+  // Status and processing
+  status: varchar("status").default("pending"), // pending, completed, failed, cancelled
+  processedBy: varchar("processed_by"), // User who processed transaction
+  processedAt: timestamp("processed_at"),
+  
+  // Document attachments
+  receiptUrl: varchar("receipt_url"),
+  invoiceUrl: varchar("invoice_url"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Portfolio Manager Property Performance Table
@@ -1043,6 +1305,38 @@ export const insertWelcomePackUsageSchema = createInsertSchema(welcomePackUsage)
 });
 
 export const insertOwnerPayoutSchema = createInsertSchema(ownerPayouts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Finance Engine schemas
+export const insertOwnerBalanceSchema = createInsertSchema(ownerBalances).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+
+
+export const insertOwnerChargeRequestSchema = createInsertSchema(ownerChargeRequests).omit({
+  id: true,
+  chargedAt: true,
+});
+
+export const insertPropertyPayoutRuleSchema = createInsertSchema(propertyPayoutRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRecurringServiceChargeSchema = createInsertSchema(recurringServiceCharges).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFinancialTransactionSchema = createInsertSchema(financialTransactions).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -2009,29 +2303,7 @@ export const ownerActivityTimeline = pgTable("owner_activity_timeline", {
   createdBy: varchar("created_by").references(() => users.id),
 });
 
-// Owner Payout Requests
-export const ownerPayoutRequests = pgTable("owner_payout_requests", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  ownerId: varchar("owner_id").references(() => users.id).notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  currency: varchar("currency").default("AUD"),
-  periodStart: date("period_start").notNull(),
-  periodEnd: date("period_end").notNull(),
-  status: varchar("status").notNull().default("pending"), // pending, approved, processing, completed
-  requestNotes: text("request_notes"),
-  adminNotes: text("admin_notes"),
-  paymentReceiptUrl: varchar("payment_receipt_url"),
-  paymentMethod: varchar("payment_method"),
-  paymentReference: varchar("payment_reference"),
-  requestedAt: timestamp("requested_at").defaultNow(),
-  approvedAt: timestamp("approved_at"),
-  approvedBy: varchar("approved_by").references(() => users.id),
-  paymentUploadedAt: timestamp("payment_uploaded_at"),
-  paymentUploadedBy: varchar("payment_uploaded_by").references(() => users.id),
-  completedAt: timestamp("completed_at"),
-  completedBy: varchar("completed_by").references(() => users.id),
-});
+
 
 // Owner Invoices
 export const ownerInvoices = pgTable("owner_invoices", {

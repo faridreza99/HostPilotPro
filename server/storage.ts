@@ -7904,6 +7904,178 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
+
+  // Finance Engine Methods
+  async getOwnerBalances(organizationId: string): Promise<any[]> {
+    return await db.select({
+      id: ownerBalances.id,
+      ownerId: ownerBalances.ownerId,
+      ownerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+      currentBalance: ownerBalances.currentBalance,
+      totalEarnings: ownerBalances.totalEarnings,
+      totalExpenses: ownerBalances.totalExpenses,
+      thisMonthEarnings: ownerBalances.thisMonthEarnings,
+      thisMonthExpenses: ownerBalances.thisMonthExpenses,
+      thisMonthNet: ownerBalances.thisMonthNet,
+      lastCalculated: ownerBalances.lastCalculated,
+    })
+    .from(ownerBalances)
+    .leftJoin(users, eq(users.id, ownerBalances.ownerId))
+    .where(eq(ownerBalances.organizationId, organizationId));
+  }
+
+  async getOwnerPayoutRequests(organizationId: string): Promise<any[]> {
+    return await db.select({
+      id: ownerPayoutRequests.id,
+      ownerId: ownerPayoutRequests.ownerId,
+      ownerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+      amount: ownerPayoutRequests.amount,
+      currency: ownerPayoutRequests.currency,
+      status: ownerPayoutRequests.status,
+      requestNotes: ownerPayoutRequests.requestNotes,
+      adminNotes: ownerPayoutRequests.adminNotes,
+      transferMethod: ownerPayoutRequests.transferMethod,
+      transferReference: ownerPayoutRequests.transferReference,
+      transferReceiptUrl: ownerPayoutRequests.transferReceiptUrl,
+      ownerConfirmed: ownerPayoutRequests.ownerConfirmed,
+      requestedAt: ownerPayoutRequests.requestedAt,
+      approvedAt: ownerPayoutRequests.approvedAt,
+      transferredAt: ownerPayoutRequests.transferredAt,
+      completedAt: ownerPayoutRequests.completedAt,
+    })
+    .from(ownerPayoutRequests)
+    .leftJoin(users, eq(users.id, ownerPayoutRequests.ownerId))
+    .where(eq(ownerPayoutRequests.organizationId, organizationId))
+    .orderBy(desc(ownerPayoutRequests.requestedAt));
+  }
+
+  async createOwnerPayoutRequest(data: any): Promise<any> {
+    const [payout] = await db.insert(ownerPayoutRequests).values(data).returning();
+    return payout;
+  }
+
+  async updateOwnerPayoutRequest(id: number, data: any): Promise<any> {
+    const [payout] = await db.update(ownerPayoutRequests)
+      .set(data)
+      .where(eq(ownerPayoutRequests.id, id))
+      .returning();
+    return payout;
+  }
+
+  async getOwnerChargeRequests(organizationId: string): Promise<any[]> {
+    return await db.select({
+      id: ownerChargeRequests.id,
+      ownerId: ownerChargeRequests.ownerId,
+      ownerName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+      chargedBy: ownerChargeRequests.chargedBy,
+      amount: ownerChargeRequests.amount,
+      currency: ownerChargeRequests.currency,
+      reason: ownerChargeRequests.reason,
+      description: ownerChargeRequests.description,
+      status: ownerChargeRequests.status,
+      paymentMethod: ownerChargeRequests.paymentMethod,
+      paymentReference: ownerChargeRequests.paymentReference,
+      chargedAt: ownerChargeRequests.chargedAt,
+      paidAt: ownerChargeRequests.paidAt,
+    })
+    .from(ownerChargeRequests)
+    .leftJoin(users, eq(users.id, ownerChargeRequests.ownerId))
+    .where(eq(ownerChargeRequests.organizationId, organizationId))
+    .orderBy(desc(ownerChargeRequests.chargedAt));
+  }
+
+  async createOwnerChargeRequest(data: any): Promise<any> {
+    const [charge] = await db.insert(ownerChargeRequests).values(data).returning();
+    return charge;
+  }
+
+  async getUtilityAccounts(organizationId: string): Promise<any[]> {
+    try {
+      return await db.select({
+        id: propertyUtilityAccountsNew.id,
+        propertyId: propertyUtilityAccountsNew.propertyId,
+        propertyName: properties.name,
+        utilityType: propertyUtilityAccountsNew.utilityType,
+        providerName: propertyUtilityAccountsNew.providerName,
+        accountNumber: propertyUtilityAccountsNew.accountNumber,
+        expectedBillDate: propertyUtilityAccountsNew.expectedBillDate,
+        averageMonthlyAmount: propertyUtilityAccountsNew.averageMonthlyAmount,
+        autoRemindersEnabled: propertyUtilityAccountsNew.autoRemindersEnabled,
+        isActive: propertyUtilityAccountsNew.isActive,
+      })
+      .from(propertyUtilityAccountsNew)
+      .leftJoin(properties, eq(properties.id, propertyUtilityAccountsNew.propertyId))
+      .where(eq(propertyUtilityAccountsNew.organizationId, organizationId));
+    } catch (error) {
+      console.error('Error fetching utility accounts:', error);
+      return [];
+    }
+  }
+
+  async createUtilityAccount(data: any): Promise<any> {
+    const [account] = await db.insert(propertyUtilityAccountsNew).values(data).returning();
+    return account;
+  }
+
+  async getRecurringServices(organizationId: string): Promise<any[]> {
+    try {
+      return await db.select({
+        id: recurringServiceCharges.id,
+        propertyId: recurringServiceCharges.propertyId,
+        propertyName: properties.name,
+        serviceName: recurringServiceCharges.serviceName,
+        serviceCategory: recurringServiceCharges.serviceCategory,
+        monthlyRate: recurringServiceCharges.monthlyRate,
+        chargeAssignment: recurringServiceCharges.chargeAssignment,
+        serviceFrequency: recurringServiceCharges.serviceFrequency,
+        isActive: recurringServiceCharges.isActive,
+        startDate: recurringServiceCharges.startDate,
+        nextChargeDate: recurringServiceCharges.nextChargeDate,
+      })
+      .from(recurringServiceCharges)
+      .leftJoin(properties, eq(properties.id, recurringServiceCharges.propertyId))
+      .where(eq(recurringServiceCharges.organizationId, organizationId));
+    } catch (error) {
+      console.error('Error fetching recurring services:', error);
+      return [];
+    }
+  }
+
+  async createRecurringService(data: any): Promise<any> {
+    const [service] = await db.insert(recurringServiceCharges).values(data).returning();
+    return service;
+  }
+
+  async getFinancialTransactions(organizationId: string): Promise<any[]> {
+    try {
+      return await db.select()
+        .from(financialTransactions)
+        .where(eq(financialTransactions.organizationId, organizationId))
+        .orderBy(desc(financialTransactions.createdAt));
+    } catch (error) {
+      console.error('Error fetching financial transactions:', error);
+      return [];
+    }
+  }
+
+  async createFinancialTransaction(data: any): Promise<any> {
+    const [transaction] = await db.insert(financialTransactions).values(data).returning();
+    return transaction;
+  }
+
+  async getOwnersForSelection(organizationId: string): Promise<any[]> {
+    return await db.select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+    })
+    .from(users)
+    .where(and(
+      eq(users.organizationId, organizationId),
+      eq(users.role, 'owner')
+    ));
+  }
 }
 
 export const storage = new DatabaseStorage();

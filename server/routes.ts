@@ -6108,6 +6108,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Finance Engine Routes
+  app.get("/api/finance/owner-balances", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const balances = await storage.getOwnerBalances(organizationId);
+      res.json(balances);
+    } catch (error) {
+      console.error("Error fetching owner balances:", error);
+      res.status(500).json({ message: "Failed to fetch owner balances" });
+    }
+  });
+
+  app.get("/api/finance/payout-requests", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const payouts = await storage.getOwnerPayoutRequests(organizationId);
+      res.json(payouts);
+    } catch (error) {
+      console.error("Error fetching payout requests:", error);
+      res.status(500).json({ message: "Failed to fetch payout requests" });
+    }
+  });
+
+  app.post("/api/finance/request-payout", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userId = req.user?.claims?.sub;
+      
+      const payoutData = {
+        organizationId,
+        ownerId: userId,
+        amount: parseFloat(req.body.amount),
+        transferMethod: req.body.transferMethod,
+        requestNotes: req.body.requestNotes,
+        status: "pending"
+      };
+
+      const payout = await storage.createOwnerPayoutRequest(payoutData);
+      res.json(payout);
+    } catch (error) {
+      console.error("Error creating payout request:", error);
+      res.status(500).json({ message: "Failed to create payout request" });
+    }
+  });
+
+  app.post("/api/finance/payout-requests/:id/approve", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { action } = req.body;
+      
+      const updateData: any = {};
+      if (action === 'approve') {
+        updateData.status = 'approved';
+        updateData.approvedAt = new Date();
+        updateData.approvedBy = req.user?.claims?.sub;
+      } else if (action === 'reject') {
+        updateData.status = 'rejected';
+      }
+
+      const payout = await storage.updateOwnerPayoutRequest(parseInt(id), updateData);
+      res.json(payout);
+    } catch (error) {
+      console.error("Error updating payout request:", error);
+      res.status(500).json({ message: "Failed to update payout request" });
+    }
+  });
+
+  app.get("/api/finance/charge-requests", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const charges = await storage.getOwnerChargeRequests(organizationId);
+      res.json(charges);
+    } catch (error) {
+      console.error("Error fetching charge requests:", error);
+      res.status(500).json({ message: "Failed to fetch charge requests" });
+    }
+  });
+
+  app.post("/api/finance/create-charge", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const chargedBy = req.user?.claims?.sub;
+      
+      const chargeData = {
+        organizationId,
+        ownerId: req.body.ownerId,
+        chargedBy,
+        amount: parseFloat(req.body.amount),
+        reason: req.body.reason,
+        description: req.body.description,
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
+        status: "pending"
+      };
+
+      const charge = await storage.createOwnerChargeRequest(chargeData);
+      res.json(charge);
+    } catch (error) {
+      console.error("Error creating charge request:", error);
+      res.status(500).json({ message: "Failed to create charge request" });
+    }
+  });
+
+  app.get("/api/finance/utility-accounts", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const accounts = await storage.getUtilityAccounts(organizationId);
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching utility accounts:", error);
+      res.status(500).json({ message: "Failed to fetch utility accounts" });
+    }
+  });
+
+  app.post("/api/finance/utility-accounts", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      
+      const accountData = {
+        organizationId,
+        propertyId: parseInt(req.body.propertyId),
+        utilityType: req.body.utilityType,
+        providerName: req.body.providerName,
+        accountNumber: req.body.accountNumber,
+        expectedBillDate: parseInt(req.body.expectedBillDate),
+        averageMonthlyAmount: req.body.averageMonthlyAmount ? parseFloat(req.body.averageMonthlyAmount) : null,
+        autoRemindersEnabled: true,
+        isActive: true
+      };
+
+      const account = await storage.createUtilityAccount(accountData);
+      res.json(account);
+    } catch (error) {
+      console.error("Error creating utility account:", error);
+      res.status(500).json({ message: "Failed to create utility account" });
+    }
+  });
+
+  app.get("/api/finance/recurring-services", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const services = await storage.getRecurringServices(organizationId);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching recurring services:", error);
+      res.status(500).json({ message: "Failed to fetch recurring services" });
+    }
+  });
+
+  app.post("/api/finance/recurring-services", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      
+      const serviceData = {
+        organizationId,
+        propertyId: parseInt(req.body.propertyId),
+        serviceName: req.body.serviceName,
+        serviceCategory: req.body.serviceCategory,
+        monthlyRate: parseFloat(req.body.monthlyRate),
+        chargeAssignment: req.body.chargeAssignment,
+        startDate: new Date(req.body.startDate),
+        serviceFrequency: "monthly",
+        isActive: true
+      };
+
+      const service = await storage.createRecurringService(serviceData);
+      res.json(service);
+    } catch (error) {
+      console.error("Error creating recurring service:", error);
+      res.status(500).json({ message: "Failed to create recurring service" });
+    }
+  });
+
+  app.get("/api/users/:role", authenticatedTenantMiddleware, async (req: any, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const { role } = req.params;
+      
+      if (role === 'owner') {
+        const owners = await storage.getOwnersForSelection(organizationId);
+        res.json(owners);
+      } else {
+        res.json([]);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
