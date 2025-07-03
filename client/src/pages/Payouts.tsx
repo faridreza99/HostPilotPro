@@ -41,7 +41,7 @@ const requestPayoutSchema = z.object({
 });
 
 export default function Payouts() {
-  const [selectedProperty, setSelectedProperty] = useState<string>("");
+  const [selectedProperty, setSelectedProperty] = useState<string>("all");
   const [selectedOwner, setSelectedOwner] = useState<string>("");
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   const { user } = useAuth();
@@ -78,7 +78,7 @@ export default function Payouts() {
         body: JSON.stringify({
           ...data,
           ownerId: selectedOwner,
-          propertyId: data.propertyId ? parseInt(data.propertyId) : null,
+          propertyId: data.propertyId && data.propertyId !== "all" ? parseInt(data.propertyId) : null,
           currency: "USD",
         }),
         headers: { "Content-Type": "application/json" },
@@ -156,7 +156,7 @@ export default function Payouts() {
   const form = useForm<z.infer<typeof requestPayoutSchema>>({
     resolver: zodResolver(requestPayoutSchema),
     defaultValues: {
-      propertyId: "",
+      propertyId: "all",
       requestedAmount: "",
       requestNotes: "",
       periodStartDate: "",
@@ -225,7 +225,7 @@ export default function Payouts() {
                       <SelectValue placeholder="All properties" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All properties</SelectItem>
+                      <SelectItem value="all">All properties</SelectItem>
                       {properties
                         .filter((p: any) => !selectedOwner || p.ownerId === selectedOwner)
                         .map((property: any) => (
@@ -330,7 +330,7 @@ export default function Payouts() {
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
-                                        <SelectItem value="">All properties</SelectItem>
+                                        <SelectItem value="all">All properties</SelectItem>
                                         {properties
                                           .filter((p: any) => p.ownerId === selectedOwner)
                                           .map((property: any) => (

@@ -2563,6 +2563,214 @@ export type OwnerActivityTimeline = typeof ownerActivityTimeline.$inferSelect;
 export type InsertOwnerActivityTimeline = z.infer<typeof insertOwnerActivityTimelineSchema>;
 export type OwnerInvoice = typeof ownerInvoices.$inferSelect;
 export type InsertOwnerInvoice = z.infer<typeof insertOwnerInvoiceSchema>;
+
+// ===== TASK ENGINE SMART SCHEDULING & AI SUGGESTIONS =====
+
+// Enhanced Task Scheduling Calendar
+export const taskSchedule = pgTable("task_schedule", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  scheduledDate: date("scheduled_date").notNull(),
+  scheduledStartTime: varchar("scheduled_start_time"), // HH:MM format
+  scheduledEndTime: varchar("scheduled_end_time"), // HH:MM format
+  timeBlockDuration: integer("time_block_duration").default(60), // minutes
+  assignedStaffId: varchar("assigned_staff_id").references(() => users.id),
+  autoAssigned: boolean("auto_assigned").default(false), // true if system auto-assigned
+  scheduleType: varchar("schedule_type").notNull(), // auto-generated, recurring, manual, ai-suggested
+  priority: varchar("priority").default("medium"), // low, medium, high, urgent
+  status: varchar("status").default("scheduled"), // scheduled, in-progress, completed, missed, rescheduled
+  actualStartTime: timestamp("actual_start_time"),
+  actualEndTime: timestamp("actual_end_time"),
+  rescheduleReason: text("reschedule_reason"),
+  scheduledBy: varchar("scheduled_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Task Auto-Generation Rules
+export const taskAutoGenRules = pgTable("task_auto_gen_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ruleName: varchar("rule_name").notNull(),
+  ruleType: varchar("rule_type").notNull(), // checkout-clean, recurring-service, maintenance-followup
+  triggerEvent: varchar("trigger_event").notNull(), // guest-checkout, booking-start, schedule-time, condition-met
+  department: varchar("department").notNull(), // cleaning, pool, garden, maintenance, general
+  taskType: varchar("task_type").notNull(),
+  taskTitle: varchar("task_title").notNull(),
+  taskDescription: text("task_description"),
+  estimatedDuration: integer("estimated_duration").default(60), // minutes
+  defaultPriority: varchar("default_priority").default("medium"),
+  autoAssign: boolean("auto_assign").default(true),
+  preferredStaffRole: varchar("preferred_staff_role"), // staff, maintenance, cleaning
+  billingRule: varchar("billing_rule").notNull(), // owner-billable, guest-billable, company-expense, complimentary
+  billingAmount: decimal("billing_amount", { precision: 10, scale: 2 }),
+  isActive: boolean("is_active").default(true),
+  conditions: jsonb("conditions"), // Additional trigger conditions (occupancy, booking duration, etc.)
+  recurringPattern: jsonb("recurring_pattern"), // For recurring tasks (daily, weekly, monthly)
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property-Specific Task Billing Rules
+export const propertyTaskBilling = pgTable("property_task_billing", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  taskType: varchar("task_type").notNull(), // checkout-clean, pool-service, garden-service, pest-control
+  department: varchar("department").notNull(),
+  billingRate: decimal("billing_rate", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("AUD"),
+  billingCycle: varchar("billing_cycle").default("per-occurrence"), // per-occurrence, monthly, weekly
+  chargeToParty: varchar("charge_to_party").notNull(), // owner, guest, company
+  isActive: boolean("is_active").default(true),
+  effectiveFrom: date("effective_from").notNull(),
+  effectiveTo: date("effective_to"),
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI Task Generation Engine
+export const aiTaskEngine = pgTable("ai_task_engine", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  triggerSource: varchar("trigger_source").notNull(), // guest-review, guest-message, booking-conditions, maintenance-alert
+  sourceId: integer("source_id"), // feedback_id, message_id, booking_id
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  aiAnalysis: text("ai_analysis").notNull(), // AI's analysis of the trigger
+  suggestedTaskType: varchar("suggested_task_type").notNull(),
+  suggestedDepartment: varchar("suggested_department").notNull(),
+  suggestedPriority: varchar("suggested_priority").default("medium"),
+  suggestedTitle: varchar("suggested_title").notNull(),
+  suggestedDescription: text("suggested_description"),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }).notNull(), // AI confidence score 0-100
+  keywords: text("keywords").array(), // Keywords that triggered the suggestion
+  status: varchar("status").default("pending"), // pending, approved, rejected, auto-created
+  createdTaskId: integer("created_task_id").references(() => tasks.id),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Task Department Performance Analytics
+export const taskDepartmentStats = pgTable("task_department_stats", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  department: varchar("department").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  reportMonth: varchar("report_month").notNull(), // YYYY-MM format
+  totalTasks: integer("total_tasks").default(0),
+  completedTasks: integer("completed_tasks").default(0),
+  overdueTasks: integer("overdue_tasks").default(0),
+  avgCompletionTime: decimal("avg_completion_time", { precision: 8, scale: 2 }), // hours
+  totalCosts: decimal("total_costs", { precision: 12, scale: 2 }).default("0"),
+  ownerBillable: decimal("owner_billable", { precision: 12, scale: 2 }).default("0"),
+  guestBillable: decimal("guest_billable", { precision: 12, scale: 2 }).default("0"),
+  companyExpense: decimal("company_expense", { precision: 12, scale: 2 }).default("0"),
+  aiGeneratedTasks: integer("ai_generated_tasks").default(0),
+  emergencyTasks: integer("emergency_tasks").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Enhanced Task Evidence with Before/After Photos
+export const taskEvidence = pgTable("task_evidence", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  evidenceType: varchar("evidence_type").notNull(), // before-photo, after-photo, receipt, document, note
+  fileUrl: varchar("file_url"),
+  fileName: varchar("file_name"),
+  fileSize: integer("file_size"), // bytes
+  description: text("description"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  isRequired: boolean("is_required").default(false), // if this evidence is mandatory for task completion
+});
+
+// Task Completion Notifications & Escalations
+export const taskNotificationRules = pgTable("task_notification_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ruleType: varchar("rule_type").notNull(), // overdue, missing-evidence, emergency, completion
+  department: varchar("department"), // null = applies to all departments
+  triggerCondition: varchar("trigger_condition").notNull(), // hours-overdue, no-photo-after-hours, priority-urgent
+  triggerValue: integer("trigger_value"), // hours, days, etc.
+  notifyRoles: text("notify_roles").array(), // admin, portfolio-manager, staff
+  notificationMethod: varchar("notification_method").default("in-app"), // in-app, email, sms
+  escalationChain: jsonb("escalation_chain"), // sequence of users to notify
+  messageTemplate: text("message_template"),
+  isActive: boolean("is_active").default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ===== TASK ENGINE INSERT SCHEMAS =====
+
+export const insertTaskScheduleSchema = createInsertSchema(taskSchedule).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskAutoGenRuleSchema = createInsertSchema(taskAutoGenRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyTaskBillingSchema = createInsertSchema(propertyTaskBilling).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAiTaskEngineSchema = createInsertSchema(aiTaskEngine).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskDepartmentStatsSchema = createInsertSchema(taskDepartmentStats).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskEvidenceSchema = createInsertSchema(taskEvidence).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export const insertTaskNotificationRuleSchema = createInsertSchema(taskNotificationRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== TASK ENGINE TYPES =====
+
+export type TaskSchedule = typeof taskSchedule.$inferSelect;
+export type InsertTaskSchedule = z.infer<typeof insertTaskScheduleSchema>;
+export type TaskAutoGenRule = typeof taskAutoGenRules.$inferSelect;
+export type InsertTaskAutoGenRule = z.infer<typeof insertTaskAutoGenRuleSchema>;
+export type PropertyTaskBilling = typeof propertyTaskBilling.$inferSelect;
+export type InsertPropertyTaskBilling = z.infer<typeof insertPropertyTaskBillingSchema>;
+export type AiTaskEngine = typeof aiTaskEngine.$inferSelect;
+export type InsertAiTaskEngine = z.infer<typeof insertAiTaskEngineSchema>;
+export type TaskDepartmentStats = typeof taskDepartmentStats.$inferSelect;
+export type InsertTaskDepartmentStats = z.infer<typeof insertTaskDepartmentStatsSchema>;
+export type TaskEvidence = typeof taskEvidence.$inferSelect;
+export type InsertTaskEvidence = z.infer<typeof insertTaskEvidenceSchema>;
+export type TaskNotificationRule = typeof taskNotificationRules.$inferSelect;
+export type InsertTaskNotificationRule = z.infer<typeof insertTaskNotificationRuleSchema>;
 export type OwnerPreferences = typeof ownerPreferences.$inferSelect;
 export type InsertOwnerPreferences = z.infer<typeof insertOwnerPreferencesSchema>;
 
