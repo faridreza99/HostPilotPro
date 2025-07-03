@@ -39,6 +39,7 @@ import FinanceResetControl from "@/pages/FinanceResetControl";
 import UtilityCustomization from "@/pages/UtilityCustomization";
 import InvoiceGenerator from "@/pages/InvoiceGenerator";
 import UtilityTracker from "@/pages/UtilityTracker";
+import EnhancedUtilityTracker from "@/pages/EnhancedUtilityTracker";
 import AgentCommissionDashboard from "@/pages/AgentCommissionDashboard";
 import LoyaltyGuestTracker from "@/pages/LoyaltyGuestTracker";
 import LiveBookingCalendar from "@/pages/LiveBookingCalendar";
@@ -124,7 +125,7 @@ function Router() {
           <Route path="/payouts" component={Payouts} />
           <Route path="/financial-toolkit" component={FinancialToolkit} />
           <Route path="/invoice-generator" component={InvoiceGenerator} />
-          <Route path="/utility-tracker" component={UtilityTracker} />
+          <Route path="/utility-tracker" component={EnhancedUtilityTracker} />
           <Route path="/utility-tracking" component={UtilityTracking} />
           <Route path="/ai-feedback" component={AiFeedbackMonitor} />
           <Route path="/guest-addon-services" component={GuestAddonServices} />

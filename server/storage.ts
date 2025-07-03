@@ -9280,6 +9280,122 @@ Plant Care:
     };
   }
 
+  // ==================== ENHANCED UTILITY TRACKER ====================
+
+  async getUtilityAccounts(organizationId: string): Promise<any[]> {
+    const accounts = await db
+      .select()
+      .from(propertyUtilityAccounts)
+      .where(eq(propertyUtilityAccounts.organizationId, organizationId));
+    return accounts;
+  }
+
+  async createUtilityAccount(accountData: any): Promise<any> {
+    const [account] = await db
+      .insert(propertyUtilityAccounts)
+      .values(accountData)
+      .returning();
+    return account;
+  }
+
+  async getUtilityBills(organizationId: string, filters: any = {}): Promise<any[]> {
+    let query = db
+      .select()
+      .from(utilityBills)
+      .where(eq(utilityBills.organizationId, organizationId));
+
+    if (filters.propertyId) {
+      query = query.where(eq(utilityBills.propertyId, filters.propertyId));
+    }
+    if (filters.status) {
+      query = query.where(eq(utilityBills.status, filters.status));
+    }
+    if (filters.utilityType) {
+      query = query.where(eq(utilityBills.type, filters.utilityType));
+    }
+
+    const bills = await query.orderBy(desc(utilityBills.createdAt));
+    return bills;
+  }
+
+  async createUtilityBill(billData: any): Promise<any> {
+    const [bill] = await db
+      .insert(utilityBills)
+      .values(billData)
+      .returning();
+    return bill;
+  }
+
+  async confirmUtilityBillPayment(billId: number, paymentData: any): Promise<any> {
+    const [updated] = await db
+      .update(utilityBills)
+      .set({
+        ...paymentData,
+        updatedAt: new Date(),
+      })
+      .where(eq(utilityBills.id, billId))
+      .returning();
+    return updated;
+  }
+
+  async getUtilityReminders(organizationId: string): Promise<any[]> {
+    const reminders = await db
+      .select()
+      .from(utilityBillReminders)
+      .where(eq(utilityBillReminders.organizationId, organizationId))
+      .orderBy(desc(utilityBillReminders.createdAt));
+    return reminders;
+  }
+
+  async getUtilityStats(organizationId: string): Promise<any> {
+    // Get total bills count
+    const totalBillsResult = await db
+      .select({ count: count() })
+      .from(utilityBills)
+      .where(eq(utilityBills.organizationId, organizationId));
+
+    // Get pending bills count
+    const pendingBillsResult = await db
+      .select({ count: count() })
+      .from(utilityBills)
+      .where(
+        and(
+          eq(utilityBills.organizationId, organizationId),
+          eq(utilityBills.status, "pending")
+        )
+      );
+
+    // Get overdue bills count
+    const overdueBillsResult = await db
+      .select({ count: count() })
+      .from(utilityBills)
+      .where(
+        and(
+          eq(utilityBills.organizationId, organizationId),
+          eq(utilityBills.status, "overdue")
+        )
+      );
+
+    // Get monthly total
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+    const monthlyTotalResult = await db
+      .select({ total: sum(utilityBills.amount) })
+      .from(utilityBills)
+      .where(
+        and(
+          eq(utilityBills.organizationId, organizationId),
+          eq(utilityBills.billingMonth, currentMonth)
+        )
+      );
+
+    return {
+      totalBills: totalBillsResult[0]?.count || 0,
+      pendingBills: pendingBillsResult[0]?.count || 0,
+      overdueBills: overdueBillsResult[0]?.count || 0,
+      monthlyTotal: parseFloat(monthlyTotalResult[0]?.total || "0"),
+    };
+  }
+
   // ==================== PLATFORM-BASED REVENUE ROUTING RULES ====================
 
   // Platform Routing Rules Operations

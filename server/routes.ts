@@ -7767,6 +7767,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== ENHANCED UTILITY TRACKER ====================
+
+  // Utility accounts endpoints
+  app.get("/api/utility-accounts", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1";
+      const accounts = await storage.getUtilityAccounts(organizationId);
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching utility accounts:", error);
+      res.status(500).json({ message: "Failed to fetch utility accounts" });
+    }
+  });
+
+  app.post("/api/utility-accounts", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1";
+      const accountData = {
+        ...req.body,
+        organizationId,
+        propertyId: parseInt(req.body.propertyId),
+        billArrivalDay: parseInt(req.body.billArrivalDay),
+      };
+      
+      const newAccount = await storage.createUtilityAccount(accountData);
+      res.json(newAccount);
+    } catch (error) {
+      console.error("Error creating utility account:", error);
+      res.status(500).json({ message: "Failed to create utility account" });
+    }
+  });
+
+  // Utility bills endpoints  
+  app.get("/api/utility-bills", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1";
+      const { propertyId, status, utilityType } = req.query;
+      
+      const bills = await storage.getUtilityBills(organizationId, {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        status: status as string,
+        utilityType: utilityType as string,
+      });
+      
+      res.json(bills);
+    } catch (error) {
+      console.error("Error fetching utility bills:", error);
+      res.status(500).json({ message: "Failed to fetch utility bills" });
+    }
+  });
+
+  app.post("/api/utility-bills", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1";
+      const { id: userId } = req.user;
+      
+      const billData = {
+        ...req.body,
+        organizationId,
+        propertyId: parseInt(req.body.propertyId),
+        amount: parseFloat(req.body.amount),
+        status: "uploaded",
+        uploadedBy: userId,
+        uploadedAt: new Date(),
+      };
+      
+      const newBill = await storage.createUtilityBill(billData);
+      res.json(newBill);
+    } catch (error) {
+      console.error("Error uploading utility bill:", error);
+      res.status(500).json({ message: "Failed to upload utility bill" });
+    }
+  });
+
+  app.post("/api/utility-bills/:id/confirm-payment", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentDate, paymentMethod, receiptNumber, notes } = req.body;
+      
+      const updatedBill = await storage.confirmUtilityBillPayment(parseInt(id), {
+        paymentDate: new Date(paymentDate),
+        paymentMethod,
+        receiptNumber,
+        notes,
+        status: "paid",
+      });
+      
+      if (!updatedBill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+      
+      res.json(updatedBill);
+    } catch (error) {
+      console.error("Error confirming payment:", error);
+      res.status(500).json({ message: "Failed to confirm payment" });
+    }
+  });
+
+  // Utility reminders endpoint
+  app.get("/api/utility-reminders", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1";
+      const reminders = await storage.getUtilityReminders(organizationId);
+      res.json(reminders);
+    } catch (error) {
+      console.error("Error fetching utility reminders:", error);
+      res.status(500).json({ message: "Failed to fetch utility reminders" });
+    }
+  });
+
+  // Utility statistics endpoint
+  app.get("/api/utility-stats", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1";
+      const stats = await storage.getUtilityStats(organizationId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching utility stats:", error);
+      res.status(500).json({ message: "Failed to fetch utility stats" });
+    }
+  });
+
   // ==================== PLATFORM-BASED REVENUE ROUTING RULES ====================
 
   // Platform routing rules endpoints
