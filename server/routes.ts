@@ -7,6 +7,7 @@ import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
 import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema } from "@shared/schema";
 import { z } from "zod";
 import { seedThailandUtilityProviders } from "./seedThailandUtilityProviders";
+import { seedVillaSamuiDemo } from "./seedVillaSamuiDemo";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup demo authentication (for development/testing)
@@ -17212,6 +17213,34 @@ async function processGuestIssueForAI(issueReport: any) {
     } catch (error) {
       console.error("Error refreshing daily operations:", error);
       res.status(500).json({ message: "Failed to refresh daily operations" });
+    }
+  });
+
+  // Villa Samui Demo Data Seeding
+  app.post("/api/seed-villa-samui-demo", async (req, res) => {
+    try {
+      await seedVillaSamuiDemo();
+      res.json({ 
+        message: "Villa Samui Breeze demo data seeded successfully!",
+        details: [
+          "Property: Villa Samui Breeze (3BR with pool & garden)",
+          "Booking: John Doe, July 1-5, 2025 (4 nights, 32,000 THB)",
+          "Check-in/out: Complete workflow with meter readings",
+          "Add-on services: Airport pickup, chef, cleaning",
+          "Financial transactions: All income/expense tracking",
+          "Tasks: Cleaning, pool service, AI-triggered maintenance",
+          "Guest feedback: AC complaint triggering maintenance alert",
+          "Owner payout: 22,400 THB (70% share)",
+          "PM commission: 4,800 THB for Adam",
+          "Invoice & notifications: Complete financial flow"
+        ]
+      });
+    } catch (error) {
+      console.error("Error seeding Villa Samui demo:", error);
+      res.status(500).json({ 
+        message: "Failed to seed Villa Samui demo data",
+        error: error.message 
+      });
     }
   });
 

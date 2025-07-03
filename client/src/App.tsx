@@ -71,6 +71,7 @@ import AdminActivityLog from "@/pages/AdminActivityLog";
 import DocumentCenter from "@/pages/DocumentCenter";
 import PropertyAccessManagement from "@/pages/PropertyAccessManagement";
 import DailyOperationsDashboard from "@/pages/DailyOperationsDashboard";
+import VillaSamuiDemo from "@/pages/VillaSamuiDemo";
 import CheckInCheckOutWorkflow from "@/pages/CheckInCheckOutWorkflow";
 import PropertyDetailView from "@/pages/PropertyDetailView";
 
@@ -202,6 +203,7 @@ function Router() {
         <Route path="/maintenance-suggestions" component={MaintenanceSuggestionsApproval} />
         <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
         <Route path="/settings" component={Settings} />
+        <Route path="/villa-samui-demo" component={VillaSamuiDemo} />
         <Route component={NotFound} />
         </Switch>
       </Layout>
