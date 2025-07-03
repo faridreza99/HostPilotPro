@@ -20640,6 +20640,370 @@ Plant Care:
     // Update the summary
     await this.generateDailyOperationsSummary(organizationId, operationDate);
   }
+  // ==================== CHECK-IN/CHECK-OUT WORKFLOW OPERATIONS ====================
+
+  // Guest Check-ins Operations
+  async getGuestCheckIns(organizationId: string, filters?: {
+    propertyId?: number;
+    bookingId?: number;
+    assignedToStaff?: string;
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<GuestCheckIn[]> {
+    let query = db.select().from(guestCheckIns).where(eq(guestCheckIns.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(guestCheckIns.propertyId, filters.propertyId));
+    }
+    if (filters?.bookingId) {
+      query = query.where(eq(guestCheckIns.bookingId, filters.bookingId));
+    }
+    if (filters?.assignedToStaff) {
+      query = query.where(eq(guestCheckIns.assignedToStaff, filters.assignedToStaff));
+    }
+    if (filters?.status) {
+      query = query.where(eq(guestCheckIns.status, filters.status));
+    }
+    if (filters?.fromDate) {
+      query = query.where(gte(guestCheckIns.scheduledDate, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      query = query.where(lte(guestCheckIns.scheduledDate, filters.toDate));
+    }
+
+    return query.orderBy(desc(guestCheckIns.scheduledDate));
+  }
+
+  async getGuestCheckIn(id: number): Promise<GuestCheckIn | undefined> {
+    const [checkIn] = await db.select().from(guestCheckIns).where(eq(guestCheckIns.id, id));
+    return checkIn;
+  }
+
+  async createGuestCheckIn(checkIn: InsertGuestCheckIn): Promise<GuestCheckIn> {
+    const [newCheckIn] = await db.insert(guestCheckIns).values(checkIn).returning();
+    return newCheckIn;
+  }
+
+  async updateGuestCheckIn(id: number, updates: Partial<InsertGuestCheckIn>): Promise<GuestCheckIn | undefined> {
+    const [updated] = await db
+      .update(guestCheckIns)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(guestCheckIns.id, id))
+      .returning();
+    return updated;
+  }
+
+  async startGuestCheckIn(id: number, staffId: string): Promise<GuestCheckIn | undefined> {
+    const [updated] = await db
+      .update(guestCheckIns)
+      .set({ 
+        status: 'in_progress',
+        completedByStaff: staffId,
+        startedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(guestCheckIns.id, id))
+      .returning();
+    return updated;
+  }
+
+  async completeGuestCheckIn(id: number, completionData: {
+    electricMeterReading: number;
+    meterReadingMethod?: string;
+    passportPhotos?: string[];
+    guestNames?: string[];
+    passportNumbers?: string[];
+    depositType?: string;
+    depositAmount?: number;
+    depositCurrency?: string;
+    depositReceiptPhoto?: string;
+    completionNotes?: string;
+  }): Promise<GuestCheckIn | undefined> {
+    const [updated] = await db
+      .update(guestCheckIns)
+      .set({ 
+        status: 'completed',
+        completedAt: new Date(),
+        updatedAt: new Date(),
+        ...completionData
+      })
+      .where(eq(guestCheckIns.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Guest Check-outs Operations
+  async getGuestCheckOuts(organizationId: string, filters?: {
+    propertyId?: number;
+    bookingId?: number;
+    checkInId?: number;
+    assignedToStaff?: string;
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<GuestCheckOut[]> {
+    let query = db.select().from(guestCheckOuts).where(eq(guestCheckOuts.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(guestCheckOuts.propertyId, filters.propertyId));
+    }
+    if (filters?.bookingId) {
+      query = query.where(eq(guestCheckOuts.bookingId, filters.bookingId));
+    }
+    if (filters?.checkInId) {
+      query = query.where(eq(guestCheckOuts.checkInId, filters.checkInId));
+    }
+    if (filters?.assignedToStaff) {
+      query = query.where(eq(guestCheckOuts.assignedToStaff, filters.assignedToStaff));
+    }
+    if (filters?.status) {
+      query = query.where(eq(guestCheckOuts.status, filters.status));
+    }
+    if (filters?.fromDate) {
+      query = query.where(gte(guestCheckOuts.scheduledDate, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      query = query.where(lte(guestCheckOuts.scheduledDate, filters.toDate));
+    }
+
+    return query.orderBy(desc(guestCheckOuts.scheduledDate));
+  }
+
+  async getGuestCheckOut(id: number): Promise<GuestCheckOut | undefined> {
+    const [checkOut] = await db.select().from(guestCheckOuts).where(eq(guestCheckOuts.id, id));
+    return checkOut;
+  }
+
+  async createGuestCheckOut(checkOut: InsertGuestCheckOut): Promise<GuestCheckOut> {
+    const [newCheckOut] = await db.insert(guestCheckOuts).values(checkOut).returning();
+    return newCheckOut;
+  }
+
+  async updateGuestCheckOut(id: number, updates: Partial<InsertGuestCheckOut>): Promise<GuestCheckOut | undefined> {
+    const [updated] = await db
+      .update(guestCheckOuts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(guestCheckOuts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async startGuestCheckOut(id: number, staffId: string): Promise<GuestCheckOut | undefined> {
+    const [updated] = await db
+      .update(guestCheckOuts)
+      .set({ 
+        status: 'in_progress',
+        completedByStaff: staffId,
+        startedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(guestCheckOuts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async completeGuestCheckOut(id: number, completionData: {
+    electricMeterReading: number;
+    meterReadingMethod?: string;
+    electricityUsed: number;
+    electricityRatePerKwh: number;
+    totalElectricityCharge: number;
+    discountAmount?: number;
+    discountReason?: string;
+    paymentStatus: string;
+    notChargedReason?: string;
+    paymentMethod?: string;
+    paymentReceiptPhoto?: string;
+    completionNotes?: string;
+    handlerComments?: string;
+  }): Promise<GuestCheckOut | undefined> {
+    const [updated] = await db
+      .update(guestCheckOuts)
+      .set({ 
+        status: 'completed',
+        completedAt: new Date(),
+        updatedAt: new Date(),
+        ...completionData
+      })
+      .where(eq(guestCheckOuts.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Property Electricity Settings Operations
+  async getPropertyElectricitySettings(organizationId: string, propertyId?: number): Promise<PropertyElectricitySettings[]> {
+    let query = db.select().from(propertyElectricitySettings).where(eq(propertyElectricitySettings.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(propertyElectricitySettings.propertyId, propertyId));
+    }
+
+    return query;
+  }
+
+  async getPropertyElectricitySetting(propertyId: number): Promise<PropertyElectricitySettings | undefined> {
+    const [setting] = await db.select().from(propertyElectricitySettings).where(eq(propertyElectricitySettings.propertyId, propertyId));
+    return setting;
+  }
+
+  async createPropertyElectricitySetting(setting: InsertPropertyElectricitySettings): Promise<PropertyElectricitySettings> {
+    const [newSetting] = await db.insert(propertyElectricitySettings).values(setting).returning();
+    return newSetting;
+  }
+
+  async updatePropertyElectricitySetting(propertyId: number, updates: Partial<InsertPropertyElectricitySettings>): Promise<PropertyElectricitySettings | undefined> {
+    const [updated] = await db
+      .update(propertyElectricitySettings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyElectricitySettings.propertyId, propertyId))
+      .returning();
+    return updated;
+  }
+
+  // Demo Tasks Operations
+  async getCheckInOutDemoTasks(organizationId: string, filters?: {
+    taskType?: string;
+    assignedRole?: string;
+    assignedToUser?: string;
+    propertyId?: number;
+    status?: string;
+    demoUserType?: string;
+  }): Promise<CheckInOutDemoTask[]> {
+    let query = db.select().from(checkInOutDemoTasks).where(eq(checkInOutDemoTasks.organizationId, organizationId));
+
+    if (filters?.taskType) {
+      query = query.where(eq(checkInOutDemoTasks.taskType, filters.taskType));
+    }
+    if (filters?.assignedRole) {
+      query = query.where(eq(checkInOutDemoTasks.assignedRole, filters.assignedRole));
+    }
+    if (filters?.assignedToUser) {
+      query = query.where(eq(checkInOutDemoTasks.assignedToUser, filters.assignedToUser));
+    }
+    if (filters?.propertyId) {
+      query = query.where(eq(checkInOutDemoTasks.propertyId, filters.propertyId));
+    }
+    if (filters?.status) {
+      query = query.where(eq(checkInOutDemoTasks.status, filters.status));
+    }
+    if (filters?.demoUserType) {
+      query = query.where(eq(checkInOutDemoTasks.demoUserType, filters.demoUserType));
+    }
+
+    return query.orderBy(asc(checkInOutDemoTasks.dueDate));
+  }
+
+  async getCheckInOutDemoTask(id: number): Promise<CheckInOutDemoTask | undefined> {
+    const [task] = await db.select().from(checkInOutDemoTasks).where(eq(checkInOutDemoTasks.id, id));
+    return task;
+  }
+
+  async createCheckInOutDemoTask(task: InsertCheckInOutDemoTask): Promise<CheckInOutDemoTask> {
+    const [newTask] = await db.insert(checkInOutDemoTasks).values(task).returning();
+    return newTask;
+  }
+
+  async updateCheckInOutDemoTask(id: number, updates: Partial<InsertCheckInOutDemoTask>): Promise<CheckInOutDemoTask | undefined> {
+    const [updated] = await db
+      .update(checkInOutDemoTasks)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(checkInOutDemoTasks.id, id))
+      .returning();
+    return updated;
+  }
+
+  async completeCheckInOutDemoTask(id: number, completionData: {
+    completionNotes?: string;
+    evidencePhotos?: string[];
+  }): Promise<CheckInOutDemoTask | undefined> {
+    const [updated] = await db
+      .update(checkInOutDemoTasks)
+      .set({ 
+        status: 'completed',
+        completedAt: new Date(),
+        updatedAt: new Date(),
+        ...completionData
+      })
+      .where(eq(checkInOutDemoTasks.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Workflow Analytics
+  async getCheckInOutAnalytics(organizationId: string, filters?: { fromDate?: Date; toDate?: Date }): Promise<{
+    totalCheckIns: number;
+    totalCheckOuts: number;
+    completionRate: number;
+    avgElectricityUsage: number;
+    avgElectricityCharge: number;
+    paymentStatusBreakdown: Record<string, number>;
+    departmentTaskBreakdown: Record<string, number>;
+  }> {
+    let checkInQuery = db.select().from(guestCheckIns).where(eq(guestCheckIns.organizationId, organizationId));
+    let checkOutQuery = db.select().from(guestCheckOuts).where(eq(guestCheckOuts.organizationId, organizationId));
+    let demoTaskQuery = db.select().from(checkInOutDemoTasks).where(eq(checkInOutDemoTasks.organizationId, organizationId));
+
+    if (filters?.fromDate) {
+      checkInQuery = checkInQuery.where(gte(guestCheckIns.scheduledDate, filters.fromDate));
+      checkOutQuery = checkOutQuery.where(gte(guestCheckOuts.scheduledDate, filters.fromDate));
+      demoTaskQuery = demoTaskQuery.where(gte(checkInOutDemoTasks.dueDate, filters.fromDate));
+    }
+
+    if (filters?.toDate) {
+      checkInQuery = checkInQuery.where(lte(guestCheckIns.scheduledDate, filters.toDate));
+      checkOutQuery = checkOutQuery.where(lte(guestCheckOuts.scheduledDate, filters.toDate));
+      demoTaskQuery = demoTaskQuery.where(lte(checkInOutDemoTasks.dueDate, filters.toDate));
+    }
+
+    const [checkIns, checkOuts, demoTasks] = await Promise.all([
+      checkInQuery,
+      checkOutQuery,
+      demoTaskQuery
+    ]);
+
+    const totalCheckIns = checkIns.length;
+    const totalCheckOuts = checkOuts.length;
+    const completedCheckIns = checkIns.filter(c => c.status === 'completed').length;
+    const completedCheckOuts = checkOuts.filter(c => c.status === 'completed').length;
+    const completionRate = totalCheckIns + totalCheckOuts > 0 
+      ? ((completedCheckIns + completedCheckOuts) / (totalCheckIns + totalCheckOuts)) * 100 
+      : 0;
+
+    // Calculate electricity metrics
+    const completedCheckOutsWithUsage = checkOuts.filter(c => c.status === 'completed' && c.electricityUsed);
+    const avgElectricityUsage = completedCheckOutsWithUsage.length > 0
+      ? completedCheckOutsWithUsage.reduce((sum, c) => sum + parseFloat(c.electricityUsed?.toString() || '0'), 0) / completedCheckOutsWithUsage.length
+      : 0;
+    
+    const avgElectricityCharge = completedCheckOutsWithUsage.length > 0
+      ? completedCheckOutsWithUsage.reduce((sum, c) => sum + parseFloat(c.totalElectricityCharge?.toString() || '0'), 0) / completedCheckOutsWithUsage.length
+      : 0;
+
+    // Payment status breakdown
+    const paymentStatusBreakdown: Record<string, number> = {};
+    checkOuts.forEach(c => {
+      const status = c.paymentStatus || 'unknown';
+      paymentStatusBreakdown[status] = (paymentStatusBreakdown[status] || 0) + 1;
+    });
+
+    // Department task breakdown
+    const departmentTaskBreakdown: Record<string, number> = {};
+    demoTasks.forEach(t => {
+      const dept = t.department || 'unknown';
+      departmentTaskBreakdown[dept] = (departmentTaskBreakdown[dept] || 0) + 1;
+    });
+
+    return {
+      totalCheckIns,
+      totalCheckOuts,
+      completionRate,
+      avgElectricityUsage,
+      avgElectricityCharge,
+      paymentStatusBreakdown,
+      departmentTaskBreakdown,
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();

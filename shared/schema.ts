@@ -2382,6 +2382,299 @@ export type InsertDocumentExpirationAlert = z.infer<typeof insertDocumentExpirat
 export type DocumentExportHistory = typeof documentExportHistory.$inferSelect;
 export type InsertDocumentExportHistory = z.infer<typeof insertDocumentExportHistorySchema>;
 
+// ===== CHECK-IN/CHECK-OUT WORKFLOW SYSTEM =====
+
+// Guest check-in records with passport photos and deposit tracking
+export const guestCheckIns = pgTable("guest_check_ins", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Staff Assignment
+  assignedToStaff: varchar("assigned_to_staff").references(() => users.id).notNull(),
+  completedByStaff: varchar("completed_by_staff").references(() => users.id),
+  
+  // Passport Documentation
+  passportPhotos: text("passport_photos").array(), // Array of photo URLs
+  guestNames: text("guest_names").array(), // Names from passports
+  passportNumbers: text("passport_numbers").array(), // Passport numbers
+  
+  // Deposit Information
+  depositType: varchar("deposit_type").default("none"), // none, cash, digital
+  depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
+  depositCurrency: varchar("deposit_currency").default("THB"),
+  depositReceiptPhoto: varchar("deposit_receipt_photo"),
+  
+  // Electric Meter Reading
+  electricMeterPhoto: varchar("electric_meter_photo").notNull(),
+  electricMeterReading: decimal("electric_meter_reading", { precision: 10, scale: 3 }), // kWh reading
+  meterReadingMethod: varchar("meter_reading_method").default("manual"), // manual, ocr_auto, ocr_manual_override
+  
+  // Task Completion
+  status: varchar("status").default("pending"), // pending, in_progress, completed
+  completionNotes: text("completion_notes"),
+  
+  // Timestamps
+  scheduledDate: date("scheduled_date").notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_checkin_booking").on(table.bookingId),
+  index("IDX_checkin_property").on(table.propertyId),
+  index("IDX_checkin_staff").on(table.assignedToStaff),
+  index("IDX_checkin_date").on(table.scheduledDate),
+]);
+
+// Guest check-out records with electricity usage and billing
+export const guestCheckOuts = pgTable("guest_check_outs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  checkInId: integer("check_in_id").references(() => guestCheckIns.id).notNull(),
+  
+  // Staff Assignment
+  assignedToStaff: varchar("assigned_to_staff").references(() => users.id).notNull(),
+  completedByStaff: varchar("completed_by_staff").references(() => users.id),
+  
+  // Electric Meter Reading (Checkout)
+  electricMeterPhoto: varchar("electric_meter_photo").notNull(),
+  electricMeterReading: decimal("electric_meter_reading", { precision: 10, scale: 3 }), // Final kWh reading
+  meterReadingMethod: varchar("meter_reading_method").default("manual"), // manual, ocr_auto, ocr_manual_override
+  
+  // Electricity Usage Calculation
+  electricityUsed: decimal("electricity_used", { precision: 10, scale: 3 }), // kWh used (checkout - checkin)
+  electricityRatePerKwh: decimal("electricity_rate_per_kwh", { precision: 8, scale: 4 }).default("7.0000"), // THB per kWh
+  totalElectricityCharge: decimal("total_electricity_charge", { precision: 10, scale: 2 }), // Total charge in THB
+  
+  // Payment Status
+  paymentStatus: varchar("payment_status").notNull(), // included, paid_by_guest, not_charged
+  notChargedReason: text("not_charged_reason"), // Reason if not_charged
+  paymentMethod: varchar("payment_method"), // cash, digital, deducted_from_deposit
+  paymentReceiptPhoto: varchar("payment_receipt_photo"),
+  
+  // Discount and Comments
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0.00"),
+  discountReason: text("discount_reason"), // e.g., "Power outage", "Goodwill gesture"
+  handlerComments: text("handler_comments"), // Comments from checkout handler
+  
+  // Task Completion
+  status: varchar("status").default("pending"), // pending, in_progress, completed
+  completionNotes: text("completion_notes"),
+  
+  // Timestamps
+  scheduledDate: date("scheduled_date").notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_checkout_booking").on(table.bookingId),
+  index("IDX_checkout_property").on(table.propertyId),
+  index("IDX_checkout_checkin").on(table.checkInId),
+  index("IDX_checkout_staff").on(table.assignedToStaff),
+  index("IDX_checkout_date").on(table.scheduledDate),
+]);
+
+// Property-specific electricity rates
+export const propertyElectricitySettings = pgTable("property_electricity_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Rate Configuration
+  ratePerKwh: decimal("rate_per_kwh", { precision: 8, scale: 4 }).default("7.0000"), // THB per kWh
+  currency: varchar("currency").default("THB"),
+  
+  // Billing Rules
+  includedInStay: boolean("included_in_stay").default(false), // True if electricity is included
+  minimumCharge: decimal("minimum_charge", { precision: 10, scale: 2 }).default("0.00"),
+  maximumCharge: decimal("maximum_charge", { precision: 10, scale: 2 }), // Optional cap
+  
+  // Settings
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_electricity_property").on(table.propertyId),
+]);
+
+// Check-in/check-out workflow demo tasks
+export const checkInOutDemoTasks = pgTable("checkin_checkout_demo_tasks", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Task Information
+  taskType: varchar("task_type").notNull(), // check_in, check_out, pool_cleaning, checkout_cleaning
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  department: varchar("department").notNull(), // management, housekeeping, pool, maintenance
+  
+  // Assignment
+  assignedRole: varchar("assigned_role").notNull(), // staff, manager, host
+  assignedToUser: varchar("assigned_to_user").references(() => users.id),
+  
+  // Property and Booking Reference
+  propertyId: integer("property_id").references(() => properties.id),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  checkInId: integer("check_in_id").references(() => guestCheckIns.id),
+  
+  // Status and Priority
+  status: varchar("status").default("pending"), // pending, in_progress, completed
+  priority: varchar("priority").default("medium"), // low, medium, high, urgent
+  
+  // Due Date
+  dueDate: timestamp("due_date").notNull(),
+  estimatedDuration: integer("estimated_duration"), // minutes
+  
+  // Completion Data
+  completedAt: timestamp("completed_at"),
+  completionNotes: text("completion_notes"),
+  evidencePhotos: text("evidence_photos").array(),
+  
+  // Demo Data Flags
+  isDemoTask: boolean("is_demo_task").default(true),
+  demoUserType: varchar("demo_user_type"), // pool_staff, housekeeper, host, manager
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_demo_tasks_type").on(table.taskType),
+  index("IDX_demo_tasks_role").on(table.assignedRole),
+  index("IDX_demo_tasks_property").on(table.propertyId),
+  index("IDX_demo_tasks_due").on(table.dueDate),
+]);
+
+// Relations for Check-in/Check-out System
+export const guestCheckInsRelations = relations(guestCheckIns, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [guestCheckIns.organizationId],
+    references: [organizations.id],
+  }),
+  booking: one(bookings, {
+    fields: [guestCheckIns.bookingId],
+    references: [bookings.id],
+  }),
+  property: one(properties, {
+    fields: [guestCheckIns.propertyId],
+    references: [properties.id],
+  }),
+  assignedStaff: one(users, {
+    fields: [guestCheckIns.assignedToStaff],
+    references: [users.id],
+  }),
+  completedByUser: one(users, {
+    fields: [guestCheckIns.completedByStaff],
+    references: [users.id],
+  }),
+}));
+
+export const guestCheckOutsRelations = relations(guestCheckOuts, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [guestCheckOuts.organizationId],
+    references: [organizations.id],
+  }),
+  booking: one(bookings, {
+    fields: [guestCheckOuts.bookingId],
+    references: [bookings.id],
+  }),
+  property: one(properties, {
+    fields: [guestCheckOuts.propertyId],
+    references: [properties.id],
+  }),
+  checkIn: one(guestCheckIns, {
+    fields: [guestCheckOuts.checkInId],
+    references: [guestCheckIns.id],
+  }),
+  assignedStaff: one(users, {
+    fields: [guestCheckOuts.assignedToStaff],
+    references: [users.id],
+  }),
+  completedByUser: one(users, {
+    fields: [guestCheckOuts.completedByStaff],
+    references: [users.id],
+  }),
+}));
+
+export const propertyElectricitySettingsRelations = relations(propertyElectricitySettings, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [propertyElectricitySettings.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [propertyElectricitySettings.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const checkInOutDemoTasksRelations = relations(checkInOutDemoTasks, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [checkInOutDemoTasks.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [checkInOutDemoTasks.propertyId],
+    references: [properties.id],
+  }),
+  booking: one(bookings, {
+    fields: [checkInOutDemoTasks.bookingId],
+    references: [bookings.id],
+  }),
+  checkIn: one(guestCheckIns, {
+    fields: [checkInOutDemoTasks.checkInId],
+    references: [guestCheckIns.id],
+  }),
+  assignedUser: one(users, {
+    fields: [checkInOutDemoTasks.assignedToUser],
+    references: [users.id],
+  }),
+}));
+
+// Insert Schemas for Check-in/Check-out System
+export const insertGuestCheckInSchema = createInsertSchema(guestCheckIns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGuestCheckOutSchema = createInsertSchema(guestCheckOuts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyElectricitySettingsSchema = createInsertSchema(propertyElectricitySettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCheckInOutDemoTaskSchema = createInsertSchema(checkInOutDemoTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports for Check-in/Check-out System
+export type GuestCheckIn = typeof guestCheckIns.$inferSelect;
+export type InsertGuestCheckIn = z.infer<typeof insertGuestCheckInSchema>;
+
+export type GuestCheckOut = typeof guestCheckOuts.$inferSelect;
+export type InsertGuestCheckOut = z.infer<typeof insertGuestCheckOutSchema>;
+
+export type PropertyElectricitySettings = typeof propertyElectricitySettings.$inferSelect;
+export type InsertPropertyElectricitySettings = z.infer<typeof insertPropertyElectricitySettingsSchema>;
+
+export type CheckInOutDemoTask = typeof checkInOutDemoTasks.$inferSelect;
+export type InsertCheckInOutDemoTask = z.infer<typeof insertCheckInOutDemoTaskSchema>;
+
 // Additional Insert Schemas
 export const insertPropertyMarketingMediaSchema = createInsertSchema(propertyMarketingMedia).omit({
   id: true,

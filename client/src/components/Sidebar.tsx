@@ -89,6 +89,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
       {
         title: "Property Management",
         items: [
+          { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
           { label: "Maintenance System", icon: Wrench, href: "/maintenance-task-system" },
           { label: "Task Attachments", icon: FileText, href: "/task-attachments-notes" },
           { label: "Document Center", icon: FolderOpen, href: "/document-center" },
@@ -133,6 +134,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         title: "Portfolio Management",
         items: [
           { label: "My Properties", icon: Building, href: "/properties" },
+          { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
           { label: "Tasks Overview", icon: CheckSquare, href: "/tasks" },
           { label: "Bookings", icon: Calendar, href: "/bookings" },
           { label: "Maintenance", icon: Wrench, href: "/maintenance-task-system" },
@@ -163,6 +165,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         title: "Daily Tasks",
         items: [
           { label: "Task List", icon: CheckSquare, href: "/staff-tasks", badge: "Priority" },
+          { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
           { label: "Maintenance", icon: Wrench, href: "/maintenance-task-system" },
           { label: "Task Attachments", icon: FileText, href: "/task-attachments-notes" },
         ]

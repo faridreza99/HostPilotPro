@@ -71,6 +71,7 @@ import AdminActivityLog from "@/pages/AdminActivityLog";
 import DocumentCenter from "@/pages/DocumentCenter";
 import PropertyAccessManagement from "@/pages/PropertyAccessManagement";
 import DailyOperationsDashboard from "@/pages/DailyOperationsDashboard";
+import CheckInCheckOutWorkflow from "@/pages/CheckInCheckOutWorkflow";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -187,6 +188,7 @@ function Router() {
         <Route path="/admin/activity-log" component={AdminActivityLog} />
         <Route path="/document-center" component={DocumentCenter} />
         <Route path="/property-access" component={PropertyAccessManagement} />
+        <Route path="/checkin-checkout-workflow" component={CheckInCheckOutWorkflow} />
         <Route path="/daily-operations" component={DailyOperationsDashboard} />
         <Route path="/staff-profile-payroll" component={StaffProfilePayrollLogging} />
         <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
