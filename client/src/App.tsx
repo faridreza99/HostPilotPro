@@ -54,6 +54,7 @@ import MaintenanceTaskSystem from "@/pages/MaintenanceTaskSystem";
 import TaskAttachmentsNotes from "@/pages/TaskAttachmentsNotes";
 import TaskChecklistProofSystem from "@/pages/TaskChecklistProofSystem";
 import TaskCompletionPhotoProof from "@/pages/TaskCompletionPhotoProof";
+import BookingIncomeRules from "@/pages/BookingIncomeRules";
 import AiTaskManager from "@/pages/AiTaskManager";
 import OwnerBalanceManagement from "@/pages/OwnerBalanceManagement";
 import StaffOverhoursTracker from "@/pages/StaffOverhoursTracker";
@@ -162,6 +163,7 @@ function Router() {
           <Route path="/booking-calendar" component={LiveBookingCalendar} />
           <Route path="/retail-agent-booking" component={RetailAgentBookingEngine} />
           <Route path="/finance-engine" component={FinanceEngine} />
+          <Route path="/booking-income-rules" component={BookingIncomeRules} />
           <Route path="/settings" component={Settings} />
         </>
       )}

@@ -1012,36 +1012,7 @@ export const ownerChargeRequests = pgTable("owner_charge_requests", {
   processedBy: varchar("processed_by"), // Admin who confirmed payment
 });
 
-// Property Payout Routing Rules - Platform-specific payout logic
-export const propertyPayoutRules = pgTable("property_payout_rules", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").notNull(),
-  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }),
-  
-  // Platform rules
-  airbnbOwnerPercent: decimal("airbnb_owner_percent", { precision: 5, scale: 2 }).default("70"),
-  airbnbManagementPercent: decimal("airbnb_management_percent", { precision: 5, scale: 2 }).default("30"),
-  
-  vrboOwnerPercent: decimal("vrbo_owner_percent", { precision: 5, scale: 2 }).default("0"),
-  vrboManagementPercent: decimal("vrbo_management_percent", { precision: 5, scale: 2 }).default("100"),
-  
-  bookingOwnerPercent: decimal("booking_owner_percent", { precision: 5, scale: 2 }).default("0"),
-  bookingManagementPercent: decimal("booking_management_percent", { precision: 5, scale: 2 }).default("100"),
-  
-  directOwnerPercent: decimal("direct_owner_percent", { precision: 5, scale: 2 }).default("0"),
-  directManagementPercent: decimal("direct_management_percent", { precision: 5, scale: 2 }).default("100"),
-  
-  // Fee rules
-  stripeFeePercent: decimal("stripe_fee_percent", { precision: 5, scale: 2 }).default("5"),
-  stripeFeeNote: text("stripe_fee_note").default("5% processing fee applied"),
-  
-  // Override settings
-  allowBookingOverride: boolean("allow_booking_override").default(true),
-  defaultCurrency: varchar("default_currency", { length: 3 }).default("AUD"),
-  
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+
 
 // Enhanced Property Utility Accounts - Complete utility tracking
 export const propertyUtilityAccountsNew = pgTable("property_utility_accounts_new", {
@@ -1456,12 +1427,6 @@ export const insertOwnerBalanceSchema = createInsertSchema(ownerBalances).omit({
 export const insertOwnerChargeRequestSchema = createInsertSchema(ownerChargeRequests).omit({
   id: true,
   chargedAt: true,
-});
-
-export const insertPropertyPayoutRuleSchema = createInsertSchema(propertyPayoutRules).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
 export const insertRecurringServiceChargeSchema = createInsertSchema(recurringServiceCharges).omit({
@@ -4676,4 +4641,297 @@ export const guestPortalSettingsRelations = relations(guestPortalSettings, ({ on
     references: [properties.id],
   }),
 }));
+
+// ===== BOOKING INCOME RULES, ROUTING & COMMISSION STRUCTURE =====
+
+// Property-specific payout rules for each OTA platform
+export const propertyPayoutRules = pgTable("property_payout_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  platform: varchar("platform").notNull(), // airbnb, direct, booking_com, vrbo, agoda, marriott
+  ownerPercentage: decimal("owner_percentage", { precision: 5, scale: 2 }).default("70.00"), // 70%
+  managementPercentage: decimal("management_percentage", { precision: 5, scale: 2 }).default("30.00"), // 30%
+  stripeFeePercentage: decimal("stripe_fee_percentage", { precision: 5, scale: 2 }).default("5.00"), // 5%
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_payout_rules_org").on(table.organizationId),
+  index("IDX_payout_rules_property").on(table.propertyId),
+  index("IDX_payout_rules_platform").on(table.platform),
+]);
+
+// Booking income tracking with routing applied
+export const bookingIncomeRecords = pgTable("booking_income_records", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  sourceChannel: varchar("source_channel").notNull(), // airbnb, direct, booking_com, etc.
+  guestName: varchar("guest_name").notNull(),
+  checkInDate: date("check_in_date").notNull(),
+  checkOutDate: date("check_out_date").notNull(),
+  totalRentalIncome: decimal("total_rental_income", { precision: 10, scale: 2 }).notNull(),
+  routingApplied: varchar("routing_applied").notNull(), // rule_id reference or 'manual_override'
+  ownerAmount: decimal("owner_amount", { precision: 10, scale: 2 }).notNull(),
+  managementAmount: decimal("management_amount", { precision: 10, scale: 2 }).notNull(),
+  stripeFeeAmount: decimal("stripe_fee_amount", { precision: 10, scale: 2 }).default("0.00"),
+  managementFeePercentage: decimal("management_fee_percentage", { precision: 5, scale: 2 }).notNull(),
+  actualAmountReceived: decimal("actual_amount_received", { precision: 10, scale: 2 }),
+  payoutStatus: varchar("payout_status").default("pending"), // pending, processed, disputed
+  notes: text("notes"),
+  processedBy: varchar("processed_by"), // admin/PM user id
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_booking_income_org").on(table.organizationId),
+  index("IDX_booking_income_property").on(table.propertyId),
+  index("IDX_booking_income_channel").on(table.sourceChannel),
+  index("IDX_booking_income_dates").on(table.checkInDate, table.checkOutDate),
+]);
+
+// Owner balance requests and payout workflow
+export const ownerBalanceRequests = pgTable("owner_balance_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  requestType: varchar("request_type").notNull(), // payout_request, invoice_payment
+  requestedAmount: decimal("requested_amount", { precision: 10, scale: 2 }).notNull(),
+  currentBalance: decimal("current_balance", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").default("pending"), // pending, approved, payment_uploaded, confirmed, completed
+  portfolioManagerId: varchar("portfolio_manager_id").references(() => users.id),
+  adminId: varchar("admin_id").references(() => users.id),
+  paymentSlipUrl: varchar("payment_slip_url"),
+  uploadedBy: varchar("uploaded_by"), // admin/PM user id
+  confirmedBy: varchar("confirmed_by"), // owner user id
+  notes: text("notes"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  paymentUploadedAt: timestamp("payment_uploaded_at"),
+  confirmedAt: timestamp("confirmed_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_balance_requests_org").on(table.organizationId),
+  index("IDX_balance_requests_owner").on(table.ownerId),
+  index("IDX_balance_requests_status").on(table.status),
+]);
+
+// Commission tracking for agents and portfolio managers
+export const commissionPayouts = pgTable("commission_payouts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  userRole: varchar("user_role").notNull(), // referral_agent, portfolio_manager
+  propertyId: integer("property_id").references(() => properties.id),
+  period: varchar("period").notNull(), // YYYY-MM format
+  baseCommissionAmount: decimal("base_commission_amount", { precision: 10, scale: 2 }).notNull(),
+  commissionPercentage: decimal("commission_percentage", { precision: 5, scale: 2 }).notNull(), // 10% or 50%
+  finalPayoutAmount: decimal("final_payout_amount", { precision: 10, scale: 2 }).notNull(),
+  payoutCycle: varchar("payout_cycle").default("monthly"), // monthly, bi_weekly, custom
+  status: varchar("status").default("pending"), // pending, approved, paid
+  notes: text("notes"),
+  approvedBy: varchar("approved_by"), // admin user id
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_commission_payouts_org").on(table.organizationId),
+  index("IDX_commission_payouts_user").on(table.userId),
+  index("IDX_commission_payouts_period").on(table.period),
+]);
+
+// Property timeline logging for transparency
+export const propertyTimelineEvents = pgTable("property_timeline_events", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  eventType: varchar("event_type").notNull(), // booking_income, payout_request, commission_payout, invoice_payment
+  eventTitle: varchar("event_title").notNull(),
+  eventDescription: text("event_description"),
+  relatedRecordId: integer("related_record_id"), // reference to booking_income_records, owner_balance_requests, etc.
+  amount: decimal("amount", { precision: 10, scale: 2 }),
+  userId: varchar("user_id").references(() => users.id), // who performed the action
+  metadata: jsonb("metadata"), // additional event data
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_timeline_org").on(table.organizationId),
+  index("IDX_timeline_property").on(table.propertyId),
+  index("IDX_timeline_type").on(table.eventType),
+  index("IDX_timeline_date").on(table.createdAt),
+]);
+
+// Platform analytics and reporting data
+export const platformAnalytics = pgTable("platform_analytics", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  analyticsType: varchar("analytics_type").notNull(), // monthly_summary, platform_breakdown, commission_summary
+  period: varchar("period").notNull(), // YYYY-MM format
+  platform: varchar("platform"), // airbnb, direct, booking_com, etc.
+  totalRentalIncome: decimal("total_rental_income", { precision: 10, scale: 2 }).default("0.00"),
+  totalCommissionEarned: decimal("total_commission_earned", { precision: 10, scale: 2 }).default("0.00"),
+  totalAddonServices: decimal("total_addon_services", { precision: 10, scale: 2 }).default("0.00"),
+  averageNightlyRate: decimal("average_nightly_rate", { precision: 10, scale: 2 }).default("0.00"),
+  occupancyRate: decimal("occupancy_rate", { precision: 5, scale: 2 }).default("0.00"), // percentage
+  bookingCount: integer("booking_count").default(0),
+  metadata: jsonb("metadata"), // additional analytics data
+  generatedAt: timestamp("generated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_analytics_org").on(table.organizationId),
+  index("IDX_analytics_property").on(table.propertyId),
+  index("IDX_analytics_period").on(table.period),
+  index("IDX_analytics_type").on(table.analyticsType),
+]);
+
+// Relations for booking income system
+export const propertyPayoutRulesRelations = relations(propertyPayoutRules, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [propertyPayoutRules.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [propertyPayoutRules.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const bookingIncomeRecordsRelations = relations(bookingIncomeRecords, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [bookingIncomeRecords.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [bookingIncomeRecords.propertyId],
+    references: [properties.id],
+  }),
+  booking: one(bookings, {
+    fields: [bookingIncomeRecords.bookingId],
+    references: [bookings.id],
+  }),
+}));
+
+export const ownerBalanceRequestsRelations = relations(ownerBalanceRequests, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [ownerBalanceRequests.organizationId],
+    references: [organizations.id],
+  }),
+  owner: one(users, {
+    fields: [ownerBalanceRequests.ownerId],
+    references: [users.id],
+  }),
+  property: one(properties, {
+    fields: [ownerBalanceRequests.propertyId],
+    references: [properties.id],
+  }),
+  portfolioManager: one(users, {
+    fields: [ownerBalanceRequests.portfolioManagerId],
+    references: [users.id],
+  }),
+  admin: one(users, {
+    fields: [ownerBalanceRequests.adminId],
+    references: [users.id],
+  }),
+}));
+
+export const commissionPayoutsRelations = relations(commissionPayouts, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [commissionPayouts.organizationId],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [commissionPayouts.userId],
+    references: [users.id],
+  }),
+  property: one(properties, {
+    fields: [commissionPayouts.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const propertyTimelineEventsRelations = relations(propertyTimelineEvents, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [propertyTimelineEvents.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [propertyTimelineEvents.propertyId],
+    references: [properties.id],
+  }),
+  user: one(users, {
+    fields: [propertyTimelineEvents.userId],
+    references: [users.id],
+  }),
+}));
+
+export const platformAnalyticsRelations = relations(platformAnalytics, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [platformAnalytics.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [platformAnalytics.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+// Type exports for booking income system
+export type PropertyPayoutRule = typeof propertyPayoutRules.$inferSelect;
+export type InsertPropertyPayoutRule = typeof propertyPayoutRules.$inferInsert;
+
+export type BookingIncomeRecord = typeof bookingIncomeRecords.$inferSelect;
+export type InsertBookingIncomeRecord = typeof bookingIncomeRecords.$inferInsert;
+
+export type OwnerBalanceRequest = typeof ownerBalanceRequests.$inferSelect;
+export type InsertOwnerBalanceRequest = typeof ownerBalanceRequests.$inferInsert;
+
+export type CommissionPayout = typeof commissionPayouts.$inferSelect;
+export type InsertCommissionPayout = typeof commissionPayouts.$inferInsert;
+
+export type PropertyTimelineEvent = typeof propertyTimelineEvents.$inferSelect;
+export type InsertPropertyTimelineEvent = typeof propertyTimelineEvents.$inferInsert;
+
+export type PlatformAnalytics = typeof platformAnalytics.$inferSelect;
+export type InsertPlatformAnalytics = typeof platformAnalytics.$inferInsert;
+
+// Zod schemas for validation
+export const insertPropertyPayoutRuleSchema = createInsertSchema(propertyPayoutRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBookingIncomeRecordSchema = createInsertSchema(bookingIncomeRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOwnerBalanceRequestSchema = createInsertSchema(ownerBalanceRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCommissionPayoutSchema = createInsertSchema(commissionPayouts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyTimelineEventSchema = createInsertSchema(propertyTimelineEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPlatformAnalyticsSchema = createInsertSchema(platformAnalytics).omit({
+  id: true,
+  createdAt: true,
+});
 

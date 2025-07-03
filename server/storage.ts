@@ -47,6 +47,12 @@ import {
   propertyPlatformRules,
   bookingPlatformRouting,
   routingAuditLog,
+  propertyPayoutRules,
+  bookingIncomeRecords,
+  ownerBalanceRequests,
+  commissionPayouts,
+  propertyTimelineEvents,
+  platformAnalytics,
   // propertyMediaFiles,
   // mediaFolders,
   // agentMediaAccess,
@@ -248,6 +254,18 @@ import {
   type InsertTaskGuideTemplate,
   type AttachmentAccessLog,
   type InsertAttachmentAccessLog,
+  type PropertyPayoutRule,
+  type InsertPropertyPayoutRule,
+  type BookingIncomeRecord,
+  type InsertBookingIncomeRecord,
+  type OwnerBalanceRequest,
+  type InsertOwnerBalanceRequest,
+  type CommissionPayout,
+  type InsertCommissionPayout,
+  type PropertyTimelineEvent,
+  type InsertPropertyTimelineEvent,
+  type PlatformAnalytics,
+  type InsertPlatformAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
@@ -676,6 +694,66 @@ export interface IStorage {
   // Salary analytics
   getSalaryAnalytics(organizationId: string, month?: string): Promise<any[]>;
   updateSalaryAnalytics(organizationId: string, month: string): Promise<any>;
+
+  // ===== BOOKING INCOME RULES, ROUTING & COMMISSION STRUCTURE =====
+
+  // Property payout rules operations
+  getPropertyPayoutRules(organizationId: string, propertyId?: number): Promise<PropertyPayoutRule[]>;
+  getPropertyPayoutRule(id: number): Promise<PropertyPayoutRule | undefined>;
+  createPropertyPayoutRule(rule: InsertPropertyPayoutRule): Promise<PropertyPayoutRule>;
+  updatePropertyPayoutRule(id: number, rule: Partial<InsertPropertyPayoutRule>): Promise<PropertyPayoutRule | undefined>;
+  deletePropertyPayoutRule(id: number): Promise<boolean>;
+
+  // Booking income records operations
+  getBookingIncomeRecords(organizationId: string, filters?: { propertyId?: number; sourceChannel?: string; fromDate?: Date; toDate?: Date }): Promise<BookingIncomeRecord[]>;
+  getBookingIncomeRecord(id: number): Promise<BookingIncomeRecord | undefined>;
+  createBookingIncomeRecord(record: InsertBookingIncomeRecord): Promise<BookingIncomeRecord>;
+  updateBookingIncomeRecord(id: number, record: Partial<InsertBookingIncomeRecord>): Promise<BookingIncomeRecord | undefined>;
+  deleteBookingIncomeRecord(id: number): Promise<boolean>;
+
+  // Owner balance requests operations
+  getOwnerBalanceRequests(organizationId: string, filters?: { ownerId?: string; status?: string; propertyId?: number }): Promise<OwnerBalanceRequest[]>;
+  getOwnerBalanceRequest(id: number): Promise<OwnerBalanceRequest | undefined>;
+  createOwnerBalanceRequest(request: InsertOwnerBalanceRequest): Promise<OwnerBalanceRequest>;
+  updateOwnerBalanceRequest(id: number, request: Partial<InsertOwnerBalanceRequest>): Promise<OwnerBalanceRequest | undefined>;
+  approveBalanceRequest(id: number, approvedBy: string): Promise<OwnerBalanceRequest | undefined>;
+  uploadPaymentSlip(id: number, uploadedBy: string, paymentSlipUrl: string): Promise<OwnerBalanceRequest | undefined>;
+  confirmPaymentReceived(id: number, confirmedBy: string): Promise<OwnerBalanceRequest | undefined>;
+
+  // Commission payouts operations
+  getCommissionPayouts(organizationId: string, filters?: { userId?: string; userRole?: string; period?: string; status?: string }): Promise<CommissionPayout[]>;
+  getCommissionPayout(id: number): Promise<CommissionPayout | undefined>;
+  createCommissionPayout(payout: InsertCommissionPayout): Promise<CommissionPayout>;
+  updateCommissionPayout(id: number, payout: Partial<InsertCommissionPayout>): Promise<CommissionPayout | undefined>;
+  approveCommissionPayout(id: number, approvedBy: string): Promise<CommissionPayout | undefined>;
+
+  // Property timeline events operations
+  getPropertyTimelineEvents(organizationId: string, propertyId?: number, eventType?: string): Promise<PropertyTimelineEvent[]>;
+  createPropertyTimelineEvent(event: InsertPropertyTimelineEvent): Promise<PropertyTimelineEvent>;
+
+  // Platform analytics operations
+  getPlatformAnalytics(organizationId: string, filters?: { propertyId?: number; period?: string; analyticsType?: string; platform?: string }): Promise<PlatformAnalytics[]>;
+  createPlatformAnalytics(analytics: InsertPlatformAnalytics): Promise<PlatformAnalytics>;
+  updatePlatformAnalytics(id: number, analytics: Partial<InsertPlatformAnalytics>): Promise<PlatformAnalytics | undefined>;
+
+  // Booking income dashboard analytics
+  getBookingIncomeDashboard(organizationId: string, filters?: { propertyId?: number; fromDate?: Date; toDate?: Date }): Promise<{
+    totalRentalIncome: number;
+    totalOwnerPayouts: number;
+    totalManagementRevenue: number;
+    platformBreakdown: Array<{ platform: string; income: number; bookingCount: number; averageRate: number }>;
+    monthlyTrends: Array<{ month: string; totalIncome: number; ownerAmount: number; managementAmount: number }>;
+    topPerformingProperties: Array<{ propertyId: number; propertyName: string; totalIncome: number; bookingCount: number }>;
+  }>;
+
+  // Owner balance calculations
+  calculateOwnerBalance(ownerId: string, propertyId?: number): Promise<{
+    currentBalance: number;
+    pendingPayouts: number;
+    totalEarnings: number;
+    totalExpenses: number;
+    lastPayoutDate: Date | null;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {

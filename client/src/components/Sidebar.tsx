@@ -36,7 +36,8 @@ import {
   RefreshCw,
   ClipboardList,
   Plus,
-  MessageSquare
+  MessageSquare,
+  Receipt
 } from "lucide-react";
 
 // Define navigation modules with hierarchical structure
@@ -296,6 +297,13 @@ const navigationModules = [
         label: "Utility Tracker", 
         roles: ["admin", "portfolio-manager", "staff"],
         description: "Track electricity, water, internet, and custom utility bills"
+      },
+      { 
+        path: "/booking-income-rules", 
+        icon: Receipt, 
+        label: "Booking Income Rules", 
+        roles: ["admin", "portfolio-manager"],
+        description: "Property-based booking income management, OTA routing, and commission structure"
       },
       { 
         path: "/reports", 
