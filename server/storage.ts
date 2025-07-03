@@ -54,6 +54,10 @@ import {
   commissionPayouts,
   propertyTimelineEvents,
   platformAnalytics,
+  staffWorkClocks,
+  staffClockSettings,
+  staffTimeSummaries,
+  staffClockAuditLog,
   // propertyMediaFiles,
   // mediaFolders,
   // agentMediaAccess,
@@ -194,6 +198,14 @@ import {
   paymentConfirmations,
   type StaffPayrollRecord,
   type InsertStaffPayrollRecord,
+  type StaffWorkClock,
+  type InsertStaffWorkClock,
+  type StaffClockSettings,
+  type InsertStaffClockSettings,
+  type StaffTimeSummary,
+  type InsertStaffTimeSummary,
+  type StaffClockAuditLog,
+  type InsertStaffClockAuditLog,
   type PortfolioManagerCommission,
   type InsertPortfolioManagerCommission,
   type ReferralAgentCommissionLog,
@@ -13300,6 +13312,297 @@ Plant Care:
     };
 
     return await this.createAiGeneratedTask(taskData);
+  }
+
+  // ==================== STAFF CLOCK-IN & OVERTIME TRACKER ====================
+
+  // Staff Work Clock Methods
+  async clockIn(clockData: InsertStaffWorkClock): Promise<StaffWorkClock> {
+    const [newClock] = await db.insert(staffWorkClocks).values(clockData).returning();
+    return newClock;
+  }
+
+  async clockOut(organizationId: string, userId: string, clockOutNotes?: string): Promise<StaffWorkClock | undefined> {
+    const [updated] = await db
+      .update(staffWorkClocks)
+      .set({ 
+        clockOutTime: new Date(),
+        clockOutNotes,
+        updatedAt: new Date() 
+      })
+      .where(
+        and(
+          eq(staffWorkClocks.organizationId, organizationId),
+          eq(staffWorkClocks.userId, userId),
+          isNull(staffWorkClocks.clockOutTime)
+        )
+      )
+      .returning();
+    return updated;
+  }
+
+  async getActiveClock(organizationId: string, userId: string): Promise<StaffWorkClock | undefined> {
+    const [activeClock] = await db
+      .select()
+      .from(staffWorkClocks)
+      .where(
+        and(
+          eq(staffWorkClocks.organizationId, organizationId),
+          eq(staffWorkClocks.userId, userId),
+          isNull(staffWorkClocks.clockOutTime)
+        )
+      );
+    return activeClock;
+  }
+
+  async getStaffClockHistory(organizationId: string, filters?: {
+    userId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    clockType?: string;
+  }): Promise<StaffWorkClock[]> {
+    let query = db
+      .select()
+      .from(staffWorkClocks)
+      .where(eq(staffWorkClocks.organizationId, organizationId));
+
+    if (filters?.userId) {
+      query = query.where(eq(staffWorkClocks.userId, filters.userId));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(staffWorkClocks.clockInTime, filters.startDate));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(staffWorkClocks.clockInTime, filters.endDate));
+    }
+    if (filters?.clockType) {
+      query = query.where(eq(staffWorkClocks.clockType, filters.clockType));
+    }
+
+    return query.orderBy(desc(staffWorkClocks.clockInTime));
+  }
+
+  // Staff Clock Settings Methods
+  async getStaffClockSettings(organizationId: string): Promise<StaffClockSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(staffClockSettings)
+      .where(eq(staffClockSettings.organizationId, organizationId));
+    return settings;
+  }
+
+  async updateStaffClockSettings(organizationId: string, settings: Partial<InsertStaffClockSettings>): Promise<StaffClockSettings> {
+    const existing = await this.getStaffClockSettings(organizationId);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(staffClockSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(staffClockSettings.organizationId, organizationId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(staffClockSettings)
+        .values({ organizationId, ...settings })
+        .returning();
+      return created;
+    }
+  }
+
+  // Staff Time Summary Methods
+  async createStaffTimeSummary(summary: InsertStaffTimeSummary): Promise<StaffTimeSummary> {
+    const [newSummary] = await db.insert(staffTimeSummaries).values(summary).returning();
+    return newSummary;
+  }
+
+  async getStaffTimeSummaries(organizationId: string, filters?: {
+    userId?: string;
+    periodType?: string;
+    periodStart?: Date;
+    periodEnd?: Date;
+  }): Promise<StaffTimeSummary[]> {
+    let query = db
+      .select()
+      .from(staffTimeSummaries)
+      .where(eq(staffTimeSummaries.organizationId, organizationId));
+
+    if (filters?.userId) {
+      query = query.where(eq(staffTimeSummaries.userId, filters.userId));
+    }
+    if (filters?.periodType) {
+      query = query.where(eq(staffTimeSummaries.periodType, filters.periodType));
+    }
+    if (filters?.periodStart) {
+      query = query.where(gte(staffTimeSummaries.periodStart, filters.periodStart));
+    }
+    if (filters?.periodEnd) {
+      query = query.where(lte(staffTimeSummaries.periodEnd, filters.periodEnd));
+    }
+
+    return query.orderBy(desc(staffTimeSummaries.periodStart));
+  }
+
+  async updateStaffTimeSummary(id: number, updates: Partial<InsertStaffTimeSummary>): Promise<StaffTimeSummary | undefined> {
+    const [updated] = await db
+      .update(staffTimeSummaries)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(staffTimeSummaries.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Staff Clock Audit Log Methods
+  async createStaffClockAuditLog(auditData: InsertStaffClockAuditLog): Promise<StaffClockAuditLog> {
+    const [newAudit] = await db.insert(staffClockAuditLog).values(auditData).returning();
+    return newAudit;
+  }
+
+  async getStaffClockAuditLogs(organizationId: string, filters?: {
+    actionType?: string;
+    performedBy?: string;
+    affectedUserId?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<StaffClockAuditLog[]> {
+    let query = db
+      .select()
+      .from(staffClockAuditLog)
+      .where(eq(staffClockAuditLog.organizationId, organizationId));
+
+    if (filters?.actionType) {
+      query = query.where(eq(staffClockAuditLog.actionType, filters.actionType));
+    }
+    if (filters?.performedBy) {
+      query = query.where(eq(staffClockAuditLog.performedBy, filters.performedBy));
+    }
+    if (filters?.affectedUserId) {
+      query = query.where(eq(staffClockAuditLog.affectedUserId, filters.affectedUserId));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(staffClockAuditLog.createdAt, filters.startDate));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(staffClockAuditLog.createdAt, filters.endDate));
+    }
+
+    return query.orderBy(desc(staffClockAuditLog.createdAt));
+  }
+
+  // Helper Methods for Overtime Calculations
+  async calculateOvertimeForPeriod(organizationId: string, userId: string, startDate: Date, endDate: Date): Promise<{
+    regularHours: number;
+    overtimeHours: number;
+    totalHours: number;
+    emergencyVisits: number;
+    afterHoursTotal: number;
+  }> {
+    const clocks = await this.getStaffClockHistory(organizationId, {
+      userId,
+      startDate,
+      endDate,
+    });
+
+    const settings = await this.getStaffClockSettings(organizationId);
+    const dailyHoursLimit = settings?.dailyHoursLimit || 8;
+    const weeklyHoursLimit = settings?.weeklyHoursLimit || 40;
+
+    let totalHours = 0;
+    let overtimeHours = 0;
+    let emergencyVisits = 0;
+    let afterHoursTotal = 0;
+
+    clocks.forEach(clock => {
+      if (clock.clockOutTime) {
+        const duration = (new Date(clock.clockOutTime).getTime() - new Date(clock.clockInTime).getTime()) / (1000 * 60 * 60);
+        totalHours += duration;
+
+        if (clock.isEmergencyVisit) {
+          emergencyVisits++;
+        }
+        if (clock.isAfterHours) {
+          afterHoursTotal += duration;
+        }
+      }
+    });
+
+    const regularHours = Math.min(totalHours, weeklyHoursLimit);
+    overtimeHours = Math.max(0, totalHours - weeklyHoursLimit);
+
+    return {
+      regularHours,
+      overtimeHours,
+      totalHours,
+      emergencyVisits,
+      afterHoursTotal,
+    };
+  }
+
+  async generateStaffTimeReport(organizationId: string, filters?: {
+    userId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    format?: 'weekly' | 'monthly';
+  }): Promise<{
+    reportPeriod: string;
+    staffReports: Array<{
+      userId: string;
+      userName: string;
+      regularHours: number;
+      overtimeHours: number;
+      totalHours: number;
+      emergencyVisits: number;
+      afterHoursTotal: number;
+      estimatedPay: number;
+    }>;
+    totalRegularHours: number;
+    totalOvertimeHours: number;
+    totalEstimatedPay: number;
+  }> {
+    const startDate = filters?.startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const endDate = filters?.endDate || new Date();
+
+    // Get all staff users if no specific user requested
+    const staffUsers = filters?.userId 
+      ? [{ id: filters.userId, username: 'Staff User', role: 'staff' }]
+      : await this.getUsersByRole(organizationId, 'staff');
+
+    const staffReports = await Promise.all(
+      staffUsers.map(async (user) => {
+        const overtime = await this.calculateOvertimeForPeriod(organizationId, user.id, startDate, endDate);
+        const settings = await this.getStaffClockSettings(organizationId);
+        const hourlyRate = settings?.defaultHourlyRate || 25;
+        const overtimeMultiplier = settings?.overtimeMultiplier || 1.5;
+
+        const estimatedPay = (overtime.regularHours * hourlyRate) + (overtime.overtimeHours * hourlyRate * overtimeMultiplier);
+
+        return {
+          userId: user.id,
+          userName: user.username || user.email || 'Unknown User',
+          regularHours: overtime.regularHours,
+          overtimeHours: overtime.overtimeHours,
+          totalHours: overtime.totalHours,
+          emergencyVisits: overtime.emergencyVisits,
+          afterHoursTotal: overtime.afterHoursTotal,
+          estimatedPay,
+        };
+      })
+    );
+
+    const totals = staffReports.reduce(
+      (acc, report) => ({
+        totalRegularHours: acc.totalRegularHours + report.regularHours,
+        totalOvertimeHours: acc.totalOvertimeHours + report.overtimeHours,
+        totalEstimatedPay: acc.totalEstimatedPay + report.estimatedPay,
+      }),
+      { totalRegularHours: 0, totalOvertimeHours: 0, totalEstimatedPay: 0 }
+    );
+
+    return {
+      reportPeriod: `${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`,
+      staffReports,
+      ...totals,
+    };
   }
 }
 

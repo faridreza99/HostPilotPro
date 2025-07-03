@@ -11046,6 +11046,390 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== STAFF CLOCK-IN & OVERTIME TRACKER API =====
+
+  // Clock in
+  app.post("/api/staff/clock-in", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (role !== 'staff') {
+        return res.status(403).json({ message: "Staff access required" });
+      }
+
+      // Check if already clocked in
+      const activeClock = await storage.getActiveClock(organizationId, userId);
+      if (activeClock) {
+        return res.status(400).json({ message: "Already clocked in" });
+      }
+
+      const clockData = {
+        organizationId,
+        userId,
+        clockInTime: new Date(),
+        clockType: req.body.clockType || 'workday',
+        propertyId: req.body.propertyId ? parseInt(req.body.propertyId) : null,
+        taskId: req.body.taskId ? parseInt(req.body.taskId) : null,
+        clockInNotes: req.body.clockInNotes,
+        isEmergencyVisit: req.body.isEmergencyVisit || false,
+        isAfterHours: req.body.isAfterHours || false,
+        gpsLocation: req.body.gpsLocation,
+      };
+
+      const clock = await storage.clockIn(clockData);
+
+      // Create audit log
+      await storage.createStaffClockAuditLog({
+        organizationId,
+        actionType: 'clock_in',
+        performedBy: userId,
+        affectedUserId: userId,
+        clockRecordId: clock.id,
+        actionDetails: JSON.stringify({
+          clockType: clockData.clockType,
+          isEmergency: clockData.isEmergencyVisit,
+          isAfterHours: clockData.isAfterHours,
+        }),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json(clock);
+    } catch (error) {
+      console.error("Error clocking in:", error);
+      res.status(500).json({ message: "Failed to clock in" });
+    }
+  });
+
+  // Clock out
+  app.post("/api/staff/clock-out", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (role !== 'staff') {
+        return res.status(403).json({ message: "Staff access required" });
+      }
+
+      const { clockOutNotes } = req.body;
+
+      const clock = await storage.clockOut(organizationId, userId, clockOutNotes);
+      
+      if (!clock) {
+        return res.status(400).json({ message: "No active clock session found" });
+      }
+
+      // Create audit log
+      await storage.createStaffClockAuditLog({
+        organizationId,
+        actionType: 'clock_out',
+        performedBy: userId,
+        affectedUserId: userId,
+        clockRecordId: clock.id,
+        actionDetails: JSON.stringify({
+          duration: clock.clockOutTime && clock.clockInTime ? 
+            (new Date(clock.clockOutTime).getTime() - new Date(clock.clockInTime).getTime()) / (1000 * 60 * 60) : 0,
+          notes: clockOutNotes,
+        }),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json(clock);
+    } catch (error) {
+      console.error("Error clocking out:", error);
+      res.status(500).json({ message: "Failed to clock out" });
+    }
+  });
+
+  // Get active clock session
+  app.get("/api/staff/active-clock", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (role !== 'staff') {
+        return res.status(403).json({ message: "Staff access required" });
+      }
+
+      const activeClock = await storage.getActiveClock(organizationId, userId);
+      res.json(activeClock || null);
+    } catch (error) {
+      console.error("Error fetching active clock:", error);
+      res.status(500).json({ message: "Failed to fetch active clock" });
+    }
+  });
+
+  // Get staff clock history
+  app.get("/api/staff/clock-history", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (!['staff', 'admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { startDate, endDate, clockType, targetUserId } = req.query;
+
+      // Staff can only view their own history, admin/PM can view others
+      const filterUserId = role === 'staff' ? userId : (targetUserId as string || userId);
+
+      const history = await storage.getStaffClockHistory(organizationId, {
+        userId: filterUserId,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        clockType: clockType as string,
+      });
+
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching clock history:", error);
+      res.status(500).json({ message: "Failed to fetch clock history" });
+    }
+  });
+
+  // Get staff clock settings
+  app.get("/api/staff/clock-settings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const settings = await storage.getStaffClockSettings(organizationId);
+      res.json(settings || {});
+    } catch (error) {
+      console.error("Error fetching clock settings:", error);
+      res.status(500).json({ message: "Failed to fetch clock settings" });
+    }
+  });
+
+  // Update staff clock settings
+  app.put("/api/staff/clock-settings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const settings = await storage.updateStaffClockSettings(organizationId, req.body);
+
+      // Create audit log
+      await storage.createStaffClockAuditLog({
+        organizationId,
+        actionType: 'settings_update',
+        performedBy: userId,
+        affectedUserId: 'system',
+        actionDetails: JSON.stringify(req.body),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating clock settings:", error);
+      res.status(500).json({ message: "Failed to update clock settings" });
+    }
+  });
+
+  // Get staff time summaries
+  app.get("/api/staff/time-summaries", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (!['staff', 'admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { periodType, periodStart, periodEnd, targetUserId } = req.query;
+
+      // Staff can only view their own summaries, admin/PM can view others
+      const filterUserId = role === 'staff' ? userId : (targetUserId as string || userId);
+
+      const summaries = await storage.getStaffTimeSummaries(organizationId, {
+        userId: filterUserId,
+        periodType: periodType as string,
+        periodStart: periodStart ? new Date(periodStart as string) : undefined,
+        periodEnd: periodEnd ? new Date(periodEnd as string) : undefined,
+      });
+
+      res.json(summaries);
+    } catch (error) {
+      console.error("Error fetching time summaries:", error);
+      res.status(500).json({ message: "Failed to fetch time summaries" });
+    }
+  });
+
+  // Calculate overtime for period
+  app.get("/api/staff/overtime-calculation", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (!['staff', 'admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { startDate, endDate, targetUserId } = req.query;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "Start date and end date are required" });
+      }
+
+      // Staff can only view their own calculations, admin/PM can view others
+      const filterUserId = role === 'staff' ? userId : (targetUserId as string || userId);
+
+      const calculation = await storage.calculateOvertimeForPeriod(
+        organizationId,
+        filterUserId,
+        new Date(startDate as string),
+        new Date(endDate as string)
+      );
+
+      res.json(calculation);
+    } catch (error) {
+      console.error("Error calculating overtime:", error);
+      res.status(500).json({ message: "Failed to calculate overtime" });
+    }
+  });
+
+  // Generate staff time report (admin/PM only)
+  app.get("/api/staff/time-report", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const { startDate, endDate, format, userId: targetUserId } = req.query;
+
+      const report = await storage.generateStaffTimeReport(organizationId, {
+        userId: targetUserId as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        format: format as 'weekly' | 'monthly',
+      });
+
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating time report:", error);
+      res.status(500).json({ message: "Failed to generate time report" });
+    }
+  });
+
+  // Export time report as CSV (admin/PM only)
+  app.get("/api/staff/time-report/export", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const { startDate, endDate, format, userId: targetUserId } = req.query;
+
+      const report = await storage.generateStaffTimeReport(organizationId, {
+        userId: targetUserId as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        format: format as 'weekly' | 'monthly',
+      });
+
+      // Convert to CSV format
+      let csvContent = 'User ID,User Name,Regular Hours,Overtime Hours,Total Hours,Emergency Visits,After Hours Total,Estimated Pay\n';
+      
+      report.staffReports.forEach(staff => {
+        csvContent += `${staff.userId},${staff.userName},${staff.regularHours},${staff.overtimeHours},${staff.totalHours},${staff.emergencyVisits},${staff.afterHoursTotal},${staff.estimatedPay}\n`;
+      });
+
+      csvContent += `\nTotals:,,${report.totalRegularHours},${report.totalOvertimeHours},,,,${report.totalEstimatedPay}\n`;
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="staff-time-report-${report.reportPeriod}.csv"`);
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Error exporting time report:", error);
+      res.status(500).json({ message: "Failed to export time report" });
+    }
+  });
+
+  // Get audit logs (admin only)
+  app.get("/api/staff/clock-audit-logs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { actionType, performedBy, affectedUserId, startDate, endDate } = req.query;
+
+      const logs = await storage.getStaffClockAuditLogs(organizationId, {
+        actionType: actionType as string,
+        performedBy: performedBy as string,
+        affectedUserId: affectedUserId as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      });
+
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // Manual clock override (admin only)
+  app.post("/api/staff/manual-override", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: adminUserId } = req.user;
+
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId, action, clockData, reason } = req.body;
+
+      let result;
+      if (action === 'force_clock_out') {
+        result = await storage.clockOut(organizationId, userId, `Admin override: ${reason}`);
+      } else if (action === 'manual_clock_in') {
+        result = await storage.clockIn({
+          organizationId,
+          userId,
+          clockInTime: new Date(clockData.clockInTime),
+          clockType: clockData.clockType || 'workday',
+          propertyId: clockData.propertyId,
+          taskId: clockData.taskId,
+          clockInNotes: `Admin manual entry: ${reason}`,
+          isEmergencyVisit: clockData.isEmergencyVisit || false,
+          isAfterHours: clockData.isAfterHours || false,
+        });
+      }
+
+      // Create audit log
+      await storage.createStaffClockAuditLog({
+        organizationId,
+        actionType: 'manual_override',
+        performedBy: adminUserId,
+        affectedUserId: userId,
+        clockRecordId: result?.id,
+        actionDetails: JSON.stringify({
+          action,
+          reason,
+          originalData: clockData,
+        }),
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+      });
+
+      res.json({ success: true, result, message: `Override completed: ${action}` });
+    } catch (error) {
+      console.error("Error performing manual override:", error);
+      res.status(500).json({ message: "Failed to perform manual override" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

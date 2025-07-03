@@ -4574,6 +4574,162 @@ export const routingAuditLog = pgTable("routing_audit_log", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ===== STAFF CLOCK-IN & WORKDAY TRACKING TABLES =====
+
+// Staff daily work clocks (general workday tracking)
+export const staffWorkClocks = pgTable("staff_work_clocks", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  staffName: varchar("staff_name").notNull(),
+  
+  // Clock In/Out Times
+  clockInTime: timestamp("clock_in_time").notNull(),
+  clockOutTime: timestamp("clock_out_time"),
+  
+  // Clock Type
+  clockType: varchar("clock_type").notNull().default("workday"), // workday, task, emergency_visit
+  
+  // Work Details
+  totalMinutesWorked: integer("total_minutes_worked").default(0),
+  breakMinutes: integer("break_minutes").default(0),
+  netWorkMinutes: integer("net_work_minutes").default(0),
+  
+  // Location & Notes
+  clockInLocation: varchar("clock_in_location"),
+  clockOutLocation: varchar("clock_out_location"),
+  clockInNotes: text("clock_in_notes"),
+  clockOutNotes: text("clock_out_notes"),
+  
+  // Emergency/Overtime Flags
+  isEmergencyVisit: boolean("is_emergency_visit").default(false),
+  isOvertimeShift: boolean("is_overtime_shift").default(false),
+  emergencyReason: varchar("emergency_reason"),
+  
+  // Auto-Detection Flags
+  isOutsideNormalHours: boolean("is_outside_normal_hours").default(false),
+  isWeekendWork: boolean("is_weekend_work").default(false),
+  isHolidayWork: boolean("is_holiday_work").default(false),
+  
+  // Linked Tasks (for task-based clocks)
+  linkedTaskIds: jsonb("linked_task_ids"), // Array of task IDs worked during this clock
+  
+  // Admin Override
+  manualAdjustment: boolean("manual_adjustment").default(false),
+  adjustmentReason: text("adjustment_reason"),
+  adjustedBy: varchar("adjusted_by").references(() => users.id),
+  adjustedAt: timestamp("adjusted_at"),
+  
+  // Status
+  status: varchar("status").default("active"), // active, completed, disputed, adjusted
+  approvalStatus: varchar("approval_status").default("pending"), // pending, approved, disputed
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Staff clock management settings
+export const staffClockSettings = pgTable("staff_clock_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Work Hour Definitions
+  standardWorkStartTime: varchar("standard_work_start_time").default("08:00"), // HH:MM format
+  standardWorkEndTime: varchar("standard_work_end_time").default("17:00"),
+  standardWorkDays: jsonb("standard_work_days").default('["monday","tuesday","wednesday","thursday","friday"]'),
+  
+  // Overtime & Emergency Rates
+  overtimeMultiplier: decimal("overtime_multiplier", { precision: 3, scale: 2 }).default("1.5"),
+  emergencyCalloutRate: decimal("emergency_callout_rate", { precision: 8, scale: 2 }).default("50.00"),
+  weekendWorkMultiplier: decimal("weekend_work_multiplier", { precision: 3, scale: 2 }).default("1.25"),
+  holidayWorkMultiplier: decimal("holiday_work_multiplier", { precision: 3, scale: 2 }).default("2.0"),
+  
+  // Clock Policies
+  allowGeolocationTracking: boolean("allow_geolocation_tracking").default(false),
+  requireClockOutNotes: boolean("require_clock_out_notes").default(false),
+  autoClockOutAfterHours: integer("auto_clock_out_after_hours").default(12), // Hours
+  allowManualTimeAdjustment: boolean("allow_manual_time_adjustment").default(true),
+  
+  // Approval Requirements
+  requireOvertimeApproval: boolean("require_overtime_approval").default(true),
+  requireEmergencyApproval: boolean("require_emergency_approval").default(true),
+  autoApproveRegularHours: boolean("auto_approve_regular_hours").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Monthly staff time summaries
+export const staffTimeSummaries = pgTable("staff_time_summaries", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  staffName: varchar("staff_name").notNull(),
+  
+  // Period
+  monthYear: varchar("month_year").notNull(), // YYYY-MM format
+  
+  // Regular Hours Summary
+  totalRegularMinutes: integer("total_regular_minutes").default(0),
+  totalOvertimeMinutes: integer("total_overtime_minutes").default(0),
+  totalEmergencyMinutes: integer("total_emergency_minutes").default(0),
+  totalBreakMinutes: integer("total_break_minutes").default(0),
+  
+  // Work Pattern Analysis
+  totalWorkDays: integer("total_work_days").default(0),
+  weekendWorkDays: integer("weekend_work_days").default(0),
+  holidayWorkDays: integer("holiday_work_days").default(0),
+  emergencyCallouts: integer("emergency_callouts").default(0),
+  
+  // Task-related Statistics
+  totalTasksCompleted: integer("total_tasks_completed").default(0),
+  averageTaskDuration: integer("average_task_duration").default(0), // Minutes
+  
+  // Financial Calculations
+  regularHoursPay: decimal("regular_hours_pay", { precision: 10, scale: 2 }).default("0.00"),
+  overtimePay: decimal("overtime_pay", { precision: 10, scale: 2 }).default("0.00"),
+  emergencyPay: decimal("emergency_pay", { precision: 10, scale: 2 }).default("0.00"),
+  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).default("0.00"),
+  
+  // Status
+  status: varchar("status").default("draft"), // draft, submitted, approved, paid
+  submittedAt: timestamp("submitted_at"),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Clock audit log for compliance and tracking
+export const staffClockAuditLog = pgTable("staff_clock_audit_log", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Reference
+  clockId: integer("clock_id").references(() => staffWorkClocks.id),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  
+  // Action Details
+  actionType: varchar("action_type").notNull(), // clock_in, clock_out, manual_adjustment, approval, dispute
+  oldValues: jsonb("old_values"),
+  newValues: jsonb("new_values"),
+  changeReason: text("change_reason"),
+  
+  // Metadata
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  geolocation: jsonb("geolocation"), // lat, lng, accuracy
+  
+  // Audit
+  performedBy: varchar("performed_by").references(() => users.id).notNull(),
+  performedAt: timestamp("performed_at").defaultNow(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ===== PLATFORM ROUTING INSERT SCHEMAS =====
 
 export const insertPlatformRoutingRuleSchema = createInsertSchema(platformRoutingRules).omit({
@@ -4598,6 +4754,45 @@ export const insertRoutingAuditLogSchema = createInsertSchema(routingAuditLog).o
   id: true,
   createdAt: true,
 });
+
+// ===== STAFF CLOCK-IN INSERT SCHEMAS =====
+
+export const insertStaffWorkClockSchema = createInsertSchema(staffWorkClocks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStaffClockSettingsSchema = createInsertSchema(staffClockSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStaffTimeSummarySchema = createInsertSchema(staffTimeSummaries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStaffClockAuditLogSchema = createInsertSchema(staffClockAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+// ===== STAFF CLOCK-IN TYPE DEFINITIONS =====
+
+export type StaffWorkClock = typeof staffWorkClocks.$inferSelect;
+export type InsertStaffWorkClock = z.infer<typeof insertStaffWorkClockSchema>;
+
+export type StaffClockSettings = typeof staffClockSettings.$inferSelect;
+export type InsertStaffClockSettings = z.infer<typeof insertStaffClockSettingsSchema>;
+
+export type StaffTimeSummary = typeof staffTimeSummaries.$inferSelect;
+export type InsertStaffTimeSummary = z.infer<typeof insertStaffTimeSummarySchema>;
+
+export type StaffClockAuditLog = typeof staffClockAuditLog.$inferSelect;
+export type InsertStaffClockAuditLog = z.infer<typeof insertStaffClockAuditLogSchema>;
 
 // ===== PLATFORM ROUTING TYPES =====
 

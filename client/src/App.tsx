@@ -58,6 +58,7 @@ import BookingIncomeRules from "@/pages/BookingIncomeRules";
 import AiTaskManager from "@/pages/AiTaskManager";
 import OwnerBalanceManagement from "@/pages/OwnerBalanceManagement";
 import StaffOverhoursTracker from "@/pages/StaffOverhoursTracker";
+import StaffClockinOvertime from "@/pages/StaffClockinOvertime";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -123,6 +124,7 @@ function Router() {
           <Route path="/tasks" component={Tasks} />
           <Route path="/staff-tasks" component={StaffTasks} />
           <Route path="/staff-overhours-tracker" component={StaffOverhoursTracker} />
+          <Route path="/staff-clock-overtime" component={StaffClockinOvertime} />
           <Route path="/maintenance-task-system" component={MaintenanceTaskSystem} />
           <Route path="/task-attachments-notes" component={TaskAttachmentsNotes} />
           <Route path="/ai-task-manager" component={AiTaskManager} />
