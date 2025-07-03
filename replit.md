@@ -198,3 +198,4 @@ Preferred communication style: Simple, everyday language.
 - Hostaway API integration for live booking data
 - Smart task automation based on guest reviews/messages
 - **Google Sheets Transition & QuickBooks Integration Module**: Phase out Google Sheets dependency while maintaining all financial reporting benefits, with optional QuickBooks sync for external accounting and Excel/PDF export capabilities
+- **Expense Approval Workflow & Repair Suggestion System**: Multi-role expense suggestion system with image uploads, approval workflows, notification system, and transparent expense tracking for maintenance, inventory, improvements, and service upgrades
