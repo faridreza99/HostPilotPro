@@ -21,6 +21,13 @@ import {
   guestAddonServices,
   guestAddonBookings,
   guestPortalAccess,
+  guestPortalSessions,
+  guestActivityTimeline,
+  guestChatMessages,
+  guestAiFaqKnowledge,
+  guestAddonServiceRequests,
+  guestPropertyLocalInfo,
+  guestMaintenanceReports,
   recurringServices,
   recurringServiceBills,
   billReminders,
@@ -176,6 +183,20 @@ import {
   type InsertBookingPlatformSync,
   type PropertyOccupancyAnalytics,
   type InsertPropertyOccupancyAnalytics,
+  type GuestPortalSession,
+  type InsertGuestPortalSession,
+  type GuestActivityTimeline,
+  type InsertGuestActivityTimeline,
+  type GuestChatMessage,
+  type InsertGuestChatMessage,
+  type GuestAiFaqKnowledge,
+  type InsertGuestAiFaqKnowledge,
+  type GuestAddonServiceRequest,
+  type InsertGuestAddonServiceRequest,
+  type GuestPropertyLocalInfo,
+  type InsertGuestPropertyLocalInfo,
+  type GuestMaintenanceReport,
+  type InsertGuestMaintenanceReport,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
@@ -217,6 +238,7 @@ export interface IStorage {
   getBookings(): Promise<Booking[]>;
   getBookingsByProperty(propertyId: number): Promise<Booking[]>;
   getBooking(id: number): Promise<Booking | undefined>;
+  getBookingByReferenceAndEmail(bookingReference: string, guestEmail: string): Promise<Booking | undefined>;
   createBooking(booking: InsertBooking): Promise<Booking>;
   updateBooking(id: number, booking: Partial<InsertBooking>): Promise<Booking | undefined>;
   deleteBooking(id: number): Promise<boolean>;
@@ -453,6 +475,50 @@ export interface IStorage {
   getUserBalanceSummary(userId: string): Promise<{ currentBalance: number; userType: string }>;
   resetUserBalance(userId: string, adminUserId: string, resetReason?: string, propertyId?: number): Promise<BalanceResetAudit>;
   getBalanceResetAuditLog(organizationId: string, filters?: { userId?: string; fromDate?: Date; toDate?: Date }): Promise<BalanceResetAudit[]>;
+
+  // Guest Portal Interface operations
+  createGuestPortalSession(session: InsertGuestPortalSession): Promise<GuestPortalSession>;
+  getGuestPortalSession(accessToken: string): Promise<GuestPortalSession | undefined>;
+  updateGuestPortalSessionActivity(accessToken: string): Promise<void>;
+  getGuestBookingOverview(guestSessionId: number): Promise<{
+    upcomingStays: any[];
+    currentStay: any;
+    pastStays: any[];
+  }>;
+  
+  // Guest Activity Timeline
+  getGuestActivityTimeline(guestSessionId: number): Promise<GuestActivityTimeline[]>;
+  createGuestActivityRecord(activity: InsertGuestActivityTimeline): Promise<GuestActivityTimeline>;
+  updateGuestActivityStatus(id: number, status: string, completedAt?: Date): Promise<GuestActivityTimeline | undefined>;
+  
+  // Guest Chat & AI Operations
+  getGuestChatMessages(guestSessionId: number, limit?: number): Promise<GuestChatMessage[]>;
+  createGuestChatMessage(message: InsertGuestChatMessage): Promise<GuestChatMessage>;
+  processGuestMessageWithAI(messageId: number): Promise<{
+    detectedIssue: string | null;
+    severity: string | null;
+    autoCreatedTaskId: number | null;
+    aiResponse: string | null;
+  }>;
+  getGuestAiFaqResponses(organizationId: string, propertyId?: number): Promise<GuestAiFaqKnowledge[]>;
+  
+  // Guest Add-On Service Requests
+  getAvailableAddonServices(organizationId: string, propertyId: number): Promise<GuestAddonService[]>;
+  createGuestAddonServiceRequest(request: InsertGuestAddonServiceRequest): Promise<GuestAddonServiceRequest>;
+  getGuestAddonServiceRequests(guestSessionId: number): Promise<GuestAddonServiceRequest[]>;
+  updateAddonServiceRequestStatus(id: number, status: string, confirmedBy?: string): Promise<GuestAddonServiceRequest | undefined>;
+  completeAddonServiceRequest(id: number, completionNotes: string, rating?: number, review?: string): Promise<GuestAddonServiceRequest | undefined>;
+  
+  // Guest Property Local Information
+  getGuestPropertyLocalInfo(propertyId: number, locationType?: string): Promise<GuestPropertyLocalInfo[]>;
+  createPropertyLocalInfo(info: InsertGuestPropertyLocalInfo): Promise<GuestPropertyLocalInfo>;
+  updatePropertyLocalInfo(id: number, info: Partial<InsertGuestPropertyLocalInfo>): Promise<GuestPropertyLocalInfo | undefined>;
+  
+  // Guest Maintenance Reports
+  createGuestMaintenanceReport(report: InsertGuestMaintenanceReport): Promise<GuestMaintenanceReport>;
+  getGuestMaintenanceReports(guestSessionId: number): Promise<GuestMaintenanceReport[]>;
+  updateMaintenanceReportStatus(id: number, status: string, assignedTo?: string): Promise<GuestMaintenanceReport | undefined>;
+  completeMaintenanceReport(id: number, resolutionNotes: string, images?: string[]): Promise<GuestMaintenanceReport | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -701,6 +767,17 @@ export class DatabaseStorage implements IStorage {
 
   async getBooking(id: number): Promise<Booking | undefined> {
     const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
+    return booking;
+  }
+
+  async getBookingByReferenceAndEmail(bookingReference: string, guestEmail: string): Promise<Booking | undefined> {
+    const [booking] = await db
+      .select()
+      .from(bookings)
+      .where(and(
+        eq(bookings.bookingReference, bookingReference),
+        eq(bookings.guestEmail, guestEmail)
+      ));
     return booking;
   }
 
@@ -7528,6 +7605,304 @@ export class DatabaseStorage implements IStorage {
     }
 
     return query.orderBy(desc(propertyOccupancyAnalytics.periodDate));
+  }
+  // ===== GUEST PORTAL INTERFACE METHODS =====
+  
+  // Guest Portal Sessions
+  async createGuestPortalSession(session: InsertGuestPortalSession): Promise<GuestPortalSession> {
+    const [newSession] = await db.insert(guestPortalSessions).values(session).returning();
+    return newSession;
+  }
+
+  async getGuestPortalSession(accessToken: string): Promise<GuestPortalSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(guestPortalSessions)
+      .where(and(
+        eq(guestPortalSessions.accessToken, accessToken),
+        eq(guestPortalSessions.isActive, true),
+        gte(guestPortalSessions.expiresAt, new Date())
+      ));
+    return session;
+  }
+
+  async updateGuestPortalSessionActivity(accessToken: string): Promise<void> {
+    await db
+      .update(guestPortalSessions)
+      .set({ lastAccessed: new Date() })
+      .where(eq(guestPortalSessions.accessToken, accessToken));
+  }
+
+  async getGuestBookingOverview(guestSessionId: number): Promise<{
+    upcomingStays: any[];
+    currentStay: any;
+    pastStays: any[];
+  }> {
+    const session = await db
+      .select()
+      .from(guestPortalSessions)
+      .where(eq(guestPortalSessions.id, guestSessionId))
+      .limit(1);
+    
+    if (!session[0]) {
+      return { upcomingStays: [], currentStay: null, pastStays: [] };
+    }
+
+    const currentDate = new Date();
+    const checkInDate = session[0].checkInDate;
+    const checkOutDate = session[0].checkOutDate;
+    
+    // Determine if current stay
+    const isCurrentStay = currentDate >= checkInDate && currentDate <= checkOutDate;
+    
+    return {
+      upcomingStays: isCurrentStay ? [] : [session[0]],
+      currentStay: isCurrentStay ? session[0] : null,
+      pastStays: currentDate > checkOutDate ? [session[0]] : []
+    };
+  }
+
+  // Guest Activity Timeline
+  async getGuestActivityTimeline(guestSessionId: number): Promise<GuestActivityTimeline[]> {
+    return await db
+      .select()
+      .from(guestActivityTimeline)
+      .where(and(
+        eq(guestActivityTimeline.guestSessionId, guestSessionId),
+        eq(guestActivityTimeline.isVisible, true)
+      ))
+      .orderBy(desc(guestActivityTimeline.requestedAt));
+  }
+
+  async createGuestActivityRecord(activity: InsertGuestActivityTimeline): Promise<GuestActivityTimeline> {
+    const [newActivity] = await db.insert(guestActivityTimeline).values(activity).returning();
+    return newActivity;
+  }
+
+  async updateGuestActivityStatus(id: number, status: string, completedAt?: Date): Promise<GuestActivityTimeline | undefined> {
+    const updateData: any = { status, updatedAt: new Date() };
+    if (completedAt) updateData.completedAt = completedAt;
+    
+    const [updated] = await db
+      .update(guestActivityTimeline)
+      .set(updateData)
+      .where(eq(guestActivityTimeline.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Guest Chat & AI Operations
+  async getGuestChatMessages(guestSessionId: number, limit: number = 50): Promise<GuestChatMessage[]> {
+    return await db
+      .select()
+      .from(guestChatMessages)
+      .where(eq(guestChatMessages.guestSessionId, guestSessionId))
+      .orderBy(desc(guestChatMessages.sentAt))
+      .limit(limit);
+  }
+
+  async createGuestChatMessage(message: InsertGuestChatMessage): Promise<GuestChatMessage> {
+    const [newMessage] = await db.insert(guestChatMessages).values(message).returning();
+    return newMessage;
+  }
+
+  async processGuestMessageWithAI(messageId: number): Promise<{
+    detectedIssue: string | null;
+    severity: string | null;
+    autoCreatedTaskId: number | null;
+    aiResponse: string | null;
+  }> {
+    // This is a placeholder for AI processing logic
+    // In production, this would integrate with OpenAI or similar service
+    const [message] = await db
+      .select()
+      .from(guestChatMessages)
+      .where(eq(guestChatMessages.id, messageId));
+    
+    if (!message) {
+      return { detectedIssue: null, severity: null, autoCreatedTaskId: null, aiResponse: null };
+    }
+
+    // Simple keyword detection (to be replaced with AI)
+    const content = message.messageContent.toLowerCase();
+    let detectedIssue: string | null = null;
+    let severity: string | null = null;
+    let aiResponse = "Thank you for your message. Our team will respond shortly.";
+
+    if (content.includes('broken') || content.includes('not working') || content.includes('problem')) {
+      detectedIssue = 'maintenance';
+      severity = content.includes('urgent') || content.includes('emergency') ? 'urgent' : 'medium';
+      aiResponse = "I understand there's a maintenance issue. I've notified our team and they'll address this shortly.";
+    } else if (content.includes('dirty') || content.includes('clean')) {
+      detectedIssue = 'cleaning';
+      severity = 'medium';
+      aiResponse = "I'll arrange for additional cleaning service right away.";
+    }
+
+    // Update message with AI processing results
+    await db
+      .update(guestChatMessages)
+      .set({
+        aiProcessed: true,
+        detectedIssue,
+        issueSeverity: severity,
+        requiresStaffResponse: detectedIssue !== null
+      })
+      .where(eq(guestChatMessages.id, messageId));
+
+    return { detectedIssue, severity, autoCreatedTaskId: null, aiResponse };
+  }
+
+  async getGuestAiFaqResponses(organizationId: string, propertyId?: number): Promise<GuestAiFaqKnowledge[]> {
+    const conditions = [eq(guestAiFaqKnowledge.organizationId, organizationId)];
+    
+    if (propertyId) {
+      conditions.push(eq(guestAiFaqKnowledge.propertyId, propertyId));
+    }
+    
+    return await db
+      .select()
+      .from(guestAiFaqKnowledge)
+      .where(and(...conditions))
+      .orderBy(desc(guestAiFaqKnowledge.priority));
+  }
+
+  // Guest Add-On Service Requests
+  async getAvailableAddonServices(organizationId: string, propertyId: number): Promise<GuestAddonService[]> {
+    return await db
+      .select()
+      .from(guestAddonServices)
+      .where(and(
+        eq(guestAddonServices.organizationId, organizationId),
+        eq(guestAddonServices.isActive, true)
+      ))
+      .orderBy(asc(guestAddonServices.serviceName));
+  }
+
+  async createGuestAddonServiceRequest(request: InsertGuestAddonServiceRequest): Promise<GuestAddonServiceRequest> {
+    const [newRequest] = await db.insert(guestAddonServiceRequests).values(request).returning();
+    return newRequest;
+  }
+
+  async getGuestAddonServiceRequests(guestSessionId: number): Promise<GuestAddonServiceRequest[]> {
+    return await db
+      .select()
+      .from(guestAddonServiceRequests)
+      .where(eq(guestAddonServiceRequests.guestSessionId, guestSessionId))
+      .orderBy(desc(guestAddonServiceRequests.createdAt));
+  }
+
+  async updateAddonServiceRequestStatus(id: number, status: string, confirmedBy?: string): Promise<GuestAddonServiceRequest | undefined> {
+    const updateData: any = { requestStatus: status, updatedAt: new Date() };
+    if (confirmedBy) {
+      updateData.confirmedBy = confirmedBy;
+      updateData.confirmedAt = new Date();
+    }
+    
+    const [updated] = await db
+      .update(guestAddonServiceRequests)
+      .set(updateData)
+      .where(eq(guestAddonServiceRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  async completeAddonServiceRequest(id: number, completionNotes: string, rating?: number, review?: string): Promise<GuestAddonServiceRequest | undefined> {
+    const updateData: any = {
+      requestStatus: 'completed',
+      completedAt: new Date(),
+      completionNotes,
+      updatedAt: new Date()
+    };
+    
+    if (rating) updateData.guestRating = rating;
+    if (review) updateData.guestReview = review;
+    
+    const [updated] = await db
+      .update(guestAddonServiceRequests)
+      .set(updateData)
+      .where(eq(guestAddonServiceRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Guest Property Local Information
+  async getGuestPropertyLocalInfo(propertyId: number, locationType?: string): Promise<GuestPropertyLocalInfo[]> {
+    const conditions = [
+      eq(guestPropertyLocalInfo.propertyId, propertyId),
+      eq(guestPropertyLocalInfo.isActive, true)
+    ];
+    
+    if (locationType) {
+      conditions.push(eq(guestPropertyLocalInfo.locationType, locationType));
+    }
+    
+    return await db
+      .select()
+      .from(guestPropertyLocalInfo)
+      .where(and(...conditions))
+      .orderBy(asc(guestPropertyLocalInfo.displayOrder), desc(guestPropertyLocalInfo.recommendationScore));
+  }
+
+  async createPropertyLocalInfo(info: InsertGuestPropertyLocalInfo): Promise<GuestPropertyLocalInfo> {
+    const [newInfo] = await db.insert(guestPropertyLocalInfo).values(info).returning();
+    return newInfo;
+  }
+
+  async updatePropertyLocalInfo(id: number, info: Partial<InsertGuestPropertyLocalInfo>): Promise<GuestPropertyLocalInfo | undefined> {
+    const [updated] = await db
+      .update(guestPropertyLocalInfo)
+      .set({ ...info, updatedAt: new Date() })
+      .where(eq(guestPropertyLocalInfo.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Guest Maintenance Reports
+  async createGuestMaintenanceReport(report: InsertGuestMaintenanceReport): Promise<GuestMaintenanceReport> {
+    const [newReport] = await db.insert(guestMaintenanceReports).values(report).returning();
+    return newReport;
+  }
+
+  async getGuestMaintenanceReports(guestSessionId: number): Promise<GuestMaintenanceReport[]> {
+    return await db
+      .select()
+      .from(guestMaintenanceReports)
+      .where(eq(guestMaintenanceReports.guestSessionId, guestSessionId))
+      .orderBy(desc(guestMaintenanceReports.reportedAt));
+  }
+
+  async updateMaintenanceReportStatus(id: number, status: string, assignedTo?: string): Promise<GuestMaintenanceReport | undefined> {
+    const updateData: any = { reportStatus: status, updatedAt: new Date() };
+    if (assignedTo) {
+      updateData.assignedTo = assignedTo;
+      updateData.assignedAt = new Date();
+    }
+    
+    const [updated] = await db
+      .update(guestMaintenanceReports)
+      .set(updateData)
+      .where(eq(guestMaintenanceReports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async completeMaintenanceReport(id: number, resolutionNotes: string, images?: string[]): Promise<GuestMaintenanceReport | undefined> {
+    const updateData: any = {
+      reportStatus: 'resolved',
+      actualResolutionTime: new Date(),
+      resolutionNotes,
+      updatedAt: new Date()
+    };
+    
+    if (images) updateData.resolutionImages = images;
+    
+    const [updated] = await db
+      .update(guestMaintenanceReports)
+      .set(updateData)
+      .where(eq(guestMaintenanceReports.id, id))
+      .returning();
+    return updated;
   }
 }
 

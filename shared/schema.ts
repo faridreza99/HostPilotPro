@@ -163,6 +163,7 @@ export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
   externalId: varchar("external_id"), // ID from external system (Hostaway, etc.)
+  bookingReference: varchar("booking_reference").unique(), // Guest portal access reference
   propertyId: integer("property_id").references(() => properties.id),
   guestName: varchar("guest_name").notNull(),
   guestEmail: varchar("guest_email"),
@@ -3255,6 +3256,293 @@ export type BookingPlatformSync = typeof bookingPlatformSync.$inferSelect;
 export type InsertBookingPlatformSync = z.infer<typeof insertBookingPlatformSyncSchema>;
 export type PropertyOccupancyAnalytics = typeof propertyOccupancyAnalytics.$inferSelect;
 export type InsertPropertyOccupancyAnalytics = z.infer<typeof insertPropertyOccupancyAnalyticsSchema>;
+
+// ===== GUEST PORTAL INTERFACE TABLES =====
+
+// Guest Portal Sessions - Secure guest access tokens for bookings
+export const guestPortalSessions = pgTable("guest_portal_sessions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  guestEmail: varchar("guest_email").notNull(),
+  accessToken: varchar("access_token").unique().notNull(), // Secure token for guest access
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  checkInDate: date("check_in_date").notNull(),
+  checkOutDate: date("check_out_date").notNull(),
+  guestName: varchar("guest_name").notNull(),
+  guestPhone: varchar("guest_phone"),
+  isActive: boolean("is_active").default(true),
+  lastAccessed: timestamp("last_accessed").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(), // Expires after checkout + 30 days
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Guest Activity Timeline - Track guest service requests and bookings
+export const guestActivityTimeline = pgTable("guest_activity_timeline", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  guestSessionId: integer("guest_session_id").references(() => guestPortalSessions.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  activityType: varchar("activity_type").notNull(), // service_request, cleaning_request, message, addon_booking
+  title: varchar("title").notNull(),
+  description: text("description"),
+  status: varchar("status").default("pending"), // pending, in_progress, completed, cancelled
+  requestedAt: timestamp("requested_at").defaultNow(),
+  scheduledAt: timestamp("scheduled_at"),
+  completedAt: timestamp("completed_at"),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  finalCost: decimal("final_cost", { precision: 10, scale: 2 }),
+  chargeAssignment: varchar("charge_assignment").default("guest"), // guest, owner, company
+  isVisible: boolean("is_visible").default(true), // Visible to guest in portal
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Guest Chat Messages - AI chat and manual messages with staff
+export const guestChatMessages = pgTable("guest_chat_messages", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  guestSessionId: integer("guest_session_id").references(() => guestPortalSessions.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  messageType: varchar("message_type").notNull(), // guest_message, ai_response, staff_response
+  senderType: varchar("sender_type").notNull(), // guest, ai, staff
+  senderId: varchar("sender_id"), // References users.id if staff
+  messageContent: text("message_content").notNull(),
+  
+  // AI Processing
+  aiProcessed: boolean("ai_processed").default(false),
+  detectedIssue: varchar("detected_issue"), // complaint, maintenance, request
+  issueSeverity: varchar("issue_severity"), // low, medium, high, urgent
+  autoCreatedTaskId: integer("auto_created_task_id").references(() => tasks.id),
+  
+  // Staff Assignment and Alerts  
+  requiresStaffResponse: boolean("requires_staff_response").default(false),
+  staffAlerted: boolean("staff_alerted").default(false),
+  alertedStaffIds: jsonb("alerted_staff_ids"), // Array of staff member IDs
+  responseDeadline: timestamp("response_deadline"),
+  
+  // Message Metadata
+  readByGuest: boolean("read_by_guest").default(false),
+  readByStaff: boolean("read_by_staff").default(false),
+  messageThreadId: varchar("message_thread_id"), // Group related messages
+  
+  sentAt: timestamp("sent_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Guest AI FAQ Knowledge Base - Pre-configured responses for common questions
+export const guestAiFaqKnowledge = pgTable("guest_ai_faq_knowledge", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  categoryType: varchar("category_type").notNull(), // property_info, amenities, local_area, policies, troubleshooting
+  questionKeywords: jsonb("question_keywords").notNull(), // Array of keywords that trigger this FAQ
+  standardQuestion: varchar("standard_question").notNull(),
+  standardAnswer: text("standard_answer").notNull(),
+  propertySpecific: boolean("property_specific").default(false),
+  propertyId: integer("property_id").references(() => properties.id), // Null for general FAQ
+  priority: integer("priority").default(1), // 1-10, higher priority responses shown first
+  isActive: boolean("is_active").default(true),
+  usageCount: integer("usage_count").default(0),
+  lastUsed: timestamp("last_used"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Guest Add-On Service Requests - Services like cleaning, chef, massage, transport
+export const guestAddonServiceRequests = pgTable("guest_addon_service_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  guestSessionId: integer("guest_session_id").references(() => guestPortalSessions.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  serviceId: integer("service_id").references(() => guestAddonServices.id).notNull(),
+  
+  // Service Details
+  serviceName: varchar("service_name").notNull(),
+  serviceType: varchar("service_type").notNull(), // cleaning, chef, massage, transport, babysitting, laundry
+  requestedDate: date("requested_date").notNull(),
+  requestedTime: varchar("requested_time"), // Preferred time slot
+  duration: integer("duration"), // Duration in minutes/hours
+  guestCount: integer("guest_count").default(1), // Number of people for service
+  
+  // Pricing and Assignment
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  quantity: integer("quantity").default(1),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
+  chargeAssignment: varchar("charge_assignment").default("guest"), // guest, owner, company
+  assignmentReason: text("assignment_reason"), // Why charged to owner/company
+  
+  // Status and Processing
+  requestStatus: varchar("request_status").default("pending"), // pending, confirmed, in_progress, completed, cancelled
+  confirmedBy: varchar("confirmed_by").references(() => users.id), // Staff who confirmed
+  confirmedAt: timestamp("confirmed_at"),
+  scheduledDateTime: timestamp("scheduled_date_time"),
+  completedAt: timestamp("completed_at"),
+  
+  // Service Provider
+  serviceProviderId: varchar("service_provider_id").references(() => users.id), // Staff assigned
+  providerNotes: text("provider_notes"),
+  completionNotes: text("completion_notes"),
+  guestRating: integer("guest_rating"), // 1-5 stars
+  guestReview: text("guest_review"),
+  
+  // Special Requirements
+  specialRequests: text("special_requests"),
+  guestNotes: text("guest_notes"),
+  adminNotes: text("admin_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Guest Property Info & Local Areas - Interactive maps and recommendations
+export const guestPropertyLocalInfo = pgTable("guest_property_local_info", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Location Details
+  locationName: varchar("location_name").notNull(),
+  locationType: varchar("location_type").notNull(), // beach, restaurant, pharmacy, convenience_store, activity, tour
+  description: text("description"),
+  address: text("address"),
+  
+  // Geographic Data
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  distanceFromProperty: decimal("distance_from_property", { precision: 5, scale: 2 }), // km
+  walkingTime: integer("walking_time"), // minutes
+  drivingTime: integer("driving_time"), // minutes
+  
+  // Contact and Booking
+  phoneNumber: varchar("phone_number"),
+  website: varchar("website"),
+  openingHours: jsonb("opening_hours"), // {monday: "09:00-18:00", tuesday: "09:00-18:00"}
+  isPartner: boolean("is_partner").default(false), // Partner locations get commission
+  bookingRequired: boolean("booking_required").default(false),
+  
+  // Display and Recommendations
+  displayOrder: integer("display_order").default(0),
+  recommendationScore: integer("recommendation_score").default(1), // 1-10
+  imageUrl: varchar("image_url"),
+  tags: jsonb("tags"), // Array of tags: ["family_friendly", "romantic", "budget", "luxury"]
+  priceRange: varchar("price_range"), // budget, moderate, expensive, luxury
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: varchar("verified_by").references(() => users.id),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Guest Maintenance Reports - Direct reporting with auto-task creation
+export const guestMaintenanceReports = pgTable("guest_maintenance_reports", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  guestSessionId: integer("guest_session_id").references(() => guestPortalSessions.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Issue Details
+  issueType: varchar("issue_type").notNull(), // electrical, plumbing, appliance, cleaning, amenity, safety
+  issueTitle: varchar("issue_title").notNull(),
+  issueDescription: text("issue_description").notNull(),
+  locationInProperty: varchar("location_in_property"), // bedroom_1, kitchen, pool_area, garden
+  severityLevel: varchar("severity_level").default("medium"), // low, medium, high, urgent
+  
+  // Media Evidence
+  reportImages: jsonb("report_images"), // Array of image URLs uploaded by guest
+  reportVideos: jsonb("report_videos"), // Array of video URLs if applicable
+  
+  // Processing and Assignment
+  reportStatus: varchar("report_status").default("submitted"), // submitted, acknowledged, assigned, in_progress, resolved, closed
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id), // First staff to see report
+  acknowledgedAt: timestamp("acknowledged_at"),
+  autoCreatedTaskId: integer("auto_created_task_id").references(() => tasks.id),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  assignedAt: timestamp("assigned_at"),
+  
+  // Resolution
+  estimatedResolutionTime: varchar("estimated_resolution_time"), // "within_24h", "1-3_days", "3-7_days"
+  actualResolutionTime: timestamp("actual_resolution_time"),
+  resolutionNotes: text("resolution_notes"),
+  resolutionImages: jsonb("resolution_images"), // Before/after photos
+  
+  // Follow-up
+  guestSatisfied: boolean("guest_satisfied"),
+  guestFeedback: text("guest_feedback"),
+  followUpRequired: boolean("follow_up_required").default(false),
+  
+  // Staff Communication
+  staffNotes: text("staff_notes"),
+  internalComments: text("internal_comments"), // Not visible to guest
+  
+  reportedAt: timestamp("reported_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ===== GUEST PORTAL INSERT SCHEMAS =====
+
+export const insertGuestPortalSessionSchema = createInsertSchema(guestPortalSessions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertGuestActivityTimelineSchema = createInsertSchema(guestActivityTimeline).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGuestChatMessageSchema = createInsertSchema(guestChatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertGuestAiFaqKnowledgeSchema = createInsertSchema(guestAiFaqKnowledge).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGuestAddonServiceRequestSchema = createInsertSchema(guestAddonServiceRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGuestPropertyLocalInfoSchema = createInsertSchema(guestPropertyLocalInfo).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGuestMaintenanceReportSchema = createInsertSchema(guestMaintenanceReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== GUEST PORTAL TYPES =====
+
+export type GuestPortalSession = typeof guestPortalSessions.$inferSelect;
+export type InsertGuestPortalSession = z.infer<typeof insertGuestPortalSessionSchema>;
+export type GuestActivityTimeline = typeof guestActivityTimeline.$inferSelect;
+export type InsertGuestActivityTimeline = z.infer<typeof insertGuestActivityTimelineSchema>;
+export type GuestChatMessage = typeof guestChatMessages.$inferSelect;
+export type InsertGuestChatMessage = z.infer<typeof insertGuestChatMessageSchema>;
+export type GuestAiFaqKnowledge = typeof guestAiFaqKnowledge.$inferSelect;
+export type InsertGuestAiFaqKnowledge = z.infer<typeof insertGuestAiFaqKnowledgeSchema>;
+export type GuestAddonServiceRequest = typeof guestAddonServiceRequests.$inferSelect;
+export type InsertGuestAddonServiceRequest = z.infer<typeof insertGuestAddonServiceRequestSchema>;
+export type GuestPropertyLocalInfo = typeof guestPropertyLocalInfo.$inferSelect;
+export type InsertGuestPropertyLocalInfo = z.infer<typeof insertGuestPropertyLocalInfoSchema>;
+export type GuestMaintenanceReport = typeof guestMaintenanceReports.$inferSelect;
+export type InsertGuestMaintenanceReport = z.infer<typeof insertGuestMaintenanceReportSchema>;
 
 // ===== STAFF DASHBOARD TYPES =====
 

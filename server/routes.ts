@@ -5763,6 +5763,351 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== GUEST PORTAL INTERFACE API =====
+
+  // Guest Portal Authentication - Create session with booking token
+  app.post("/api/guest/portal/auth", async (req, res) => {
+    try {
+      const { bookingReference, guestEmail, checkInDate } = req.body;
+      
+      // Find booking by reference and guest email
+      const booking = await storage.getBookingByReferenceAndEmail(bookingReference, guestEmail);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found or email mismatch" });
+      }
+
+      // Generate secure access token
+      const accessToken = `gpt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create guest portal session with 30 days after checkout expiry
+      const checkOutDate = new Date(booking.checkOut);
+      const expiresAt = new Date(checkOutDate);
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      const session = await storage.createGuestPortalSession({
+        organizationId: booking.organizationId,
+        bookingId: booking.id,
+        guestEmail,
+        accessToken,
+        propertyId: booking.propertyId,
+        checkInDate: new Date(checkInDate),
+        checkOutDate,
+        guestName: booking.guestName,
+        guestPhone: booking.guestPhone,
+        expiresAt,
+      });
+
+      res.json({ 
+        accessToken, 
+        session: {
+          id: session.id,
+          propertyId: session.propertyId,
+          checkInDate: session.checkInDate,
+          checkOutDate: session.checkOutDate,
+          guestName: session.guestName
+        }
+      });
+    } catch (error) {
+      console.error("Error creating guest portal session:", error);
+      res.status(500).json({ message: "Failed to create guest session" });
+    }
+  });
+
+  // Guest Portal Middleware - Validate access token
+  const guestPortalAuth = async (req: any, res: any, next: any) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+      if (!token) {
+        return res.status(401).json({ message: "Access token required" });
+      }
+
+      const session = await storage.getGuestPortalSession(token);
+      
+      if (!session) {
+        return res.status(401).json({ message: "Invalid or expired access token" });
+      }
+
+      // Update last accessed time
+      await storage.updateGuestPortalSessionActivity(token);
+      
+      req.guestSession = session;
+      next();
+    } catch (error) {
+      console.error("Guest portal auth error:", error);
+      res.status(401).json({ message: "Authentication failed" });
+    }
+  };
+
+  // Get guest booking overview
+  app.get("/api/guest/booking-overview", guestPortalAuth, async (req: any, res) => {
+    try {
+      const overview = await storage.getGuestBookingOverview(req.guestSession.id);
+      res.json(overview);
+    } catch (error) {
+      console.error("Error fetching booking overview:", error);
+      res.status(500).json({ message: "Failed to fetch booking overview" });
+    }
+  });
+
+  // Get guest activity timeline
+  app.get("/api/guest/activity-timeline", guestPortalAuth, async (req: any, res) => {
+    try {
+      const timeline = await storage.getGuestActivityTimeline(req.guestSession.id);
+      res.json(timeline);
+    } catch (error) {
+      console.error("Error fetching activity timeline:", error);
+      res.status(500).json({ message: "Failed to fetch activity timeline" });
+    }
+  });
+
+  // Guest Chat - Get messages
+  app.get("/api/guest/chat/messages", guestPortalAuth, async (req: any, res) => {
+    try {
+      const { limit } = req.query;
+      const messages = await storage.getGuestChatMessages(
+        req.guestSession.id, 
+        limit ? parseInt(limit as string) : 50
+      );
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching chat messages:", error);
+      res.status(500).json({ message: "Failed to fetch chat messages" });
+    }
+  });
+
+  // Guest Chat - Send message with AI processing
+  app.post("/api/guest/chat/send", guestPortalAuth, async (req: any, res) => {
+    try {
+      const { messageContent } = req.body;
+      
+      if (!messageContent || messageContent.trim().length === 0) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+
+      // Create guest message
+      const guestMessage = await storage.createGuestChatMessage({
+        organizationId: req.guestSession.organizationId,
+        guestSessionId: req.guestSession.id,
+        bookingId: req.guestSession.bookingId,
+        messageType: 'guest_message',
+        senderType: 'guest',
+        messageContent: messageContent.trim(),
+        messageThreadId: `thread_${req.guestSession.id}_${Date.now()}`,
+      });
+
+      // Process with AI for issue detection
+      const aiResult = await storage.processGuestMessageWithAI(guestMessage.id);
+      
+      // Create AI response message
+      const aiResponse = await storage.createGuestChatMessage({
+        organizationId: req.guestSession.organizationId,
+        guestSessionId: req.guestSession.id,
+        bookingId: req.guestSession.bookingId,
+        messageType: 'ai_response',
+        senderType: 'ai',
+        messageContent: aiResult.aiResponse || "Thank you for your message. Our team will respond shortly.",
+        messageThreadId: guestMessage.messageThreadId,
+      });
+
+      res.json({
+        guestMessage,
+        aiResponse,
+        detectedIssue: aiResult.detectedIssue,
+        severity: aiResult.severity
+      });
+    } catch (error) {
+      console.error("Error sending chat message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Get AI FAQ responses
+  app.get("/api/guest/faq", guestPortalAuth, async (req: any, res) => {
+    try {
+      const faqs = await storage.getGuestAiFaqResponses(
+        req.guestSession.organizationId,
+        req.guestSession.propertyId
+      );
+      res.json(faqs);
+    } catch (error) {
+      console.error("Error fetching FAQ responses:", error);
+      res.status(500).json({ message: "Failed to fetch FAQ responses" });
+    }
+  });
+
+  // Get available add-on services
+  app.get("/api/guest/addon-services", guestPortalAuth, async (req: any, res) => {
+    try {
+      const services = await storage.getAvailableAddonServices(
+        req.guestSession.organizationId,
+        req.guestSession.propertyId
+      );
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching add-on services:", error);
+      res.status(500).json({ message: "Failed to fetch add-on services" });
+    }
+  });
+
+  // Request add-on service
+  app.post("/api/guest/addon-services/request", guestPortalAuth, async (req: any, res) => {
+    try {
+      const {
+        serviceId,
+        serviceName,
+        serviceType,
+        requestedDate,
+        requestedTime,
+        duration,
+        guestCount,
+        unitPrice,
+        quantity,
+        totalCost,
+        chargeAssignment,
+        assignmentReason,
+        specialRequests,
+        guestNotes
+      } = req.body;
+
+      const serviceRequest = await storage.createGuestAddonServiceRequest({
+        organizationId: req.guestSession.organizationId,
+        guestSessionId: req.guestSession.id,
+        bookingId: req.guestSession.bookingId,
+        serviceId,
+        serviceName,
+        serviceType,
+        requestedDate: new Date(requestedDate),
+        requestedTime,
+        duration,
+        guestCount: guestCount || 1,
+        unitPrice,
+        quantity: quantity || 1,
+        totalCost,
+        chargeAssignment: chargeAssignment || 'guest',
+        assignmentReason,
+        specialRequests,
+        guestNotes,
+      });
+
+      // Create activity timeline entry
+      await storage.createGuestActivityRecord({
+        organizationId: req.guestSession.organizationId,
+        guestSessionId: req.guestSession.id,
+        bookingId: req.guestSession.bookingId,
+        activityType: 'addon_booking',
+        title: `${serviceName} Request`,
+        description: `Requested ${serviceName} for ${new Date(requestedDate).toDateString()}`,
+        status: 'pending',
+        requestedAt: new Date(),
+        estimatedCost: totalCost,
+        chargeAssignment: chargeAssignment || 'guest',
+      });
+
+      res.json(serviceRequest);
+    } catch (error) {
+      console.error("Error requesting add-on service:", error);
+      res.status(500).json({ message: "Failed to request add-on service" });
+    }
+  });
+
+  // Get guest's add-on service requests
+  app.get("/api/guest/addon-services/requests", guestPortalAuth, async (req: any, res) => {
+    try {
+      const requests = await storage.getGuestAddonServiceRequests(req.guestSession.id);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching service requests:", error);
+      res.status(500).json({ message: "Failed to fetch service requests" });
+    }
+  });
+
+  // Get property local information (maps, recommendations)
+  app.get("/api/guest/local-info", guestPortalAuth, async (req: any, res) => {
+    try {
+      const { locationType } = req.query;
+      const localInfo = await storage.getGuestPropertyLocalInfo(
+        req.guestSession.propertyId,
+        locationType as string
+      );
+      res.json(localInfo);
+    } catch (error) {
+      console.error("Error fetching local info:", error);
+      res.status(500).json({ message: "Failed to fetch local information" });
+    }
+  });
+
+  // Submit maintenance report
+  app.post("/api/guest/maintenance/report", guestPortalAuth, async (req: any, res) => {
+    try {
+      const {
+        issueType,
+        issueTitle,
+        issueDescription,
+        locationInProperty,
+        severityLevel,
+        reportImages,
+        reportVideos
+      } = req.body;
+
+      const report = await storage.createGuestMaintenanceReport({
+        organizationId: req.guestSession.organizationId,
+        guestSessionId: req.guestSession.id,
+        bookingId: req.guestSession.bookingId,
+        propertyId: req.guestSession.propertyId,
+        issueType,
+        issueTitle,
+        issueDescription,
+        locationInProperty,
+        severityLevel: severityLevel || 'medium',
+        reportImages,
+        reportVideos,
+        reportedAt: new Date(),
+      });
+
+      // Create activity timeline entry
+      await storage.createGuestActivityRecord({
+        organizationId: req.guestSession.organizationId,
+        guestSessionId: req.guestSession.id,
+        bookingId: req.guestSession.bookingId,
+        activityType: 'maintenance_request',
+        title: `Maintenance Report: ${issueTitle}`,
+        description: `Reported ${issueType} issue in ${locationInProperty}`,
+        status: 'pending',
+        requestedAt: new Date(),
+      });
+
+      res.json(report);
+    } catch (error) {
+      console.error("Error submitting maintenance report:", error);
+      res.status(500).json({ message: "Failed to submit maintenance report" });
+    }
+  });
+
+  // Get guest's maintenance reports
+  app.get("/api/guest/maintenance/reports", guestPortalAuth, async (req: any, res) => {
+    try {
+      const reports = await storage.getGuestMaintenanceReports(req.guestSession.id);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching maintenance reports:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance reports" });
+    }
+  });
+
+  // Get guest session info
+  app.get("/api/guest/session", guestPortalAuth, async (req: any, res) => {
+    try {
+      const { password, accessToken, ...sessionInfo } = req.guestSession;
+      res.json(sessionInfo);
+    } catch (error) {
+      console.error("Error fetching session info:", error);
+      res.status(500).json({ message: "Failed to fetch session info" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

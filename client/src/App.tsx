@@ -40,6 +40,7 @@ import AgentCommissionDashboard from "@/pages/AgentCommissionDashboard";
 import LoyaltyGuestTracker from "@/pages/LoyaltyGuestTracker";
 import LiveBookingCalendar from "@/pages/LiveBookingCalendar";
 import RetailAgentBookingEngine from "@/pages/RetailAgentBookingEngine";
+import GuestPortal from "@/pages/GuestPortal";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -80,6 +81,9 @@ function Router() {
 
   return (
     <Switch>
+      {/* Guest Portal - Public Route */}
+      <Route path="/guest-portal" component={GuestPortal} />
+      
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
