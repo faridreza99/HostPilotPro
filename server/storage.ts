@@ -10985,6 +10985,382 @@ Plant Care:
     };
   }
 
+  // ==================== STAFF OVERHOURS & EMERGENCY TASK TRACKER ====================
+
+  // Staff Work Hours Configuration
+  async getStaffWorkHours(organizationId: string, staffId?: string): Promise<StaffWorkHours[]> {
+    let query = db.select().from(staffWorkHours).where(eq(staffWorkHours.organizationId, organizationId));
+    
+    if (staffId) {
+      query = query.where(eq(staffWorkHours.staffId, staffId));
+    }
+    
+    return await query.where(eq(staffWorkHours.isActive, true)).orderBy(staffWorkHours.staffName);
+  }
+
+  async getStaffWorkHoursById(id: number): Promise<StaffWorkHours | undefined> {
+    const [workHours] = await db.select().from(staffWorkHours).where(eq(staffWorkHours.id, id));
+    return workHours;
+  }
+
+  async createStaffWorkHours(workHours: InsertStaffWorkHours): Promise<StaffWorkHours> {
+    const [newWorkHours] = await db.insert(staffWorkHours).values(workHours).returning();
+    return newWorkHours;
+  }
+
+  async updateStaffWorkHours(id: number, updates: Partial<InsertStaffWorkHours>): Promise<StaffWorkHours | undefined> {
+    const [updated] = await db
+      .update(staffWorkHours)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(staffWorkHours.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Task Time Tracking - Clock In/Out System
+  async startTaskTimer(taskTimeTracking: InsertTaskTimeTracking): Promise<TaskTimeTracking> {
+    // Check if staff member has normal work hours configured
+    const workHours = await this.getStaffWorkHours(taskTimeTracking.organizationId, taskTimeTracking.staffId);
+    const staffWorkHours = workHours[0];
+    
+    let isOutsideNormalHours = false;
+    
+    if (staffWorkHours) {
+      const startTime = new Date(taskTimeTracking.startTime);
+      const currentTime = startTime.toTimeString().slice(0, 5); // HH:MM format
+      const currentDay = startTime.toLocaleDateString('en-US', { weekday: 'lowercase' });
+      
+      // Check if current time is outside normal work hours
+      if (!staffWorkHours.workDays.includes(currentDay) ||
+          currentTime < staffWorkHours.normalStartTime ||
+          currentTime > staffWorkHours.normalEndTime) {
+        isOutsideNormalHours = true;
+      }
+    }
+    
+    const newTaskTracking = await db.insert(taskTimeTracking).values({
+      ...taskTimeTracking,
+      isOutsideNormalHours,
+      status: 'active'
+    }).returning();
+    
+    return newTaskTracking[0];
+  }
+
+  async endTaskTimer(taskTrackingId: number, endTime: Date, taskNotes?: string): Promise<TaskTimeTracking | undefined> {
+    const [tracking] = await db.select().from(taskTimeTracking).where(eq(taskTimeTracking.id, taskTrackingId));
+    
+    if (!tracking) {
+      return undefined;
+    }
+    
+    const duration = Math.floor((endTime.getTime() - tracking.startTime.getTime()) / (1000 * 60)); // minutes
+    
+    const [updated] = await db
+      .update(taskTimeTracking)
+      .set({
+        endTime,
+        duration,
+        taskNotes,
+        status: 'completed',
+        updatedAt: new Date()
+      })
+      .where(eq(taskTimeTracking.id, taskTrackingId))
+      .returning();
+    
+    // Update monthly overtime summary
+    await this.updateOvertimeSummary(tracking.organizationId, tracking.staffId, tracking.startTime);
+    
+    return updated;
+  }
+
+  async markTaskAsEmergency(taskTrackingId: number, emergencyReason: string, markedBy: string): Promise<TaskTimeTracking | undefined> {
+    const [updated] = await db
+      .update(taskTimeTracking)
+      .set({
+        isEmergencyTask: true,
+        emergencyReason: `${emergencyReason} (Marked by: ${markedBy})`,
+        updatedAt: new Date()
+      })
+      .where(eq(taskTimeTracking.id, taskTrackingId))
+      .returning();
+    
+    return updated;
+  }
+
+  // Get task time tracking records
+  async getTaskTimeTracking(organizationId: string, filters?: {
+    staffId?: string;
+    taskId?: number;
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    isOutsideNormalHours?: boolean;
+    isEmergencyTask?: boolean;
+  }): Promise<TaskTimeTracking[]> {
+    let query = db.select().from(taskTimeTracking).where(eq(taskTimeTracking.organizationId, organizationId));
+    
+    if (filters?.staffId) {
+      query = query.where(eq(taskTimeTracking.staffId, filters.staffId));
+    }
+    if (filters?.taskId) {
+      query = query.where(eq(taskTimeTracking.taskId, filters.taskId));
+    }
+    if (filters?.status) {
+      query = query.where(eq(taskTimeTracking.status, filters.status));
+    }
+    if (filters?.fromDate) {
+      query = query.where(gte(taskTimeTracking.startTime, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      query = query.where(lte(taskTimeTracking.startTime, filters.toDate));
+    }
+    if (filters?.isOutsideNormalHours !== undefined) {
+      query = query.where(eq(taskTimeTracking.isOutsideNormalHours, filters.isOutsideNormalHours));
+    }
+    if (filters?.isEmergencyTask !== undefined) {
+      query = query.where(eq(taskTimeTracking.isEmergencyTask, filters.isEmergencyTask));
+    }
+    
+    return await query.orderBy(desc(taskTimeTracking.startTime));
+  }
+
+  // Overtime Hours Summary Management
+  async updateOvertimeSummary(organizationId: string, staffId: string, taskDate: Date): Promise<void> {
+    const monthYear = taskDate.toISOString().slice(0, 7); // YYYY-MM format
+    
+    // Get all overtime hours for this staff member in this month
+    const overtimeRecords = await this.getTaskTimeTracking(organizationId, {
+      staffId,
+      isOutsideNormalHours: true,
+      fromDate: new Date(taskDate.getFullYear(), taskDate.getMonth(), 1),
+      toDate: new Date(taskDate.getFullYear(), taskDate.getMonth() + 1, 0),
+    });
+    
+    const completedRecords = overtimeRecords.filter(record => record.status === 'completed' && record.duration);
+    const totalOvertimeMinutes = completedRecords.reduce((sum, record) => sum + (record.duration || 0), 0);
+    const totalEmergencyTasks = completedRecords.filter(record => record.isEmergencyTask).length;
+    const totalRegularTasks = completedRecords.filter(record => !record.isEmergencyTask).length;
+    
+    // Get staff work hours to calculate overtime pay
+    const workHours = await this.getStaffWorkHours(organizationId, staffId);
+    const staffWorkHours = workHours[0];
+    let estimatedOvertimePay = 0;
+    
+    if (staffWorkHours) {
+      const baseSalary = parseFloat(staffWorkHours.baseMonthlySalary.toString());
+      const overtimeRate = parseFloat(staffWorkHours.overtimeRate.toString());
+      const hoursPerMonth = 160; // Approximate working hours per month
+      const hourlyRate = baseSalary / hoursPerMonth;
+      estimatedOvertimePay = (totalOvertimeMinutes / 60) * hourlyRate * overtimeRate;
+    }
+    
+    // Check if summary already exists
+    const [existingSummary] = await db
+      .select()
+      .from(overtimeHoursSummary)
+      .where(
+        and(
+          eq(overtimeHoursSummary.organizationId, organizationId),
+          eq(overtimeHoursSummary.staffId, staffId),
+          eq(overtimeHoursSummary.monthYear, monthYear)
+        )
+      );
+    
+    const summaryData = {
+      totalOvertimeMinutes,
+      totalEmergencyTasks,
+      totalRegularTasks,
+      estimatedOvertimePay: estimatedOvertimePay.toString(),
+      updatedAt: new Date()
+    };
+    
+    if (existingSummary) {
+      await db
+        .update(overtimeHoursSummary)
+        .set(summaryData)
+        .where(eq(overtimeHoursSummary.id, existingSummary.id));
+    } else {
+      const staff = await this.getUser(staffId);
+      await db.insert(overtimeHoursSummary).values({
+        organizationId,
+        staffId,
+        staffName: staff?.firstName && staff?.lastName ? `${staff.firstName} ${staff.lastName}` : 'Unknown Staff',
+        monthYear,
+        ...summaryData,
+        status: 'pending'
+      });
+    }
+  }
+
+  async getOvertimeHoursSummary(organizationId: string, filters?: {
+    staffId?: string;
+    monthYear?: string;
+    status?: string;
+  }): Promise<OvertimeHoursSummary[]> {
+    let query = db.select().from(overtimeHoursSummary).where(eq(overtimeHoursSummary.organizationId, organizationId));
+    
+    if (filters?.staffId) {
+      query = query.where(eq(overtimeHoursSummary.staffId, filters.staffId));
+    }
+    if (filters?.monthYear) {
+      query = query.where(eq(overtimeHoursSummary.monthYear, filters.monthYear));
+    }
+    if (filters?.status) {
+      query = query.where(eq(overtimeHoursSummary.status, filters.status));
+    }
+    
+    return await query.orderBy(desc(overtimeHoursSummary.monthYear), overtimeHoursSummary.staffName);
+  }
+
+  async approveOvertimeHours(summaryId: number, approvedBy: string, approvedMinutes?: number): Promise<OvertimeHoursSummary | undefined> {
+    const [summary] = await db.select().from(overtimeHoursSummary).where(eq(overtimeHoursSummary.id, summaryId));
+    
+    if (!summary) {
+      return undefined;
+    }
+    
+    const finalApprovedMinutes = approvedMinutes || summary.totalOvertimeMinutes;
+    const unpaidMinutes = summary.totalOvertimeMinutes - finalApprovedMinutes;
+    
+    const [updated] = await db
+      .update(overtimeHoursSummary)
+      .set({
+        status: 'approved',
+        approvedOvertimeMinutes: finalApprovedMinutes,
+        unpaidOvertimeMinutes: unpaidMinutes,
+        approvedBy,
+        approvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(overtimeHoursSummary.id, summaryId))
+      .returning();
+    
+    return updated;
+  }
+
+  // Staff Commission Bonuses
+  async getStaffCommissionBonuses(organizationId: string, filters?: {
+    staffId?: string;
+    monthYear?: string;
+    bonusType?: string;
+    status?: string;
+  }): Promise<StaffCommissionBonus[]> {
+    let query = db.select().from(staffCommissionBonuses).where(eq(staffCommissionBonuses.organizationId, organizationId));
+    
+    if (filters?.staffId) {
+      query = query.where(eq(staffCommissionBonuses.staffId, filters.staffId));
+    }
+    if (filters?.monthYear) {
+      query = query.where(eq(staffCommissionBonuses.monthYear, filters.monthYear));
+    }
+    if (filters?.bonusType) {
+      query = query.where(eq(staffCommissionBonuses.bonusType, filters.bonusType));
+    }
+    if (filters?.status) {
+      query = query.where(eq(staffCommissionBonuses.status, filters.status));
+    }
+    
+    return await query.orderBy(desc(staffCommissionBonuses.awardedAt));
+  }
+
+  async createStaffCommissionBonus(bonus: InsertStaffCommissionBonus): Promise<StaffCommissionBonus> {
+    const [newBonus] = await db.insert(staffCommissionBonuses).values(bonus).returning();
+    return newBonus;
+  }
+
+  async approveStaffBonus(bonusId: number, approvedBy: string): Promise<StaffCommissionBonus | undefined> {
+    const [updated] = await db
+      .update(staffCommissionBonuses)
+      .set({
+        status: 'approved',
+        awardedAt: new Date()
+      })
+      .where(eq(staffCommissionBonuses.id, bonusId))
+      .returning();
+    
+    return updated;
+  }
+
+  // Emergency Task Reasons
+  async getEmergencyTaskReasons(organizationId: string): Promise<EmergencyTaskReason[]> {
+    return await db
+      .select()
+      .from(emergencyTaskReasons)
+      .where(and(
+        eq(emergencyTaskReasons.organizationId, organizationId),
+        eq(emergencyTaskReasons.isActive, true)
+      ))
+      .orderBy(emergencyTaskReasons.category, emergencyTaskReasons.reason);
+  }
+
+  async createEmergencyTaskReason(reason: InsertEmergencyTaskReason): Promise<EmergencyTaskReason> {
+    const [newReason] = await db.insert(emergencyTaskReasons).values(reason).returning();
+    return newReason;
+  }
+
+  // Staff overtime analytics
+  async getStaffOvertimeAnalytics(organizationId: string, staffId?: string, fromDate?: Date, toDate?: Date): Promise<{
+    totalOvertimeHours: number;
+    totalEmergencyTasks: number;
+    averageTaskDuration: number;
+    mostCommonEmergencyReason: string;
+    monthlyBreakdown: Array<{ month: string; hours: number; tasks: number; emergencyTasks: number }>;
+  }> {
+    const filters: any = { organizationId };
+    if (staffId) filters.staffId = staffId;
+    if (fromDate) filters.fromDate = fromDate;
+    if (toDate) filters.toDate = toDate;
+    
+    const timeRecords = await this.getTaskTimeTracking(organizationId, filters);
+    const completedRecords = timeRecords.filter(record => record.status === 'completed' && record.duration);
+    
+    const totalOvertimeMinutes = completedRecords
+      .filter(record => record.isOutsideNormalHours)
+      .reduce((sum, record) => sum + (record.duration || 0), 0);
+    
+    const totalEmergencyTasks = completedRecords.filter(record => record.isEmergencyTask).length;
+    
+    const averageTaskDuration = completedRecords.length > 0 
+      ? completedRecords.reduce((sum, record) => sum + (record.duration || 0), 0) / completedRecords.length
+      : 0;
+    
+    // Find most common emergency reason
+    const emergencyReasons = completedRecords
+      .filter(record => record.isEmergencyTask && record.emergencyReason)
+      .map(record => record.emergencyReason!);
+    
+    const reasonCounts = emergencyReasons.reduce((acc, reason) => {
+      acc[reason] = (acc[reason] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const mostCommonEmergencyReason = Object.entries(reasonCounts)
+      .sort(([,a], [,b]) => b - a)[0]?.[0] || 'None';
+    
+    // Monthly breakdown
+    const monthlyBreakdown = completedRecords.reduce((acc, record) => {
+      const month = record.startTime.toISOString().slice(0, 7);
+      if (!acc[month]) {
+        acc[month] = { month, hours: 0, tasks: 0, emergencyTasks: 0 };
+      }
+      acc[month].hours += (record.duration || 0) / 60; // Convert to hours
+      acc[month].tasks += 1;
+      if (record.isEmergencyTask) {
+        acc[month].emergencyTasks += 1;
+      }
+      return acc;
+    }, {} as Record<string, any>);
+    
+    return {
+      totalOvertimeHours: totalOvertimeMinutes / 60,
+      totalEmergencyTasks,
+      averageTaskDuration,
+      mostCommonEmergencyReason,
+      monthlyBreakdown: Object.values(monthlyBreakdown),
+    };
+  }
+
 }
 
 export const storage = new DatabaseStorage();

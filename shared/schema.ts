@@ -4929,6 +4929,94 @@ export type InsertMediaUsageAnalytic = z.infer<typeof insertMediaUsageAnalyticSc
 export type AiMediaSuggestion = typeof aiMediaSuggestions.$inferSelect;
 export type InsertAiMediaSuggestion = z.infer<typeof insertAiMediaSuggestionSchema>;
 
+// ===== STAFF OVERHOURS & EMERGENCY TASK TRACKER =====
+
+// Staff Work Hours Configuration - defines normal work hours per staff member
+export const staffWorkHours = pgTable("staff_work_hours", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  staffId: varchar("staff_id").notNull(), // User ID from users table
+  staffName: varchar("staff_name").notNull(),
+  department: varchar("department").notNull(), // cleaning, pool, maintenance, garden, etc.
+  normalStartTime: varchar("normal_start_time").notNull(), // HH:MM format
+  normalEndTime: varchar("normal_end_time").notNull(), // HH:MM format
+  workDays: varchar("work_days").notNull().array(), // ["monday", "tuesday", etc.]
+  baseMonthlySalary: decimal("base_monthly_salary", { precision: 10, scale: 2 }).notNull(),
+  overtimeRate: decimal("overtime_rate", { precision: 5, scale: 2 }).default("1.5"), // 1.5x normal rate
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Task Time Tracking - clock in/out system for tasks
+export const taskTimeTracking = pgTable("task_time_tracking", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  staffId: varchar("staff_id").notNull(),
+  staffName: varchar("staff_name").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  duration: integer("duration_minutes"), // calculated when task ends
+  isOutsideNormalHours: boolean("is_outside_normal_hours").default(false),
+  isEmergencyTask: boolean("is_emergency_task").default(false),
+  emergencyReason: text("emergency_reason"),
+  location: varchar("location"),
+  taskNotes: text("task_notes"),
+  status: varchar("status").default("active"), // active, completed, paused
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Overtime Hours Summary - monthly aggregation
+export const overtimeHoursSummary = pgTable("overtime_hours_summary", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  staffId: varchar("staff_id").notNull(),
+  staffName: varchar("staff_name").notNull(),
+  monthYear: varchar("month_year").notNull(), // YYYY-MM format
+  totalOvertimeMinutes: integer("total_overtime_minutes").default(0),
+  totalEmergencyTasks: integer("total_emergency_tasks").default(0),
+  totalRegularTasks: integer("total_regular_tasks").default(0),
+  approvedOvertimeMinutes: integer("approved_overtime_minutes").default(0),
+  unpaidOvertimeMinutes: integer("unpaid_overtime_minutes").default(0),
+  estimatedOvertimePay: decimal("estimated_overtime_pay", { precision: 10, scale: 2 }).default("0"),
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  status: varchar("status").default("pending"), // pending, approved, rejected
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Staff Commission Bonuses - performance-based bonuses
+export const staffCommissionBonuses = pgTable("staff_commission_bonuses", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  staffId: varchar("staff_id").notNull(),
+  staffName: varchar("staff_name").notNull(),
+  bonusType: varchar("bonus_type").notNull(), // performance, task_completion, guest_rating, etc.
+  bonusAmount: decimal("bonus_amount", { precision: 10, scale: 2 }).notNull(),
+  bonusReason: text("bonus_reason").notNull(),
+  monthYear: varchar("month_year").notNull(), // YYYY-MM format
+  taskId: integer("task_id").references(() => tasks.id), // Optional reference
+  propertyId: integer("property_id").references(() => properties.id), // Optional reference
+  awardedBy: varchar("awarded_by").notNull(),
+  awardedAt: timestamp("awarded_at").defaultNow(),
+  status: varchar("status").default("pending"), // pending, approved, paid
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Emergency Task Reasons - predefined reasons for after-hours work
+export const emergencyTaskReasons = pgTable("emergency_task_reasons", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  reason: varchar("reason").notNull(),
+  category: varchar("category").notNull(), // plumbing, electrical, cleaning, security, etc.
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ===== TASK COMPLETION PHOTO PROOF & PDF ARCHIVE SYSTEM =====
 
 // Task Completion Photos - stores proof photos uploaded by staff
@@ -5301,6 +5389,49 @@ export type TaskPdfArchive = typeof taskPdfArchives.$inferSelect;
 export type InsertTaskPdfArchive = z.infer<typeof insertTaskPdfArchiveSchema>;
 export type TaskArchiveStatus = typeof taskArchiveStatus.$inferSelect;
 export type InsertTaskArchiveStatus = z.infer<typeof insertTaskArchiveStatusSchema>;
+
+// ===== STAFF OVERHOURS & EMERGENCY TASK TRACKER SCHEMAS =====
+
+export const insertStaffWorkHoursSchema = createInsertSchema(staffWorkHours).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskTimeTrackingSchema = createInsertSchema(taskTimeTracking).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOvertimeHoursSummarySchema = createInsertSchema(overtimeHoursSummary).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStaffCommissionBonusSchema = createInsertSchema(staffCommissionBonuses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEmergencyTaskReasonSchema = createInsertSchema(emergencyTaskReasons).omit({
+  id: true,
+  createdAt: true,
+});
+
+// ===== STAFF OVERHOURS & EMERGENCY TASK TRACKER TYPES =====
+
+export type StaffWorkHours = typeof staffWorkHours.$inferSelect;
+export type InsertStaffWorkHours = z.infer<typeof insertStaffWorkHoursSchema>;
+export type TaskTimeTracking = typeof taskTimeTracking.$inferSelect;
+export type InsertTaskTimeTracking = z.infer<typeof insertTaskTimeTrackingSchema>;
+export type OvertimeHoursSummary = typeof overtimeHoursSummary.$inferSelect;
+export type InsertOvertimeHoursSummary = z.infer<typeof insertOvertimeHoursSummarySchema>;
+export type StaffCommissionBonus = typeof staffCommissionBonuses.$inferSelect;
+export type InsertStaffCommissionBonus = z.infer<typeof insertStaffCommissionBonusSchema>;
+export type EmergencyTaskReason = typeof emergencyTaskReasons.$inferSelect;
+export type InsertEmergencyTaskReason = z.infer<typeof insertEmergencyTaskReasonSchema>;
 
 // ===== STAFF DASHBOARD TYPES =====
 

@@ -101,6 +101,13 @@ const navigationModules = [
         description: "Complete assigned tasks with photo evidence"
       },
       { 
+        path: "/staff-overhours-tracker", 
+        icon: Clock, 
+        label: "Overhours Tracker", 
+        roles: ["staff", "admin", "portfolio-manager"],
+        description: "Clock in/out system with overtime detection and emergency task flagging"
+      },
+      { 
         path: "/task-completion-photo-proof", 
         icon: Camera, 
         label: "Task Photo Documentation", 

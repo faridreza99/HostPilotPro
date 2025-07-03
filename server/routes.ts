@@ -9207,6 +9207,333 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== STAFF OVERHOURS & EMERGENCY TASK TRACKER API =====
+
+  // Get staff work hours configuration (Admin/PM only)
+  app.get("/api/staff-overhours/work-hours", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { staffId } = req.query;
+      const workHours = await storage.getStaffWorkHours(organizationId, staffId);
+      res.json(workHours);
+    } catch (error) {
+      console.error("Error fetching staff work hours:", error);
+      res.status(500).json({ message: "Failed to fetch staff work hours" });
+    }
+  });
+
+  // Create or update staff work hours (Admin/PM only)
+  app.post("/api/staff-overhours/work-hours", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const workHoursData = { ...req.body, organizationId };
+      const workHours = await storage.createStaffWorkHours(workHoursData);
+      res.status(201).json(workHours);
+    } catch (error) {
+      console.error("Error creating staff work hours:", error);
+      res.status(500).json({ message: "Failed to create staff work hours" });
+    }
+  });
+
+  // Start task timer (Staff only)
+  app.post("/api/staff-overhours/start-timer", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, userId } = req.user;
+      
+      if (role !== 'staff') {
+        return res.status(403).json({ message: "Access denied. Staff role required." });
+      }
+
+      const timerData = {
+        ...req.body,
+        organizationId,
+        staffId: userId,
+        startTime: new Date(),
+      };
+
+      const timer = await storage.startTaskTimer(timerData);
+      res.status(201).json(timer);
+    } catch (error) {
+      console.error("Error starting task timer:", error);
+      res.status(500).json({ message: "Failed to start task timer" });
+    }
+  });
+
+  // End task timer (Staff only)
+  app.patch("/api/staff-overhours/end-timer/:trackingId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.user;
+      const { trackingId } = req.params;
+      const { taskNotes } = req.body;
+      
+      if (role !== 'staff') {
+        return res.status(403).json({ message: "Access denied. Staff role required." });
+      }
+
+      const updatedTimer = await storage.endTaskTimer(
+        parseInt(trackingId),
+        new Date(),
+        taskNotes
+      );
+
+      if (!updatedTimer) {
+        return res.status(404).json({ message: "Timer not found" });
+      }
+
+      res.json(updatedTimer);
+    } catch (error) {
+      console.error("Error ending task timer:", error);
+      res.status(500).json({ message: "Failed to end task timer" });
+    }
+  });
+
+  // Mark task as emergency (Admin/PM only)
+  app.patch("/api/staff-overhours/mark-emergency/:trackingId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role, firstName, lastName } = req.user;
+      const { trackingId } = req.params;
+      const { emergencyReason } = req.body;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const markedBy = `${firstName} ${lastName}`;
+      const updatedTimer = await storage.markTaskAsEmergency(
+        parseInt(trackingId),
+        emergencyReason,
+        markedBy
+      );
+
+      if (!updatedTimer) {
+        return res.status(404).json({ message: "Timer not found" });
+      }
+
+      res.json(updatedTimer);
+    } catch (error) {
+      console.error("Error marking task as emergency:", error);
+      res.status(500).json({ message: "Failed to mark task as emergency" });
+    }
+  });
+
+  // Get task time tracking records
+  app.get("/api/staff-overhours/time-tracking", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, userId } = req.user;
+      
+      const filters: any = {};
+      
+      // Staff can only see their own records
+      if (role === 'staff') {
+        filters.staffId = userId;
+      } else if (['admin', 'portfolio-manager'].includes(role)) {
+        // Admin/PM can filter by staff member
+        if (req.query.staffId) {
+          filters.staffId = req.query.staffId;
+        }
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Apply other filters
+      if (req.query.taskId) filters.taskId = parseInt(req.query.taskId);
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.fromDate) filters.fromDate = new Date(req.query.fromDate);
+      if (req.query.toDate) filters.toDate = new Date(req.query.toDate);
+      if (req.query.isOutsideNormalHours !== undefined) {
+        filters.isOutsideNormalHours = req.query.isOutsideNormalHours === 'true';
+      }
+      if (req.query.isEmergencyTask !== undefined) {
+        filters.isEmergencyTask = req.query.isEmergencyTask === 'true';
+      }
+
+      const timeRecords = await storage.getTaskTimeTracking(organizationId, filters);
+      res.json(timeRecords);
+    } catch (error) {
+      console.error("Error fetching time tracking records:", error);
+      res.status(500).json({ message: "Failed to fetch time tracking records" });
+    }
+  });
+
+  // Get overtime hours summary
+  app.get("/api/staff-overhours/overtime-summary", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, userId } = req.user;
+      
+      const filters: any = {};
+      
+      // Staff can only see their own summary
+      if (role === 'staff') {
+        filters.staffId = userId;
+      } else if (['admin', 'portfolio-manager'].includes(role)) {
+        // Admin/PM can filter by staff member
+        if (req.query.staffId) {
+          filters.staffId = req.query.staffId;
+        }
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (req.query.monthYear) filters.monthYear = req.query.monthYear;
+      if (req.query.status) filters.status = req.query.status;
+
+      const summary = await storage.getOvertimeHoursSummary(organizationId, filters);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching overtime summary:", error);
+      res.status(500).json({ message: "Failed to fetch overtime summary" });
+    }
+  });
+
+  // Approve overtime hours (Admin/PM only)
+  app.patch("/api/staff-overhours/approve-overtime/:summaryId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role, firstName, lastName } = req.user;
+      const { summaryId } = req.params;
+      const { approvedMinutes } = req.body;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const approvedBy = `${firstName} ${lastName}`;
+      const updatedSummary = await storage.approveOvertimeHours(
+        parseInt(summaryId),
+        approvedBy,
+        approvedMinutes
+      );
+
+      if (!updatedSummary) {
+        return res.status(404).json({ message: "Overtime summary not found" });
+      }
+
+      res.json(updatedSummary);
+    } catch (error) {
+      console.error("Error approving overtime hours:", error);
+      res.status(500).json({ message: "Failed to approve overtime hours" });
+    }
+  });
+
+  // Get staff commission bonuses
+  app.get("/api/staff-overhours/commission-bonuses", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, userId } = req.user;
+      
+      const filters: any = {};
+      
+      // Staff can only see their own bonuses
+      if (role === 'staff') {
+        filters.staffId = userId;
+      } else if (['admin', 'portfolio-manager'].includes(role)) {
+        // Admin/PM can filter by staff member
+        if (req.query.staffId) {
+          filters.staffId = req.query.staffId;
+        }
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (req.query.monthYear) filters.monthYear = req.query.monthYear;
+      if (req.query.bonusType) filters.bonusType = req.query.bonusType;
+      if (req.query.status) filters.status = req.query.status;
+
+      const bonuses = await storage.getStaffCommissionBonuses(organizationId, filters);
+      res.json(bonuses);
+    } catch (error) {
+      console.error("Error fetching commission bonuses:", error);
+      res.status(500).json({ message: "Failed to fetch commission bonuses" });
+    }
+  });
+
+  // Award staff commission bonus (Admin/PM only)
+  app.post("/api/staff-overhours/commission-bonuses", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, firstName, lastName } = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const awardedBy = `${firstName} ${lastName}`;
+      const bonusData = {
+        ...req.body,
+        organizationId,
+        awardedBy,
+      };
+
+      const bonus = await storage.createStaffCommissionBonus(bonusData);
+      res.status(201).json(bonus);
+    } catch (error) {
+      console.error("Error creating commission bonus:", error);
+      res.status(500).json({ message: "Failed to create commission bonus" });
+    }
+  });
+
+  // Get emergency task reasons
+  app.get("/api/staff-overhours/emergency-reasons", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const reasons = await storage.getEmergencyTaskReasons(organizationId);
+      res.json(reasons);
+    } catch (error) {
+      console.error("Error fetching emergency task reasons:", error);
+      res.status(500).json({ message: "Failed to fetch emergency task reasons" });
+    }
+  });
+
+  // Create emergency task reason (Admin only)
+  app.post("/api/staff-overhours/emergency-reasons", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "Access denied. Admin role required." });
+      }
+
+      const reasonData = { ...req.body, organizationId };
+      const reason = await storage.createEmergencyTaskReason(reasonData);
+      res.status(201).json(reason);
+    } catch (error) {
+      console.error("Error creating emergency task reason:", error);
+      res.status(500).json({ message: "Failed to create emergency task reason" });
+    }
+  });
+
+  // Get staff overtime analytics (Admin/PM only)
+  app.get("/api/staff-overhours/analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { staffId, fromDate, toDate } = req.query;
+      
+      const analytics = await storage.getStaffOvertimeAnalytics(
+        organizationId,
+        staffId,
+        fromDate ? new Date(fromDate) : undefined,
+        toDate ? new Date(toDate) : undefined
+      );
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching overtime analytics:", error);
+      res.status(500).json({ message: "Failed to fetch overtime analytics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
