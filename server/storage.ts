@@ -53,6 +53,13 @@ import {
   propertyMediaSettings,
   mediaUsageAnalytics,
   aiMediaSuggestions,
+  inventoryCategories,
+  inventoryItems,
+  propertyWelcomePackConfigs,
+  inventoryUsageLogs,
+  inventoryUsageItems,
+  inventoryStockLevels,
+  welcomePackBillingSummaries,
   type User,
   type UpsertUser,
   type Property,
@@ -9713,12 +9720,7 @@ Plant Care:
     const totalFilesResult = await db
       .select({ count: count() })
       .from(propertyMediaFiles)
-      .where(
-        and(
-          eq(propertyMediaFiles.organizationId, organizationId),
-          eq(propertyMediaFiles.isActive, true)
-        )
-      );
+      .where(eq(propertyMediaFiles.organizationId, organizationId));
 
     // Get agent approved count
     const agentApprovedResult = await db
@@ -10123,6 +10125,538 @@ Plant Care:
       )
       .where(eq(platformRoutingRules.isActive, true))
       .orderBy(platformRoutingRules.platformDisplayName);
+  }
+
+  // ===== INVENTORY & WELCOME PACK TRACKER METHODS =====
+
+  // Inventory Categories
+  async getInventoryCategories(organizationId: string): Promise<any[]> {
+    return db
+      .select()
+      .from(inventoryCategories)
+      .where(
+        and(
+          eq(inventoryCategories.organizationId, organizationId),
+          eq(inventoryCategories.isActive, true)
+        )
+      )
+      .orderBy(inventoryCategories.sortOrder, inventoryCategories.categoryName);
+  }
+
+  async createInventoryCategory(data: any): Promise<any> {
+    const [category] = await db
+      .insert(inventoryCategories)
+      .values(data)
+      .returning();
+    return category;
+  }
+
+  async updateInventoryCategory(id: number, data: any): Promise<any> {
+    const [category] = await db
+      .update(inventoryCategories)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(inventoryCategories.id, id))
+      .returning();
+    return category;
+  }
+
+  async deleteInventoryCategory(id: number): Promise<boolean> {
+    const result = await db
+      .update(inventoryCategories)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(inventoryCategories.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Inventory Items
+  async getInventoryItems(organizationId: string, filters?: {
+    categoryId?: number;
+    isActive?: boolean;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: inventoryItems.id,
+        organizationId: inventoryItems.organizationId,
+        categoryId: inventoryItems.categoryId,
+        itemName: inventoryItems.itemName,
+        description: inventoryItems.description,
+        unitType: inventoryItems.unitType,
+        defaultQuantityPerBedroom: inventoryItems.defaultQuantityPerBedroom,
+        costPerUnit: inventoryItems.costPerUnit,
+        isActive: inventoryItems.isActive,
+        sortOrder: inventoryItems.sortOrder,
+        createdAt: inventoryItems.createdAt,
+        updatedAt: inventoryItems.updatedAt,
+        categoryName: inventoryCategories.categoryName,
+        currentStock: inventoryStockLevels.currentStock,
+        minimumStock: inventoryStockLevels.minimumStock,
+        isLowStock: inventoryStockLevels.isLowStock,
+      })
+      .from(inventoryItems)
+      .leftJoin(inventoryCategories, eq(inventoryItems.categoryId, inventoryCategories.id))
+      .leftJoin(inventoryStockLevels, eq(inventoryItems.id, inventoryStockLevels.inventoryItemId))
+      .where(eq(inventoryItems.organizationId, organizationId));
+
+    if (filters?.categoryId) {
+      query = query.where(eq(inventoryItems.categoryId, filters.categoryId));
+    }
+    if (filters?.isActive !== undefined) {
+      query = query.where(eq(inventoryItems.isActive, filters.isActive));
+    }
+
+    return query.orderBy(inventoryCategories.sortOrder, inventoryItems.sortOrder, inventoryItems.itemName);
+  }
+
+  async createInventoryItem(data: any): Promise<any> {
+    const [item] = await db
+      .insert(inventoryItems)
+      .values(data)
+      .returning();
+    return item;
+  }
+
+  async updateInventoryItem(id: number, data: any): Promise<any> {
+    const [item] = await db
+      .update(inventoryItems)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(inventoryItems.id, id))
+      .returning();
+    return item;
+  }
+
+  async deleteInventoryItem(id: number): Promise<boolean> {
+    const result = await db
+      .update(inventoryItems)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(inventoryItems.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Property Welcome Pack Configs
+  async getPropertyWelcomePackConfig(organizationId: string, propertyId: number): Promise<any> {
+    const [config] = await db
+      .select()
+      .from(propertyWelcomePackConfigs)
+      .where(
+        and(
+          eq(propertyWelcomePackConfigs.organizationId, organizationId),
+          eq(propertyWelcomePackConfigs.propertyId, propertyId),
+          eq(propertyWelcomePackConfigs.isActive, true)
+        )
+      );
+    return config;
+  }
+
+  async createPropertyWelcomePackConfig(data: any): Promise<any> {
+    const [config] = await db
+      .insert(propertyWelcomePackConfigs)
+      .values(data)
+      .returning();
+    return config;
+  }
+
+  async updatePropertyWelcomePackConfig(id: number, data: any): Promise<any> {
+    const [config] = await db
+      .update(propertyWelcomePackConfigs)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(propertyWelcomePackConfigs.id, id))
+      .returning();
+    return config;
+  }
+
+  // Inventory Usage Logs
+  async getInventoryUsageLogs(organizationId: string, filters?: {
+    propertyId?: number;
+    staffMemberId?: string;
+    startDate?: string;
+    endDate?: string;
+    billingRule?: string;
+    isProcessed?: boolean;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: inventoryUsageLogs.id,
+        organizationId: inventoryUsageLogs.organizationId,
+        propertyId: inventoryUsageLogs.propertyId,
+        taskId: inventoryUsageLogs.taskId,
+        bookingId: inventoryUsageLogs.bookingId,
+        guestCount: inventoryUsageLogs.guestCount,
+        stayNights: inventoryUsageLogs.stayNights,
+        checkoutDate: inventoryUsageLogs.checkoutDate,
+        totalPackCost: inventoryUsageLogs.totalPackCost,
+        billingRule: inventoryUsageLogs.billingRule,
+        billingReason: inventoryUsageLogs.billingReason,
+        staffMemberId: inventoryUsageLogs.staffMemberId,
+        isProcessed: inventoryUsageLogs.isProcessed,
+        processedBy: inventoryUsageLogs.processedBy,
+        processedAt: inventoryUsageLogs.processedAt,
+        notes: inventoryUsageLogs.notes,
+        createdAt: inventoryUsageLogs.createdAt,
+        propertyName: properties.name,
+        staffFirstName: users.firstName,
+        staffLastName: users.lastName,
+      })
+      .from(inventoryUsageLogs)
+      .leftJoin(properties, eq(inventoryUsageLogs.propertyId, properties.id))
+      .leftJoin(users, eq(inventoryUsageLogs.staffMemberId, users.id))
+      .where(eq(inventoryUsageLogs.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(inventoryUsageLogs.propertyId, filters.propertyId));
+    }
+    if (filters?.staffMemberId) {
+      query = query.where(eq(inventoryUsageLogs.staffMemberId, filters.staffMemberId));
+    }
+    if (filters?.billingRule) {
+      query = query.where(eq(inventoryUsageLogs.billingRule, filters.billingRule));
+    }
+    if (filters?.isProcessed !== undefined) {
+      query = query.where(eq(inventoryUsageLogs.isProcessed, filters.isProcessed));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(inventoryUsageLogs.checkoutDate, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(inventoryUsageLogs.checkoutDate, new Date(filters.endDate)));
+    }
+
+    return query.orderBy(desc(inventoryUsageLogs.checkoutDate));
+  }
+
+  async getInventoryUsageLog(id: number): Promise<any> {
+    const [log] = await db
+      .select({
+        id: inventoryUsageLogs.id,
+        organizationId: inventoryUsageLogs.organizationId,
+        propertyId: inventoryUsageLogs.propertyId,
+        taskId: inventoryUsageLogs.taskId,
+        bookingId: inventoryUsageLogs.bookingId,
+        guestCount: inventoryUsageLogs.guestCount,
+        stayNights: inventoryUsageLogs.stayNights,
+        checkoutDate: inventoryUsageLogs.checkoutDate,
+        totalPackCost: inventoryUsageLogs.totalPackCost,
+        billingRule: inventoryUsageLogs.billingRule,
+        billingReason: inventoryUsageLogs.billingReason,
+        staffMemberId: inventoryUsageLogs.staffMemberId,
+        isProcessed: inventoryUsageLogs.isProcessed,
+        processedBy: inventoryUsageLogs.processedBy,
+        processedAt: inventoryUsageLogs.processedAt,
+        notes: inventoryUsageLogs.notes,
+        createdAt: inventoryUsageLogs.createdAt,
+        propertyName: properties.name,
+        staffFirstName: users.firstName,
+        staffLastName: users.lastName,
+      })
+      .from(inventoryUsageLogs)
+      .leftJoin(properties, eq(inventoryUsageLogs.propertyId, properties.id))
+      .leftJoin(users, eq(inventoryUsageLogs.staffMemberId, users.id))
+      .where(eq(inventoryUsageLogs.id, id));
+    return log;
+  }
+
+  async createInventoryUsageLog(data: any): Promise<any> {
+    const [log] = await db
+      .insert(inventoryUsageLogs)
+      .values(data)
+      .returning();
+    return log;
+  }
+
+  async updateInventoryUsageLog(id: number, data: any): Promise<any> {
+    const [log] = await db
+      .update(inventoryUsageLogs)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(inventoryUsageLogs.id, id))
+      .returning();
+    return log;
+  }
+
+  async processInventoryUsageLog(id: number, processedBy: string): Promise<any> {
+    const [log] = await db
+      .update(inventoryUsageLogs)
+      .set({ 
+        isProcessed: true, 
+        processedBy, 
+        processedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(inventoryUsageLogs.id, id))
+      .returning();
+    return log;
+  }
+
+  // Inventory Usage Items
+  async getInventoryUsageItems(usageLogId: number): Promise<any[]> {
+    return db
+      .select({
+        id: inventoryUsageItems.id,
+        usageLogId: inventoryUsageItems.usageLogId,
+        inventoryItemId: inventoryUsageItems.inventoryItemId,
+        quantityUsed: inventoryUsageItems.quantityUsed,
+        unitCost: inventoryUsageItems.unitCost,
+        totalCost: inventoryUsageItems.totalCost,
+        notes: inventoryUsageItems.notes,
+        createdAt: inventoryUsageItems.createdAt,
+        itemName: inventoryItems.itemName,
+        unitType: inventoryItems.unitType,
+        categoryName: inventoryCategories.categoryName,
+      })
+      .from(inventoryUsageItems)
+      .leftJoin(inventoryItems, eq(inventoryUsageItems.inventoryItemId, inventoryItems.id))
+      .leftJoin(inventoryCategories, eq(inventoryItems.categoryId, inventoryCategories.id))
+      .where(eq(inventoryUsageItems.usageLogId, usageLogId))
+      .orderBy(inventoryCategories.sortOrder, inventoryItems.sortOrder);
+  }
+
+  async createInventoryUsageItems(items: any[]): Promise<any[]> {
+    if (items.length === 0) return [];
+    
+    const result = await db
+      .insert(inventoryUsageItems)
+      .values(items)
+      .returning();
+    return result;
+  }
+
+  async deleteInventoryUsageItems(usageLogId: number): Promise<boolean> {
+    const result = await db
+      .delete(inventoryUsageItems)
+      .where(eq(inventoryUsageItems.usageLogId, usageLogId));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Stock Level Management
+  async getInventoryStockLevels(organizationId: string, filters?: {
+    isLowStock?: boolean;
+    inventoryItemId?: number;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: inventoryStockLevels.id,
+        inventoryItemId: inventoryStockLevels.inventoryItemId,
+        currentStock: inventoryStockLevels.currentStock,
+        minimumStock: inventoryStockLevels.minimumStock,
+        maxStock: inventoryStockLevels.maxStock,
+        lastRestockDate: inventoryStockLevels.lastRestockDate,
+        lastRestockQuantity: inventoryStockLevels.lastRestockQuantity,
+        isLowStock: inventoryStockLevels.isLowStock,
+        createdAt: inventoryStockLevels.createdAt,
+        updatedAt: inventoryStockLevels.updatedAt,
+        itemName: inventoryItems.itemName,
+        unitType: inventoryItems.unitType,
+        categoryName: inventoryCategories.categoryName,
+      })
+      .from(inventoryStockLevels)
+      .leftJoin(inventoryItems, eq(inventoryStockLevels.inventoryItemId, inventoryItems.id))
+      .leftJoin(inventoryCategories, eq(inventoryItems.categoryId, inventoryCategories.id))
+      .where(eq(inventoryStockLevels.organizationId, organizationId));
+
+    if (filters?.isLowStock !== undefined) {
+      query = query.where(eq(inventoryStockLevels.isLowStock, filters.isLowStock));
+    }
+    if (filters?.inventoryItemId) {
+      query = query.where(eq(inventoryStockLevels.inventoryItemId, filters.inventoryItemId));
+    }
+
+    return query.orderBy(inventoryCategories.sortOrder, inventoryItems.itemName);
+  }
+
+  async updateInventoryStockLevel(inventoryItemId: number, data: any): Promise<any> {
+    const [stockLevel] = await db
+      .insert(inventoryStockLevels)
+      .values({
+        inventoryItemId,
+        ...data,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: inventoryStockLevels.inventoryItemId,
+        set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return stockLevel;
+  }
+
+  // Welcome Pack Billing Summaries
+  async getWelcomePackBillingSummaries(organizationId: string, filters?: {
+    propertyId?: number;
+    monthYear?: string;
+    isProcessed?: boolean;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        id: welcomePackBillingSummaries.id,
+        organizationId: welcomePackBillingSummaries.organizationId,
+        propertyId: welcomePackBillingSummaries.propertyId,
+        monthYear: welcomePackBillingSummaries.monthYear,
+        totalUsages: welcomePackBillingSummaries.totalUsages,
+        totalCostOwner: welcomePackBillingSummaries.totalCostOwner,
+        totalCostGuest: welcomePackBillingSummaries.totalCostGuest,
+        totalCostCompany: welcomePackBillingSummaries.totalCostCompany,
+        totalCostComplimentary: welcomePackBillingSummaries.totalCostComplimentary,
+        isProcessed: welcomePackBillingSummaries.isProcessed,
+        processedAt: welcomePackBillingSummaries.processedAt,
+        createdAt: welcomePackBillingSummaries.createdAt,
+        propertyName: properties.name,
+      })
+      .from(welcomePackBillingSummaries)
+      .leftJoin(properties, eq(welcomePackBillingSummaries.propertyId, properties.id))
+      .where(eq(welcomePackBillingSummaries.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(welcomePackBillingSummaries.propertyId, filters.propertyId));
+    }
+    if (filters?.monthYear) {
+      query = query.where(eq(welcomePackBillingSummaries.monthYear, filters.monthYear));
+    }
+    if (filters?.isProcessed !== undefined) {
+      query = query.where(eq(welcomePackBillingSummaries.isProcessed, filters.isProcessed));
+    }
+
+    return query.orderBy(desc(welcomePackBillingSummaries.monthYear), properties.name);
+  }
+
+  async createWelcomePackBillingSummary(data: any): Promise<any> {
+    const [summary] = await db
+      .insert(welcomePackBillingSummaries)
+      .values(data)
+      .returning();
+    return summary;
+  }
+
+  async updateWelcomePackBillingSummary(id: number, data: any): Promise<any> {
+    const [summary] = await db
+      .update(welcomePackBillingSummaries)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(welcomePackBillingSummaries.id, id))
+      .returning();
+    return summary;
+  }
+
+  // Inventory Analytics & Reports
+  async getInventoryUsageAnalytics(organizationId: string, filters?: {
+    propertyId?: number;
+    startDate?: string;
+    endDate?: string;
+    period?: 'week' | 'month' | 'year';
+  }): Promise<any> {
+    const baseConditions = [eq(inventoryUsageLogs.organizationId, organizationId)];
+    
+    if (filters?.propertyId) {
+      baseConditions.push(eq(inventoryUsageLogs.propertyId, filters.propertyId));
+    }
+    if (filters?.startDate) {
+      baseConditions.push(gte(inventoryUsageLogs.checkoutDate, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      baseConditions.push(lte(inventoryUsageLogs.checkoutDate, new Date(filters.endDate)));
+    }
+
+    // Total usage statistics
+    const totalStats = await db
+      .select({
+        totalLogs: count(),
+        totalCost: sum(inventoryUsageLogs.totalPackCost),
+        avgCostPerStay: avg(inventoryUsageLogs.totalPackCost),
+        totalGuests: sum(inventoryUsageLogs.guestCount),
+        totalNights: sum(inventoryUsageLogs.stayNights),
+      })
+      .from(inventoryUsageLogs)
+      .where(and(...baseConditions));
+
+    // Billing breakdown
+    const billingBreakdown = await db
+      .select({
+        billingRule: inventoryUsageLogs.billingRule,
+        count: count(),
+        totalCost: sum(inventoryUsageLogs.totalPackCost),
+      })
+      .from(inventoryUsageLogs)
+      .where(and(...baseConditions))
+      .groupBy(inventoryUsageLogs.billingRule);
+
+    // Top consumed items
+    const topItems = await db
+      .select({
+        itemName: inventoryItems.itemName,
+        categoryName: inventoryCategories.categoryName,
+        totalQuantityUsed: sum(inventoryUsageItems.quantityUsed),
+        totalCost: sum(inventoryUsageItems.totalCost),
+        usageCount: count(inventoryUsageItems.id),
+      })
+      .from(inventoryUsageItems)
+      .leftJoin(inventoryUsageLogs, eq(inventoryUsageItems.usageLogId, inventoryUsageLogs.id))
+      .leftJoin(inventoryItems, eq(inventoryUsageItems.inventoryItemId, inventoryItems.id))
+      .leftJoin(inventoryCategories, eq(inventoryItems.categoryId, inventoryCategories.id))
+      .where(and(...baseConditions))
+      .groupBy(inventoryItems.id, inventoryItems.itemName, inventoryCategories.categoryName)
+      .orderBy(desc(sum(inventoryUsageItems.totalCost)))
+      .limit(10);
+
+    return {
+      totalStats: totalStats[0] || {},
+      billingBreakdown,
+      topItems,
+    };
+  }
+
+  async getInventoryUsageReportData(organizationId: string, filters?: {
+    propertyId?: number;
+    staffMemberId?: string;
+    startDate?: string;
+    endDate?: string;
+    billingRule?: string;
+  }): Promise<any[]> {
+    let query = db
+      .select({
+        logId: inventoryUsageLogs.id,
+        propertyName: properties.name,
+        checkoutDate: inventoryUsageLogs.checkoutDate,
+        guestCount: inventoryUsageLogs.guestCount,
+        stayNights: inventoryUsageLogs.stayNights,
+        totalPackCost: inventoryUsageLogs.totalPackCost,
+        billingRule: inventoryUsageLogs.billingRule,
+        billingReason: inventoryUsageLogs.billingReason,
+        staffName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+        isProcessed: inventoryUsageLogs.isProcessed,
+        processedAt: inventoryUsageLogs.processedAt,
+        notes: inventoryUsageLogs.notes,
+        // Item details
+        itemName: inventoryItems.itemName,
+        categoryName: inventoryCategories.categoryName,
+        quantityUsed: inventoryUsageItems.quantityUsed,
+        unitCost: inventoryUsageItems.unitCost,
+        itemTotalCost: inventoryUsageItems.totalCost,
+        unitType: inventoryItems.unitType,
+      })
+      .from(inventoryUsageLogs)
+      .leftJoin(properties, eq(inventoryUsageLogs.propertyId, properties.id))
+      .leftJoin(users, eq(inventoryUsageLogs.staffMemberId, users.id))
+      .leftJoin(inventoryUsageItems, eq(inventoryUsageItems.usageLogId, inventoryUsageLogs.id))
+      .leftJoin(inventoryItems, eq(inventoryUsageItems.inventoryItemId, inventoryItems.id))
+      .leftJoin(inventoryCategories, eq(inventoryItems.categoryId, inventoryCategories.id))
+      .where(eq(inventoryUsageLogs.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(inventoryUsageLogs.propertyId, filters.propertyId));
+    }
+    if (filters?.staffMemberId) {
+      query = query.where(eq(inventoryUsageLogs.staffMemberId, filters.staffMemberId));
+    }
+    if (filters?.billingRule) {
+      query = query.where(eq(inventoryUsageLogs.billingRule, filters.billingRule));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(inventoryUsageLogs.checkoutDate, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(inventoryUsageLogs.checkoutDate, new Date(filters.endDate)));
+    }
+
+    return query.orderBy(desc(inventoryUsageLogs.checkoutDate), inventoryCategories.sortOrder);
   }
 }
 

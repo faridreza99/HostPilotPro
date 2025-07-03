@@ -8498,6 +8498,362 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== INVENTORY & WELCOME PACK TRACKER ROUTES =====
+
+  // Inventory Categories
+  app.get("/api/inventory/categories", async (req, res) => {
+    try {
+      const categories = await storage.getInventoryCategories("demo-org");
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching inventory categories:", error);
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+
+  app.post("/api/inventory/categories", async (req, res) => {
+    try {
+      const data = { ...req.body, organizationId: "demo-org" };
+      const category = await storage.createInventoryCategory(data);
+      res.json(category);
+    } catch (error) {
+      console.error("Error creating inventory category:", error);
+      res.status(500).json({ message: "Failed to create category" });
+    }
+  });
+
+  app.put("/api/inventory/categories/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const category = await storage.updateInventoryCategory(id, req.body);
+      res.json(category);
+    } catch (error) {
+      console.error("Error updating inventory category:", error);
+      res.status(500).json({ message: "Failed to update category" });
+    }
+  });
+
+  app.delete("/api/inventory/categories/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteInventoryCategory(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting inventory category:", error);
+      res.status(500).json({ message: "Failed to delete category" });
+    }
+  });
+
+  // Inventory Items
+  app.get("/api/inventory/items", async (req, res) => {
+    try {
+      const { categoryId, isActive } = req.query;
+      const filters: any = {};
+      if (categoryId) filters.categoryId = parseInt(categoryId as string);
+      if (isActive !== undefined) filters.isActive = isActive === "true";
+      
+      const items = await storage.getInventoryItems("demo-org", filters);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching inventory items:", error);
+      res.status(500).json({ message: "Failed to fetch items" });
+    }
+  });
+
+  app.post("/api/inventory/items", async (req, res) => {
+    try {
+      const data = { ...req.body, organizationId: "demo-org" };
+      const item = await storage.createInventoryItem(data);
+      res.json(item);
+    } catch (error) {
+      console.error("Error creating inventory item:", error);
+      res.status(500).json({ message: "Failed to create item" });
+    }
+  });
+
+  app.put("/api/inventory/items/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const item = await storage.updateInventoryItem(id, req.body);
+      res.json(item);
+    } catch (error) {
+      console.error("Error updating inventory item:", error);
+      res.status(500).json({ message: "Failed to update item" });
+    }
+  });
+
+  app.delete("/api/inventory/items/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteInventoryItem(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting inventory item:", error);
+      res.status(500).json({ message: "Failed to delete item" });
+    }
+  });
+
+  // Property Welcome Pack Configs
+  app.get("/api/inventory/property-configs/:propertyId", async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const config = await storage.getPropertyWelcomePackConfig("demo-org", propertyId);
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching property config:", error);
+      res.status(500).json({ message: "Failed to fetch property config" });
+    }
+  });
+
+  app.post("/api/inventory/property-configs", async (req, res) => {
+    try {
+      const data = { ...req.body, organizationId: "demo-org" };
+      const config = await storage.createPropertyWelcomePackConfig(data);
+      res.json(config);
+    } catch (error) {
+      console.error("Error creating property config:", error);
+      res.status(500).json({ message: "Failed to create property config" });
+    }
+  });
+
+  app.put("/api/inventory/property-configs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const config = await storage.updatePropertyWelcomePackConfig(id, req.body);
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating property config:", error);
+      res.status(500).json({ message: "Failed to update property config" });
+    }
+  });
+
+  // Inventory Usage Logs
+  app.get("/api/inventory/usage-logs", async (req, res) => {
+    try {
+      const { propertyId, staffMemberId, startDate, endDate, billingRule, isProcessed } = req.query;
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (staffMemberId) filters.staffMemberId = staffMemberId as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      if (billingRule) filters.billingRule = billingRule as string;
+      if (isProcessed !== undefined) filters.isProcessed = isProcessed === "true";
+      
+      const logs = await storage.getInventoryUsageLogs("demo-org", filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching usage logs:", error);
+      res.status(500).json({ message: "Failed to fetch usage logs" });
+    }
+  });
+
+  app.get("/api/inventory/usage-logs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const log = await storage.getInventoryUsageLog(id);
+      if (!log) {
+        return res.status(404).json({ message: "Usage log not found" });
+      }
+      
+      // Get usage items for this log
+      const items = await storage.getInventoryUsageItems(id);
+      res.json({ ...log, items });
+    } catch (error) {
+      console.error("Error fetching usage log:", error);
+      res.status(500).json({ message: "Failed to fetch usage log" });
+    }
+  });
+
+  app.post("/api/inventory/usage-logs", async (req, res) => {
+    try {
+      // Calculate total pack cost based on property bedroom count and default rates
+      const property = await storage.getProperty(req.body.propertyId);
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+
+      // Get or create property config
+      let config = await storage.getPropertyWelcomePackConfig("demo-org", req.body.propertyId);
+      if (!config) {
+        // Create default config
+        config = await storage.createPropertyWelcomePackConfig({
+          organizationId: "demo-org",
+          propertyId: req.body.propertyId,
+          oneBrCost: "300.00",
+          twoBrCost: "350.00",
+          threePlusBrCost: "400.00",
+          defaultBillingRule: "owner",
+        });
+      }
+
+      // Calculate pack cost based on bedrooms
+      let packCost = 300; // Default 1BR cost
+      if (property.bedrooms >= 3) {
+        packCost = parseFloat(config.threePlusBrCost);
+      } else if (property.bedrooms === 2) {
+        packCost = parseFloat(config.twoBrCost);
+      } else {
+        packCost = parseFloat(config.oneBrCost);
+      }
+
+      const data = {
+        ...req.body,
+        organizationId: "demo-org",
+        totalPackCost: packCost.toString(),
+        staffMemberId: "staff@test.com", // Demo staff member
+      };
+      
+      const log = await storage.createInventoryUsageLog(data);
+
+      // Create default usage items based on property type
+      const categories = await storage.getInventoryCategories("demo-org");
+      const items = await storage.getInventoryItems("demo-org");
+      
+      const usageItems = items.map((item: any) => ({
+        organizationId: "demo-org",
+        usageLogId: log.id,
+        inventoryItemId: item.id,
+        quantityUsed: item.defaultQuantityPerBedroom * property.bedrooms,
+        unitCost: item.costPerUnit,
+        totalCost: (parseFloat(item.costPerUnit) * item.defaultQuantityPerBedroom * property.bedrooms).toString(),
+      }));
+
+      if (usageItems.length > 0) {
+        await storage.createInventoryUsageItems(usageItems);
+      }
+
+      res.json(log);
+    } catch (error) {
+      console.error("Error creating usage log:", error);
+      res.status(500).json({ message: "Failed to create usage log" });
+    }
+  });
+
+  app.put("/api/inventory/usage-logs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const log = await storage.updateInventoryUsageLog(id, req.body);
+      res.json(log);
+    } catch (error) {
+      console.error("Error updating usage log:", error);
+      res.status(500).json({ message: "Failed to update usage log" });
+    }
+  });
+
+  app.post("/api/inventory/usage-logs/:id/process", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const log = await storage.processInventoryUsageLog(id, "admin@test.com");
+      res.json(log);
+    } catch (error) {
+      console.error("Error processing usage log:", error);
+      res.status(500).json({ message: "Failed to process usage log" });
+    }
+  });
+
+  // Stock Levels
+  app.get("/api/inventory/stock-levels", async (req, res) => {
+    try {
+      const { isLowStock, inventoryItemId } = req.query;
+      const filters: any = {};
+      if (isLowStock !== undefined) filters.isLowStock = isLowStock === "true";
+      if (inventoryItemId) filters.inventoryItemId = parseInt(inventoryItemId as string);
+      
+      const stockLevels = await storage.getInventoryStockLevels("demo-org", filters);
+      res.json(stockLevels);
+    } catch (error) {
+      console.error("Error fetching stock levels:", error);
+      res.status(500).json({ message: "Failed to fetch stock levels" });
+    }
+  });
+
+  app.put("/api/inventory/stock-levels/:inventoryItemId", async (req, res) => {
+    try {
+      const inventoryItemId = parseInt(req.params.inventoryItemId);
+      const data = { ...req.body, organizationId: "demo-org" };
+      const stockLevel = await storage.updateInventoryStockLevel(inventoryItemId, data);
+      res.json(stockLevel);
+    } catch (error) {
+      console.error("Error updating stock level:", error);
+      res.status(500).json({ message: "Failed to update stock level" });
+    }
+  });
+
+  // Billing Summaries
+  app.get("/api/inventory/billing-summaries", async (req, res) => {
+    try {
+      const { propertyId, monthYear, isProcessed } = req.query;
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (monthYear) filters.monthYear = monthYear as string;
+      if (isProcessed !== undefined) filters.isProcessed = isProcessed === "true";
+      
+      const summaries = await storage.getWelcomePackBillingSummaries("demo-org", filters);
+      res.json(summaries);
+    } catch (error) {
+      console.error("Error fetching billing summaries:", error);
+      res.status(500).json({ message: "Failed to fetch billing summaries" });
+    }
+  });
+
+  app.post("/api/inventory/billing-summaries", async (req, res) => {
+    try {
+      const data = { ...req.body, organizationId: "demo-org" };
+      const summary = await storage.createWelcomePackBillingSummary(data);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error creating billing summary:", error);
+      res.status(500).json({ message: "Failed to create billing summary" });
+    }
+  });
+
+  app.put("/api/inventory/billing-summaries/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const summary = await storage.updateWelcomePackBillingSummary(id, req.body);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error updating billing summary:", error);
+      res.status(500).json({ message: "Failed to update billing summary" });
+    }
+  });
+
+  // Analytics & Reports
+  app.get("/api/inventory/analytics", async (req, res) => {
+    try {
+      const { propertyId, startDate, endDate, period } = req.query;
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      if (period) filters.period = period as string;
+      
+      const analytics = await storage.getInventoryUsageAnalytics("demo-org", filters);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/inventory/reports/usage", async (req, res) => {
+    try {
+      const { propertyId, staffMemberId, startDate, endDate, billingRule } = req.query;
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (staffMemberId) filters.staffMemberId = staffMemberId as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      if (billingRule) filters.billingRule = billingRule as string;
+      
+      const reportData = await storage.getInventoryUsageReportData("demo-org", filters);
+      res.json(reportData);
+    } catch (error) {
+      console.error("Error fetching usage report:", error);
+      res.status(500).json({ message: "Failed to fetch usage report" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

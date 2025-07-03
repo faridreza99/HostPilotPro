@@ -4929,6 +4929,242 @@ export type InsertMediaUsageAnalytic = z.infer<typeof insertMediaUsageAnalyticSc
 export type AiMediaSuggestion = typeof aiMediaSuggestions.$inferSelect;
 export type InsertAiMediaSuggestion = z.infer<typeof insertAiMediaSuggestionSchema>;
 
+// ===== INVENTORY & WELCOME PACK TRACKER =====
+
+// Master inventory categories and items
+export const inventoryCategories = pgTable("inventory_categories", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  categoryName: varchar("category_name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const inventoryItems = pgTable("inventory_items", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  categoryId: integer("category_id").references(() => inventoryCategories.id),
+  itemName: varchar("item_name").notNull(),
+  description: text("description"),
+  unitType: varchar("unit_type").notNull(), // pieces, bottles, rolls, kg, etc.
+  defaultQuantityPerBedroom: integer("default_quantity_per_bedroom").default(1),
+  costPerUnit: decimal("cost_per_unit", { precision: 10, scale: 2 }).default("0.00"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property-specific welcome pack configurations
+export const propertyWelcomePackConfigs = pgTable("property_welcome_pack_configs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  oneBrCost: decimal("one_br_cost", { precision: 10, scale: 2 }).default("300.00"),
+  twoBrCost: decimal("two_br_cost", { precision: 10, scale: 2 }).default("350.00"),
+  threePlusBrCost: decimal("three_plus_br_cost", { precision: 10, scale: 2 }).default("400.00"),
+  defaultBillingRule: varchar("default_billing_rule").notNull().default("owner"), // owner, guest, company, complimentary
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Inventory usage tracking per checkout
+export const inventoryUsageLogs = pgTable("inventory_usage_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  taskId: integer("task_id").references(() => tasks.id),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  guestCount: integer("guest_count").notNull(),
+  stayNights: integer("stay_nights").notNull(),
+  checkoutDate: timestamp("checkout_date").notNull(),
+  totalPackCost: decimal("total_pack_cost", { precision: 10, scale: 2 }).notNull(),
+  billingRule: varchar("billing_rule").notNull(), // owner, guest, company, complimentary
+  billingReason: text("billing_reason"), // e.g., "VIP guest complimentary"
+  staffMemberId: varchar("staff_member_id").notNull(),
+  isProcessed: boolean("is_processed").default(false),
+  processedBy: varchar("processed_by"),
+  processedAt: timestamp("processed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Individual item usage per log
+export const inventoryUsageItems = pgTable("inventory_usage_items", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  usageLogId: integer("usage_log_id").references(() => inventoryUsageLogs.id),
+  inventoryItemId: integer("inventory_item_id").references(() => inventoryItems.id),
+  quantityUsed: integer("quantity_used").notNull(),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Stock level tracking (optional feature)
+export const inventoryStockLevels = pgTable("inventory_stock_levels", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  inventoryItemId: integer("inventory_item_id").references(() => inventoryItems.id),
+  currentStock: integer("current_stock").default(0),
+  minimumStock: integer("minimum_stock").default(10),
+  maxStock: integer("max_stock").default(100),
+  lastRestockDate: timestamp("last_restock_date"),
+  lastRestockQuantity: integer("last_restock_quantity"),
+  isLowStock: boolean("is_low_stock").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Welcome pack billing summaries
+export const welcomePackBillingSummaries = pgTable("welcome_pack_billing_summaries", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  monthYear: varchar("month_year").notNull(), // YYYY-MM format
+  totalUsages: integer("total_usages").default(0),
+  totalCostOwner: decimal("total_cost_owner", { precision: 10, scale: 2 }).default("0.00"),
+  totalCostGuest: decimal("total_cost_guest", { precision: 10, scale: 2 }).default("0.00"),
+  totalCostCompany: decimal("total_cost_company", { precision: 10, scale: 2 }).default("0.00"),
+  totalCostComplimentary: decimal("total_cost_complimentary", { precision: 10, scale: 2 }).default("0.00"),
+  isProcessed: boolean("is_processed").default(false),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ===== INVENTORY SYSTEM RELATIONS =====
+
+export const inventoryCategoriesRelations = relations(inventoryCategories, ({ many }) => ({
+  items: many(inventoryItems),
+}));
+
+export const inventoryItemsRelations = relations(inventoryItems, ({ one, many }) => ({
+  category: one(inventoryCategories, {
+    fields: [inventoryItems.categoryId],
+    references: [inventoryCategories.id],
+  }),
+  usageItems: many(inventoryUsageItems),
+  stockLevel: one(inventoryStockLevels, {
+    fields: [inventoryItems.id],
+    references: [inventoryStockLevels.inventoryItemId],
+  }),
+}));
+
+export const propertyWelcomePackConfigsRelations = relations(propertyWelcomePackConfigs, ({ one }) => ({
+  property: one(properties, {
+    fields: [propertyWelcomePackConfigs.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+export const inventoryUsageLogsRelations = relations(inventoryUsageLogs, ({ one, many }) => ({
+  property: one(properties, {
+    fields: [inventoryUsageLogs.propertyId],
+    references: [properties.id],
+  }),
+  task: one(tasks, {
+    fields: [inventoryUsageLogs.taskId],
+    references: [tasks.id],
+  }),
+  booking: one(bookings, {
+    fields: [inventoryUsageLogs.bookingId],
+    references: [bookings.id],
+  }),
+  usageItems: many(inventoryUsageItems),
+}));
+
+export const inventoryUsageItemsRelations = relations(inventoryUsageItems, ({ one }) => ({
+  usageLog: one(inventoryUsageLogs, {
+    fields: [inventoryUsageItems.usageLogId],
+    references: [inventoryUsageLogs.id],
+  }),
+  inventoryItem: one(inventoryItems, {
+    fields: [inventoryUsageItems.inventoryItemId],
+    references: [inventoryItems.id],
+  }),
+}));
+
+export const inventoryStockLevelsRelations = relations(inventoryStockLevels, ({ one }) => ({
+  inventoryItem: one(inventoryItems, {
+    fields: [inventoryStockLevels.inventoryItemId],
+    references: [inventoryItems.id],
+  }),
+}));
+
+export const welcomePackBillingSummariesRelations = relations(welcomePackBillingSummaries, ({ one }) => ({
+  property: one(properties, {
+    fields: [welcomePackBillingSummaries.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+// ===== INVENTORY SYSTEM SCHEMAS =====
+
+export const insertInventoryCategorySchema = createInsertSchema(inventoryCategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryItemSchema = createInsertSchema(inventoryItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyWelcomePackConfigSchema = createInsertSchema(propertyWelcomePackConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryUsageLogSchema = createInsertSchema(inventoryUsageLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryUsageItemSchema = createInsertSchema(inventoryUsageItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInventoryStockLevelSchema = createInsertSchema(inventoryStockLevels).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWelcomePackBillingSummarySchema = createInsertSchema(welcomePackBillingSummaries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== INVENTORY SYSTEM TYPES =====
+
+export type InventoryCategory = typeof inventoryCategories.$inferSelect;
+export type InsertInventoryCategory = z.infer<typeof insertInventoryCategorySchema>;
+export type InventoryItem = typeof inventoryItems.$inferSelect;
+export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
+export type PropertyWelcomePackConfig = typeof propertyWelcomePackConfigs.$inferSelect;
+export type InsertPropertyWelcomePackConfig = z.infer<typeof insertPropertyWelcomePackConfigSchema>;
+export type InventoryUsageLog = typeof inventoryUsageLogs.$inferSelect;
+export type InsertInventoryUsageLog = z.infer<typeof insertInventoryUsageLogSchema>;
+export type InventoryUsageItem = typeof inventoryUsageItems.$inferSelect;
+export type InsertInventoryUsageItem = z.infer<typeof insertInventoryUsageItemSchema>;
+export type InventoryStockLevel = typeof inventoryStockLevels.$inferSelect;
+export type InsertInventoryStockLevel = z.infer<typeof insertInventoryStockLevelSchema>;
+export type WelcomePackBillingSummary = typeof welcomePackBillingSummaries.$inferSelect;
+export type InsertWelcomePackBillingSummary = z.infer<typeof insertWelcomePackBillingSummarySchema>;
+
 // ===== STAFF DASHBOARD TYPES =====
 
 

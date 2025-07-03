@@ -20,6 +20,7 @@ import Settings from "@/pages/Settings";
 import Hostaway from "@/pages/Hostaway";
 import WelcomePacks from "@/pages/WelcomePacks";
 import InventoryDashboard from "@/pages/InventoryDashboard";
+import InventoryWelcomePackTracker from "@/pages/InventoryWelcomePackTracker";
 import FinancialToolkit from "@/pages/FinancialToolkit";
 import UtilityTracking from "@/pages/UtilityTracking";
 import RetailAgentBooking from "@/pages/RetailAgentBooking";
@@ -122,6 +123,7 @@ function Router() {
           <Route path="/services" component={Services} />
           <Route path="/welcome-packs" component={WelcomePacks} />
           <Route path="/inventory-dashboard" component={InventoryDashboard} />
+          <Route path="/inventory-welcome-pack-tracker" component={InventoryWelcomePackTracker} />
           <Route path="/finances" component={Finances} />
           <Route path="/payouts" component={Payouts} />
           <Route path="/financial-toolkit" component={FinancialToolkit} />
