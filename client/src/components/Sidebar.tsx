@@ -178,6 +178,13 @@ const navigationModules = [
         description: "Guest service booking platform with flexible billing"
       },
       { 
+        path: "/addon-services-booking", 
+        icon: Plus, 
+        label: "Add-On Services Booking Engine", 
+        roles: ["admin", "portfolio-manager", "staff"],
+        description: "Comprehensive service booking and routing system"
+      },
+      { 
         path: "/utility-tracking", 
         icon: Zap, 
         label: "Utility Tracking", 

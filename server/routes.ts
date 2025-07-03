@@ -9967,6 +9967,295 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ADD-ON SERVICES BOOKING ENGINE ROUTES =====
+
+  // Service Categories
+  app.get("/api/addon-services/categories", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const categories = await storage.getServiceCategories(user.organizationId);
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching service categories:", error);
+      res.status(500).json({ message: "Failed to fetch service categories" });
+    }
+  });
+
+  app.post("/api/addon-services/categories", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const categoryData = { ...req.body, organizationId: user.organizationId };
+      const category = await storage.createServiceCategory(categoryData);
+      res.json(category);
+    } catch (error) {
+      console.error("Error creating service category:", error);
+      res.status(500).json({ message: "Failed to create service category" });
+    }
+  });
+
+  app.put("/api/addon-services/categories/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      const category = await storage.updateServiceCategory(id, updates);
+      res.json(category);
+    } catch (error) {
+      console.error("Error updating service category:", error);
+      res.status(500).json({ message: "Failed to update service category" });
+    }
+  });
+
+  app.delete("/api/addon-services/categories/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteServiceCategory(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting service category:", error);
+      res.status(500).json({ message: "Failed to delete service category" });
+    }
+  });
+
+  // Add-on Services
+  app.get("/api/addon-services", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { categoryId, isActive } = req.query;
+      
+      const filters: any = {};
+      if (categoryId) filters.categoryId = parseInt(categoryId as string);
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+
+      const services = await storage.getAddonServices(user.organizationId, filters);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching addon services:", error);
+      res.status(500).json({ message: "Failed to fetch addon services" });
+    }
+  });
+
+  app.get("/api/addon-services/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const service = await storage.getAddonService(id);
+      
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      
+      res.json(service);
+    } catch (error) {
+      console.error("Error fetching addon service:", error);
+      res.status(500).json({ message: "Failed to fetch addon service" });
+    }
+  });
+
+  app.post("/api/addon-services", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const serviceData = { ...req.body, organizationId: user.organizationId };
+      const service = await storage.createAddonService(serviceData);
+      res.json(service);
+    } catch (error) {
+      console.error("Error creating addon service:", error);
+      res.status(500).json({ message: "Failed to create addon service" });
+    }
+  });
+
+  app.put("/api/addon-services/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      const service = await storage.updateAddonService(id, updates);
+      res.json(service);
+    } catch (error) {
+      console.error("Error updating addon service:", error);
+      res.status(500).json({ message: "Failed to update addon service" });
+    }
+  });
+
+  app.delete("/api/addon-services/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteAddonService(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting addon service:", error);
+      res.status(500).json({ message: "Failed to delete addon service" });
+    }
+  });
+
+  // Service Bookings
+  app.get("/api/addon-services/bookings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { propertyId, status, paymentRoute } = req.query;
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (status) filters.status = status as string;
+      if (paymentRoute) filters.paymentRoute = paymentRoute as string;
+
+      const bookings = await storage.getServiceBookings(user.organizationId, filters);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching service bookings:", error);
+      res.status(500).json({ message: "Failed to fetch service bookings" });
+    }
+  });
+
+  app.get("/api/addon-services/bookings/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const booking = await storage.getServiceBooking(id);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
+      res.json(booking);
+    } catch (error) {
+      console.error("Error fetching service booking:", error);
+      res.status(500).json({ message: "Failed to fetch service booking" });
+    }
+  });
+
+  app.post("/api/addon-services/bookings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const bookingData = { 
+        ...req.body, 
+        organizationId: user.organizationId,
+        createdBy: user.id
+      };
+      
+      const booking = await storage.createServiceBooking(bookingData);
+      res.json(booking);
+    } catch (error) {
+      console.error("Error creating service booking:", error);
+      res.status(500).json({ message: "Failed to create service booking" });
+    }
+  });
+
+  app.put("/api/addon-services/bookings/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const id = parseInt(req.params.id);
+      const updates = { ...req.body, updatedBy: user.id };
+      
+      const booking = await storage.updateServiceBooking(id, updates);
+      res.json(booking);
+    } catch (error) {
+      console.error("Error updating service booking:", error);
+      res.status(500).json({ message: "Failed to update service booking" });
+    }
+  });
+
+  app.delete("/api/addon-services/bookings/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteServiceBooking(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting service booking:", error);
+      res.status(500).json({ message: "Failed to delete service booking" });
+    }
+  });
+
+  // Property Service Pricing
+  app.get("/api/addon-services/pricing/:propertyId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { serviceId } = req.query;
+      
+      const pricing = await storage.getPropertyServicePricing(
+        propertyId, 
+        serviceId ? parseInt(serviceId as string) : undefined
+      );
+      res.json(pricing);
+    } catch (error) {
+      console.error("Error fetching property service pricing:", error);
+      res.status(500).json({ message: "Failed to fetch property service pricing" });
+    }
+  });
+
+  app.post("/api/addon-services/pricing", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const pricingData = { ...req.body, organizationId: user.organizationId };
+      const pricing = await storage.createPropertyServicePricing(pricingData);
+      res.json(pricing);
+    } catch (error) {
+      console.error("Error creating property service pricing:", error);
+      res.status(500).json({ message: "Failed to create property service pricing" });
+    }
+  });
+
+  // Service Availability
+  app.get("/api/addon-services/availability/:serviceId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const serviceId = parseInt(req.params.serviceId);
+      const availability = await storage.getServiceAvailability(serviceId);
+      res.json(availability);
+    } catch (error) {
+      console.error("Error fetching service availability:", error);
+      res.status(500).json({ message: "Failed to fetch service availability" });
+    }
+  });
+
+  app.post("/api/addon-services/availability", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!['admin', 'portfolio-manager'].includes(user.role)) {
+        return res.status(403).json({ message: "Unauthorized: Admin/PM access required" });
+      }
+
+      const availabilityData = { ...req.body, organizationId: user.organizationId };
+      const availability = await storage.createServiceAvailability(availabilityData);
+      res.json(availability);
+    } catch (error) {
+      console.error("Error creating service availability:", error);
+      res.status(500).json({ message: "Failed to create service availability" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

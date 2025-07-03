@@ -602,6 +602,37 @@ export interface IStorage {
   getGuestMaintenanceReports(guestSessionId: number): Promise<GuestMaintenanceReport[]>;
   updateMaintenanceReportStatus(id: number, status: string, assignedTo?: string): Promise<GuestMaintenanceReport | undefined>;
   completeMaintenanceReport(id: number, resolutionNotes: string, images?: string[]): Promise<GuestMaintenanceReport | undefined>;
+
+  // Add-On Services Booking Engine operations
+  // Service categories
+  getServiceCategories(organizationId: string): Promise<any[]>;
+  createServiceCategory(category: any): Promise<any>;
+  updateServiceCategory(id: number, updates: any): Promise<any>;
+  deleteServiceCategory(id: number): Promise<boolean>;
+  
+  // Add-on services
+  getAddonServices(organizationId: string, filters?: { categoryId?: number; isActive?: boolean }): Promise<any[]>;
+  getAddonService(id: number): Promise<any | undefined>;
+  createAddonService(service: any): Promise<any>;
+  updateAddonService(id: number, updates: any): Promise<any | undefined>;
+  deleteAddonService(id: number): Promise<boolean>;
+  
+  // Service bookings
+  getServiceBookings(organizationId: string, filters?: { propertyId?: number; status?: string; paymentRoute?: string }): Promise<any[]>;
+  getServiceBooking(id: number): Promise<any | undefined>;
+  createServiceBooking(booking: any): Promise<any>;
+  updateServiceBooking(id: number, updates: any): Promise<any | undefined>;
+  deleteServiceBooking(id: number): Promise<boolean>;
+  
+  // Service pricing
+  getPropertyServicePricing(propertyId: number, serviceId?: number): Promise<any[]>;
+  createPropertyServicePricing(pricing: any): Promise<any>;
+  updatePropertyServicePricing(id: number, updates: any): Promise<any | undefined>;
+  
+  // Service availability
+  getServiceAvailability(serviceId: number): Promise<any[]>;
+  createServiceAvailability(availability: any): Promise<any>;
+  updateServiceAvailability(id: number, updates: any): Promise<any | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -11632,6 +11663,246 @@ Plant Care:
     }
 
     return await query.orderBy(desc(attachmentAccessLogs.createdAt));
+  }
+
+  // ===== ADD-ON SERVICES BOOKING ENGINE IMPLEMENTATION =====
+  
+  // Service Categories
+  async getServiceCategories(organizationId: string): Promise<any[]> {
+    // Mock implementation for now
+    return [
+      { id: 1, name: "Cleaning", description: "House cleaning services", icon: "sparkles", isActive: true },
+      { id: 2, name: "Massage", description: "In-villa massage services", icon: "user", isActive: true },
+      { id: 3, name: "Chef", description: "Private chef services", icon: "utensils", isActive: true },
+      { id: 4, name: "Transport", description: "Transportation services", icon: "car", isActive: true },
+      { id: 5, name: "Pool", description: "Pool cleaning and maintenance", icon: "waves", isActive: true },
+      { id: 6, name: "Laundry", description: "Laundry and dry cleaning", icon: "shirt", isActive: true },
+      { id: 7, name: "Tours", description: "Local tours and activities", icon: "map-pin", isActive: true },
+      { id: 8, name: "Baby Setup", description: "Baby equipment and setup", icon: "gift", isActive: true },
+    ];
+  }
+
+  async createServiceCategory(category: any): Promise<any> {
+    // Mock implementation - would create in serviceCategories table
+    return { id: Math.floor(Math.random() * 1000), ...category, createdAt: new Date() };
+  }
+
+  async updateServiceCategory(id: number, updates: any): Promise<any> {
+    // Mock implementation - would update in serviceCategories table
+    return { id, ...updates, updatedAt: new Date() };
+  }
+
+  async deleteServiceCategory(id: number): Promise<boolean> {
+    // Mock implementation - would delete from serviceCategories table
+    return true;
+  }
+
+  // Add-on Services
+  async getAddonServices(organizationId: string, filters?: { categoryId?: number; isActive?: boolean }): Promise<any[]> {
+    const mockServices = [
+      {
+        id: 1, name: "Deep House Cleaning", description: "Comprehensive deep cleaning service for your villa",
+        categoryId: 1, categoryName: "Cleaning", defaultPrice: 150, pricingType: "fixed",
+        currency: "AUD", estimatedDuration: 180, isActive: true, requiresQuote: false,
+        canCreateTask: true, taskDepartment: "cleaning", availabilityNotes: "Available 9 AM - 5 PM"
+      },
+      {
+        id: 2, name: "Traditional Thai Massage", description: "Authentic Thai massage in your villa",
+        categoryId: 2, categoryName: "Massage", defaultPrice: 120, pricingType: "per_person",
+        currency: "AUD", estimatedDuration: 90, isActive: true, requiresQuote: false,
+        canCreateTask: false, taskDepartment: "front-desk", availabilityNotes: "Book 24 hours in advance"
+      },
+      {
+        id: 3, name: "Private Chef Dinner", description: "Personal chef for special dinner experience",
+        categoryId: 3, categoryName: "Chef", defaultPrice: 0, pricingType: "quote_required",
+        currency: "AUD", estimatedDuration: 240, isActive: true, requiresQuote: true,
+        canCreateTask: true, taskDepartment: "front-desk", availabilityNotes: "Menu consultation required"
+      },
+      {
+        id: 4, name: "Airport Transfer", description: "Private airport transfer service",
+        categoryId: 4, categoryName: "Transport", defaultPrice: 85, pricingType: "fixed",
+        currency: "AUD", estimatedDuration: 60, isActive: true, requiresQuote: false,
+        canCreateTask: true, taskDepartment: "transport", availabilityNotes: "Book 2 hours in advance"
+      },
+      {
+        id: 5, name: "Pool Cleaning", description: "Professional pool cleaning and maintenance",
+        categoryId: 5, categoryName: "Pool", defaultPrice: 80, pricingType: "fixed",
+        currency: "AUD", estimatedDuration: 120, isActive: true, requiresQuote: false,
+        canCreateTask: true, taskDepartment: "pool", availabilityNotes: "Available daily"
+      },
+      {
+        id: 6, name: "Express Laundry", description: "Same-day laundry and ironing service",
+        categoryId: 6, categoryName: "Laundry", defaultPrice: 25, pricingType: "hourly",
+        currency: "AUD", estimatedDuration: 180, isActive: true, requiresQuote: false,
+        canCreateTask: true, taskDepartment: "cleaning", availabilityNotes: "Pickup by 10 AM for same day return"
+      },
+      {
+        id: 7, name: "Island Hopping Tour", description: "Full day island hopping experience",
+        categoryId: 7, categoryName: "Tours", defaultPrice: 220, pricingType: "per_person",
+        currency: "AUD", estimatedDuration: 480, isActive: true, requiresQuote: false,
+        canCreateTask: true, taskDepartment: "front-desk", availabilityNotes: "Weather dependent"
+      },
+      {
+        id: 8, name: "Baby Equipment Setup", description: "Complete baby equipment setup and safety check",
+        categoryId: 8, categoryName: "Baby Setup", defaultPrice: 75, pricingType: "fixed",
+        currency: "AUD", estimatedDuration: 60, isActive: true, requiresQuote: false,
+        canCreateTask: true, taskDepartment: "cleaning", availabilityNotes: "Setup 1 day before arrival"
+      }
+    ];
+
+    let filteredServices = mockServices;
+    
+    if (filters?.categoryId) {
+      filteredServices = filteredServices.filter(service => service.categoryId === filters.categoryId);
+    }
+    
+    if (filters?.isActive !== undefined) {
+      filteredServices = filteredServices.filter(service => service.isActive === filters.isActive);
+    }
+
+    return filteredServices;
+  }
+
+  async getAddonService(id: number): Promise<any | undefined> {
+    const services = await this.getAddonServices("demo-org");
+    return services.find(service => service.id === id);
+  }
+
+  async createAddonService(service: any): Promise<any> {
+    // Mock implementation - would create in bookableServices table
+    return { id: Math.floor(Math.random() * 1000), ...service, createdAt: new Date() };
+  }
+
+  async updateAddonService(id: number, updates: any): Promise<any | undefined> {
+    // Mock implementation - would update in bookableServices table
+    return { id, ...updates, updatedAt: new Date() };
+  }
+
+  async deleteAddonService(id: number): Promise<boolean> {
+    // Mock implementation - would delete from bookableServices table
+    return true;
+  }
+
+  // Service Bookings
+  async getServiceBookings(organizationId: string, filters?: { propertyId?: number; status?: string; paymentRoute?: string }): Promise<any[]> {
+    const mockBookings = [
+      {
+        id: 1, propertyId: 1, propertyName: "Ocean Vista Villa", serviceId: 1, serviceName: "Deep House Cleaning",
+        guestName: "Sarah Johnson", guestEmail: "sarah@example.com", guestPhone: "+61 400 123 456",
+        bookingDate: "2025-01-05", bookingTime: "10:00", quantity: 1, totalPrice: 150, currency: "AUD",
+        paymentRoute: "guest_paid", status: "confirmed", specialRequests: "Please focus on bathrooms",
+        createdByType: "staff", createdAt: "2025-01-03T10:00:00Z"
+      },
+      {
+        id: 2, propertyId: 2, propertyName: "Sunset Beach House", serviceId: 2, serviceName: "Traditional Thai Massage",
+        guestName: "Michael Chen", guestEmail: "michael@example.com", guestPhone: "+61 400 789 123",
+        bookingDate: "2025-01-06", bookingTime: "16:00", quantity: 2, totalPrice: 240, currency: "AUD",
+        paymentRoute: "owner_paid", status: "pending", specialRequests: "Couples massage please",
+        createdByType: "guest", createdAt: "2025-01-04T14:30:00Z"
+      },
+      {
+        id: 3, propertyId: 1, propertyName: "Ocean Vista Villa", serviceId: 4, serviceName: "Airport Transfer",
+        guestName: "Emma Wilson", guestEmail: "emma@example.com", guestPhone: "+61 400 456 789",
+        bookingDate: "2025-01-07", bookingTime: "14:00", quantity: 1, totalPrice: 85, currency: "AUD",
+        paymentRoute: "company_paid", status: "completed", specialRequests: "Flight details: QF123 arriving at 13:30",
+        createdByType: "staff", createdAt: "2025-01-05T09:15:00Z"
+      },
+      {
+        id: 4, propertyId: 3, propertyName: "Mountain Retreat", serviceId: 3, serviceName: "Private Chef Dinner",
+        guestName: "David Smith", guestEmail: "david@example.com", guestPhone: "+61 400 321 654",
+        bookingDate: "2025-01-08", bookingTime: "19:00", quantity: 4, totalPrice: 450, currency: "AUD",
+        paymentRoute: "complimentary", complimentaryType: "owner_gift", status: "confirmed",
+        specialRequests: "Vegetarian menu for 2 guests, seafood allergies to consider",
+        createdByType: "staff", createdAt: "2025-01-02T16:45:00Z"
+      },
+      {
+        id: 5, propertyId: 2, propertyName: "Sunset Beach House", serviceId: 7, serviceName: "Island Hopping Tour",
+        guestName: "Lisa Rodriguez", guestEmail: "lisa@example.com", guestPhone: "+61 400 987 321",
+        bookingDate: "2025-01-09", bookingTime: "08:00", quantity: 3, totalPrice: 660, currency: "AUD",
+        paymentRoute: "guest_paid", status: "pending", specialRequests: "Snorkeling equipment needed",
+        createdByType: "guest", createdAt: "2025-01-06T11:20:00Z"
+      }
+    ];
+
+    let filteredBookings = mockBookings;
+    
+    if (filters?.propertyId) {
+      filteredBookings = filteredBookings.filter(booking => booking.propertyId === filters.propertyId);
+    }
+    
+    if (filters?.status) {
+      filteredBookings = filteredBookings.filter(booking => booking.status === filters.status);
+    }
+    
+    if (filters?.paymentRoute) {
+      filteredBookings = filteredBookings.filter(booking => booking.paymentRoute === filters.paymentRoute);
+    }
+
+    return filteredBookings;
+  }
+
+  async getServiceBooking(id: number): Promise<any | undefined> {
+    const bookings = await this.getServiceBookings("demo-org");
+    return bookings.find(booking => booking.id === id);
+  }
+
+  async createServiceBooking(booking: any): Promise<any> {
+    // Mock implementation - would create in serviceBookings table
+    const newBooking = {
+      id: Math.floor(Math.random() * 1000),
+      ...booking,
+      status: "pending",
+      createdAt: new Date().toISOString()
+    };
+    
+    // Auto-create task if service supports it
+    if (booking.canCreateTask) {
+      // Would create a task in the tasks table linked to this booking
+    }
+    
+    return newBooking;
+  }
+
+  async updateServiceBooking(id: number, updates: any): Promise<any | undefined> {
+    // Mock implementation - would update in serviceBookings table
+    return { id, ...updates, updatedAt: new Date() };
+  }
+
+  async deleteServiceBooking(id: number): Promise<boolean> {
+    // Mock implementation - would delete from serviceBookings table
+    return true;
+  }
+
+  // Property Service Pricing
+  async getPropertyServicePricing(propertyId: number, serviceId?: number): Promise<any[]> {
+    // Mock implementation - would query propertyServicePricing table
+    return [];
+  }
+
+  async createPropertyServicePricing(pricing: any): Promise<any> {
+    // Mock implementation - would create in propertyServicePricing table
+    return { id: Math.floor(Math.random() * 1000), ...pricing, createdAt: new Date() };
+  }
+
+  async updatePropertyServicePricing(id: number, updates: any): Promise<any | undefined> {
+    // Mock implementation - would update in propertyServicePricing table
+    return { id, ...updates, updatedAt: new Date() };
+  }
+
+  // Service Availability
+  async getServiceAvailability(serviceId: number): Promise<any[]> {
+    // Mock implementation - would query serviceAvailability table
+    return [];
+  }
+
+  async createServiceAvailability(availability: any): Promise<any> {
+    // Mock implementation - would create in serviceAvailability table
+    return { id: Math.floor(Math.random() * 1000), ...availability, createdAt: new Date() };
+  }
+
+  async updateServiceAvailability(id: number, updates: any): Promise<any | undefined> {
+    // Mock implementation - would update in serviceAvailability table
+    return { id, ...updates, updatedAt: new Date() };
   }
 }
 

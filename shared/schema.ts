@@ -4929,6 +4929,114 @@ export type InsertMediaUsageAnalytic = z.infer<typeof insertMediaUsageAnalyticSc
 export type AiMediaSuggestion = typeof aiMediaSuggestions.$inferSelect;
 export type InsertAiMediaSuggestion = z.infer<typeof insertAiMediaSuggestionSchema>;
 
+// ===== ADD-ON SERVICES BOOKING ENGINE =====
+
+// Service Categories and Master Services List
+export const serviceCategories = pgTable("service_categories", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  name: varchar("name").notNull(), // Cleaning, Massages, Chef, Transport, etc.
+  description: text("description"),
+  icon: varchar("icon"), // lucide icon name
+  displayOrder: integer("display_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Master services that can be booked
+export const bookableServices = pgTable("bookable_services", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  categoryId: integer("category_id").references(() => serviceCategories.id).notNull(),
+  name: varchar("name").notNull(),
+  description: text("description").notNull(),
+  defaultPrice: decimal("default_price", { precision: 10, scale: 2 }),
+  pricingType: varchar("pricing_type").notNull().default("fixed"), // fixed, hourly, per_person, quote_required
+  estimatedDuration: integer("estimated_duration_minutes"), // for scheduling
+  currency: varchar("currency").default("AUD"),
+  isActive: boolean("is_active").default(true),
+  requiresQuote: boolean("requires_quote").default(false), // "Ask Manager for Quote"
+  canCreateTask: boolean("can_create_task").default(true), // Auto-create staff task
+  taskDepartment: varchar("task_department"), // cleaning, maintenance, etc.
+  availabilityNotes: text("availability_notes"), // Special notes for guests
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property-specific service pricing overrides
+export const propertyServicePricing = pgTable("property_service_pricing", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  serviceId: integer("service_id").references(() => bookableServices.id).notNull(),
+  overridePrice: decimal("override_price", { precision: 10, scale: 2 }),
+  isAvailable: boolean("is_available").default(true),
+  specialNotes: text("special_notes"), // Property-specific notes
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Service bookings made by guests or staff
+export const serviceBookings = pgTable("service_bookings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  serviceId: integer("service_id").references(() => addonServices.id).notNull(),
+  guestName: varchar("guest_name"),
+  guestEmail: varchar("guest_email"),
+  guestPhone: varchar("guest_phone"),
+  bookingDate: date("booking_date").notNull(),
+  bookingTime: varchar("booking_time"), // HH:MM format
+  quantity: integer("quantity").default(1),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("AUD"),
+  paymentRoute: varchar("payment_route").notNull(), // guest_paid, owner_paid, company_paid, complimentary
+  complimentaryType: varchar("complimentary_type"), // owner_gift, company_gift
+  status: varchar("status").default("pending"), // pending, confirmed, completed, cancelled
+  specialRequests: text("special_requests"),
+  createdBy: varchar("created_by"), // user id who created the booking
+  createdByType: varchar("created_by_type"), // guest, staff, manager
+  assignedTaskId: integer("assigned_task_id"), // Link to created task
+  invoiceId: integer("invoice_id"), // Link to invoice if generated
+  processedAt: timestamp("processed_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Service booking logs for financial tracking
+export const serviceBookingLogs = pgTable("service_booking_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  bookingId: integer("booking_id").references(() => serviceBookings.id).notNull(),
+  propertyId: integer("property_id").notNull(),
+  actionType: varchar("action_type").notNull(), // created, confirmed, completed, cancelled, payment_processed
+  previousStatus: varchar("previous_status"),
+  newStatus: varchar("new_status"),
+  paymentRoute: varchar("payment_route"), // guest_paid, owner_paid, company_paid, complimentary
+  amount: decimal("amount", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  processedBy: varchar("processed_by"), // user id
+  processedByRole: varchar("processed_by_role"), // guest, staff, manager, admin
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Service availability calendar
+export const serviceAvailability = pgTable("service_availability", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  serviceId: integer("service_id").references(() => addonServices.id).notNull(),
+  availableDate: date("available_date").notNull(),
+  availableTimeSlots: varchar("available_time_slots").array(), // ["09:00", "10:00", "11:00"]
+  maxBookingsPerSlot: integer("max_bookings_per_slot").default(1),
+  isBlocked: boolean("is_blocked").default(false),
+  blockReason: text("block_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // ===== STAFF OVERHOURS & EMERGENCY TASK TRACKER =====
 
 // Staff Work Hours Configuration - defines normal work hours per staff member
@@ -5389,6 +5497,8 @@ export type TaskPdfArchive = typeof taskPdfArchives.$inferSelect;
 export type InsertTaskPdfArchive = z.infer<typeof insertTaskPdfArchiveSchema>;
 export type TaskArchiveStatus = typeof taskArchiveStatus.$inferSelect;
 export type InsertTaskArchiveStatus = z.infer<typeof insertTaskArchiveStatusSchema>;
+
+
 
 // ===== STAFF OVERHOURS & EMERGENCY TASK TRACKER SCHEMAS =====
 

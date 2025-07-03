@@ -36,6 +36,7 @@ import MediaLibrary from "@/pages/MediaLibrary";
 import GuestAddonBooking from "@/pages/GuestAddonBooking";
 import AdminAddonBookings from "@/pages/AdminAddonBookings";
 import AdminAddonSettings from "@/pages/AdminAddonSettings";
+import AddonServicesBooking from "@/pages/AddonServicesBooking";
 import OwnerDashboard from "@/pages/OwnerDashboard";
 import PortfolioManagerDashboard from "@/pages/PortfolioManagerDashboard";
 import FinanceResetControl from "@/pages/FinanceResetControl";
@@ -150,6 +151,7 @@ function Router() {
           <Route path="/guest/add-ons" component={GuestAddonBooking} />
           <Route path="/admin/add-ons-bookings" component={AdminAddonBookings} />
           <Route path="/admin/add-ons-settings" component={AdminAddonSettings} />
+          <Route path="/addon-services-booking" component={AddonServicesBooking} />
           <Route path="/owner/dashboard" component={OwnerDashboard} />
           <Route path="/owner/balance-management" component={OwnerBalanceManagement} />
           <Route path="/pm/dashboard" component={PortfolioManagerDashboard} />
