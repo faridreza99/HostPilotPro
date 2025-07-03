@@ -38,6 +38,11 @@ import {
   agentBookings,
   agentPayouts,
   referralEarnings,
+  ownerBalanceTrackers,
+  ownerPayoutRequests,
+  ownerPaymentLogs,
+  ownerDebtTrackers,
+  propertyPayoutSettings,
   type User,
   type UpsertUser,
   type Property,
@@ -9017,6 +9022,250 @@ Plant Care:
     });
 
     return [suggestions];
+  }
+
+  // ===== OWNER BALANCE & PAYMENT SYSTEM =====
+
+  // Owner Balance Tracker Operations
+  async getOwnerBalanceByProperty(organizationId: string, ownerId: string, propertyId: number): Promise<any> {
+    const [balance] = await db.select()
+      .from(ownerBalanceTrackers)
+      .where(
+        and(
+          eq(ownerBalanceTrackers.organizationId, organizationId),
+          eq(ownerBalanceTrackers.ownerId, ownerId),
+          eq(ownerBalanceTrackers.propertyId, propertyId)
+        )
+      )
+      .orderBy(desc(ownerBalanceTrackers.lastCalculatedAt));
+    
+    return balance || null;
+  }
+
+  async getAllOwnerBalances(organizationId: string, ownerId: string): Promise<any[]> {
+    return await db.select()
+      .from(ownerBalanceTrackers)
+      .innerJoin(properties, eq(ownerBalanceTrackers.propertyId, properties.id))
+      .where(
+        and(
+          eq(ownerBalanceTrackers.organizationId, organizationId),
+          eq(ownerBalanceTrackers.ownerId, ownerId)
+        )
+      )
+      .orderBy(desc(ownerBalanceTrackers.lastCalculatedAt));
+  }
+
+  async updateOwnerBalance(balanceData: any): Promise<any> {
+    const [updated] = await db.insert(ownerBalanceTrackers)
+      .values(balanceData)
+      .onConflictDoUpdate({
+        target: [ownerBalanceTrackers.ownerId, ownerBalanceTrackers.propertyId],
+        set: {
+          totalEarnings: balanceData.totalEarnings,
+          totalExpenses: balanceData.totalExpenses,
+          totalCommissions: balanceData.totalCommissions,
+          netBalance: balanceData.netBalance,
+          lastCalculatedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return updated;
+  }
+
+  // Owner Payout Request Operations
+  async createOwnerPayoutRequest(requestData: any): Promise<any> {
+    const [created] = await db.insert(ownerPayoutRequests)
+      .values(requestData)
+      .returning();
+    return created;
+  }
+
+  async getOwnerPayoutRequests(organizationId: string, ownerId?: string): Promise<any[]> {
+    let query = db.select()
+      .from(ownerPayoutRequests)
+      .innerJoin(properties, eq(ownerPayoutRequests.propertyId, properties.id))
+      .innerJoin(users, eq(ownerPayoutRequests.ownerId, users.id))
+      .where(eq(ownerPayoutRequests.organizationId, organizationId));
+
+    if (ownerId) {
+      query = query.where(eq(ownerPayoutRequests.ownerId, ownerId));
+    }
+
+    return await query.orderBy(desc(ownerPayoutRequests.requestedAt));
+  }
+
+  async updatePayoutRequestStatus(requestId: number, updates: any): Promise<any> {
+    const [updated] = await db.update(ownerPayoutRequests)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(ownerPayoutRequests.id, requestId))
+      .returning();
+    return updated;
+  }
+
+  async uploadPaymentSlip(requestId: number, slipUrl: string, paidBy: string): Promise<any> {
+    const [updated] = await db.update(ownerPayoutRequests)
+      .set({
+        paymentSlipUrl: slipUrl,
+        paidBy,
+        paidAt: new Date(),
+        requestStatus: 'paid',
+        updatedAt: new Date(),
+      })
+      .where(eq(ownerPayoutRequests.id, requestId))
+      .returning();
+    return updated;
+  }
+
+  async confirmPaymentReceived(requestId: number, confirmedBy: string, notes?: string): Promise<any> {
+    const [updated] = await db.update(ownerPayoutRequests)
+      .set({
+        confirmedBy,
+        confirmedAt: new Date(),
+        confirmationNotes: notes,
+        requestStatus: 'confirmed',
+        updatedAt: new Date(),
+      })
+      .where(eq(ownerPayoutRequests.id, requestId))
+      .returning();
+    return updated;
+  }
+
+  // Owner Payment Log Operations
+  async createPaymentLog(logData: any): Promise<any> {
+    const [created] = await db.insert(ownerPaymentLogs)
+      .values(logData)
+      .returning();
+    return created;
+  }
+
+  async getOwnerPaymentHistory(organizationId: string, ownerId: string, propertyId?: number): Promise<any[]> {
+    let query = db.select()
+      .from(ownerPaymentLogs)
+      .innerJoin(users, eq(ownerPaymentLogs.processedBy, users.id))
+      .where(
+        and(
+          eq(ownerPaymentLogs.organizationId, organizationId),
+          eq(ownerPaymentLogs.ownerId, ownerId)
+        )
+      );
+
+    if (propertyId) {
+      query = query.where(eq(ownerPaymentLogs.propertyId, propertyId));
+    }
+
+    return await query.orderBy(desc(ownerPaymentLogs.processedAt));
+  }
+
+  // Owner Debt Tracking Operations
+  async createOwnerDebt(debtData: any): Promise<any> {
+    const [created] = await db.insert(ownerDebtTrackers)
+      .values(debtData)
+      .returning();
+    return created;
+  }
+
+  async getOwnerDebts(organizationId: string, ownerId: string): Promise<any[]> {
+    return await db.select()
+      .from(ownerDebtTrackers)
+      .where(
+        and(
+          eq(ownerDebtTrackers.organizationId, organizationId),
+          eq(ownerDebtTrackers.ownerId, ownerId),
+          eq(ownerDebtTrackers.debtStatus, 'outstanding')
+        )
+      )
+      .orderBy(desc(ownerDebtTrackers.createdAt));
+  }
+
+  async updateDebtPayment(debtId: number, paymentData: any): Promise<any> {
+    const [updated] = await db.update(ownerDebtTrackers)
+      .set({
+        ...paymentData,
+        updatedAt: new Date(),
+      })
+      .where(eq(ownerDebtTrackers.id, debtId))
+      .returning();
+    return updated;
+  }
+
+  // Property Payout Settings Operations
+  async getPropertyPayoutSettings(organizationId: string, propertyId: number): Promise<any> {
+    const [settings] = await db.select()
+      .from(propertyPayoutSettings)
+      .where(
+        and(
+          eq(propertyPayoutSettings.organizationId, organizationId),
+          eq(propertyPayoutSettings.propertyId, propertyId)
+        )
+      );
+    return settings;
+  }
+
+  async updatePropertyPayoutSettings(settingsData: any): Promise<any> {
+    const [updated] = await db.insert(propertyPayoutSettings)
+      .values(settingsData)
+      .onConflictDoUpdate({
+        target: [propertyPayoutSettings.propertyId],
+        set: {
+          ...settingsData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return updated;
+  }
+
+  // Balance Calculation Helper
+  async calculateOwnerBalance(organizationId: string, ownerId: string, propertyId: number, period: { start: Date, end: Date }): Promise<{
+    totalEarnings: string;
+    totalExpenses: string;
+    totalCommissions: string;
+    netBalance: string;
+  }> {
+    // Get completed bookings for the period
+    const bookings = await db.select()
+      .from(bookings as any)
+      .where(
+        and(
+          eq((bookings as any).organizationId, organizationId),
+          eq((bookings as any).propertyId, propertyId),
+          eq((bookings as any).status, 'completed'),
+          sql`${(bookings as any).checkOut} BETWEEN ${period.start} AND ${period.end}`
+        )
+      );
+
+    // Calculate earnings from completed bookings
+    const totalEarnings = bookings.reduce((sum, booking) => sum + parseFloat(booking.totalAmount || '0'), 0);
+
+    // Get expenses for the property in the period
+    const expenses = await db.select()
+      .from(finances)
+      .where(
+        and(
+          eq(finances.organizationId, organizationId),
+          eq(finances.propertyId, propertyId),
+          eq(finances.type, 'expense'),
+          sql`${finances.date} BETWEEN ${period.start} AND ${period.end}`
+        )
+      );
+
+    const totalExpenses = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount || '0'), 0);
+
+    // Calculate commissions (typically management fees)
+    const totalCommissions = totalEarnings * 0.20; // 20% management fee
+
+    const netBalance = totalEarnings - totalExpenses - totalCommissions;
+
+    return {
+      totalEarnings: totalEarnings.toFixed(2),
+      totalExpenses: totalExpenses.toFixed(2),
+      totalCommissions: totalCommissions.toFixed(2),
+      netBalance: netBalance.toFixed(2),
+    };
   }
 }
 

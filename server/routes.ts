@@ -7006,6 +7006,364 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== OWNER BALANCE & PAYMENT SYSTEM ROUTES =====
+
+  // Get owner balance for specific property
+  app.get("/api/owner-balance/:propertyId", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only owners can access their own balance
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Access denied. Owner role required." });
+      }
+
+      const organizationId = user.organizationId;
+      const ownerId = user.id;
+      const propertyId = parseInt(req.params.propertyId);
+
+      const balance = await storage.getOwnerBalanceByProperty(organizationId, ownerId, propertyId);
+      res.json(balance);
+    } catch (error) {
+      console.error("Error fetching owner balance:", error);
+      res.status(500).json({ message: "Failed to fetch owner balance" });
+    }
+  });
+
+  // Get all owner balances
+  app.get("/api/owner-balances", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only owners can access their own balances
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Access denied. Owner role required." });
+      }
+
+      const organizationId = user.organizationId;
+      const ownerId = user.id;
+
+      const balances = await storage.getAllOwnerBalances(organizationId, ownerId);
+      res.json(balances);
+    } catch (error) {
+      console.error("Error fetching owner balances:", error);
+      res.status(500).json({ message: "Failed to fetch owner balances" });
+    }
+  });
+
+  // Calculate live balance for property
+  app.post("/api/owner-balance/calculate", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only owners can calculate their own balance
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Access denied. Owner role required." });
+      }
+
+      const organizationId = user.organizationId;
+      const ownerId = user.id;
+      const { propertyId, period } = req.body;
+
+      const balance = await storage.calculateOwnerBalance(
+        organizationId, 
+        ownerId, 
+        propertyId, 
+        { start: new Date(period.start), end: new Date(period.end) }
+      );
+
+      // Update the balance tracker
+      await storage.updateOwnerBalance({
+        organizationId,
+        ownerId,
+        propertyId,
+        ...balance,
+        lastCalculatedAt: new Date(),
+      });
+
+      res.json(balance);
+    } catch (error) {
+      console.error("Error calculating owner balance:", error);
+      res.status(500).json({ message: "Failed to calculate owner balance" });
+    }
+  });
+
+  // Create payout request
+  app.post("/api/owner-payout-request", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only owners can create payout requests
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Access denied. Owner role required." });
+      }
+
+      const organizationId = user.organizationId;
+      const ownerId = user.id;
+      const { propertyId, requestedAmount, paymentMethod, paymentDetails, notes } = req.body;
+
+      const payoutRequest = await storage.createOwnerPayoutRequest({
+        organizationId,
+        ownerId,
+        propertyId,
+        requestedAmount,
+        paymentMethod,
+        paymentDetails,
+        notes,
+        requestStatus: 'pending',
+        requestedAt: new Date(),
+      });
+
+      // Create notification for admin/PM
+      await storage.createNotification({
+        organizationId,
+        userId: 'admin@test.com', // Should route to appropriate admin/PM
+        type: 'payout_request',
+        title: 'New Payout Request',
+        message: `Owner ${user.username} requested ${requestedAmount} payout`,
+        priority: 'medium',
+        isRead: false,
+      });
+
+      res.json(payoutRequest);
+    } catch (error) {
+      console.error("Error creating payout request:", error);
+      res.status(500).json({ message: "Failed to create payout request" });
+    }
+  });
+
+  // Get payout requests (owners see their own, admin/PM see all)
+  app.get("/api/owner-payout-requests", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId;
+      let ownerId = undefined;
+
+      // Owners can only see their own requests
+      if (user.role === 'owner') {
+        ownerId = user.id;
+      } else if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Access denied. Owner, admin, or portfolio manager role required." });
+      }
+
+      const requests = await storage.getOwnerPayoutRequests(organizationId, ownerId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching payout requests:", error);
+      res.status(500).json({ message: "Failed to fetch payout requests" });
+    }
+  });
+
+  // Approve/reject payout request (admin/PM only)
+  app.put("/api/owner-payout-request/:id/status", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can update payout status
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Access denied. Admin or portfolio manager role required." });
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { status, notes } = req.body;
+
+      const updated = await storage.updatePayoutRequestStatus(requestId, {
+        requestStatus: status,
+        approvedBy: status === 'approved' ? user.id : null,
+        approvedAt: status === 'approved' ? new Date() : null,
+        rejectedBy: status === 'rejected' ? user.id : null,
+        rejectedAt: status === 'rejected' ? new Date() : null,
+        adminNotes: notes,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating payout request status:", error);
+      res.status(500).json({ message: "Failed to update payout request status" });
+    }
+  });
+
+  // Upload payment slip (admin/PM only)
+  app.put("/api/owner-payout-request/:id/payment-slip", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can upload payment slips
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Access denied. Admin or portfolio manager role required." });
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { paymentSlipUrl } = req.body;
+
+      const updated = await storage.uploadPaymentSlip(requestId, paymentSlipUrl, user.id);
+
+      // Create notification for owner
+      await storage.createNotification({
+        organizationId: user.organizationId,
+        userId: updated.ownerId,
+        type: 'payment_made',
+        title: 'Payment Slip Uploaded',
+        message: 'Your payout has been processed. Please confirm receipt.',
+        priority: 'high',
+        isRead: false,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error uploading payment slip:", error);
+      res.status(500).json({ message: "Failed to upload payment slip" });
+    }
+  });
+
+  // Confirm payment received (owner only)
+  app.put("/api/owner-payout-request/:id/confirm", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only owners can confirm their payments
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Access denied. Owner role required." });
+      }
+
+      const requestId = parseInt(req.params.id);
+      const { notes } = req.body;
+
+      const updated = await storage.confirmPaymentReceived(requestId, user.id, notes);
+
+      // Log the payment completion
+      await storage.createPaymentLog({
+        organizationId: user.organizationId,
+        ownerId: user.id,
+        propertyId: updated.propertyId,
+        payoutRequestId: requestId,
+        amount: updated.requestedAmount,
+        paymentType: 'payout',
+        paymentMethod: updated.paymentMethod,
+        transactionReference: `PAYOUT-${requestId}`,
+        processedBy: updated.paidBy,
+        processedAt: new Date(),
+        paymentSlipUrl: updated.paymentSlipUrl,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error confirming payment:", error);
+      res.status(500).json({ message: "Failed to confirm payment" });
+    }
+  });
+
+  // Get payment history
+  app.get("/api/owner-payment-history", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only owners can access their payment history
+      if (user.role !== 'owner') {
+        return res.status(403).json({ message: "Access denied. Owner role required." });
+      }
+
+      const organizationId = user.organizationId;
+      const ownerId = user.id;
+      const { propertyId } = req.query;
+
+      const history = await storage.getOwnerPaymentHistory(
+        organizationId, 
+        ownerId, 
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching payment history:", error);
+      res.status(500).json({ message: "Failed to fetch payment history" });
+    }
+  });
+
+  // Get/Update property payout settings
+  app.get("/api/property-payout-settings/:propertyId", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin, PM, and property owners can access payout settings
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager' && user.role !== 'owner') {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      const organizationId = user.organizationId;
+      const propertyId = parseInt(req.params.propertyId);
+
+      const settings = await storage.getPropertyPayoutSettings(organizationId, propertyId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching property payout settings:", error);
+      res.status(500).json({ message: "Failed to fetch property payout settings" });
+    }
+  });
+
+  app.put("/api/property-payout-settings/:propertyId", async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only admin and portfolio managers can update payout settings
+      if (user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Access denied. Admin or portfolio manager role required." });
+      }
+
+      const organizationId = user.organizationId;
+      const propertyId = parseInt(req.params.propertyId);
+      const { payoutFrequency, minimumPayoutAmount, autoPayoutEnabled, payoutDay } = req.body;
+
+      const settings = await storage.updatePropertyPayoutSettings({
+        organizationId,
+        propertyId,
+        payoutFrequency,
+        minimumPayoutAmount,
+        autoPayoutEnabled,
+        payoutDay,
+        updatedAt: new Date(),
+      });
+
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating property payout settings:", error);
+      res.status(500).json({ message: "Failed to update property payout settings" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

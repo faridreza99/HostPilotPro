@@ -1033,36 +1033,7 @@ export const ownerBalances = pgTable("owner_balances", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Owner Payout Requests - Request and track payouts
-export const ownerPayoutRequests = pgTable("owner_payout_requests", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").notNull(),
-  ownerId: varchar("owner_id").references(() => users.id).notNull(),
-  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
-  currency: varchar("currency", { length: 3 }).default("AUD"),
-  requestNotes: text("request_notes"),
-  adminNotes: text("admin_notes"),
-  status: varchar("status").default("pending"), // pending, approved, transferred, received, completed
-  
-  // Transfer tracking
-  transferMethod: varchar("transfer_method"), // bank, paypal, crypto, cash
-  transferReference: varchar("transfer_reference"),
-  transferReceiptUrl: varchar("transfer_receipt_url"), // Admin uploaded receipt
-  
-  // Owner confirmation
-  ownerConfirmed: boolean("owner_confirmed").default(false),
-  ownerConfirmedAt: timestamp("owner_confirmed_at"),
-  
-  // Workflow timestamps
-  requestedAt: timestamp("requested_at").defaultNow(),
-  approvedAt: timestamp("approved_at"),
-  transferredAt: timestamp("transferred_at"),
-  completedAt: timestamp("completed_at"),
-  
-  // Processing tracking
-  processedBy: varchar("processed_by"), // Admin who processed
-  approvedBy: varchar("approved_by"), // PM or Admin who approved
-});
+// Removed duplicate table - using enhanced version below
 
 // Reverse Payments - When owner owes management
 export const ownerChargeRequests = pgTable("owner_charge_requests", {
@@ -2561,13 +2532,7 @@ export const insertOwnerActivityTimelineSchema = createInsertSchema(ownerActivit
   createdAt: true,
 });
 
-export const insertOwnerPayoutRequestSchema = createInsertSchema(ownerPayoutRequests).omit({
-  id: true,
-  requestedAt: true,
-  approvedAt: true,
-  paymentUploadedAt: true,
-  completedAt: true,
-});
+// Removed duplicate - using comprehensive version below
 
 export const insertOwnerInvoiceSchema = createInsertSchema(ownerInvoices).omit({
   id: true,
@@ -2671,11 +2636,7 @@ export const enhancedFinanceTransactionLogsRelations = relations(enhancedFinance
 }));
 
 // Insert schemas for Enhanced Finance Engine
-export const insertOwnerBalanceTrackerSchema = createInsertSchema(ownerBalanceTracker).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+// Note: insertOwnerBalanceTrackerSchema declared later with comprehensive owner balance system
 
 export const insertPayoutRoutingRuleSchema = createInsertSchema(payoutRoutingRules).omit({
   id: true,
@@ -2695,9 +2656,6 @@ export const insertEnhancedFinanceTransactionLogSchema = createInsertSchema(enha
 });
 
 // Type exports for Enhanced Finance Engine
-export type OwnerBalanceTracker = typeof ownerBalanceTracker.$inferSelect;
-export type InsertOwnerBalanceTracker = z.infer<typeof insertOwnerBalanceTrackerSchema>;
-
 export type PayoutRoutingRule = typeof payoutRoutingRules.$inferSelect;
 export type InsertPayoutRoutingRule = z.infer<typeof insertPayoutRoutingRuleSchema>;
 
@@ -2710,8 +2668,6 @@ export type InsertEnhancedFinanceTransactionLog = z.infer<typeof insertEnhancedF
 // Owner Dashboard types
 export type OwnerActivityTimeline = typeof ownerActivityTimeline.$inferSelect;
 export type InsertOwnerActivityTimeline = z.infer<typeof insertOwnerActivityTimelineSchema>;
-export type OwnerPayoutRequest = typeof ownerPayoutRequests.$inferSelect;
-export type InsertOwnerPayoutRequest = z.infer<typeof insertOwnerPayoutRequestSchema>;
 export type OwnerInvoice = typeof ownerInvoices.$inferSelect;
 export type InsertOwnerInvoice = z.infer<typeof insertOwnerInvoiceSchema>;
 export type OwnerPreferences = typeof ownerPreferences.$inferSelect;
@@ -4194,6 +4150,213 @@ export type SmartNotification = typeof smartNotifications.$inferSelect;
 export type InsertSmartNotification = typeof smartNotifications.$inferInsert;
 export type FastActionSuggestion = typeof fastActionSuggestions.$inferSelect;
 export type InsertFastActionSuggestion = typeof fastActionSuggestions.$inferInsert;
+
+// ===== OWNER BALANCE & PAYMENT SYSTEM =====
+
+// Owner Balance Tracker - Live balance calculation per property
+export const ownerBalanceTrackers = pgTable("owner_balance_trackers", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Balance Components
+  totalEarnings: decimal("total_earnings", { precision: 12, scale: 2 }).default("0.00"),
+  totalExpenses: decimal("total_expenses", { precision: 12, scale: 2 }).default("0.00"),
+  totalCommissions: decimal("total_commissions", { precision: 12, scale: 2 }).default("0.00"),
+  netBalance: decimal("net_balance", { precision: 12, scale: 2 }).default("0.00"),
+  
+  // Calculation Period
+  calculationPeriod: varchar("calculation_period").default("monthly"), // monthly, bi_weekly, quarterly
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+  periodStartDate: date("period_start_date").notNull(),
+  periodEndDate: date("period_end_date").notNull(),
+  
+  // Status
+  balanceStatus: varchar("balance_status").default("current"), // current, pending_payout, processing, paid
+  lastPayoutDate: timestamp("last_payout_date"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Owner Payout Requests - Workflow management
+export const ownerPayoutRequests = pgTable("owner_payout_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  balanceTrackerId: integer("balance_tracker_id").references(() => ownerBalanceTrackers.id),
+  
+  // Request Details
+  requestedAmount: decimal("requested_amount", { precision: 12, scale: 2 }).notNull(),
+  requestType: varchar("request_type").default("balance_payout"), // balance_payout, partial_payout, advance_request
+  requestNotes: text("request_notes"),
+  
+  // Workflow Status
+  requestStatus: varchar("request_status").default("pending"), // pending, approved, paid, confirmed, rejected
+  requestedAt: timestamp("requested_at").defaultNow(),
+  
+  // Admin/PM Approval
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  approvalNotes: text("approval_notes"),
+  
+  // Payment Processing
+  paymentSlipUrl: varchar("payment_slip_url"), // Upload receipt of transfer
+  paidBy: varchar("paid_by").references(() => users.id),
+  paidAt: timestamp("paid_at"),
+  paymentMethod: varchar("payment_method"), // bank_transfer, cash, check, digital_wallet
+  paymentReference: varchar("payment_reference"),
+  
+  // Owner Confirmation
+  confirmedBy: varchar("confirmed_by").references(() => users.id),
+  confirmedAt: timestamp("confirmed_at"),
+  confirmationNotes: text("confirmation_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Owner Payment Logs - Complete audit trail
+export const ownerPaymentLogs = pgTable("owner_payment_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  payoutRequestId: integer("payout_request_id").references(() => ownerPayoutRequests.id),
+  
+  // Payment Details
+  paymentType: varchar("payment_type").notNull(), // payout_to_owner, payment_from_owner, balance_adjustment, admin_correction
+  paymentDirection: varchar("payment_direction").notNull(), // outgoing, incoming
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  
+  // Transaction Details
+  transactionReference: varchar("transaction_reference"),
+  paymentMethod: varchar("payment_method"),
+  receiptUrl: varchar("receipt_url"),
+  
+  // Processing Info
+  processedBy: varchar("processed_by").references(() => users.id).notNull(),
+  processedAt: timestamp("processed_at").defaultNow(),
+  
+  // Balance Impact
+  balanceBefore: decimal("balance_before", { precision: 12, scale: 2 }),
+  balanceAfter: decimal("balance_after", { precision: 12, scale: 2 }),
+  
+  // Status and Verification
+  logStatus: varchar("log_status").default("confirmed"), // pending, confirmed, disputed, resolved
+  verifiedBy: varchar("verified_by").references(() => users.id),
+  verifiedAt: timestamp("verified_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Owner Debt Tracking - When owner owes company
+export const ownerDebtTrackers = pgTable("owner_debt_trackers", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  
+  // Debt Details
+  debtAmount: decimal("debt_amount", { precision: 12, scale: 2 }).notNull(),
+  debtReason: text("debt_reason").notNull(),
+  debtType: varchar("debt_type").notNull(), // utility_overpay, damage_charge, service_charge, advance_repayment
+  
+  // Status and Payment
+  debtStatus: varchar("debt_status").default("outstanding"), // outstanding, partial_paid, paid, disputed, forgiven
+  paidAmount: decimal("paid_amount", { precision: 12, scale: 2 }).default("0.00"),
+  remainingAmount: decimal("remaining_amount", { precision: 12, scale: 2 }).notNull(),
+  
+  // Payment from Owner
+  ownerPaymentProofUrl: varchar("owner_payment_proof_url"),
+  ownerPaidAt: timestamp("owner_paid_at"),
+  adminConfirmedBy: varchar("admin_confirmed_by").references(() => users.id),
+  adminConfirmedAt: timestamp("admin_confirmed_at"),
+  
+  // Due Date and Terms
+  dueDate: date("due_date"),
+  paymentTerms: varchar("payment_terms"), // immediate, 30_days, 60_days, installment
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property Payout Frequency Settings
+export const propertyPayoutSettings = pgTable("property_payout_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Payout Frequency Configuration
+  ownerPayoutFrequency: varchar("owner_payout_frequency").default("monthly"), // monthly, bi_weekly, quarterly
+  pmPayoutFrequency: varchar("pm_payout_frequency").default("monthly"),
+  referralAgentPayoutFrequency: varchar("referral_agent_payout_frequency").default("monthly"),
+  
+  // Next Scheduled Payouts
+  nextOwnerPayoutDate: date("next_owner_payout_date"),
+  nextPmPayoutDate: date("next_pm_payout_date"),
+  nextReferralAgentPayoutDate: date("next_referral_agent_payout_date"),
+  
+  // Automatic Processing
+  autoProcessPayouts: boolean("auto_process_payouts").default(false),
+  minimumPayoutAmount: decimal("minimum_payout_amount", { precision: 8, scale: 2 }).default("100.00"),
+  
+  // Notification Settings
+  notifyOwnerBeforePayout: boolean("notify_owner_before_payout").default(true),
+  notifyDaysBefore: integer("notify_days_before").default(3),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ===== OWNER BALANCE & PAYMENT INSERT SCHEMAS =====
+
+export const insertOwnerBalanceTrackerSchema = createInsertSchema(ownerBalanceTrackers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOwnerPayoutRequestSchema = createInsertSchema(ownerPayoutRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOwnerPaymentLogSchema = createInsertSchema(ownerPaymentLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOwnerDebtTrackerSchema = createInsertSchema(ownerDebtTrackers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyPayoutSettingsSchema = createInsertSchema(propertyPayoutSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== OWNER BALANCE & PAYMENT TYPES =====
+
+export type OwnerBalanceTracker = typeof ownerBalanceTrackers.$inferSelect;
+export type InsertOwnerBalanceTracker = z.infer<typeof insertOwnerBalanceTrackerSchema>;
+export type OwnerPayoutRequest = typeof ownerPayoutRequests.$inferSelect;
+export type InsertOwnerPayoutRequest = z.infer<typeof insertOwnerPayoutRequestSchema>;
+export type OwnerPaymentLog = typeof ownerPaymentLogs.$inferSelect;
+export type InsertOwnerPaymentLog = z.infer<typeof insertOwnerPaymentLogSchema>;
+export type OwnerDebtTracker = typeof ownerDebtTrackers.$inferSelect;
+export type InsertOwnerDebtTracker = z.infer<typeof insertOwnerDebtTrackerSchema>;
+export type PropertyPayoutSettings = typeof propertyPayoutSettings.$inferSelect;
+export type InsertPropertyPayoutSettings = z.infer<typeof insertPropertyPayoutSettingsSchema>;
 
 // ===== STAFF DASHBOARD TYPES =====
 

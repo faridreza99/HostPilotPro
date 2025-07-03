@@ -234,6 +234,13 @@ const navigationModules = [
         description: "Owner earnings and distributions"
       },
       { 
+        path: "/owner/balance-management", 
+        icon: CreditCard, 
+        label: "Balance Management", 
+        roles: ["owner"],
+        description: "Live balance tracking, payout requests, and payment history"
+      },
+      { 
         path: "/financial-toolkit", 
         icon: Calculator, 
         label: "Financial Toolkit", 

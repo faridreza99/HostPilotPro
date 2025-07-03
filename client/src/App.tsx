@@ -46,6 +46,7 @@ import FinanceEngine from "@/pages/FinanceEngine";
 import MaintenanceTaskSystem from "@/pages/MaintenanceTaskSystem";
 import TaskChecklistProofSystem from "@/pages/TaskChecklistProofSystem";
 import AiTaskManager from "@/pages/AiTaskManager";
+import OwnerBalanceManagement from "@/pages/OwnerBalanceManagement";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -133,6 +134,7 @@ function Router() {
           <Route path="/admin/add-ons-bookings" component={AdminAddonBookings} />
           <Route path="/admin/add-ons-settings" component={AdminAddonSettings} />
           <Route path="/owner/dashboard" component={OwnerDashboard} />
+          <Route path="/owner/balance-management" component={OwnerBalanceManagement} />
           <Route path="/pm/dashboard" component={PortfolioManagerDashboard} />
           <Route path="/admin/finance-reset" component={FinanceResetControl} />
           <Route path="/admin/utility-customization" component={UtilityCustomization} />
