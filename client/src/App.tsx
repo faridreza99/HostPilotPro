@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
+import Layout from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Properties from "@/pages/Properties";
 import Tasks from "@/pages/Tasks";
@@ -105,91 +106,96 @@ function Router() {
     }
   };
 
-  return (
-    <Switch>
-      {/* Guest Portal - Public Route */}
-      <Route path="/guest-portal" component={GuestPortal} />
-      <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
-      
-      {isLoading || !isAuthenticated ? (
+  // Render public routes without layout
+  if (isLoading || !isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/guest-portal" component={GuestPortal} />
+        <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
         <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/">
-            {() => {
-              // Redirect to role-specific dashboard
-              const userRole = (user as any)?.role;
-              const DashboardComponent = getDashboardComponent(userRole);
-              return <DashboardComponent />;
-            }}
-          </Route>
-          <Route path="/dashboard/:role">
-            {({ role }) => {
-              const DashboardComponent = getDashboardComponent(role);
-              return <DashboardComponent />;
-            }}
-          </Route>
-          <Route path="/properties" component={Properties} />
-          <Route path="/tasks" component={Tasks} />
-          <Route path="/staff-tasks" component={StaffTasks} />
-          <Route path="/staff-overhours-tracker" component={StaffOverhoursTracker} />
-          <Route path="/staff-clock-overtime" component={StaffClockinOvertime} />
-          <Route path="/staff-salary-overtime-tracker" component={StaffSalaryOvertimeTracker} />
-          <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
-          <Route path="/maintenance-task-system" component={MaintenanceTaskSystem} />
-          <Route path="/task-attachments-notes" component={TaskAttachmentsNotes} />
-          <Route path="/ai-task-manager" component={AiTaskManager} />
-          <Route path="/task-checklist-proof" component={TaskChecklistProofSystem} />
-          <Route path="/task-completion-photo-proof" component={TaskCompletionPhotoProof} />
-          <Route path="/bookings" component={Bookings} />
-          <Route path="/services" component={Services} />
-          <Route path="/welcome-packs" component={WelcomePacks} />
-          <Route path="/inventory-dashboard" component={InventoryDashboard} />
-          <Route path="/inventory-welcome-pack-tracker" component={InventoryWelcomePackTracker} />
-          <Route path="/finances" component={Finances} />
-          <Route path="/payouts" component={Payouts} />
-          <Route path="/financial-toolkit" component={FinancialToolkit} />
-          <Route path="/invoice-generator" component={InvoiceGenerator} />
-          <Route path="/utility-tracker" component={EnhancedUtilityTracker} />
-          <Route path="/utility-tracking" component={UtilityTracking} />
-          <Route path="/ai-feedback" component={AiFeedbackMonitor} />
-          <Route path="/guest-portal-messaging" component={GuestPortalMessaging} />
-          <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
-          <Route path="/guest-portal-ai-feedback" component={GuestPortalAiFeedbackDashboard} />
-          <Route path="/guest-addon-services" component={GuestAddonServices} />
-          <Route path="/recurring-services" component={RecurringServicesBilling} />
-          <Route path="/referral-agent" component={ReferralAgentDashboard} />
-          <Route path="/retail-booking" component={RetailAgentBooking} />
-          <Route path="/agent-commission" component={AgentCommissionDashboard} />
-          <Route path="/staff" component={StaffDashboard} />
-          <Route path="/agent-media-library" component={PropertyMediaLibrary} />
-          <Route path="/media-library" component={MediaLibrary} />
-          <Route path="/guest/add-ons" component={GuestAddonBooking} />
-          <Route path="/admin/add-ons-bookings" component={AdminAddonBookings} />
-          <Route path="/admin/add-ons-settings" component={AdminAddonSettings} />
-          <Route path="/addon-services-booking" component={AddonServicesBooking} />
-          <Route path="/owner/dashboard" component={OwnerDashboard} />
-          <Route path="/owner/balance-management" component={OwnerBalanceManagement} />
-          <Route path="/owner-invoicing-payouts" component={OwnerInvoicingPayouts} />
-          <Route path="/pm/dashboard" component={PortfolioManagerDashboard} />
-          <Route path="/admin/finance-reset" component={FinanceResetControl} />
-          <Route path="/admin/utility-customization" component={UtilityCustomization} />
-          <Route path="/admin/activity-log" component={AdminActivityLog} />
-          <Route path="/staff-profile-payroll" component={StaffProfilePayrollLogging} />
-          <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
-          <Route path="/hostaway" component={Hostaway} />
-          <Route path="/booking-calendar" component={LiveBookingCalendar} />
-          <Route path="/retail-agent-booking" component={RetailAgentBookingEngine} />
-          <Route path="/finance-engine" component={FinanceEngine} />
-          <Route path="/booking-income-rules" component={BookingIncomeRules} />
-          <Route path="/maintenance-suggestions" component={MaintenanceSuggestionsApproval} />
-          <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
-          <Route path="/settings" component={Settings} />
-        </>
-      )}
-      <Route component={NotFound} />
-    </Switch>
-  );
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
+  // Render authenticated routes with layout
+  return (
+    <Layout>
+      <Switch>
+        <Route path="/">
+          {() => {
+            // Redirect to role-specific dashboard
+            const userRole = (user as any)?.role;
+            const DashboardComponent = getDashboardComponent(userRole);
+            return <DashboardComponent />;
+          }}
+        </Route>
+        <Route path="/dashboard/:role">
+          {({ role }) => {
+            const DashboardComponent = getDashboardComponent(role);
+            return <DashboardComponent />;
+          }}
+        </Route>
+        <Route path="/properties" component={Properties} />
+        <Route path="/tasks" component={Tasks} />
+        <Route path="/staff-tasks" component={StaffTasks} />
+        <Route path="/staff-overhours-tracker" component={StaffOverhoursTracker} />
+        <Route path="/staff-clock-overtime" component={StaffClockinOvertime} />
+        <Route path="/staff-salary-overtime-tracker" component={StaffSalaryOvertimeTracker} />
+        <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
+        <Route path="/maintenance-task-system" component={MaintenanceTaskSystem} />
+        <Route path="/task-attachments-notes" component={TaskAttachmentsNotes} />
+        <Route path="/ai-task-manager" component={AiTaskManager} />
+        <Route path="/task-checklist-proof" component={TaskChecklistProofSystem} />
+        <Route path="/task-completion-photo-proof" component={TaskCompletionPhotoProof} />
+        <Route path="/bookings" component={Bookings} />
+        <Route path="/services" component={Services} />
+        <Route path="/welcome-packs" component={WelcomePacks} />
+        <Route path="/inventory-dashboard" component={InventoryDashboard} />
+        <Route path="/inventory-welcome-pack-tracker" component={InventoryWelcomePackTracker} />
+        <Route path="/finances" component={Finances} />
+        <Route path="/payouts" component={Payouts} />
+        <Route path="/financial-toolkit" component={FinancialToolkit} />
+        <Route path="/invoice-generator" component={InvoiceGenerator} />
+        <Route path="/utility-tracker" component={EnhancedUtilityTracker} />
+        <Route path="/utility-tracking" component={UtilityTracking} />
+        <Route path="/ai-feedback" component={AiFeedbackMonitor} />
+        <Route path="/guest-portal-messaging" component={GuestPortalMessaging} />
+        <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
+        <Route path="/guest-portal-ai-feedback" component={GuestPortalAiFeedbackDashboard} />
+        <Route path="/guest-addon-services" component={GuestAddonServices} />
+        <Route path="/recurring-services" component={RecurringServicesBilling} />
+        <Route path="/referral-agent" component={ReferralAgentDashboard} />
+        <Route path="/retail-booking" component={RetailAgentBooking} />
+        <Route path="/agent-commission" component={AgentCommissionDashboard} />
+        <Route path="/staff" component={StaffDashboard} />
+        <Route path="/agent-media-library" component={PropertyMediaLibrary} />
+        <Route path="/media-library" component={MediaLibrary} />
+        <Route path="/guest/add-ons" component={GuestAddonBooking} />
+        <Route path="/admin/add-ons-bookings" component={AdminAddonBookings} />
+        <Route path="/admin/add-ons-settings" component={AdminAddonSettings} />
+        <Route path="/addon-services-booking" component={AddonServicesBooking} />
+        <Route path="/owner/dashboard" component={OwnerDashboard} />
+        <Route path="/owner/balance-management" component={OwnerBalanceManagement} />
+        <Route path="/owner-invoicing-payouts" component={OwnerInvoicingPayouts} />
+        <Route path="/pm/dashboard" component={PortfolioManagerDashboard} />
+        <Route path="/admin/finance-reset" component={FinanceResetControl} />
+        <Route path="/admin/utility-customization" component={UtilityCustomization} />
+        <Route path="/admin/activity-log" component={AdminActivityLog} />
+        <Route path="/staff-profile-payroll" component={StaffProfilePayrollLogging} />
+        <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
+        <Route path="/hostaway" component={Hostaway} />
+        <Route path="/booking-calendar" component={LiveBookingCalendar} />
+        <Route path="/retail-agent-booking" component={RetailAgentBookingEngine} />
+        <Route path="/finance-engine" component={FinanceEngine} />
+        <Route path="/booking-income-rules" component={BookingIncomeRules} />
+        <Route path="/maintenance-suggestions" component={MaintenanceSuggestionsApproval} />
+        <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
+        <Route path="/settings" component={Settings} />
+        <Route component={NotFound} />
+        </Switch>
+      </Layout>
+    );
 }
 
 function App() {
