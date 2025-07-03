@@ -17121,4 +17121,100 @@ async function processGuestIssueForAI(issueReport: any) {
       res.status(500).json({ message: "Failed to fetch export history" });
     }
   });
+
+  // ===== DAILY OPERATIONS DASHBOARD API ENDPOINTS =====
+
+  // Get daily operations summary
+  app.get("/api/daily-operations/summary/:date", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const { date } = req.params;
+      
+      const summary = await storage.getDailyOperationsSummary(organizationId, date);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching daily operations summary:", error);
+      res.status(500).json({ message: "Failed to fetch daily operations summary" });
+    }
+  });
+
+  // Get daily staff assignments
+  app.get("/api/daily-operations/staff/:date", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const { date } = req.params;
+      
+      const staffAssignments = await storage.getDailyStaffAssignments(organizationId, date);
+      res.json(staffAssignments);
+    } catch (error) {
+      console.error("Error fetching staff assignments:", error);
+      res.status(500).json({ message: "Failed to fetch staff assignments" });
+    }
+  });
+
+  // Get daily property operations
+  app.get("/api/daily-operations/properties/:date", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const { date } = req.params;
+      
+      const propertyOps = await storage.getDailyPropertyOperationsWithDetails(organizationId, date);
+      res.json(propertyOps);
+    } catch (error) {
+      console.error("Error fetching property operations:", error);
+      res.status(500).json({ message: "Failed to fetch property operations" });
+    }
+  });
+
+  // Get tasks for operations dashboard
+  app.get("/api/daily-operations/tasks/:date", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const { date } = req.params;
+      
+      const tasks = await storage.getOperationsDashboardTasks(organizationId, date);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching operations tasks:", error);
+      res.status(500).json({ message: "Failed to fetch operations tasks" });
+    }
+  });
+
+  // Update staff assignment
+  app.put("/api/daily-operations/staff", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const assignmentData = req.body;
+      
+      const assignment = await storage.upsertDailyStaffAssignment({
+        ...assignmentData,
+        organizationId
+      });
+      
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error updating staff assignment:", error);
+      res.status(500).json({ message: "Failed to update staff assignment" });
+    }
+  });
+
+  // Refresh daily operations data
+  app.post("/api/daily-operations/refresh/:date", demoAuthMiddleware, async (req: any, res) => {
+    try {
+      const organizationId = "org_001";
+      const { date } = req.params;
+      
+      await storage.refreshDailyOperations(organizationId, date);
+      
+      // Return updated summary
+      const summary = await storage.getDailyOperationsSummary(organizationId, date);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error refreshing daily operations:", error);
+      res.status(500).json({ message: "Failed to refresh daily operations" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
 }

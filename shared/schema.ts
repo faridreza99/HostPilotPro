@@ -7896,3 +7896,140 @@ export type InsertSmartLockSyncLog = z.infer<typeof insertSmartLockSyncLogSchema
 export type CodeRotationSchedule = typeof codeRotationSchedule.$inferSelect;
 export type InsertCodeRotationSchedule = z.infer<typeof insertCodeRotationScheduleSchema>;
 
+// ===== DAILY OPERATIONS DASHBOARD =====
+
+// Daily Operations Summary - Aggregated data for specific dates
+export const dailyOperationsSummary = pgTable("daily_operations_summary", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  operationDate: date("operation_date").notNull(),
+  
+  // Department Task Counts
+  cleaningTasks: integer("cleaning_tasks").default(0),
+  cleaningCompleted: integer("cleaning_completed").default(0),
+  poolTasks: integer("pool_tasks").default(0),
+  poolCompleted: integer("pool_completed").default(0),
+  gardenTasks: integer("garden_tasks").default(0),
+  gardenCompleted: integer("garden_completed").default(0),
+  maintenanceTasks: integer("maintenance_tasks").default(0),
+  maintenanceCompleted: integer("maintenance_completed").default(0),
+  generalTasks: integer("general_tasks").default(0),
+  generalCompleted: integer("general_completed").default(0),
+  
+  // Urgency Metrics
+  overdueTasks: integer("overdue_tasks").default(0),
+  tasksWithoutProof: integer("tasks_without_proof").default(0),
+  uncleanedCheckinProperties: integer("uncleaned_checkin_properties").default(0),
+  unassignedTasks: integer("unassigned_tasks").default(0),
+  
+  // Staff Metrics
+  totalStaffScheduled: integer("total_staff_scheduled").default(0),
+  totalTasksAssigned: integer("total_tasks_assigned").default(0),
+  
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_daily_ops_org_date").on(table.organizationId, table.operationDate),
+]);
+
+// Daily Staff Assignments - Who is working on what date
+export const dailyStaffAssignments = pgTable("daily_staff_assignments", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  operationDate: date("operation_date").notNull(),
+  
+  // Shift Information
+  shiftStart: varchar("shift_start"), // e.g., "08:00"
+  shiftEnd: varchar("shift_end"), // e.g., "17:00"
+  isAvailable: boolean("is_available").default(true),
+  unavailableReason: varchar("unavailable_reason"), // sick, vacation, training
+  
+  // Task Assignment Summary
+  totalTasksAssigned: integer("total_tasks_assigned").default(0),
+  totalTasksCompleted: integer("total_tasks_completed").default(0),
+  departmentFocus: varchar("department_focus"), // primary department for the day
+  
+  // Performance Metrics
+  avgTaskCompletionTime: integer("avg_task_completion_time"), // in minutes
+  taskCompletionRate: decimal("task_completion_rate", { precision: 5, scale: 2 }), // percentage
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_staff_assign_date").on(table.operationDate),
+  index("IDX_staff_assign_staff").on(table.staffId),
+]);
+
+// Daily Property Operations - Tasks and events per property per day
+export const dailyPropertyOperations = pgTable("daily_property_operations", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  operationDate: date("operation_date").notNull(),
+  
+  // Check-in/Check-out Status
+  hasCheckin: boolean("has_checkin").default(false),
+  checkinTime: varchar("checkin_time"),
+  hasCheckout: boolean("has_checkout").default(false),
+  checkoutTime: varchar("checkout_time"),
+  
+  // Cleaning Status
+  needsCleaning: boolean("needs_cleaning").default(false),
+  cleaningCompleted: boolean("cleaning_completed").default(false),
+  cleaningCompletedAt: timestamp("cleaning_completed_at"),
+  cleaningStaffId: varchar("cleaning_staff_id").references(() => users.id),
+  
+  // Maintenance Tasks
+  maintenanceTasks: integer("maintenance_tasks").default(0),
+  maintenanceCompleted: integer("maintenance_completed").default(0),
+  maintenanceOverdue: integer("maintenance_overdue").default(0),
+  
+  // Recurring Services
+  recurringServices: integer("recurring_services").default(0),
+  recurringCompleted: integer("recurring_completed").default(0),
+  
+  // Urgency Flags
+  isUrgent: boolean("is_urgent").default(false),
+  urgencyReason: varchar("urgency_reason"), // overdue_cleaning, overdue_maintenance, guest_complaint
+  
+  // Status Summary
+  operationStatus: varchar("operation_status").default("scheduled"), // scheduled, in_progress, completed, delayed
+  statusNotes: text("status_notes"),
+  
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_prop_ops_date").on(table.operationDate),
+  index("IDX_prop_ops_property").on(table.propertyId),
+  index("IDX_prop_ops_urgent").on(table.isUrgent),
+]);
+
+// Insert schemas for daily operations
+export const insertDailyOperationsSummarySchema = createInsertSchema(dailyOperationsSummary).omit({
+  id: true,
+  lastUpdated: true,
+  createdAt: true,
+});
+
+export const insertDailyStaffAssignmentsSchema = createInsertSchema(dailyStaffAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDailyPropertyOperationsSchema = createInsertSchema(dailyPropertyOperations).omit({
+  id: true,
+  lastUpdated: true,
+  createdAt: true,
+});
+
+// Types for Daily Operations Dashboard
+export type DailyOperationsSummary = typeof dailyOperationsSummary.$inferSelect;
+export type InsertDailyOperationsSummary = z.infer<typeof insertDailyOperationsSummarySchema>;
+export type DailyStaffAssignments = typeof dailyStaffAssignments.$inferSelect;
+export type InsertDailyStaffAssignments = z.infer<typeof insertDailyStaffAssignmentsSchema>;
+export type DailyPropertyOperations = typeof dailyPropertyOperations.$inferSelect;
+export type InsertDailyPropertyOperations = z.infer<typeof insertDailyPropertyOperationsSchema>;
+

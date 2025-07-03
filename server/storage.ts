@@ -448,6 +448,16 @@ import {
   type InsertSmartLockSyncLog,
   type CodeRotationSchedule,
   type InsertCodeRotationSchedule,
+  // Daily Operations Dashboard tables
+  dailyOperationsSummary,
+  dailyStaffAssignments,
+  dailyPropertyOperations,
+  type DailyOperationsSummary,
+  type InsertDailyOperationsSummary,
+  type DailyStaffAssignments,
+  type InsertDailyStaffAssignments,
+  type DailyPropertyOperations,
+  type InsertDailyPropertyOperations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
@@ -20331,6 +20341,304 @@ Plant Care:
       .where(eq(codeRotationSchedule.id, scheduleId))
       .returning();
     return !!updatedSchedule;
+  }
+
+  // ===== DAILY OPERATIONS DASHBOARD METHODS =====
+
+  // Generate daily operations summary for a specific date
+  async generateDailyOperationsSummary(organizationId: string, operationDate: string): Promise<DailyOperationsSummary> {
+    const dateStr = operationDate;
+    
+    // Get all tasks for the date
+    const dayTasks = await db.select()
+      .from(tasks)
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        sql`DATE(${tasks.createdAt}) = ${dateStr}`
+      ));
+    
+    // Calculate department breakdown
+    const departmentStats = {
+      cleaningTasks: 0, cleaningCompleted: 0,
+      poolTasks: 0, poolCompleted: 0,
+      gardenTasks: 0, gardenCompleted: 0,
+      maintenanceTasks: 0, maintenanceCompleted: 0,
+      generalTasks: 0, generalCompleted: 0
+    };
+    
+    let overdueTasks = 0;
+    let tasksWithoutProof = 0;
+    let unassignedTasks = 0;
+    
+    for (const task of dayTasks) {
+      const dept = task.department || 'general';
+      const isCompleted = task.status === 'completed';
+      
+      // Count by department
+      switch (dept.toLowerCase()) {
+        case 'cleaning':
+          departmentStats.cleaningTasks++;
+          if (isCompleted) departmentStats.cleaningCompleted++;
+          break;
+        case 'pool':
+          departmentStats.poolTasks++;
+          if (isCompleted) departmentStats.poolCompleted++;
+          break;
+        case 'garden':
+          departmentStats.gardenTasks++;
+          if (isCompleted) departmentStats.gardenCompleted++;
+          break;
+        case 'maintenance':
+          departmentStats.maintenanceTasks++;
+          if (isCompleted) departmentStats.maintenanceCompleted++;
+          break;
+        default:
+          departmentStats.generalTasks++;
+          if (isCompleted) departmentStats.generalCompleted++;
+      }
+      
+      // Check urgency flags
+      if (task.dueDate && new Date(task.dueDate) < new Date() && !isCompleted) {
+        overdueTasks++;
+      }
+      if (isCompleted && (!task.evidencePhotos || (task.evidencePhotos as any[]).length === 0)) {
+        tasksWithoutProof++;
+      }
+      if (!task.assignedTo) {
+        unassignedTasks++;
+      }
+    }
+    
+    // Check for check-in properties that need cleaning
+    const todayBookings = await db.select()
+      .from(bookings)
+      .where(and(
+        eq(bookings.organizationId, organizationId),
+        sql`DATE(${bookings.checkinDate}) = ${dateStr}`
+      ));
+    
+    const uncleanedCheckinProperties = todayBookings.length; // Simplified - assumes all need cleaning
+    
+    // Get staff scheduled for the day
+    const staffAssignments = await this.getDailyStaffAssignments(organizationId, operationDate);
+    
+    return {
+      id: 0, // Will be set by DB
+      organizationId,
+      operationDate,
+      ...departmentStats,
+      overdueTasks,
+      tasksWithoutProof,
+      uncleanedCheckinProperties,
+      unassignedTasks,
+      totalStaffScheduled: staffAssignments.length,
+      totalTasksAssigned: dayTasks.length,
+      lastUpdated: new Date(),
+      createdAt: new Date()
+    };
+  }
+
+  // Get or create daily operations summary
+  async getDailyOperationsSummary(organizationId: string, operationDate: string): Promise<DailyOperationsSummary> {
+    const [existing] = await db.select()
+      .from(dailyOperationsSummary)
+      .where(and(
+        eq(dailyOperationsSummary.organizationId, organizationId),
+        eq(dailyOperationsSummary.operationDate, operationDate)
+      ))
+      .limit(1);
+    
+    if (existing) {
+      return existing;
+    }
+    
+    // Generate new summary
+    const summary = await this.generateDailyOperationsSummary(organizationId, operationDate);
+    const [created] = await db.insert(dailyOperationsSummary)
+      .values(summary)
+      .returning();
+    
+    return created;
+  }
+
+  // Get daily staff assignments
+  async getDailyStaffAssignments(organizationId: string, operationDate: string): Promise<DailyStaffAssignments[]> {
+    return await db.select()
+      .from(dailyStaffAssignments)
+      .where(and(
+        eq(dailyStaffAssignments.organizationId, organizationId),
+        eq(dailyStaffAssignments.operationDate, operationDate)
+      ))
+      .orderBy(asc(dailyStaffAssignments.staffId));
+  }
+
+  // Create or update staff assignment for a day
+  async upsertDailyStaffAssignment(assignment: InsertDailyStaffAssignments): Promise<DailyStaffAssignments> {
+    const [existing] = await db.select()
+      .from(dailyStaffAssignments)
+      .where(and(
+        eq(dailyStaffAssignments.organizationId, assignment.organizationId),
+        eq(dailyStaffAssignments.staffId, assignment.staffId),
+        eq(dailyStaffAssignments.operationDate, assignment.operationDate)
+      ))
+      .limit(1);
+    
+    if (existing) {
+      const [updated] = await db.update(dailyStaffAssignments)
+        .set({
+          ...assignment,
+          updatedAt: new Date()
+        })
+        .where(eq(dailyStaffAssignments.id, existing.id))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db.insert(dailyStaffAssignments)
+      .values(assignment)
+      .returning();
+    return created;
+  }
+
+  // Get daily property operations
+  async getDailyPropertyOperations(organizationId: string, operationDate: string): Promise<DailyPropertyOperations[]> {
+    return await db.select()
+      .from(dailyPropertyOperations)
+      .where(and(
+        eq(dailyPropertyOperations.organizationId, organizationId),
+        eq(dailyPropertyOperations.operationDate, operationDate)
+      ))
+      .orderBy(asc(dailyPropertyOperations.propertyId));
+  }
+
+  // Get property operations with property details
+  async getDailyPropertyOperationsWithDetails(organizationId: string, operationDate: string): Promise<any[]> {
+    const propertyOps = await db.select({
+      propertyOp: dailyPropertyOperations,
+      property: properties
+    })
+      .from(dailyPropertyOperations)
+      .leftJoin(properties, eq(dailyPropertyOperations.propertyId, properties.id))
+      .where(and(
+        eq(dailyPropertyOperations.organizationId, organizationId),
+        eq(dailyPropertyOperations.operationDate, operationDate)
+      ))
+      .orderBy(asc(properties.name));
+    
+    return propertyOps.map(row => ({
+      ...row.propertyOp,
+      propertyName: row.property?.name,
+      propertyAddress: row.property?.address
+    }));
+  }
+
+  // Generate property operations for a date (if not exist)
+  async generateDailyPropertyOperations(organizationId: string, operationDate: string): Promise<void> {
+    // Get all properties for the organization
+    const orgProperties = await db.select()
+      .from(properties)
+      .where(eq(properties.organizationId, organizationId));
+    
+    for (const property of orgProperties) {
+      // Check if operation record exists
+      const [existing] = await db.select()
+        .from(dailyPropertyOperations)
+        .where(and(
+          eq(dailyPropertyOperations.organizationId, organizationId),
+          eq(dailyPropertyOperations.propertyId, property.id),
+          eq(dailyPropertyOperations.operationDate, operationDate)
+        ))
+        .limit(1);
+      
+      if (!existing) {
+        // Check for bookings on this date
+        const bookingsToday = await db.select()
+          .from(bookings)
+          .where(and(
+            eq(bookings.organizationId, organizationId),
+            eq(bookings.propertyId, property.id),
+            sql`DATE(${bookings.checkinDate}) = ${operationDate} OR DATE(${bookings.checkoutDate}) = ${operationDate}`
+          ));
+        
+        const hasCheckin = bookingsToday.some(b => 
+          new Date(b.checkinDate!).toISOString().split('T')[0] === operationDate
+        );
+        const hasCheckout = bookingsToday.some(b => 
+          new Date(b.checkoutDate!).toISOString().split('T')[0] === operationDate
+        );
+        
+        // Count tasks for this property on this date
+        const propertyTasks = await db.select()
+          .from(tasks)
+          .where(and(
+            eq(tasks.organizationId, organizationId),
+            eq(tasks.propertyId, property.id),
+            sql`DATE(${tasks.createdAt}) = ${operationDate}`
+          ));
+        
+        const maintenanceTasks = propertyTasks.filter(t => t.department === 'maintenance').length;
+        const maintenanceCompleted = propertyTasks.filter(t => t.department === 'maintenance' && t.status === 'completed').length;
+        const maintenanceOverdue = propertyTasks.filter(t => 
+          t.department === 'maintenance' && 
+          t.dueDate && 
+          new Date(t.dueDate) < new Date() && 
+          t.status !== 'completed'
+        ).length;
+        
+        // Create property operation record
+        await db.insert(dailyPropertyOperations).values({
+          organizationId,
+          propertyId: property.id,
+          operationDate,
+          hasCheckin,
+          hasCheckout,
+          needsCleaning: hasCheckin || hasCheckout,
+          cleaningCompleted: false,
+          maintenanceTasks,
+          maintenanceCompleted,
+          maintenanceOverdue,
+          recurringServices: 0, // To be calculated from recurring services
+          recurringCompleted: 0,
+          isUrgent: maintenanceOverdue > 0,
+          urgencyReason: maintenanceOverdue > 0 ? 'overdue_maintenance' : null,
+          operationStatus: 'scheduled'
+        });
+      }
+    }
+  }
+
+  // Get tasks for operations dashboard with enhanced details
+  async getOperationsDashboardTasks(organizationId: string, operationDate: string): Promise<any[]> {
+    const tasksForDate = await db.select({
+      task: tasks,
+      property: properties,
+      assignedUser: users
+    })
+      .from(tasks)
+      .leftJoin(properties, eq(tasks.propertyId, properties.id))
+      .leftJoin(users, eq(tasks.assignedTo, users.id))
+      .where(and(
+        eq(tasks.organizationId, organizationId),
+        sql`DATE(${tasks.createdAt}) = ${operationDate}`
+      ))
+      .orderBy(asc(tasks.priority), asc(tasks.createdAt));
+    
+    return tasksForDate.map(row => ({
+      ...row.task,
+      propertyName: row.property?.name,
+      assignedUserName: row.assignedUser ? `${row.assignedUser.firstName} ${row.assignedUser.lastName}` : null,
+      isOverdue: row.task.dueDate && new Date(row.task.dueDate) < new Date() && row.task.status !== 'completed',
+      hasProof: row.task.evidencePhotos && (row.task.evidencePhotos as any[]).length > 0
+    }));
+  }
+
+  // Refresh daily operations data
+  async refreshDailyOperations(organizationId: string, operationDate: string): Promise<void> {
+    // Generate property operations if missing
+    await this.generateDailyPropertyOperations(organizationId, operationDate);
+    
+    // Update the summary
+    await this.generateDailyOperationsSummary(organizationId, operationDate);
   }
 }
 

@@ -79,6 +79,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
       {
         title: "Core Management",
         items: [
+          { label: "Daily Operations", icon: Calendar, href: "/daily-operations" },
           { label: "Properties", icon: Building, href: "/properties" },
           { label: "Tasks", icon: CheckSquare, href: "/tasks" },
           { label: "Bookings", icon: Calendar, href: "/bookings" },
