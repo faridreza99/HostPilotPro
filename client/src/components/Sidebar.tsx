@@ -248,6 +248,13 @@ const navigationModules = [
         description: "Staff salaries, commissions, and invoicing"
       },
       { 
+        path: "/invoice-generator", 
+        icon: FileText, 
+        label: "Invoice Generator", 
+        roles: ["admin", "portfolio-manager", "owner"],
+        description: "Create and manage invoices for all business relationships"
+      },
+      { 
         path: "/reports", 
         icon: BarChart3, 
         label: "Reports", 

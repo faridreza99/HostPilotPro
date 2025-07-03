@@ -37,6 +37,7 @@ import OwnerDashboard from "@/pages/OwnerDashboard";
 import PortfolioManagerDashboard from "@/pages/PortfolioManagerDashboard";
 import FinanceResetControl from "@/pages/FinanceResetControl";
 import UtilityCustomization from "@/pages/UtilityCustomization";
+import InvoiceGenerator from "@/pages/InvoiceGenerator";
 import AgentCommissionDashboard from "@/pages/AgentCommissionDashboard";
 import LoyaltyGuestTracker from "@/pages/LoyaltyGuestTracker";
 import LiveBookingCalendar from "@/pages/LiveBookingCalendar";
@@ -121,6 +122,7 @@ function Router() {
           <Route path="/finances" component={Finances} />
           <Route path="/payouts" component={Payouts} />
           <Route path="/financial-toolkit" component={FinancialToolkit} />
+          <Route path="/invoice-generator" component={InvoiceGenerator} />
           <Route path="/utility-tracking" component={UtilityTracking} />
           <Route path="/ai-feedback" component={AiFeedbackMonitor} />
           <Route path="/guest-addon-services" component={GuestAddonServices} />

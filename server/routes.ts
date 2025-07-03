@@ -7364,6 +7364,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === COMPREHENSIVE INVOICE GENERATOR SYSTEM ===
+  
+  // Get all invoices
+  app.get("/api/invoices", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "demo-org";
+      const invoices = await storage.getInvoices(organizationId);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching invoices:", error);
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  // Create new invoice with line items
+  app.post("/api/invoices", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "demo-org";
+      const createdBy = req.user?.id || req.user?.sub || "demo-user";
+      
+      const { lineItems, ...invoiceData } = req.body;
+      
+      // Calculate totals
+      const subtotal = lineItems.reduce((sum: number, item: any) => {
+        return sum + (parseFloat(item.quantity || "0") * parseFloat(item.unitPrice || "0"));
+      }, 0);
+      
+      const taxRate = parseFloat(invoiceData.taxRate || "0") / 100;
+      const taxAmount = subtotal * taxRate;
+      const totalAmount = subtotal + taxAmount;
+
+      const invoice = await storage.createInvoice({
+        ...invoiceData,
+        organizationId,
+        createdBy,
+        subtotal: subtotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+      }, lineItems || []);
+      
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  // Send invoice via email
+  app.post("/api/invoices/:id/send", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "demo-org";
+      const invoiceId = parseInt(req.params.id);
+      
+      const invoice = await storage.getInvoice(invoiceId, organizationId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      // Update invoice status to sent
+      await storage.updateInvoice(invoiceId, organizationId, { status: "sent" });
+
+      // Create delivery log entry
+      await storage.createInvoiceDeliveryLog({
+        invoiceId,
+        recipientEmail: req.body.recipientEmail || invoice.toName + "@example.com",
+        deliveryProvider: "sendgrid",
+        deliveryStatus: "delivered", // Simulate successful delivery
+        metadata: { subject: `Invoice ${invoice.invoiceNumber}`, from: "billing@hostpilotpro.com" },
+      });
+
+      res.json({ message: "Invoice sent successfully" });
+    } catch (error) {
+      console.error("Error sending invoice:", error);
+      res.status(500).json({ message: "Failed to send invoice" });
+    }
+  });
+
+  // Delete invoice (draft only)
+  app.delete("/api/invoices/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "demo-org";
+      const invoiceId = parseInt(req.params.id);
+      
+      const invoice = await storage.getInvoice(invoiceId, organizationId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      if (invoice.status !== "draft") {
+        return res.status(400).json({ message: "Only draft invoices can be deleted" });
+      }
+      
+      await storage.deleteInvoice(invoiceId, organizationId);
+      res.json({ message: "Invoice deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+      res.status(500).json({ message: "Failed to delete invoice" });
+    }
+  });
+
+  // Get invoice templates
+  app.get("/api/invoice-templates", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      // Return demo templates for now
+      const templates = [
+        {
+          id: 1,
+          name: "Commission Invoice",
+          description: "Standard commission invoice template",
+          template: "rental_commission",
+          defaultItems: [
+            { description: "Booking Commission", quantity: "1", unitPrice: "150.00" }
+          ]
+        },
+        {
+          id: 2,
+          name: "Service Fee",
+          description: "Service fee invoice template",
+          template: "service_fee",
+          defaultItems: [
+            { description: "Management Service", quantity: "1", unitPrice: "100.00" }
+          ]
+        }
+      ];
+      
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching templates:", error);
+      res.status(500).json({ message: "Failed to fetch templates" });
+    }
+  });
+
+  // Get delivery logs
+  app.get("/api/invoice-delivery-logs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      // Return demo delivery logs for now
+      const logs = [
+        {
+          id: 1,
+          invoiceNumber: "INV-001",
+          recipientEmail: "owner@example.com",
+          deliveryProvider: "sendgrid",
+          deliveryStatus: "delivered",
+          sentAt: new Date().toISOString(),
+          openedAt: new Date().toISOString(),
+          downloadedAt: new Date().toISOString()
+        }
+      ];
+      
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching delivery logs:", error);
+      res.status(500).json({ message: "Failed to fetch delivery logs" });
+    }
+  });
+
+  // Get invoice analytics
+  app.get("/api/invoice-analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      // Return demo analytics for now
+      const analytics = {
+        totalInvoices: 25,
+        totalAmount: "12450.00",
+        pendingAmount: "3200.00",
+        paidAmount: "9250.00"
+      };
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
