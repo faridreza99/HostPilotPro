@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
+import { setupAuth, isDemoAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
 import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
 import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema } from "@shared/schema";
@@ -13032,6 +13032,333 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error generating monthly report:", error);
       res.status(500).json({ message: "Failed to generate monthly report" });
+    }
+  });
+
+  // ===== STAFF PROFILE & PAYROLL LOGGING API ROUTES =====
+
+  // Get all staff profiles (admin/PM only)
+  app.get("/api/staff-profiles", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { department, isActive } = req.query;
+      
+      const filters: any = {};
+      if (department) filters.department = department;
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+
+      const profiles = await storage.getStaffProfiles(organizationId, filters);
+      res.json(profiles);
+    } catch (error) {
+      console.error("Error fetching staff profiles:", error);
+      res.status(500).json({ message: "Failed to fetch staff profiles" });
+    }
+  });
+
+  // Get single staff profile
+  app.get("/api/staff-profiles/:staffId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { staffId } = req.params;
+
+      // Staff can only view their own profile, admin/PM can view any
+      if (user.role === 'staff' && user.id !== staffId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const profile = await storage.getStaffProfile(organizationId, staffId);
+      if (!profile) {
+        return res.status(404).json({ message: "Staff profile not found" });
+      }
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching staff profile:", error);
+      res.status(500).json({ message: "Failed to fetch staff profile" });
+    }
+  });
+
+  // Create staff profile (admin/PM only)
+  app.post("/api/staff-profiles", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const profileData = {
+        ...req.body,
+        organizationId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const profile = await storage.createStaffProfile(profileData);
+      res.status(201).json(profile);
+    } catch (error) {
+      console.error("Error creating staff profile:", error);
+      res.status(500).json({ message: "Failed to create staff profile" });
+    }
+  });
+
+  // Get monthly payroll records
+  app.get("/api/payroll-records", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { staffId, payrollPeriod, status } = req.query;
+      
+      const filters: any = {};
+      if (staffId) filters.staffId = staffId;
+      if (payrollPeriod) filters.payrollPeriod = payrollPeriod;
+      if (status) filters.status = status;
+
+      // Staff can only view their own records
+      if (user.role === 'staff') {
+        filters.staffId = user.id;
+      }
+
+      const records = await storage.getMonthlyPayrollRecords(organizationId, filters);
+      res.json(records);
+    } catch (error) {
+      console.error("Error fetching payroll records:", error);
+      res.status(500).json({ message: "Failed to fetch payroll records" });
+    }
+  });
+
+  // Create monthly payroll record (admin/PM only)
+  app.post("/api/payroll-records", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const recordData = {
+        ...req.body,
+        organizationId,
+        createdBy: user.id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const record = await storage.createMonthlyPayrollRecord(recordData);
+      res.status(201).json(record);
+    } catch (error) {
+      console.error("Error creating payroll record:", error);
+      res.status(500).json({ message: "Failed to create payroll record" });
+    }
+  });
+
+  // Get task performance logs
+  app.get("/api/task-performance", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { staffId, taskId, propertyId } = req.query;
+      
+      const filters: any = {};
+      if (staffId) filters.staffId = staffId;
+      if (taskId) filters.taskId = parseInt(taskId as string);
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+
+      // Staff can only view their own performance logs
+      if (user.role === 'staff') {
+        filters.staffId = user.id;
+      }
+
+      const logs = await storage.getTaskPerformanceLogs(organizationId, filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching task performance logs:", error);
+      res.status(500).json({ message: "Failed to fetch task performance logs" });
+    }
+  });
+
+  // Get attendance records
+  app.get("/api/attendance", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { staffId, workDate, status } = req.query;
+      
+      const filters: any = {};
+      if (staffId) filters.staffId = staffId;
+      if (workDate) filters.workDate = workDate;
+      if (status) filters.status = status;
+
+      // Staff can only view their own attendance
+      if (user.role === 'staff') {
+        filters.staffId = user.id;
+      }
+
+      const records = await storage.getAttendanceRecords(organizationId, filters);
+      res.json(records);
+    } catch (error) {
+      console.error("Error fetching attendance records:", error);
+      res.status(500).json({ message: "Failed to fetch attendance records" });
+    }
+  });
+
+  // Create attendance record (clock in/out)
+  app.post("/api/attendance", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const recordData = {
+        ...req.body,
+        organizationId,
+        staffId: user.id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const record = await storage.createAttendanceRecord(recordData);
+      res.status(201).json(record);
+    } catch (error) {
+      console.error("Error creating attendance record:", error);
+      res.status(500).json({ message: "Failed to create attendance record" });
+    }
+  });
+
+  // Get leave requests
+  app.get("/api/leave-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { staffId, status } = req.query;
+      
+      const filters: any = {};
+      if (staffId) filters.staffId = staffId;
+      if (status) filters.status = status;
+
+      // Staff can only view their own leave requests
+      if (user.role === 'staff') {
+        filters.staffId = user.id;
+      }
+
+      const requests = await storage.getLeaveRequests(organizationId, filters);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching leave requests:", error);
+      res.status(500).json({ message: "Failed to fetch leave requests" });
+    }
+  });
+
+  // Create leave request
+  app.post("/api/leave-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const requestData = {
+        ...req.body,
+        organizationId,
+        staffId: user.id,
+        status: 'pending',
+        requestedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const request = await storage.createLeaveRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error("Error creating leave request:", error);
+      res.status(500).json({ message: "Failed to create leave request" });
+    }
+  });
+
+  // Get staff commissions
+  app.get("/api/staff-commissions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { staffId, payrollPeriod, isPaid } = req.query;
+      
+      const filters: any = {};
+      if (staffId) filters.staffId = staffId;
+      if (payrollPeriod) filters.payrollPeriod = payrollPeriod;
+      if (isPaid !== undefined) filters.isPaid = isPaid === 'true';
+
+      // Staff can only view their own commissions
+      if (user.role === 'staff') {
+        filters.staffId = user.id;
+      }
+
+      const commissions = await storage.getStaffCommissions(organizationId, filters);
+      res.json(commissions);
+    } catch (error) {
+      console.error("Error fetching staff commissions:", error);
+      res.status(500).json({ message: "Failed to fetch staff commissions" });
+    }
+  });
+
+  // Get pay slips
+  app.get("/api/pay-slips", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { staffId, period, status } = req.query;
+      
+      const filters: any = {};
+      if (staffId) filters.staffId = staffId;
+      if (period) filters.period = period;
+      if (status) filters.status = status;
+
+      // Staff can only view their own pay slips
+      if (user.role === 'staff') {
+        filters.staffId = user.id;
+      }
+
+      const paySlips = await storage.getPaySlips(organizationId, filters);
+      res.json(paySlips);
+    } catch (error) {
+      console.error("Error fetching pay slips:", error);
+      res.status(500).json({ message: "Failed to fetch pay slips" });
     }
   });
 

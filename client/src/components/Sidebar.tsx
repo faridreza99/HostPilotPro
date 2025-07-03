@@ -385,6 +385,13 @@ const navigationModules = [
         description: "Manage utility providers and custom expense categories"
       },
       { 
+        path: "/staff-profile-payroll", 
+        icon: UserCheck, 
+        label: "Staff Profile & Payroll", 
+        roles: ["admin", "portfolio-manager"],
+        description: "Comprehensive staff management with payroll tracking, performance logs, and attendance"
+      },
+      { 
         path: "/settings", 
         icon: Settings, 
         label: "Settings", 

@@ -64,6 +64,7 @@ import MaintenanceSuggestionsApproval from "@/pages/MaintenanceSuggestionsApprov
 import StaffSalaryOvertimeTracker from "@/pages/StaffSalaryOvertimeTracker";
 import StaffAdvanceSalaryOvertimeTracker from "@/pages/StaffAdvanceSalaryOvertimeTracker";
 import GuestCommunicationCenter from "@/pages/GuestCommunicationCenter";
+import StaffProfilePayrollLogging from "@/pages/StaffProfilePayrollLogging";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -168,6 +169,7 @@ function Router() {
           <Route path="/pm/dashboard" component={PortfolioManagerDashboard} />
           <Route path="/admin/finance-reset" component={FinanceResetControl} />
           <Route path="/admin/utility-customization" component={UtilityCustomization} />
+          <Route path="/staff-profile-payroll" component={StaffProfilePayrollLogging} />
           <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
           <Route path="/hostaway" component={Hostaway} />
           <Route path="/booking-calendar" component={LiveBookingCalendar} />

@@ -16,6 +16,13 @@ import {
   welcomePackTemplates,
   welcomePackUsage,
   ownerPayouts,
+  staffProfiles,
+  monthlyPayrollRecords,
+  taskPerformanceLogs,
+  attendanceRecords,
+  leaveRequests,
+  staffCommissions,
+  paySlips,
   notifications,
   notificationPreferences,
   guestAddonServices,
@@ -314,6 +321,20 @@ import {
   type InsertAddonServiceAvailability,
   type AddonBillingRule,
   type InsertAddonBillingRule,
+  type StaffProfile,
+  type InsertStaffProfile,
+  type MonthlyPayrollRecord,
+  type InsertMonthlyPayrollRecord,
+  type TaskPerformanceLog,
+  type InsertTaskPerformanceLog,
+  type AttendanceRecord,
+  type InsertAttendanceRecord,
+  type LeaveRequest,
+  type InsertLeaveRequest,
+  type StaffCommission,
+  type InsertStaffCommission,
+  type PaySlip,
+  type InsertPaySlip,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
@@ -15855,6 +15876,240 @@ Plant Care:
       updatedAt: new Date(),
       ...updates,
     };
+  }
+
+  // ===== STAFF PROFILE & PAYROLL LOGGING METHODS =====
+
+  async getStaffProfiles(organizationId: string, filters?: { department?: string; isActive?: boolean }): Promise<StaffProfile[]> {
+    const conditions = [eq(staffProfiles.organizationId, organizationId)];
+    
+    if (filters?.department) {
+      conditions.push(eq(staffProfiles.department, filters.department));
+    }
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(staffProfiles.isActive, filters.isActive));
+    }
+
+    return await db.select().from(staffProfiles).where(and(...conditions));
+  }
+
+  async getStaffProfile(organizationId: string, staffId: string): Promise<StaffProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(staffProfiles)
+      .where(and(eq(staffProfiles.organizationId, organizationId), eq(staffProfiles.staffId, staffId)));
+    return profile;
+  }
+
+  async createStaffProfile(profile: InsertStaffProfile): Promise<StaffProfile> {
+    const [newProfile] = await db.insert(staffProfiles).values(profile).returning();
+    return newProfile;
+  }
+
+  async updateStaffProfile(organizationId: string, staffId: string, updates: Partial<InsertStaffProfile>): Promise<StaffProfile | undefined> {
+    const [updated] = await db
+      .update(staffProfiles)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(staffProfiles.organizationId, organizationId), eq(staffProfiles.staffId, staffId)))
+      .returning();
+    return updated;
+  }
+
+  // Monthly Payroll Records
+  async getMonthlyPayrollRecords(organizationId: string, filters?: { staffId?: string; payrollPeriod?: string; status?: string }): Promise<MonthlyPayrollRecord[]> {
+    const conditions = [eq(monthlyPayrollRecords.organizationId, organizationId)];
+    
+    if (filters?.staffId) {
+      conditions.push(eq(monthlyPayrollRecords.staffId, filters.staffId));
+    }
+    if (filters?.payrollPeriod) {
+      conditions.push(eq(monthlyPayrollRecords.payrollPeriod, filters.payrollPeriod));
+    }
+    if (filters?.status) {
+      conditions.push(eq(monthlyPayrollRecords.status, filters.status));
+    }
+
+    return await db.select().from(monthlyPayrollRecords).where(and(...conditions)).orderBy(desc(monthlyPayrollRecords.payrollPeriod));
+  }
+
+  async createMonthlyPayrollRecord(record: InsertMonthlyPayrollRecord): Promise<MonthlyPayrollRecord> {
+    const [newRecord] = await db.insert(monthlyPayrollRecords).values(record).returning();
+    return newRecord;
+  }
+
+  async updateMonthlyPayrollRecord(organizationId: string, recordId: number, updates: Partial<InsertMonthlyPayrollRecord>): Promise<MonthlyPayrollRecord | undefined> {
+    const [updated] = await db
+      .update(monthlyPayrollRecords)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(monthlyPayrollRecords.organizationId, organizationId), eq(monthlyPayrollRecords.id, recordId)))
+      .returning();
+    return updated;
+  }
+
+  // Task Performance Logs
+  async getTaskPerformanceLogs(organizationId: string, filters?: { staffId?: string; taskId?: number; propertyId?: number }): Promise<TaskPerformanceLog[]> {
+    const conditions = [eq(taskPerformanceLogs.organizationId, organizationId)];
+    
+    if (filters?.staffId) {
+      conditions.push(eq(taskPerformanceLogs.staffId, filters.staffId));
+    }
+    if (filters?.taskId) {
+      conditions.push(eq(taskPerformanceLogs.taskId, filters.taskId));
+    }
+    if (filters?.propertyId) {
+      conditions.push(eq(taskPerformanceLogs.propertyId, filters.propertyId));
+    }
+
+    return await db.select().from(taskPerformanceLogs).where(and(...conditions)).orderBy(desc(taskPerformanceLogs.completedAt));
+  }
+
+  async createTaskPerformanceLog(log: InsertTaskPerformanceLog): Promise<TaskPerformanceLog> {
+    const [newLog] = await db.insert(taskPerformanceLogs).values(log).returning();
+    return newLog;
+  }
+
+  // Attendance Records
+  async getAttendanceRecords(organizationId: string, filters?: { staffId?: string; workDate?: string; status?: string }): Promise<AttendanceRecord[]> {
+    const conditions = [eq(attendanceRecords.organizationId, organizationId)];
+    
+    if (filters?.staffId) {
+      conditions.push(eq(attendanceRecords.staffId, filters.staffId));
+    }
+    if (filters?.workDate) {
+      conditions.push(eq(attendanceRecords.workDate, filters.workDate));
+    }
+    if (filters?.status) {
+      conditions.push(eq(attendanceRecords.status, filters.status));
+    }
+
+    return await db.select().from(attendanceRecords).where(and(...conditions)).orderBy(desc(attendanceRecords.workDate));
+  }
+
+  async createAttendanceRecord(record: InsertAttendanceRecord): Promise<AttendanceRecord> {
+    const [newRecord] = await db.insert(attendanceRecords).values(record).returning();
+    return newRecord;
+  }
+
+  async updateAttendanceRecord(organizationId: string, recordId: number, updates: Partial<InsertAttendanceRecord>): Promise<AttendanceRecord | undefined> {
+    const [updated] = await db
+      .update(attendanceRecords)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(attendanceRecords.organizationId, organizationId), eq(attendanceRecords.id, recordId)))
+      .returning();
+    return updated;
+  }
+
+  // Leave Requests
+  async getLeaveRequests(organizationId: string, filters?: { staffId?: string; status?: string }): Promise<LeaveRequest[]> {
+    const conditions = [eq(leaveRequests.organizationId, organizationId)];
+    
+    if (filters?.staffId) {
+      conditions.push(eq(leaveRequests.staffId, filters.staffId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(leaveRequests.status, filters.status));
+    }
+
+    return await db.select().from(leaveRequests).where(and(...conditions)).orderBy(desc(leaveRequests.requestedAt));
+  }
+
+  async createLeaveRequest(request: InsertLeaveRequest): Promise<LeaveRequest> {
+    const [newRequest] = await db.insert(leaveRequests).values(request).returning();
+    return newRequest;
+  }
+
+  async updateLeaveRequest(organizationId: string, requestId: number, updates: Partial<InsertLeaveRequest>): Promise<LeaveRequest | undefined> {
+    const [updated] = await db
+      .update(leaveRequests)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(leaveRequests.organizationId, organizationId), eq(leaveRequests.id, requestId)))
+      .returning();
+    return updated;
+  }
+
+  // Staff Commissions
+  async getStaffCommissions(organizationId: string, filters?: { staffId?: string; payrollPeriod?: string; isPaid?: boolean }): Promise<StaffCommission[]> {
+    const conditions = [eq(staffCommissions.organizationId, organizationId)];
+    
+    if (filters?.staffId) {
+      conditions.push(eq(staffCommissions.staffId, filters.staffId));
+    }
+    if (filters?.payrollPeriod) {
+      conditions.push(eq(staffCommissions.payrollPeriod, filters.payrollPeriod));
+    }
+    if (filters?.isPaid !== undefined) {
+      conditions.push(eq(staffCommissions.isPaid, filters.isPaid));
+    }
+
+    return await db.select().from(staffCommissions).where(and(...conditions)).orderBy(desc(staffCommissions.earnedDate));
+  }
+
+  async createStaffCommission(commission: InsertStaffCommission): Promise<StaffCommission> {
+    const [newCommission] = await db.insert(staffCommissions).values(commission).returning();
+    return newCommission;
+  }
+
+  async updateStaffCommission(organizationId: string, commissionId: number, updates: Partial<InsertStaffCommission>): Promise<StaffCommission | undefined> {
+    const [updated] = await db
+      .update(staffCommissions)
+      .set(updates)
+      .where(and(eq(staffCommissions.organizationId, organizationId), eq(staffCommissions.id, commissionId)))
+      .returning();
+    return updated;
+  }
+
+  // Pay Slips
+  async getPaySlips(organizationId: string, filters?: { staffId?: string; period?: string; status?: string }): Promise<PaySlip[]> {
+    const conditions = [eq(paySlips.organizationId, organizationId)];
+    
+    if (filters?.staffId) {
+      conditions.push(eq(paySlips.staffId, filters.staffId));
+    }
+    if (filters?.period) {
+      conditions.push(eq(paySlips.period, filters.period));
+    }
+    if (filters?.status) {
+      conditions.push(eq(paySlips.status, filters.status));
+    }
+
+    return await db.select().from(paySlips).where(and(...conditions)).orderBy(desc(paySlips.period));
+  }
+
+  async createPaySlip(paySlip: InsertPaySlip): Promise<PaySlip> {
+    const [newPaySlip] = await db.insert(paySlips).values(paySlip).returning();
+    return newPaySlip;
+  }
+
+  async updatePaySlip(organizationId: string, paySlipId: number, updates: Partial<InsertPaySlip>): Promise<PaySlip | undefined> {
+    const [updated] = await db
+      .update(paySlips)
+      .set(updates)
+      .where(and(eq(paySlips.organizationId, organizationId), eq(paySlips.id, paySlipId)))
+      .returning();
+    return updated;
+  }
+
+  // Analytics Methods
+  async getStaffAnalytics(organizationId: string, staffId?: string) {
+    const baseConditions = [eq(staffProfiles.organizationId, organizationId)];
+    if (staffId) {
+      baseConditions.push(eq(staffProfiles.staffId, staffId));
+    }
+
+    // Get staff overview
+    const staffOverview = await db
+      .select({
+        department: staffProfiles.department,
+        totalStaff: count(staffProfiles.id),
+        avgRating: avg(staffProfiles.averageRating),
+        totalHours: sum(staffProfiles.totalHoursWorked),
+        totalEarnings: sum(staffProfiles.totalEarnings),
+      })
+      .from(staffProfiles)
+      .where(and(...baseConditions))
+      .groupBy(staffProfiles.department);
+
+    return { staffOverview };
   }
 }
 

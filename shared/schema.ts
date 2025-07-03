@@ -3382,6 +3382,309 @@ export type InsertAiMessageAnalysis = z.infer<typeof insertAiMessageAnalysisSche
 export type MessageDelivery = typeof messageDeliveries.$inferSelect;
 export type InsertMessageDelivery = z.infer<typeof insertMessageDeliverySchema>;
 
+// ===== STAFF PROFILE & PAYROLL LOGGING SYSTEM =====
+
+// Staff Profile with Department & Performance Tracking
+export const staffProfiles = pgTable("staff_profiles", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  
+  // Personal Information
+  employeeNumber: varchar("employee_number").unique(),
+  department: varchar("department").notNull(), // cleaning, pool, maintenance, garden, office
+  position: varchar("position").notNull(),
+  hireDate: date("hire_date"),
+  
+  // Employment Details
+  employmentType: varchar("employment_type").default("full_time"), // full_time, part_time, contract
+  payType: varchar("pay_type").default("monthly"), // monthly, daily, hourly
+  baseSalary: decimal("base_salary", { precision: 10, scale: 2 }),
+  dailyWage: decimal("daily_wage", { precision: 10, scale: 2 }),
+  hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  
+  // Performance Metrics
+  totalTasksCompleted: integer("total_tasks_completed").default(0),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"), // Average star rating
+  totalHoursWorked: decimal("total_hours_worked", { precision: 10, scale: 2 }).default("0"),
+  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).default("0"),
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_staff_profiles_org").on(table.organizationId),
+  index("IDX_staff_profiles_dept").on(table.department),
+]);
+
+// Monthly Payroll Records with Detailed Tracking
+export const monthlyPayrollRecords = pgTable("monthly_payroll_records", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  
+  // Period Information
+  payrollPeriod: varchar("payroll_period").notNull(), // "2025-01" format
+  payrollYear: integer("payroll_year").notNull(),
+  payrollMonth: integer("payroll_month").notNull(),
+  
+  // Salary Components
+  baseSalary: decimal("base_salary", { precision: 10, scale: 2 }).default("0"),
+  overtimePay: decimal("overtime_pay", { precision: 10, scale: 2 }).default("0"),
+  taskBonuses: decimal("task_bonuses", { precision: 10, scale: 2 }).default("0"),
+  commissions: decimal("commissions", { precision: 10, scale: 2 }).default("0"), // bike rentals, tour sales, etc.
+  otherBonuses: decimal("other_bonuses", { precision: 10, scale: 2 }).default("0"),
+  
+  // Deductions
+  advanceSalaryDeductions: decimal("advance_salary_deductions", { precision: 10, scale: 2 }).default("0"),
+  fines: decimal("fines", { precision: 10, scale: 2 }).default("0"),
+  otherDeductions: decimal("other_deductions", { precision: 10, scale: 2 }).default("0"),
+  
+  // Totals
+  grossPay: decimal("gross_pay", { precision: 10, scale: 2 }).default("0"),
+  netPay: decimal("net_pay", { precision: 10, scale: 2 }).default("0"),
+  
+  // Payment Status
+  status: varchar("status").default("pending"), // pending, approved, paid
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  paidAt: timestamp("paid_at"),
+  paymentMethod: varchar("payment_method"), // bank_transfer, cash, mobile_payment
+  paymentReference: varchar("payment_reference"),
+  
+  // Notes
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_payroll_records_period").on(table.payrollPeriod),
+  index("IDX_payroll_records_staff").on(table.staffId),
+]);
+
+// Task-Based Performance Logs
+export const taskPerformanceLogs = pgTable("task_performance_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  
+  // Performance Details
+  timeliness: varchar("timeliness").default("on_time"), // early, on_time, late
+  qualityRating: integer("quality_rating"), // 1-5 stars
+  imageUploads: integer("image_uploads").default(0),
+  completionTime: integer("completion_time"), // minutes
+  
+  // Feedback Sources
+  portfolioManagerRating: integer("portfolio_manager_rating"), // 1-5 stars
+  portfolioManagerFeedback: text("portfolio_manager_feedback"),
+  ownerRating: integer("owner_rating"), // 1-5 stars  
+  ownerFeedback: text("owner_feedback"),
+  guestRating: integer("guest_rating"), // 1-5 stars
+  guestFeedback: text("guest_feedback"),
+  
+  // Task completion details
+  completedAt: timestamp("completed_at"),
+  evidencePhotos: text("evidence_photos").array().default([]),
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_performance_logs_staff").on(table.staffId),
+  index("IDX_performance_logs_task").on(table.taskId),
+]);
+
+// Attendance & Shift Records
+export const attendanceRecords = pgTable("attendance_records", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  
+  // Date & Shift Information
+  workDate: date("work_date").notNull(),
+  shiftType: varchar("shift_type").default("regular"), // regular, overtime, holiday, emergency
+  
+  // Clock In/Out
+  clockInTime: timestamp("clock_in_time"),
+  clockOutTime: timestamp("clock_out_time"),
+  scheduledStartTime: timestamp("scheduled_start_time"),
+  scheduledEndTime: timestamp("scheduled_end_time"),
+  
+  // Attendance Status
+  status: varchar("status").default("present"), // present, absent, late, early_leave, missed_clock_out
+  hoursWorked: decimal("hours_worked", { precision: 5, scale: 2 }).default("0"),
+  overtimeHours: decimal("overtime_hours", { precision: 5, scale: 2 }).default("0"),
+  
+  // Notes & Explanations
+  notes: text("notes"),
+  absenceReason: varchar("absence_reason"), // sick, personal, vacation, emergency
+  lateReason: text("late_reason"),
+  
+  // Approval for absences/adjustments
+  requiresApproval: boolean("requires_approval").default(false),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_attendance_staff_date").on(table.staffId, table.workDate),
+  index("IDX_attendance_date").on(table.workDate),
+]);
+
+// Leave & Vacation Requests
+export const leaveRequests = pgTable("leave_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  
+  // Leave Details
+  leaveType: varchar("leave_type").notNull(), // vacation, sick, personal, emergency, maternity
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  totalDays: integer("total_days").notNull(),
+  
+  // Request Information
+  reason: text("reason"),
+  description: text("description"),
+  emergencyContact: varchar("emergency_contact"),
+  
+  // Approval Workflow
+  status: varchar("status").default("pending"), // pending, approved, rejected, cancelled
+  requestedAt: timestamp("requested_at").defaultNow(),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  
+  // Coverage Information
+  coverageArranged: boolean("coverage_arranged").default(false),
+  coverageNotes: text("coverage_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_leave_requests_staff").on(table.staffId),
+  index("IDX_leave_requests_dates").on(table.startDate, table.endDate),
+]);
+
+// Commission & Bonus Tracking (bike rentals, tour sales, etc.)
+export const staffCommissions = pgTable("staff_commissions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  
+  // Commission Details
+  type: varchar("type").notNull(), // bike_rental, tour_booking, spa_service, other
+  description: text("description").notNull(),
+  baseAmount: decimal("base_amount", { precision: 10, scale: 2 }).notNull(),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 4 }), // e.g., 0.10 for 10%
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("THB"),
+  
+  // Reference Information
+  referenceId: varchar("reference_id"), // booking ID, rental ID, etc.
+  propertyId: integer("property_id").references(() => properties.id),
+  
+  // Period & Payment
+  earnedDate: date("earned_date").notNull(),
+  payrollPeriod: varchar("payroll_period"), // Which payroll period this belongs to
+  isPaid: boolean("is_paid").default(false),
+  paidAt: timestamp("paid_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_staff_commissions_staff").on(table.staffId),
+  index("IDX_staff_commissions_period").on(table.payrollPeriod),
+]);
+
+// Downloadable Pay Slips
+export const paySlips = pgTable("pay_slips", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  payrollRecordId: integer("payroll_record_id").references(() => monthlyPayrollRecords.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  
+  // Pay Slip Details
+  paySlipNumber: varchar("pay_slip_number").unique().notNull(),
+  period: varchar("period").notNull(), // "January 2025", "2025-01"
+  issuedDate: date("issued_date").notNull(),
+  
+  // File Information
+  pdfUrl: varchar("pdf_url"), // URL to generated PDF
+  generatedBy: varchar("generated_by").references(() => users.id),
+  
+  // Status
+  status: varchar("status").default("draft"), // draft, issued, sent
+  sentAt: timestamp("sent_at"),
+  viewedByStaff: boolean("viewed_by_staff").default(false),
+  viewedAt: timestamp("viewed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_pay_slips_staff").on(table.staffId),
+  index("IDX_pay_slips_period").on(table.period),
+]);
+
+// Insert schemas for Staff Profile & Payroll Logging
+export const insertStaffProfileSchema = createInsertSchema(staffProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMonthlyPayrollRecordSchema = createInsertSchema(monthlyPayrollRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskPerformanceLogSchema = createInsertSchema(taskPerformanceLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStaffCommissionSchema = createInsertSchema(staffCommissions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPaySlipSchema = createInsertSchema(paySlips).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type definitions for Staff Profile & Payroll Logging
+export type StaffProfile = typeof staffProfiles.$inferSelect;
+export type InsertStaffProfile = z.infer<typeof insertStaffProfileSchema>;
+export type MonthlyPayrollRecord = typeof monthlyPayrollRecords.$inferSelect;
+export type InsertMonthlyPayrollRecord = z.infer<typeof insertMonthlyPayrollRecordSchema>;
+export type TaskPerformanceLog = typeof taskPerformanceLogs.$inferSelect;
+export type InsertTaskPerformanceLog = z.infer<typeof insertTaskPerformanceLogSchema>;
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
+export type InsertAttendanceRecord = z.infer<typeof insertAttendanceRecordSchema>;
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
+export type StaffCommission = typeof staffCommissions.$inferSelect;
+export type InsertStaffCommission = z.infer<typeof insertStaffCommissionSchema>;
+export type PaySlip = typeof paySlips.$inferSelect;
+export type InsertPaySlip = z.infer<typeof insertPaySlipSchema>;
+
 // ===== PAYROLL, COMMISSION & INVOICE MANAGEMENT SYSTEM =====
 
 // Enhanced Staff Payroll Tracking
