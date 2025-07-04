@@ -18,6 +18,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Seed Thailand utility providers on startup
   await seedThailandUtilityProviders("default-org");
+  
+  // Seed Villa Aruna demo data
+  const { seedVillaArunaDemo } = await import("./seedVillaArunaDemo");
+  await seedVillaArunaDemo();
 
   // Auth routes
   app.get('/api/auth/user', isDemoAuthenticated, async (req: any, res) => {
