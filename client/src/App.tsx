@@ -98,6 +98,7 @@ import EnhancedGuestDashboard from "@/pages/EnhancedGuestDashboard";
 import GuestCheckoutSurvey from "@/pages/GuestCheckoutSurvey";
 import OwnerOnboardingUtilitySettings from "@/pages/OwnerOnboardingUtilitySettings";
 import EnhancedAgentBookingDemo from "@/pages/EnhancedAgentBookingDemo";
+import SandboxTestingDashboard from "@/pages/SandboxTestingDashboard";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -253,6 +254,7 @@ function Router() {
         <Route path="/settings" component={Settings} />
         <Route path="/villa-samui-demo" component={VillaSamuiDemo} />
         <Route path="/enhanced-agent-booking-demo" component={EnhancedAgentBookingDemo} />
+        <Route path="/sandbox-testing" component={SandboxTestingDashboard} />
         <Route component={NotFound} />
         </Switch>
       </Layout>

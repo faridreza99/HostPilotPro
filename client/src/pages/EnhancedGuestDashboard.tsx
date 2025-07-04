@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { format, isToday, isThisWeek, differenceInDays } from "date-fns";
+import UnifiedTopBar from "@/components/UnifiedTopBar";
 import {
   Home,
   MapPin,
@@ -291,6 +292,20 @@ export default function EnhancedGuestDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <UnifiedTopBar 
+        title={`${guestBooking.property?.name} - Guest Portal`}
+        showBackButton={false}
+        roleBasedActions={
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-blue-600">
+              Demo1234 - Liam Andersen
+            </Badge>
+            <Badge variant="secondary">
+              {formatStayDuration()}
+            </Badge>
+          </div>
+        }
+      />
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Welcome Header */}
         <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0">
