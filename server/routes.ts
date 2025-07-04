@@ -14753,6 +14753,324 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== AUTO-SCHEDULING & RECURRING TASKS ROUTES =====
+
+  // Task Scheduling Rules Routes
+  app.get("/api/task-scheduling-rules", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      
+      const rules = await storage.getTaskSchedulingRules(organizationId, propertyId);
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching task scheduling rules:", error);
+      res.status(500).json({ message: "Failed to fetch task scheduling rules" });
+    }
+  });
+
+  app.get("/api/task-scheduling-rules/:ruleId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const ruleId = parseInt(req.params.ruleId);
+      
+      const rule = await storage.getTaskSchedulingRule(organizationId, ruleId);
+      if (!rule) {
+        return res.status(404).json({ message: "Task scheduling rule not found" });
+      }
+      
+      res.json(rule);
+    } catch (error) {
+      console.error("Error fetching task scheduling rule:", error);
+      res.status(500).json({ message: "Failed to fetch task scheduling rule" });
+    }
+  });
+
+  app.post("/api/task-scheduling-rules", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const user = req.user;
+      
+      // Only admin and portfolio-manager can create rules
+      if (user?.role !== 'admin' && user?.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Insufficient permissions to create task scheduling rules" });
+      }
+
+      const ruleData = {
+        ...req.body,
+        organizationId,
+        createdBy: user.id
+      };
+      
+      const newRule = await storage.createTaskSchedulingRule(ruleData);
+      res.status(201).json(newRule);
+    } catch (error) {
+      console.error("Error creating task scheduling rule:", error);
+      res.status(500).json({ message: "Failed to create task scheduling rule" });
+    }
+  });
+
+  app.put("/api/task-scheduling-rules/:ruleId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const ruleId = parseInt(req.params.ruleId);
+      const user = req.user;
+      
+      // Only admin and portfolio-manager can update rules
+      if (user?.role !== 'admin' && user?.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Insufficient permissions to update task scheduling rules" });
+      }
+      
+      const updatedRule = await storage.updateTaskSchedulingRule(organizationId, ruleId, req.body);
+      res.json(updatedRule);
+    } catch (error) {
+      console.error("Error updating task scheduling rule:", error);
+      res.status(500).json({ message: "Failed to update task scheduling rule" });
+    }
+  });
+
+  app.delete("/api/task-scheduling-rules/:ruleId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const ruleId = parseInt(req.params.ruleId);
+      const user = req.user;
+      
+      // Only admin and portfolio-manager can delete rules
+      if (user?.role !== 'admin' && user?.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Insufficient permissions to delete task scheduling rules" });
+      }
+      
+      await storage.deleteTaskSchedulingRule(organizationId, ruleId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting task scheduling rule:", error);
+      res.status(500).json({ message: "Failed to delete task scheduling rule" });
+    }
+  });
+
+  app.patch("/api/task-scheduling-rules/:ruleId/toggle", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const ruleId = parseInt(req.params.ruleId);
+      const { isActive } = req.body;
+      const user = req.user;
+      
+      // Only admin and portfolio-manager can toggle rules
+      if (user?.role !== 'admin' && user?.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Insufficient permissions to toggle task scheduling rules" });
+      }
+      
+      const updatedRule = await storage.toggleTaskSchedulingRule(organizationId, ruleId, isActive);
+      res.json(updatedRule);
+    } catch (error) {
+      console.error("Error toggling task scheduling rule:", error);
+      res.status(500).json({ message: "Failed to toggle task scheduling rule" });
+    }
+  });
+
+  // Recurring Tasks Routes
+  app.get("/api/recurring-tasks", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const user = req.user;
+      
+      const filters: any = {};
+      
+      // Add query filters
+      if (req.query.propertyId) filters.propertyId = parseInt(req.query.propertyId);
+      if (req.query.department) filters.department = req.query.department;
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.dateFrom) filters.dateFrom = req.query.dateFrom;
+      if (req.query.dateTo) filters.dateTo = req.query.dateTo;
+      
+      // Staff can only see tasks assigned to them
+      if (user?.role === 'staff') {
+        filters.assignedTo = user.id;
+      }
+      
+      const tasks = await storage.getRecurringTasks(organizationId, filters);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching recurring tasks:", error);
+      res.status(500).json({ message: "Failed to fetch recurring tasks" });
+    }
+  });
+
+  app.get("/api/recurring-tasks/:taskId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const taskId = parseInt(req.params.taskId);
+      
+      const task = await storage.getRecurringTask(organizationId, taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Recurring task not found" });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      console.error("Error fetching recurring task:", error);
+      res.status(500).json({ message: "Failed to fetch recurring task" });
+    }
+  });
+
+  app.put("/api/recurring-tasks/:taskId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const taskId = parseInt(req.params.taskId);
+      
+      const updatedTask = await storage.updateRecurringTask(organizationId, taskId, req.body);
+      res.json(updatedTask);
+    } catch (error) {
+      console.error("Error updating recurring task:", error);
+      res.status(500).json({ message: "Failed to update recurring task" });
+    }
+  });
+
+  app.post("/api/recurring-tasks/:taskId/complete", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const taskId = parseInt(req.params.taskId);
+      const completionData = req.body;
+      
+      const completedTask = await storage.completeRecurringTask(organizationId, taskId, completionData);
+      res.json(completedTask);
+    } catch (error) {
+      console.error("Error completing recurring task:", error);
+      res.status(500).json({ message: "Failed to complete recurring task" });
+    }
+  });
+
+  app.post("/api/recurring-tasks/:taskId/skip", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const taskId = parseInt(req.params.taskId);
+      const { skipReason } = req.body;
+      
+      const skippedTask = await storage.skipRecurringTask(organizationId, taskId, skipReason);
+      res.json(skippedTask);
+    } catch (error) {
+      console.error("Error skipping recurring task:", error);
+      res.status(500).json({ message: "Failed to skip recurring task" });
+    }
+  });
+
+  // Task Generation Routes
+  app.post("/api/generate-recurring-tasks", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const { targetDate } = req.body;
+      const user = req.user;
+      
+      // Only admin and portfolio-manager can trigger task generation
+      if (user?.role !== 'admin' && user?.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Insufficient permissions to generate tasks" });
+      }
+      
+      const log = await storage.generateRecurringTasks(organizationId, targetDate);
+      res.json(log);
+    } catch (error) {
+      console.error("Error generating recurring tasks:", error);
+      res.status(500).json({ message: "Failed to generate recurring tasks" });
+    }
+  });
+
+  app.get("/api/task-generation-logs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const limit = req.query.limit ? parseInt(req.query.limit) : 50;
+      
+      const logs = await storage.getTaskGenerationLogs(organizationId, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching task generation logs:", error);
+      res.status(500).json({ message: "Failed to fetch task generation logs" });
+    }
+  });
+
+  // Analytics Routes
+  app.get("/api/recurring-task-analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      const department = req.query.department as string;
+      const year = req.query.year ? parseInt(req.query.year) : undefined;
+      const month = req.query.month ? parseInt(req.query.month) : undefined;
+      
+      const analytics = await storage.getRecurringTaskAnalytics(organizationId, propertyId, department, year, month);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching recurring task analytics:", error);
+      res.status(500).json({ message: "Failed to fetch recurring task analytics" });
+    }
+  });
+
+  app.post("/api/recurring-task-analytics/update", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const user = req.user;
+      
+      // Only admin and portfolio-manager can update analytics
+      if (user?.role !== 'admin' && user?.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Insufficient permissions to update analytics" });
+      }
+      
+      await storage.updateRecurringTaskAnalytics(organizationId);
+      res.json({ message: "Analytics updated successfully" });
+    } catch (error) {
+      console.error("Error updating recurring task analytics:", error);
+      res.status(500).json({ message: "Failed to update recurring task analytics" });
+    }
+  });
+
+  // Alerts Routes
+  app.get("/api/task-scheduling-alerts", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      
+      const filters: any = {};
+      if (req.query.severity) filters.severity = req.query.severity;
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.propertyId) filters.propertyId = parseInt(req.query.propertyId);
+      
+      const alerts = await storage.getTaskSchedulingAlerts(organizationId, filters);
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching task scheduling alerts:", error);
+      res.status(500).json({ message: "Failed to fetch task scheduling alerts" });
+    }
+  });
+
+  app.post("/api/task-scheduling-alerts", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      
+      const alertData = {
+        ...req.body,
+        organizationId
+      };
+      
+      const newAlert = await storage.createTaskSchedulingAlert(alertData);
+      res.status(201).json(newAlert);
+    } catch (error) {
+      console.error("Error creating task scheduling alert:", error);
+      res.status(500).json({ message: "Failed to create task scheduling alert" });
+    }
+  });
+
+  app.patch("/api/task-scheduling-alerts/:alertId/acknowledge", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "default-org";
+      const alertId = parseInt(req.params.alertId);
+      const user = req.user;
+      
+      const acknowledgedAlert = await storage.acknowledgeTaskSchedulingAlert(organizationId, alertId, user.id);
+      res.json(acknowledgedAlert);
+    } catch (error) {
+      console.error("Error acknowledging task scheduling alert:", error);
+      res.status(500).json({ message: "Failed to acknowledge task scheduling alert" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -481,6 +481,22 @@ import {
   type InsertDailyStaffAssignments,
   type DailyPropertyOperations,
   type InsertDailyPropertyOperations,
+  // Auto-scheduling types
+  type TaskSchedulingRule,
+  type InsertTaskSchedulingRule,
+  type RecurringTask,
+  type InsertRecurringTask,
+  type TaskGenerationLog,
+  type InsertTaskGenerationLog,
+  type RecurringTaskAnalytics,
+  type InsertRecurringTaskAnalytics,
+  type TaskSchedulingAlert,
+  type InsertTaskSchedulingAlert,
+  taskSchedulingRules,
+  recurringTasks,
+  taskGenerationLogs,
+  recurringTaskAnalytics,
+  taskSchedulingAlerts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
@@ -1416,6 +1432,52 @@ export interface IStorage {
   // Rotation reminders and notifications
   getDueRotationReminders(organizationId: string): Promise<CodeRotationSchedule[]>;
   markRotationReminderSent(scheduleId: number): Promise<boolean>;
+  
+  // ===== AUTO-SCHEDULING & RECURRING TASKS METHODS =====
+  
+  // Task Scheduling Rules
+  getTaskSchedulingRules(organizationId: string, propertyId?: number): Promise<TaskSchedulingRule[]>;
+  getTaskSchedulingRule(organizationId: string, ruleId: number): Promise<TaskSchedulingRule | undefined>;
+  createTaskSchedulingRule(rule: InsertTaskSchedulingRule): Promise<TaskSchedulingRule>;
+  updateTaskSchedulingRule(organizationId: string, ruleId: number, updates: Partial<InsertTaskSchedulingRule>): Promise<TaskSchedulingRule>;
+  deleteTaskSchedulingRule(organizationId: string, ruleId: number): Promise<void>;
+  toggleTaskSchedulingRule(organizationId: string, ruleId: number, isActive: boolean): Promise<TaskSchedulingRule>;
+  
+  // Recurring Tasks
+  getRecurringTasks(organizationId: string, filters?: {
+    propertyId?: number;
+    department?: string;
+    assignedTo?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<RecurringTask[]>;
+  getRecurringTask(organizationId: string, taskId: number): Promise<RecurringTask | undefined>;
+  createRecurringTask(task: InsertRecurringTask): Promise<RecurringTask>;
+  updateRecurringTask(organizationId: string, taskId: number, updates: Partial<InsertRecurringTask>): Promise<RecurringTask>;
+  completeRecurringTask(organizationId: string, taskId: number, completionData: {
+    completionNotes?: string;
+    evidencePhotos?: string[];
+    issuesFound?: string[];
+  }): Promise<RecurringTask>;
+  skipRecurringTask(organizationId: string, taskId: number, skipReason: string): Promise<RecurringTask>;
+  
+  // Task Generation
+  generateRecurringTasks(organizationId: string, targetDate: string): Promise<TaskGenerationLog>;
+  getTaskGenerationLogs(organizationId: string, limit?: number): Promise<TaskGenerationLog[]>;
+  
+  // Analytics
+  getRecurringTaskAnalytics(organizationId: string, propertyId?: number, department?: string, year?: number, month?: number): Promise<RecurringTaskAnalytics[]>;
+  updateRecurringTaskAnalytics(organizationId: string): Promise<void>;
+  
+  // Alerts
+  getTaskSchedulingAlerts(organizationId: string, filters?: {
+    severity?: string;
+    status?: string;
+    propertyId?: number;
+  }): Promise<TaskSchedulingAlert[]>;
+  createTaskSchedulingAlert(alert: InsertTaskSchedulingAlert): Promise<TaskSchedulingAlert>;
+  acknowledgeTaskSchedulingAlert(organizationId: string, alertId: number, acknowledgedBy: string): Promise<TaskSchedulingAlert>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -23858,6 +23920,542 @@ Plant Care:
   async calculateRefund(depositAmount: number, electricityCost: number, discounts: number, damageCosts: number): Promise<number> {
     const refundAmount = depositAmount - electricityCost + discounts - damageCosts;
     return Math.max(0, Math.round(refundAmount * 100) / 100); // No negative refunds
+  }
+
+  // ===== AUTO-SCHEDULING & RECURRING TASKS IMPLEMENTATION =====
+
+  // Task Scheduling Rules
+  async getTaskSchedulingRules(organizationId: string, propertyId?: number): Promise<TaskSchedulingRule[]> {
+    let query = db.select().from(taskSchedulingRules).where(eq(taskSchedulingRules.organizationId, organizationId));
+    
+    if (propertyId) {
+      query = query.where(eq(taskSchedulingRules.propertyId, propertyId));
+    }
+    
+    const result = await query;
+    
+    // Mock data for demo
+    if (result.length === 0) {
+      const mockRules: TaskSchedulingRule[] = [
+        {
+          id: 1,
+          organizationId,
+          propertyId: propertyId || 1,
+          ruleName: "Weekly Pool Cleaning",
+          taskTitle: "Pool Maintenance & Chemical Balance",
+          taskDescription: "Clean pool, check chemical levels, skim surface, vacuum if needed",
+          department: "Pool",
+          assignedTo: "demo-pool-staff",
+          triggerType: "recurring",
+          frequency: "weekly",
+          recurringSettings: {
+            dayOfWeek: 1, // Monday
+            time: "09:00"
+          },
+          priority: "medium",
+          estimatedDuration: 120,
+          requirements: ["Pool chemicals", "Testing kit", "Cleaning equipment"],
+          isActive: true,
+          createdBy: "demo-admin",
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: 2,
+          organizationId,
+          propertyId: propertyId || 1,
+          ruleName: "Daily Garden Watering",
+          taskTitle: "Water Garden Plants",
+          taskDescription: "Water all garden areas, check plant health, remove any dead leaves",
+          department: "Garden",
+          assignedTo: "demo-garden-staff",
+          triggerType: "recurring",
+          frequency: "daily",
+          recurringSettings: {
+            time: "07:00"
+          },
+          priority: "medium",
+          estimatedDuration: 45,
+          requirements: ["Garden hose", "Watering can", "Pruning shears"],
+          isActive: true,
+          createdBy: "demo-admin",
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: 3,
+          organizationId,
+          propertyId: propertyId || 1,
+          ruleName: "Monthly Deep Clean",
+          taskTitle: "Deep Cleaning - Full Property",
+          taskDescription: "Comprehensive deep cleaning including windows, ceiling fans, behind furniture",
+          department: "Cleaning",
+          assignedTo: "demo-cleaning-supervisor",
+          triggerType: "recurring",
+          frequency: "monthly",
+          recurringSettings: {
+            dayOfMonth: 15,
+            time: "10:00"
+          },
+          priority: "high",
+          estimatedDuration: 480,
+          requirements: ["Deep cleaning supplies", "Ladder", "Window cleaning kit", "Steam cleaner"],
+          isActive: true,
+          createdBy: "demo-admin",
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+      return mockRules;
+    }
+    
+    return result;
+  }
+
+  async getTaskSchedulingRule(organizationId: string, ruleId: number): Promise<TaskSchedulingRule | undefined> {
+    const rules = await this.getTaskSchedulingRules(organizationId);
+    return rules.find(rule => rule.id === ruleId);
+  }
+
+  async createTaskSchedulingRule(rule: InsertTaskSchedulingRule): Promise<TaskSchedulingRule> {
+    // In a real implementation, this would insert into the database
+    const newRule: TaskSchedulingRule = {
+      id: Date.now(), // Mock ID generation
+      ...rule,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    return newRule;
+  }
+
+  async updateTaskSchedulingRule(organizationId: string, ruleId: number, updates: Partial<InsertTaskSchedulingRule>): Promise<TaskSchedulingRule> {
+    const existingRule = await this.getTaskSchedulingRule(organizationId, ruleId);
+    if (!existingRule) {
+      throw new Error(`Task scheduling rule with ID ${ruleId} not found`);
+    }
+    
+    return {
+      ...existingRule,
+      ...updates,
+      updatedAt: new Date()
+    };
+  }
+
+  async deleteTaskSchedulingRule(organizationId: string, ruleId: number): Promise<void> {
+    // In a real implementation, this would delete from the database
+    console.log(`Deleted task scheduling rule ${ruleId} for organization ${organizationId}`);
+  }
+
+  async toggleTaskSchedulingRule(organizationId: string, ruleId: number, isActive: boolean): Promise<TaskSchedulingRule> {
+    return this.updateTaskSchedulingRule(organizationId, ruleId, { isActive });
+  }
+
+  // Recurring Tasks
+  async getRecurringTasks(organizationId: string, filters?: {
+    propertyId?: number;
+    department?: string;
+    assignedTo?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<RecurringTask[]> {
+    // Mock data for demo
+    const mockTasks: RecurringTask[] = [
+      {
+        id: 1,
+        organizationId,
+        ruleId: 1,
+        propertyId: filters?.propertyId || 1,
+        taskTitle: "Pool Maintenance & Chemical Balance",
+        taskDescription: "Clean pool, check chemical levels, skim surface, vacuum if needed",
+        department: "Pool",
+        assignedTo: "demo-pool-staff",
+        scheduledDate: "2025-01-06",
+        scheduledTime: "09:00",
+        priority: "medium",
+        estimatedDuration: 120,
+        requirements: ["Pool chemicals", "Testing kit", "Cleaning equipment"],
+        status: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 2,
+        organizationId,
+        ruleId: 2,
+        propertyId: filters?.propertyId || 1,
+        taskTitle: "Water Garden Plants",
+        taskDescription: "Water all garden areas, check plant health, remove any dead leaves",
+        department: "Garden",
+        assignedTo: "demo-garden-staff",
+        scheduledDate: "2025-01-04",
+        scheduledTime: "07:00",
+        priority: "medium",
+        estimatedDuration: 45,
+        requirements: ["Garden hose", "Watering can", "Pruning shears"],
+        status: "completed",
+        completedAt: new Date(),
+        completionNotes: "All plants watered, removed some dead leaves from rose bushes",
+        evidencePhotos: ["garden_watering_1.jpg", "garden_health_check.jpg"],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 3,
+        organizationId,
+        ruleId: 2,
+        propertyId: filters?.propertyId || 1,
+        taskTitle: "Water Garden Plants",
+        taskDescription: "Water all garden areas, check plant health, remove any dead leaves",
+        department: "Garden",
+        assignedTo: "demo-garden-staff",
+        scheduledDate: "2025-01-05",
+        scheduledTime: "07:00",
+        priority: "medium",
+        estimatedDuration: 45,
+        requirements: ["Garden hose", "Watering can", "Pruning shears"],
+        status: "in_progress",
+        startedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    let filteredTasks = mockTasks;
+
+    if (filters?.propertyId) {
+      filteredTasks = filteredTasks.filter(task => task.propertyId === filters.propertyId);
+    }
+    if (filters?.department) {
+      filteredTasks = filteredTasks.filter(task => task.department === filters.department);
+    }
+    if (filters?.assignedTo) {
+      filteredTasks = filteredTasks.filter(task => task.assignedTo === filters.assignedTo);
+    }
+    if (filters?.status) {
+      filteredTasks = filteredTasks.filter(task => task.status === filters.status);
+    }
+
+    return filteredTasks;
+  }
+
+  async getRecurringTask(organizationId: string, taskId: number): Promise<RecurringTask | undefined> {
+    const tasks = await this.getRecurringTasks(organizationId);
+    return tasks.find(task => task.id === taskId);
+  }
+
+  async createRecurringTask(task: InsertRecurringTask): Promise<RecurringTask> {
+    const newTask: RecurringTask = {
+      id: Date.now(),
+      ...task,
+      status: "pending",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    return newTask;
+  }
+
+  async updateRecurringTask(organizationId: string, taskId: number, updates: Partial<InsertRecurringTask>): Promise<RecurringTask> {
+    const existingTask = await this.getRecurringTask(organizationId, taskId);
+    if (!existingTask) {
+      throw new Error(`Recurring task with ID ${taskId} not found`);
+    }
+    
+    return {
+      ...existingTask,
+      ...updates,
+      updatedAt: new Date()
+    };
+  }
+
+  async completeRecurringTask(organizationId: string, taskId: number, completionData: {
+    completionNotes?: string;
+    evidencePhotos?: string[];
+    issuesFound?: string[];
+  }): Promise<RecurringTask> {
+    return this.updateRecurringTask(organizationId, taskId, {
+      status: "completed",
+      completedAt: new Date(),
+      completionNotes: completionData.completionNotes,
+      evidencePhotos: completionData.evidencePhotos,
+      issuesFound: completionData.issuesFound
+    });
+  }
+
+  async skipRecurringTask(organizationId: string, taskId: number, skipReason: string): Promise<RecurringTask> {
+    return this.updateRecurringTask(organizationId, taskId, {
+      status: "skipped",
+      skipReason,
+      skippedAt: new Date()
+    });
+  }
+
+  // Task Generation
+  async generateRecurringTasks(organizationId: string, targetDate: string): Promise<TaskGenerationLog> {
+    const rules = await this.getTaskSchedulingRules(organizationId);
+    const activeRules = rules.filter(rule => rule.isActive);
+    
+    let tasksGenerated = 0;
+    const generatedTaskIds: number[] = [];
+    
+    for (const rule of activeRules) {
+      // Logic to determine if a task should be generated for this rule on this date
+      const shouldGenerate = this.shouldGenerateTaskForDate(rule, targetDate);
+      
+      if (shouldGenerate) {
+        const newTask = await this.createRecurringTask({
+          organizationId,
+          ruleId: rule.id,
+          propertyId: rule.propertyId,
+          taskTitle: rule.taskTitle,
+          taskDescription: rule.taskDescription,
+          department: rule.department,
+          assignedTo: rule.assignedTo,
+          scheduledDate: targetDate,
+          scheduledTime: rule.recurringSettings?.time || "09:00",
+          priority: rule.priority,
+          estimatedDuration: rule.estimatedDuration,
+          requirements: rule.requirements
+        });
+        
+        tasksGenerated++;
+        generatedTaskIds.push(newTask.id);
+      }
+    }
+    
+    const log: TaskGenerationLog = {
+      id: Date.now(),
+      organizationId,
+      targetDate,
+      rulesProcessed: activeRules.length,
+      tasksGenerated,
+      generatedTaskIds,
+      errors: [],
+      generatedAt: new Date()
+    };
+    
+    return log;
+  }
+
+  private shouldGenerateTaskForDate(rule: TaskSchedulingRule, targetDate: string): boolean {
+    const date = new Date(targetDate);
+    const settings = rule.recurringSettings;
+    
+    switch (rule.frequency) {
+      case "daily":
+        return true;
+      case "weekly":
+        return settings?.dayOfWeek === date.getDay();
+      case "monthly":
+        return settings?.dayOfMonth === date.getDate();
+      case "custom":
+        // Custom logic would go here
+        return false;
+      default:
+        return false;
+    }
+  }
+
+  async getTaskGenerationLogs(organizationId: string, limit: number = 50): Promise<TaskGenerationLog[]> {
+    // Mock data for demo
+    const mockLogs: TaskGenerationLog[] = [
+      {
+        id: 1,
+        organizationId,
+        targetDate: "2025-01-04",
+        rulesProcessed: 3,
+        tasksGenerated: 1,
+        generatedTaskIds: [2],
+        errors: [],
+        generatedAt: new Date('2025-01-04T00:00:00Z')
+      },
+      {
+        id: 2,
+        organizationId,
+        targetDate: "2025-01-05",
+        rulesProcessed: 3,
+        tasksGenerated: 1,
+        generatedTaskIds: [3],
+        errors: [],
+        generatedAt: new Date('2025-01-05T00:00:00Z')
+      }
+    ];
+    
+    return mockLogs.slice(0, limit);
+  }
+
+  // Analytics
+  async getRecurringTaskAnalytics(organizationId: string, propertyId?: number, department?: string, year?: number, month?: number): Promise<RecurringTaskAnalytics[]> {
+    // Mock analytics data
+    const mockAnalytics: RecurringTaskAnalytics[] = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: propertyId || 1,
+        department: department || "Pool",
+        year: year || 2025,
+        month: month || 1,
+        totalTasksScheduled: 4,
+        totalTasksCompleted: 3,
+        totalTasksSkipped: 0,
+        totalTasksOverdue: 1,
+        averageCompletionTime: 115,
+        completionRate: 75,
+        onTimeCompletionRate: 100,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: propertyId || 1,
+        department: department || "Garden",
+        year: year || 2025,
+        month: month || 1,
+        totalTasksScheduled: 31,
+        totalTasksCompleted: 29,
+        totalTasksSkipped: 1,
+        totalTasksOverdue: 1,
+        averageCompletionTime: 42,
+        completionRate: 93.5,
+        onTimeCompletionRate: 96.7,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: propertyId || 1,
+        department: department || "Cleaning",
+        year: year || 2025,
+        month: month || 1,
+        totalTasksScheduled: 1,
+        totalTasksCompleted: 0,
+        totalTasksSkipped: 0,
+        totalTasksOverdue: 0,
+        averageCompletionTime: 0,
+        completionRate: 0,
+        onTimeCompletionRate: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    let filteredAnalytics = mockAnalytics;
+
+    if (propertyId) {
+      filteredAnalytics = filteredAnalytics.filter(a => a.propertyId === propertyId);
+    }
+    if (department) {
+      filteredAnalytics = filteredAnalytics.filter(a => a.department === department);
+    }
+    if (year) {
+      filteredAnalytics = filteredAnalytics.filter(a => a.year === year);
+    }
+    if (month) {
+      filteredAnalytics = filteredAnalytics.filter(a => a.month === month);
+    }
+
+    return filteredAnalytics;
+  }
+
+  async updateRecurringTaskAnalytics(organizationId: string): Promise<void> {
+    // In a real implementation, this would recalculate analytics based on current task data
+    console.log(`Updated recurring task analytics for organization ${organizationId}`);
+  }
+
+  // Alerts
+  async getTaskSchedulingAlerts(organizationId: string, filters?: {
+    severity?: string;
+    status?: string;
+    propertyId?: number;
+  }): Promise<TaskSchedulingAlert[]> {
+    // Mock alerts data
+    const mockAlerts: TaskSchedulingAlert[] = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        alertType: "overdue_task",
+        severity: "medium",
+        title: "Pool Cleaning Overdue",
+        message: "Pool maintenance task scheduled for yesterday has not been completed.",
+        relatedTaskId: 1,
+        status: "active",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        alertType: "rule_failure",
+        severity: "high",
+        title: "Task Generation Failed",
+        message: "Unable to generate tasks for 'Monthly Deep Clean' rule - assigned staff not available.",
+        relatedRuleId: 3,
+        status: "active",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        alertType: "completion_rate_low",
+        severity: "low",
+        title: "Low Completion Rate - Cleaning Department",
+        message: "Cleaning department completion rate has dropped below 85% this month.",
+        department: "Cleaning",
+        status: "acknowledged",
+        acknowledgedBy: "demo-admin",
+        acknowledgedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    let filteredAlerts = mockAlerts;
+
+    if (filters?.severity) {
+      filteredAlerts = filteredAlerts.filter(alert => alert.severity === filters.severity);
+    }
+    if (filters?.status) {
+      filteredAlerts = filteredAlerts.filter(alert => alert.status === filters.status);
+    }
+    if (filters?.propertyId) {
+      filteredAlerts = filteredAlerts.filter(alert => alert.propertyId === filters.propertyId);
+    }
+
+    return filteredAlerts;
+  }
+
+  async createTaskSchedulingAlert(alert: InsertTaskSchedulingAlert): Promise<TaskSchedulingAlert> {
+    const newAlert: TaskSchedulingAlert = {
+      id: Date.now(),
+      ...alert,
+      status: "active",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    return newAlert;
+  }
+
+  async acknowledgeTaskSchedulingAlert(organizationId: string, alertId: number, acknowledgedBy: string): Promise<TaskSchedulingAlert> {
+    const alerts = await this.getTaskSchedulingAlerts(organizationId);
+    const alert = alerts.find(a => a.id === alertId);
+    
+    if (!alert) {
+      throw new Error(`Alert with ID ${alertId} not found`);
+    }
+    
+    return {
+      ...alert,
+      status: "acknowledged",
+      acknowledgedBy,
+      acknowledgedAt: new Date(),
+      updatedAt: new Date()
+    };
   }
 }
 

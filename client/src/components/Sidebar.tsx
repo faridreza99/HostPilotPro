@@ -93,6 +93,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
           { label: "Guest Check-In Tracker", icon: Luggage, href: "/guest-checkin-checkout-tracker", badge: "New" },
           { label: "Maintenance System", icon: Wrench, href: "/maintenance-task-system" },
+          { label: "Auto-Scheduling Rules", icon: Clock, href: "/auto-scheduling-recurring-task-generator", badge: "New" },
           { label: "Utilities & Maintenance", icon: Settings, href: "/maintenance-utilities-renovation-tracker" },
           { label: "Task Attachments", icon: FileText, href: "/task-attachments-notes" },
           { label: "Document Center", icon: FolderOpen, href: "/document-center" },
@@ -140,6 +141,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "My Properties", icon: Building, href: "/properties" },
           { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
           { label: "Tasks Overview", icon: CheckSquare, href: "/tasks" },
+          { label: "Auto-Scheduling Rules", icon: Clock, href: "/auto-scheduling-recurring-task-generator", badge: "New" },
           { label: "Bookings", icon: Calendar, href: "/bookings" },
           { label: "Maintenance", icon: Wrench, href: "/maintenance-task-system" },
           { label: "Document Center", icon: FolderOpen, href: "/document-center" },
@@ -170,6 +172,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         title: "Daily Tasks",
         items: [
           { label: "Task List", icon: CheckSquare, href: "/staff-tasks", badge: "Priority" },
+          { label: "Scheduled Tasks", icon: Clock, href: "/auto-scheduling-recurring-task-generator", badge: "New" },
           { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
           { label: "Guest Check-In Tracker", icon: Luggage, href: "/guest-checkin-checkout-tracker", badge: "New" },
           { label: "Maintenance", icon: Wrench, href: "/maintenance-task-system" },

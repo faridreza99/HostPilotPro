@@ -8985,5 +8985,239 @@ export type InsertUtilityBillAlert = z.infer<typeof insertUtilityBillAlertSchema
 export type PropertyInfoSummary = typeof propertyInfoSummary.$inferSelect;
 export type InsertPropertyInfoSummary = z.infer<typeof insertPropertyInfoSummarySchema>;
 
+// ===== AUTO-SCHEDULING RULES & RECURRING TASK GENERATOR =====
+
+// Auto-scheduling rules for recurring tasks
+export const taskSchedulingRules = pgTable("task_scheduling_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Rule Definition
+  ruleName: varchar("rule_name").notNull(),
+  ruleDescription: text("rule_description"),
+  taskTemplate: varchar("task_template").notNull(), // Template for generated tasks
+  department: varchar("department").notNull(), // Pool, Garden, Housekeeping, Maintenance, etc.
+  priority: varchar("priority").default("normal"), // low, normal, high, urgent
+  
+  // Scheduling Configuration
+  scheduleType: varchar("schedule_type").notNull(), // daily, weekly, monthly, every_x_days, custom_dates
+  scheduleValue: integer("schedule_value"), // For every_x_days (e.g., 3 for every 3 days)
+  weeklyDay: integer("weekly_day"), // 0-6 for Sunday-Saturday
+  monthlyDate: integer("monthly_date"), // 1-31 for monthly tasks
+  customDates: text("custom_dates").array(), // Array of custom dates like ["5", "20"] for 5th and 20th
+  
+  // Assignment Rules
+  assignmentType: varchar("assignment_type").default("auto"), // auto, specific_user
+  assignedUserId: varchar("assigned_user_id").references(() => users.id),
+  
+  // Task Duration & Timing
+  estimatedDuration: integer("estimated_duration"), // Minutes
+  preferredStartTime: varchar("preferred_start_time"), // HH:MM format
+  
+  // Booking-based Rules
+  bookingTrigger: boolean("booking_trigger").default(false),
+  minBookingDays: integer("min_booking_days"), // Minimum booking length to trigger
+  triggerDay: integer("trigger_day"), // Which day of booking to trigger (e.g., day 3)
+  
+  // Rule Status
+  isActive: boolean("is_active").default(true),
+  nextScheduledDate: date("next_scheduled_date"),
+  lastGeneratedDate: date("last_generated_date"),
+  
+  // Created By
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_scheduling_property").on(table.propertyId),
+  index("IDX_scheduling_department").on(table.department),
+  index("IDX_scheduling_next_date").on(table.nextScheduledDate),
+]);
+
+// Generated recurring tasks
+export const recurringTasks = pgTable("recurring_tasks", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  ruleId: integer("rule_id").references(() => taskSchedulingRules.id).notNull(),
+  
+  // Task Details
+  taskTitle: varchar("task_title").notNull(),
+  taskDescription: text("task_description"),
+  department: varchar("department").notNull(),
+  priority: varchar("priority").default("normal"),
+  
+  // Assignment
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  assignedBy: varchar("assigned_by").references(() => users.id),
+  
+  // Scheduling
+  scheduledDate: date("scheduled_date").notNull(),
+  dueDate: date("due_date"),
+  estimatedDuration: integer("estimated_duration"),
+  
+  // Status Tracking
+  status: varchar("status").default("scheduled"), // scheduled, today, in_progress, completed, missed, skipped
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  completionNotes: text("completion_notes"),
+  
+  // Evidence & Proof
+  evidencePhotos: text("evidence_photos").array(),
+  issuesFound: text("issues_found").array(),
+  
+  // Booking Association (if applicable)
+  bookingId: integer("booking_id").references(() => bookings.id),
+  bookingDay: integer("booking_day"), // Which day of the booking this was scheduled for
+  
+  // Skip/Miss Tracking
+  skipReason: text("skip_reason"),
+  missedReason: text("missed_reason"),
+  rescheduledDate: date("rescheduled_date"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_recurring_property").on(table.propertyId),
+  index("IDX_recurring_rule").on(table.ruleId),
+  index("IDX_recurring_assigned").on(table.assignedTo),
+  index("IDX_recurring_scheduled").on(table.scheduledDate),
+  index("IDX_recurring_status").on(table.status),
+]);
+
+// Task generation logs
+export const taskGenerationLogs = pgTable("task_generation_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Generation Details
+  generationDate: date("generation_date").notNull(),
+  rulesProcessed: integer("rules_processed").default(0),
+  tasksGenerated: integer("tasks_generated").default(0),
+  errorsEncountered: integer("errors_encountered").default(0),
+  
+  // Rule Processing Results
+  ruleResults: jsonb("rule_results"), // Detailed results per rule
+  errorDetails: text("error_details").array(),
+  
+  // Performance Metrics
+  processingTimeMs: integer("processing_time_ms"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Recurring task performance analytics
+export const recurringTaskAnalytics = pgTable("recurring_task_analytics", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Analytics Period
+  periodMonth: integer("period_month").notNull(), // 1-12
+  periodYear: integer("period_year").notNull(),
+  department: varchar("department").notNull(),
+  
+  // Performance Metrics
+  totalScheduled: integer("total_scheduled").default(0),
+  totalCompleted: integer("total_completed").default(0),
+  totalMissed: integer("total_missed").default(0),
+  totalSkipped: integer("total_skipped").default(0),
+  completionRate: decimal("completion_rate", { precision: 5, scale: 2 }), // Percentage
+  
+  // Timing Analytics
+  avgCompletionTime: decimal("avg_completion_time", { precision: 10, scale: 2 }), // Minutes
+  avgDelay: decimal("avg_delay", { precision: 10, scale: 2 }), // Days delayed from scheduled
+  
+  // Quality Metrics
+  issuesFoundCount: integer("issues_found_count").default(0),
+  photoEvidenceRate: decimal("photo_evidence_rate", { precision: 5, scale: 2 }),
+  
+  lastUpdated: timestamp("last_updated").defaultNow(),
+}, (table) => [
+  index("IDX_analytics_property_period").on(table.propertyId, table.periodYear, table.periodMonth),
+  index("IDX_analytics_department").on(table.department),
+]);
+
+// Task scheduling alerts
+export const taskSchedulingAlerts = pgTable("task_scheduling_alerts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  
+  // Alert Details
+  alertType: varchar("alert_type").notNull(), // rule_disabled, task_overdue, pattern_missed, ai_suggestion
+  alertTitle: varchar("alert_title").notNull(),
+  alertDescription: text("alert_description"),
+  severity: varchar("severity").default("medium"), // low, medium, high, critical
+  
+  // References
+  ruleId: integer("rule_id").references(() => taskSchedulingRules.id),
+  taskId: integer("task_id").references(() => recurringTasks.id),
+  
+  // Alert Status
+  status: varchar("status").default("active"), // active, acknowledged, resolved, dismissed
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedAt: timestamp("resolved_at"),
+  
+  // AI Suggestions (if applicable)
+  aiSuggestion: text("ai_suggestion"),
+  suggestionConfidence: decimal("suggestion_confidence", { precision: 5, scale: 2 }),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_alerts_property").on(table.propertyId),
+  index("IDX_alerts_status").on(table.status),
+  index("IDX_alerts_severity").on(table.severity),
+]);
+
+// ===== AUTO-SCHEDULING INSERT SCHEMAS =====
+
+export const insertTaskSchedulingRuleSchema = createInsertSchema(taskSchedulingRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRecurringTaskSchema = createInsertSchema(recurringTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTaskGenerationLogSchema = createInsertSchema(taskGenerationLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRecurringTaskAnalyticsSchema = createInsertSchema(recurringTaskAnalytics).omit({
+  id: true,
+  lastUpdated: true,
+});
+
+export const insertTaskSchedulingAlertSchema = createInsertSchema(taskSchedulingAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+// ===== AUTO-SCHEDULING TYPE DEFINITIONS =====
+
+export type TaskSchedulingRule = typeof taskSchedulingRules.$inferSelect;
+export type InsertTaskSchedulingRule = z.infer<typeof insertTaskSchedulingRuleSchema>;
+
+export type RecurringTask = typeof recurringTasks.$inferSelect;
+export type InsertRecurringTask = z.infer<typeof insertRecurringTaskSchema>;
+
+export type TaskGenerationLog = typeof taskGenerationLogs.$inferSelect;
+export type InsertTaskGenerationLog = z.infer<typeof insertTaskGenerationLogSchema>;
+
+export type RecurringTaskAnalytics = typeof recurringTaskAnalytics.$inferSelect;
+export type InsertRecurringTaskAnalytics = z.infer<typeof insertRecurringTaskAnalyticsSchema>;
+
+export type TaskSchedulingAlert = typeof taskSchedulingAlerts.$inferSelect;
+export type InsertTaskSchedulingAlert = z.infer<typeof insertTaskSchedulingAlertSchema>;
+
 
 
