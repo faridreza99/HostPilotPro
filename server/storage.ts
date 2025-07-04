@@ -2769,6 +2769,289 @@ export class DatabaseStorage implements IStorage {
     return session;
   }
 
+  // ===== ENHANCED GUEST DASHBOARD IMPLEMENTATION =====
+
+  // Guest Booking Operations
+  async getCurrentGuestBooking(organizationId: string, guestId: string): Promise<any> {
+    // Mock data for demonstration - would normally query from guestBookings table
+    return {
+      id: 1,
+      guestName: "John & Sarah Smith",
+      guestEmail: "john.smith@email.com",
+      guestPhone: "+1-555-0123",
+      numberOfGuests: 2,
+      checkInDate: "2025-01-03T15:00:00Z",
+      checkOutDate: "2025-01-10T11:00:00Z",
+      bookingStatus: "checked_in",
+      totalAmount: 3500,
+      currency: "THB",
+      depositPaid: 5000,
+      depositStatus: "paid",
+      emergencyContact: "+66-XX-XXX-XXXX (24/7 Property Manager)",
+      specialRequests: "Late check-in requested, vegetarian welcome basket preferred",
+      wifiCode: "Villa2025!",
+      welcomePackInclusions: [
+        "Welcome fruit basket",
+        "Local guidebook",
+        "Complimentary Thai tea set",
+        "Beach towels",
+        "Yoga mats"
+      ],
+      managerContact: "+66-XX-XXX-XXXX",
+      houseRules: "No smoking inside\nQuiet hours: 10 PM - 7 AM\nPool access: 6 AM - 10 PM\nMaximum 2 guests\nNo parties or events",
+      checkInInstructions: "Check-in available after 3:00 PM. Manager will meet you at the property for key handover and orientation.",
+      checkOutInstructions: "Check-out by 11:00 AM. Please leave keys in the key box and notify manager via WhatsApp.",
+      propertyInfo: {
+        amenities: ["Pool", "Kitchen", "WiFi", "Air Conditioning", "Parking"],
+        utilities: "Electricity and water included",
+        location: "5 minutes walk to main beach"
+      },
+      property: {
+        id: 1,
+        name: "Villa Samui Breeze",
+        address: "123 Beach Road, Koh Samui, Thailand",
+        imageUrl: "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+      }
+    };
+  }
+
+  // Property Amenities Operations
+  async getPropertyAmenities(organizationId: string, propertyId: number): Promise<any[]> {
+    // Mock data for demonstration
+    return [
+      {
+        id: 1,
+        amenityName: "High-Speed WiFi",
+        amenityType: "wifi",
+        description: "Fiber optic internet connection throughout the property",
+        instructions: "Connect to 'Villa_WiFi' network and use the provided password",
+        wifiCode: "Villa2025!",
+        isAvailable: true
+      },
+      {
+        id: 2,
+        amenityName: "Private Swimming Pool",
+        amenityType: "pool",
+        description: "Private saltwater pool with pool lighting",
+        instructions: "Pool hours: 6 AM - 10 PM. Please shower before entering.",
+        isAvailable: true
+      },
+      {
+        id: 3,
+        amenityName: "Full Kitchen",
+        amenityType: "kitchen",
+        description: "Fully equipped kitchen with all cooking essentials",
+        instructions: "Dishwasher and washing machine available. Please clean after use.",
+        isAvailable: true
+      },
+      {
+        id: 4,
+        amenityName: "Air Conditioning",
+        amenityType: "ac",
+        description: "Central air conditioning in all rooms",
+        instructions: "Remote controls in each room. Optimal temperature: 24-26°C",
+        isAvailable: true
+      },
+      {
+        id: 5,
+        amenityName: "Private Parking",
+        amenityType: "parking",
+        description: "Covered parking space for one vehicle",
+        instructions: "Parking spot #12 - key provided at check-in",
+        isAvailable: true
+      }
+    ];
+  }
+
+  // AI Recommendations Operations
+  async getAiRecommendations(organizationId: string, propertyId: number): Promise<any[]> {
+    // Mock AI recommendations based on location
+    return [
+      // Restaurants
+      {
+        id: 1,
+        recommendationType: "restaurant",
+        title: "The Cliff Bar & Grill",
+        description: "Oceanfront dining with spectacular sunset views and fresh seafood",
+        location: "Chaweng Beach",
+        distance: "2.3 km away",
+        rating: 4.8,
+        priceRange: "$$$",
+        operatingHours: "11:00 AM - 11:00 PM",
+        website: "https://thecliffsamui.com",
+        phone: "+66-77-xxx-xxx",
+        category: "seafood",
+        aiConfidenceScore: 95.2
+      },
+      {
+        id: 2,
+        recommendationType: "restaurant",
+        title: "Tree Tops Sky Dining",
+        description: "Unique treetop dining experience with authentic Thai cuisine",
+        location: "Koh Samui Highlands",
+        distance: "4.1 km away",
+        rating: 4.6,
+        priceRange: "$$",
+        operatingHours: "6:00 PM - 10:00 PM",
+        category: "thai_food",
+        aiConfidenceScore: 89.7
+      },
+      {
+        id: 3,
+        recommendationType: "restaurant",
+        title: "Barracuda Restaurant",
+        description: "Award-winning fine dining with international cuisine",
+        location: "Bophut",
+        distance: "1.8 km away",
+        rating: 4.9,
+        priceRange: "$$$$",
+        operatingHours: "6:00 PM - 11:00 PM",
+        category: "international",
+        aiConfidenceScore: 93.4
+      },
+      // Attractions
+      {
+        id: 4,
+        recommendationType: "attraction",
+        title: "Big Buddha Temple",
+        description: "Iconic 12-meter golden Buddha statue with panoramic island views",
+        location: "Bang Rak",
+        distance: "8.5 km away",
+        rating: 4.5,
+        operatingHours: "6:00 AM - 7:00 PM",
+        category: "temple",
+        aiConfidenceScore: 87.8
+      },
+      {
+        id: 5,
+        recommendationType: "attraction",
+        title: "Chaweng Beach",
+        description: "Main beach with white sand, clear water, and beach activities",
+        location: "Chaweng",
+        distance: "2.0 km away",
+        rating: 4.4,
+        operatingHours: "24 hours",
+        category: "beach",
+        aiConfidenceScore: 91.2
+      },
+      {
+        id: 6,
+        recommendationType: "attraction",
+        title: "Secret Buddha Garden",
+        description: "Hidden jungle garden with sculptures and waterfalls",
+        location: "Central Samui",
+        distance: "12.3 km away",
+        rating: 4.3,
+        operatingHours: "8:00 AM - 5:00 PM",
+        category: "nature",
+        aiConfidenceScore: 85.6
+      },
+      // Tours
+      {
+        id: 7,
+        recommendationType: "tour",
+        title: "Full Day Island Hopping Tour",
+        description: "Visit Ang Thong Marine Park with snorkeling and kayaking",
+        location: "Nathon Pier",
+        distance: "15.2 km away",
+        priceRange: "$$",
+        operatingHours: "8:00 AM - 5:00 PM",
+        category: "tour_company",
+        aiConfidenceScore: 88.9
+      },
+      {
+        id: 8,
+        recommendationType: "tour",
+        title: "Elephant Sanctuary Experience",
+        description: "Ethical elephant interaction and feeding experience",
+        location: "Hua Thanon",
+        distance: "18.7 km away",
+        priceRange: "$$$",
+        operatingHours: "9:00 AM - 4:00 PM",
+        category: "wildlife",
+        aiConfidenceScore: 92.1
+      },
+      // Weather
+      {
+        id: 9,
+        recommendationType: "weather",
+        title: "Weekly Weather Forecast",
+        description: "Sunny skies with occasional afternoon showers",
+        weatherData: {
+          current: { temp: 32, condition: "sunny", humidity: 65 },
+          forecast: [
+            { date: "2025-01-04", temp: 31, condition: "partly_cloudy" },
+            { date: "2025-01-05", temp: 29, condition: "light_rain" },
+            { date: "2025-01-06", temp: 33, condition: "sunny" }
+          ]
+        },
+        aiConfidenceScore: 78.5
+      }
+    ];
+  }
+
+  // Service Timeline Operations
+  async getGuestServiceTimeline(organizationId: string, propertyId: number): Promise<any[]> {
+    // Mock service timeline
+    return [
+      {
+        id: 1,
+        serviceType: "cleaning",
+        serviceName: "Deep Cleaning Service",
+        scheduledDate: "2025-01-05T10:00:00Z",
+        estimatedTime: "2-3 hours",
+        serviceProvider: "Crystal Clean Co.",
+        status: "scheduled",
+        notes: "Full villa cleaning including pool area",
+        guestVisible: true
+      },
+      {
+        id: 2,
+        serviceType: "pool",
+        serviceName: "Pool Maintenance",
+        scheduledDate: "2025-01-04T14:00:00Z",
+        estimatedTime: "1 hour",
+        serviceProvider: "Aqua Tech Services",
+        status: "scheduled",
+        notes: "Water testing and chemical balancing",
+        guestVisible: true
+      },
+      {
+        id: 3,
+        serviceType: "garden",
+        serviceName: "Garden Maintenance",
+        scheduledDate: "2025-01-06T08:00:00Z",
+        estimatedTime: "1.5 hours",
+        serviceProvider: "Green Thumb Landscaping",
+        status: "scheduled",
+        notes: "Lawn mowing and plant trimming",
+        guestVisible: true
+      },
+      {
+        id: 4,
+        serviceType: "pest_control",
+        serviceName: "Monthly Pest Control",
+        scheduledDate: "2025-01-08T16:00:00Z",
+        estimatedTime: "45 minutes",
+        serviceProvider: "Safe Guard Pest Control",
+        status: "scheduled",
+        notes: "Routine pest prevention treatment",
+        guestVisible: true
+      },
+      {
+        id: 5,
+        serviceType: "maintenance",
+        serviceName: "AC System Check",
+        scheduledDate: "2025-01-07T11:00:00Z",
+        estimatedTime: "30 minutes",
+        serviceProvider: "Cool Air Services",
+        status: "scheduled",
+        notes: "Routine maintenance and filter replacement",
+        guestVisible: true
+      }
+    ];
+  }
+
   // ===== OWNER ONBOARDING SYSTEM IMPLEMENTATION =====
 
   // Owner onboarding process operations

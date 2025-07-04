@@ -93,6 +93,7 @@ import MaintenanceLogWarrantyTracker from "@/pages/MaintenanceLogWarrantyTracker
 import SmartInventoryDashboard from "@/pages/SmartInventoryDashboard";
 import ServiceMarketplaceDashboard from "@/pages/ServiceMarketplaceDashboard";
 import OwnerOnboardingSystem from "@/pages/OwnerOnboardingSystem";
+import EnhancedGuestDashboard from "@/pages/EnhancedGuestDashboard";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -125,7 +126,7 @@ function Router() {
       case 'referral-agent':
         return ReferralAgentDashboard;
       case 'guest':
-        return GuestAddonServices;
+        return EnhancedGuestDashboard;
       default:
         return Dashboard;
     }
@@ -137,6 +138,7 @@ function Router() {
       <Switch>
         <Route path="/guest-portal" component={GuestPortal} />
         <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
+        <Route path="/enhanced-guest-dashboard" component={EnhancedGuestDashboard} />
         <Route path="/" component={Landing} />
         <Route component={NotFound} />
       </Switch>
@@ -198,6 +200,7 @@ function Router() {
         <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
         <Route path="/guest-portal-ai-feedback" component={GuestPortalAiFeedbackDashboard} />
         <Route path="/guest-addon-services" component={GuestAddonServices} />
+        <Route path="/enhanced-guest-dashboard" component={EnhancedGuestDashboard} />
         <Route path="/recurring-services" component={RecurringServicesBilling} />
         <Route path="/referral-agent" component={ReferralAgentDashboard} />
         <Route path="/retail-booking" component={RetailAgentBooking} />

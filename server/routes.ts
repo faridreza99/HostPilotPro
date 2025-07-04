@@ -2441,6 +2441,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ENHANCED GUEST DASHBOARD API ENDPOINTS =====
+
+  // Guest Dashboard - Current Booking
+  app.get("/api/guest-dashboard/current-booking", async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const guestId = "guest-1"; // In real implementation, get from session or JWT
+      
+      const booking = await storage.getCurrentGuestBooking(organizationId, guestId);
+      res.json(booking);
+    } catch (error) {
+      console.error("Error fetching current booking:", error);
+      res.status(500).json({ message: "Failed to fetch current booking" });
+    }
+  });
+
+  // Guest Dashboard - Property Amenities
+  app.get("/api/guest-dashboard/property-amenities/:propertyId", async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const propertyId = parseInt(req.params.propertyId);
+      
+      const amenities = await storage.getPropertyAmenities(organizationId, propertyId);
+      res.json(amenities);
+    } catch (error) {
+      console.error("Error fetching property amenities:", error);
+      res.status(500).json({ message: "Failed to fetch property amenities" });
+    }
+  });
+
+  // Guest Dashboard - AI Recommendations
+  app.get("/api/guest-dashboard/ai-recommendations/:propertyId", async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const propertyId = parseInt(req.params.propertyId);
+      
+      const recommendations = await storage.getAiRecommendations(organizationId, propertyId);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching AI recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch AI recommendations" });
+    }
+  });
+
+  // Guest Dashboard - Service Timeline
+  app.get("/api/guest-dashboard/service-timeline/:propertyId", async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const propertyId = parseInt(req.params.propertyId);
+      
+      const timeline = await storage.getGuestServiceTimeline(organizationId, propertyId);
+      res.json(timeline);
+    } catch (error) {
+      console.error("Error fetching service timeline:", error);
+      res.status(500).json({ message: "Failed to fetch service timeline" });
+    }
+  });
+
   // Get property internal notes
   app.get("/api/property-internal-notes", async (req: any, res) => {
     try {

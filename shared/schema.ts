@@ -787,6 +787,117 @@ export const notificationPreferencesRelations = relations(notificationPreference
   user: one(users, { fields: [notificationPreferences.userId], references: [users.id] }),
 }));
 
+// Enhanced Guest Dashboard Tables
+
+// Guest Bookings with check-in/out details
+export const guestBookings = pgTable("guest_bookings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  guestName: varchar("guest_name").notNull(),
+  guestEmail: varchar("guest_email").notNull(),
+  guestPhone: varchar("guest_phone"),
+  numberOfGuests: integer("number_of_guests").notNull(),
+  checkInDate: timestamp("check_in_date").notNull(),
+  checkOutDate: timestamp("check_out_date").notNull(),
+  bookingStatus: varchar("booking_status").default("confirmed"), // confirmed, checked_in, checked_out, cancelled
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  depositPaid: decimal("deposit_paid", { precision: 10, scale: 2 }),
+  depositStatus: varchar("deposit_status").default("pending"), // pending, paid, refunded
+  emergencyContact: varchar("emergency_contact"),
+  specialRequests: text("special_requests"),
+  wifiCode: varchar("wifi_code"),
+  welcomePackInclusions: jsonb("welcome_pack_inclusions"),
+  managerContact: varchar("manager_contact"),
+  houseRules: text("house_rules"),
+  checkInInstructions: text("check_in_instructions"),
+  checkOutInstructions: text("check_out_instructions"),
+  propertyInfo: jsonb("property_info"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI Recommendations for guests
+export const guestAiRecommendations = pgTable("guest_ai_recommendations", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  guestBookingId: integer("guest_booking_id").references(() => guestBookings.id),
+  recommendationType: varchar("recommendation_type").notNull(), // restaurant, attraction, tour, weather, service
+  title: varchar("title").notNull(),
+  description: text("description"),
+  location: varchar("location"),
+  distance: varchar("distance"), // e.g., "2.5 km away"
+  rating: decimal("rating", { precision: 3, scale: 1 }), // 4.5/5.0
+  priceRange: varchar("price_range"), // $, $$, $$$, $$$$
+  operatingHours: varchar("operating_hours"),
+  website: varchar("website"),
+  phone: varchar("phone"),
+  imageUrl: varchar("image_url"),
+  category: varchar("category"), // thai_food, seafood, beach, temple, tour_company
+  aiConfidenceScore: decimal("ai_confidence_score", { precision: 5, scale: 2 }),
+  weatherData: jsonb("weather_data"), // for weather recommendations
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Guest Service Timeline
+export const guestServiceTimeline = pgTable("guest_service_timeline", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  guestBookingId: integer("guest_booking_id").references(() => guestBookings.id),
+  serviceType: varchar("service_type").notNull(), // cleaning, pool, garden, pest_control, maintenance
+  serviceName: varchar("service_name").notNull(),
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  estimatedTime: varchar("estimated_time"), // "2-3 hours"
+  serviceProvider: varchar("service_provider"),
+  status: varchar("status").default("scheduled"), // scheduled, in_progress, completed, cancelled
+  notes: text("notes"),
+  guestVisible: boolean("guest_visible").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property amenities and features for guest display
+export const propertyAmenities = pgTable("property_amenities", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  amenityName: varchar("amenity_name").notNull(),
+  amenityType: varchar("amenity_type").notNull(), // wifi, pool, kitchen, parking, ac, etc.
+  description: text("description"),
+  isAvailable: boolean("is_available").default(true),
+  instructions: text("instructions"), // how to use
+  wifiCode: varchar("wifi_code"),
+  emergencyInfo: text("emergency_info"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Relations for guest booking system
+export const guestBookingsRelations = relations(guestBookings, ({ one, many }) => ({
+  property: one(properties, { fields: [guestBookings.propertyId], references: [properties.id] }),
+  aiRecommendations: many(guestAiRecommendations),
+  serviceTimeline: many(guestServiceTimeline),
+}));
+
+export const guestAiRecommendationsRelations = relations(guestAiRecommendations, ({ one }) => ({
+  property: one(properties, { fields: [guestAiRecommendations.propertyId], references: [properties.id] }),
+  guestBooking: one(guestBookings, { fields: [guestAiRecommendations.guestBookingId], references: [guestBookings.id] }),
+}));
+
+export const guestServiceTimelineRelations = relations(guestServiceTimeline, ({ one }) => ({
+  property: one(properties, { fields: [guestServiceTimeline.propertyId], references: [properties.id] }),
+  guestBooking: one(guestBookings, { fields: [guestServiceTimeline.guestBookingId], references: [guestBookings.id] }),
+}));
+
+export const propertyAmenitiesRelations = relations(propertyAmenities, ({ one }) => ({
+  property: one(properties, { fields: [propertyAmenities.propertyId], references: [properties.id] }),
+}));
+
 // Financial & Invoice Toolkit Tables
 
 // Balance reset audit log for tracking admin actions
@@ -7536,6 +7647,46 @@ export type InsertServiceReview = z.infer<typeof insertServiceReviewSchema>;
 
 export type ServiceAnalytics = typeof serviceAnalytics.$inferSelect;
 export type InsertServiceAnalytics = z.infer<typeof insertServiceAnalyticsSchema>;
+
+// ===== ENHANCED GUEST DASHBOARD TYPES =====
+
+// Guest Bookings Zod schemas
+export const insertGuestBookingSchema = createInsertSchema(guestBookings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGuestAiRecommendationSchema = createInsertSchema(guestAiRecommendations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGuestServiceTimelineSchema = createInsertSchema(guestServiceTimeline).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyAmenitySchema = createInsertSchema(propertyAmenities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type definitions
+export type GuestBooking = typeof guestBookings.$inferSelect;
+export type InsertGuestBooking = z.infer<typeof insertGuestBookingSchema>;
+
+export type GuestAiRecommendation = typeof guestAiRecommendations.$inferSelect;
+export type InsertGuestAiRecommendation = z.infer<typeof insertGuestAiRecommendationSchema>;
+
+export type GuestServiceTimeline = typeof guestServiceTimeline.$inferSelect;
+export type InsertGuestServiceTimeline = z.infer<typeof insertGuestServiceTimelineSchema>;
+
+export type PropertyAmenity = typeof propertyAmenities.$inferSelect;
+export type InsertPropertyAmenity = z.infer<typeof insertPropertyAmenitySchema>;
 
 // ===== PLATFORM ROUTING TYPES =====
 
