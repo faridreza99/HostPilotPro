@@ -55,6 +55,7 @@ import GuestPortalMessaging from "@/pages/GuestPortalMessaging";
 import FinanceEngine from "@/pages/FinanceEngine";
 import MaintenanceTaskSystem from "@/pages/MaintenanceTaskSystem";
 import MaintenanceUtilitiesRenovationTracker from "@/pages/MaintenanceUtilitiesRenovationTracker";
+import MaintenanceServiceTracking from "@/pages/MaintenanceServiceTracking";
 import TaskAttachmentsNotes from "@/pages/TaskAttachmentsNotes";
 import TaskChecklistProofSystem from "@/pages/TaskChecklistProofSystem";
 import TaskCompletionPhotoProof from "@/pages/TaskCompletionPhotoProof";
@@ -173,6 +174,7 @@ function Router() {
         <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
         <Route path="/maintenance-task-system" component={MaintenanceTaskSystem} />
         <Route path="/maintenance-utilities-renovation-tracker" component={MaintenanceUtilitiesRenovationTracker} />
+        <Route path="/maintenance-service-tracking" component={MaintenanceServiceTracking} />
         <Route path="/guest-checkin-checkout-tracker" component={GuestCheckInCheckOutTracker} />
         <Route path="/auto-scheduling-recurring-task-generator" component={AutoSchedulingRecurringTaskGenerator} />
         <Route path="/maintenance-log-warranty-tracker" component={MaintenanceLogWarrantyTracker} />

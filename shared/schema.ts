@@ -10652,3 +10652,396 @@ export type InsertOwnerDocument = z.infer<typeof insertOwnerDocumentSchema>;
 
 export type OnboardingStepDetail = typeof onboardingStepDetails.$inferSelect;
 export type InsertOnboardingStepDetail = z.infer<typeof insertOnboardingStepDetailSchema>;
+
+// ===== MAINTENANCE & SERVICE TRACKING MODULE =====
+
+// Main maintenance logs with comprehensive tracking
+export const maintenanceServiceLogs = pgTable("maintenance_service_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  issueTitle: varchar("issue_title").notNull(),
+  issueDescription: text("issue_description").notNull(),
+  issueType: varchar("issue_type").notNull(), // maintenance, repair, inspection, cleaning, emergency
+  category: varchar("category").notNull(), // plumbing, electrical, hvac, appliances, structural, cleaning, pool, garden
+  priority: varchar("priority").default("medium"), // low, medium, high, urgent
+  
+  assignedStaffId: varchar("assigned_staff_id").references(() => users.id),
+  assignedStaffName: varchar("assigned_staff_name"),
+  reportedBy: varchar("reported_by").references(() => users.id),
+  reportedByName: varchar("reported_by_name"),
+  
+  status: varchar("status").default("open"), // open, in_progress, awaiting_parts, completed, cancelled
+  workStartedAt: timestamp("work_started_at"),
+  workCompletedAt: timestamp("work_completed_at"),
+  
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  
+  attachmentUrls: text("attachment_urls").array(), // photos, invoices, receipts
+  warrantyInfo: text("warranty_info"),
+  vendorUsed: varchar("vendor_used"),
+  vendorContact: varchar("vendor_contact"),
+  
+  notes: text("notes"),
+  completionNotes: text("completion_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_maintenance_logs_org").on(table.organizationId),
+  index("IDX_maintenance_logs_property").on(table.propertyId),
+  index("IDX_maintenance_logs_status").on(table.status),
+  index("IDX_maintenance_logs_assigned").on(table.assignedStaffId),
+  index("IDX_maintenance_logs_priority").on(table.priority),
+]);
+
+// Warranty tracking for devices and repairs
+export const warrantyTracker = pgTable("warranty_tracker", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  maintenanceLogId: integer("maintenance_log_id").references(() => maintenanceServiceLogs.id),
+  
+  itemName: varchar("item_name").notNull(), // "Air Conditioner - Master Bedroom", "Pool Pump"
+  itemType: varchar("item_type").notNull(), // appliance, equipment, structural, systems
+  manufacturer: varchar("manufacturer"),
+  model: varchar("model"),
+  serialNumber: varchar("serial_number"),
+  
+  warrantyType: varchar("warranty_type").notNull(), // manufacturer, extended, service_contract
+  warrantyProvider: varchar("warranty_provider").notNull(),
+  warrantyPeriod: varchar("warranty_period"), // "2 years", "36 months"
+  warrantyStartDate: date("warranty_start_date").notNull(),
+  warrantyEndDate: date("warranty_end_date").notNull(),
+  
+  status: varchar("status").default("active"), // active, expired, claimed, void
+  coverageDetails: text("coverage_details"),
+  claimHistory: text("claim_history").array(),
+  
+  documentUrls: text("document_urls").array(), // warranty docs, purchase receipts
+  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }),
+  purchaseDate: date("purchase_date"),
+  
+  alertDaysBefore: integer("alert_days_before").default(30), // alert 30 days before expiry
+  lastAlertSent: timestamp("last_alert_sent"),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_warranty_org").on(table.organizationId),
+  index("IDX_warranty_property").on(table.propertyId),
+  index("IDX_warranty_status").on(table.status),
+  index("IDX_warranty_expiry").on(table.warrantyEndDate),
+]);
+
+// Predictive maintenance scheduling
+export const predictiveMaintenanceSchedules = pgTable("predictive_maintenance_schedules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  serviceType: varchar("service_type").notNull(), // ac_cleaning, pool_maintenance, garden_care, deep_cleaning
+  serviceName: varchar("service_name").notNull(),
+  serviceCategory: varchar("service_category").notNull(), // hvac, pool, garden, cleaning, inspection
+  
+  recurrenceType: varchar("recurrence_type").notNull(), // weekly, monthly, quarterly, semi_annual, annual, custom
+  recurrenceValue: integer("recurrence_value").notNull(), // number of weeks/months
+  
+  lastServiceDate: date("last_service_date"),
+  nextScheduledDate: date("next_scheduled_date").notNull(),
+  
+  isActive: boolean("is_active").default(true),
+  isOverdue: boolean("is_overdue").default(false),
+  overdueByDays: integer("overdue_by_days").default(0),
+  
+  preferredVendor: varchar("preferred_vendor"),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  estimatedDuration: varchar("estimated_duration"), // "2 hours", "half day"
+  
+  autoGenerateTask: boolean("auto_generate_task").default(true),
+  notificationDaysBefore: integer("notification_days_before").default(7),
+  lastNotificationSent: timestamp("last_notification_sent"),
+  
+  notes: text("notes"),
+  serviceInstructions: text("service_instructions"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_predictive_org").on(table.organizationId),
+  index("IDX_predictive_property").on(table.propertyId),
+  index("IDX_predictive_next_date").on(table.nextScheduledDate),
+  index("IDX_predictive_overdue").on(table.isOverdue),
+]);
+
+// AI recommendations for maintenance
+export const aiMaintenanceRecommendations = pgTable("ai_maintenance_recommendations", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  recommendationType: varchar("recommendation_type").notNull(), // preventive, predictive, urgent, seasonal
+  serviceType: varchar("service_type").notNull(),
+  serviceName: varchar("service_name").notNull(),
+  category: varchar("category").notNull(),
+  
+  aiConfidence: decimal("ai_confidence", { precision: 5, scale: 2 }).notNull(), // 0.00 to 1.00
+  basedOnPattern: text("based_on_pattern"), // explanation of AI reasoning
+  triggerSource: varchar("trigger_source"), // historical_data, guest_feedback, seasonal, equipment_age
+  
+  suggestedDate: date("suggested_date"),
+  priority: varchar("priority").default("medium"), // low, medium, high, urgent
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  
+  status: varchar("status").default("pending"), // pending, approved, rejected, converted_to_task
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  
+  convertedToTaskId: integer("converted_to_task_id").references(() => maintenanceServiceLogs.id),
+  convertedAt: timestamp("converted_at"),
+  
+  aiExplanation: text("ai_explanation"),
+  supportingData: jsonb("supporting_data"), // historical patterns, frequencies, etc.
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_ai_recommendations_org").on(table.organizationId),
+  index("IDX_ai_recommendations_property").on(table.propertyId),
+  index("IDX_ai_recommendations_status").on(table.status),
+  index("IDX_ai_recommendations_confidence").on(table.aiConfidence),
+]);
+
+// Visual timeline events for Gantt-style display
+export const maintenanceTimelineEvents = pgTable("maintenance_timeline_events", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  maintenanceLogId: integer("maintenance_log_id").references(() => maintenanceServiceLogs.id),
+  predictiveScheduleId: integer("predictive_schedule_id").references(() => predictiveMaintenanceSchedules.id),
+  
+  eventType: varchar("event_type").notNull(), // completed_maintenance, scheduled_maintenance, predicted_maintenance, warranty_expiry
+  eventTitle: varchar("event_title").notNull(),
+  eventDescription: text("event_description"),
+  
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  estimatedDuration: varchar("estimated_duration"),
+  
+  status: varchar("status").notNull(), // completed, in_progress, scheduled, overdue, cancelled
+  category: varchar("category").notNull(),
+  priority: varchar("priority").default("medium"),
+  
+  cost: decimal("cost", { precision: 10, scale: 2 }),
+  assignedStaff: varchar("assigned_staff"),
+  
+  metadata: jsonb("metadata"), // additional event data for visualization
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_timeline_events_org").on(table.organizationId),
+  index("IDX_timeline_events_property").on(table.propertyId),
+  index("IDX_timeline_events_dates").on(table.startDate, table.endDate),
+  index("IDX_timeline_events_status").on(table.status),
+]);
+
+// Maintenance analytics and reporting
+export const maintenanceAnalytics = pgTable("maintenance_analytics", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  
+  analyticsType: varchar("analytics_type").notNull(), // monthly_summary, category_breakdown, cost_analysis, predictive_accuracy
+  period: varchar("period").notNull(), // YYYY-MM format
+  
+  totalMaintenanceJobs: integer("total_maintenance_jobs").default(0),
+  completedJobs: integer("completed_jobs").default(0),
+  overdueJobs: integer("overdue_jobs").default(0),
+  emergencyJobs: integer("emergency_jobs").default(0),
+  
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).default("0.00"),
+  averageCostPerJob: decimal("average_cost_per_job", { precision: 10, scale: 2 }).default("0.00"),
+  budgetVariance: decimal("budget_variance", { precision: 10, scale: 2 }).default("0.00"),
+  
+  categoryBreakdown: jsonb("category_breakdown"), // costs and counts by category
+  vendorPerformance: jsonb("vendor_performance"), // vendor ratings and costs
+  
+  predictiveAccuracy: decimal("predictive_accuracy", { precision: 5, scale: 2 }), // AI prediction accuracy
+  aiRecommendationsAccepted: integer("ai_recommendations_accepted").default(0),
+  aiRecommendationsTotal: integer("ai_recommendations_total").default(0),
+  
+  averageJobDuration: decimal("average_job_duration", { precision: 5, scale: 2 }), // in days
+  staffUtilization: jsonb("staff_utilization"), // staff workload data
+  
+  generatedAt: timestamp("generated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_maintenance_analytics_org").on(table.organizationId),
+  index("IDX_maintenance_analytics_property").on(table.propertyId),
+  index("IDX_maintenance_analytics_period").on(table.period),
+  index("IDX_maintenance_analytics_type").on(table.analyticsType),
+]);
+
+// ===== MAINTENANCE MODULE RELATIONS =====
+
+export const maintenanceServiceLogsRelations = relations(maintenanceServiceLogs, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [maintenanceServiceLogs.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [maintenanceServiceLogs.propertyId],
+    references: [properties.id],
+  }),
+  assignedStaff: one(users, {
+    fields: [maintenanceServiceLogs.assignedStaffId],
+    references: [users.id],
+  }),
+  reportedByUser: one(users, {
+    fields: [maintenanceServiceLogs.reportedBy],
+    references: [users.id],
+  }),
+  warranties: many(warrantyTracker),
+  timelineEvents: many(maintenanceTimelineEvents),
+}));
+
+export const warrantyTrackerRelations = relations(warrantyTracker, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [warrantyTracker.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [warrantyTracker.propertyId],
+    references: [properties.id],
+  }),
+  maintenanceLog: one(maintenanceServiceLogs, {
+    fields: [warrantyTracker.maintenanceLogId],
+    references: [maintenanceServiceLogs.id],
+  }),
+}));
+
+export const predictiveMaintenanceSchedulesRelations = relations(predictiveMaintenanceSchedules, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [predictiveMaintenanceSchedules.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [predictiveMaintenanceSchedules.propertyId],
+    references: [properties.id],
+  }),
+  timelineEvents: many(maintenanceTimelineEvents),
+}));
+
+export const aiMaintenanceRecommendationsRelations = relations(aiMaintenanceRecommendations, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [aiMaintenanceRecommendations.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [aiMaintenanceRecommendations.propertyId],
+    references: [properties.id],
+  }),
+  reviewedByUser: one(users, {
+    fields: [aiMaintenanceRecommendations.reviewedBy],
+    references: [users.id],
+  }),
+  convertedTask: one(maintenanceServiceLogs, {
+    fields: [aiMaintenanceRecommendations.convertedToTaskId],
+    references: [maintenanceServiceLogs.id],
+  }),
+}));
+
+export const maintenanceTimelineEventsRelations = relations(maintenanceTimelineEvents, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [maintenanceTimelineEvents.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [maintenanceTimelineEvents.propertyId],
+    references: [properties.id],
+  }),
+  maintenanceLog: one(maintenanceServiceLogs, {
+    fields: [maintenanceTimelineEvents.maintenanceLogId],
+    references: [maintenanceServiceLogs.id],
+  }),
+  predictiveSchedule: one(predictiveMaintenanceSchedules, {
+    fields: [maintenanceTimelineEvents.predictiveScheduleId],
+    references: [predictiveMaintenanceSchedules.id],
+  }),
+}));
+
+export const maintenanceAnalyticsRelations = relations(maintenanceAnalytics, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [maintenanceAnalytics.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [maintenanceAnalytics.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+// ===== MAINTENANCE MODULE ZOD SCHEMAS =====
+
+export const insertMaintenanceServiceLogSchema = createInsertSchema(maintenanceServiceLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWarrantyTrackerSchema = createInsertSchema(warrantyTracker).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPredictiveMaintenanceScheduleSchema = createInsertSchema(predictiveMaintenanceSchedules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAiMaintenanceRecommendationSchema = createInsertSchema(aiMaintenanceRecommendations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMaintenanceTimelineEventSchema = createInsertSchema(maintenanceTimelineEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMaintenanceAnalyticsSchema = createInsertSchema(maintenanceAnalytics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== MAINTENANCE MODULE TYPE DEFINITIONS =====
+
+export type MaintenanceServiceLog = typeof maintenanceServiceLogs.$inferSelect;
+export type InsertMaintenanceServiceLog = z.infer<typeof insertMaintenanceServiceLogSchema>;
+
+export type WarrantyTracker = typeof warrantyTracker.$inferSelect;
+export type InsertWarrantyTracker = z.infer<typeof insertWarrantyTrackerSchema>;
+
+export type PredictiveMaintenanceSchedule = typeof predictiveMaintenanceSchedules.$inferSelect;
+export type InsertPredictiveMaintenanceSchedule = z.infer<typeof insertPredictiveMaintenanceScheduleSchema>;
+
+export type AiMaintenanceRecommendation = typeof aiMaintenanceRecommendations.$inferSelect;
+export type InsertAiMaintenanceRecommendation = z.infer<typeof insertAiMaintenanceRecommendationSchema>;
+
+export type MaintenanceTimelineEvent = typeof maintenanceTimelineEvents.$inferSelect;
+export type InsertMaintenanceTimelineEvent = z.infer<typeof insertMaintenanceTimelineEventSchema>;
+
+export type MaintenanceAnalytics = typeof maintenanceAnalytics.$inferSelect;
+export type InsertMaintenanceAnalytics = z.infer<typeof insertMaintenanceAnalyticsSchema>;

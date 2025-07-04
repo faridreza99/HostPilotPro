@@ -20702,6 +20702,269 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== MAINTENANCE & SERVICE TRACKING API ENDPOINTS =====
+
+  // Maintenance service logs routes
+  app.get("/api/maintenance/logs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+      const { propertyId, assignedStaffId, status, priority, category, fromDate, toDate } = req.query;
+
+      let filters: any = {};
+      
+      // Role-based access control
+      if (role === 'staff') {
+        filters.assignedStaffId = userId; // Staff can only see their assigned tasks
+      } else if (role === 'owner') {
+        // Owners can only see logs for their properties
+        const ownedProperties = await storage.getPropertiesByOwner(userId);
+        const propertyIds = ownedProperties.map((p: any) => p.id);
+        if (propertyId && propertyIds.includes(parseInt(propertyId as string))) {
+          filters.propertyId = parseInt(propertyId as string);
+        } else if (!propertyId) {
+          filters.propertyId = propertyIds[0]; // Default to first property
+        } else {
+          return res.status(403).json({ message: "Access denied to this property" });
+        }
+      } else if (['admin', 'portfolio-manager'].includes(role)) {
+        // Admin and PM can see all logs, optionally filtered
+        if (propertyId) filters.propertyId = parseInt(propertyId as string);
+        if (assignedStaffId) filters.assignedStaffId = assignedStaffId as string;
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (status) filters.status = status as string;
+      if (priority) filters.priority = priority as string;
+      if (category) filters.category = category as string;
+      if (fromDate) filters.fromDate = new Date(fromDate as string);
+      if (toDate) filters.toDate = new Date(toDate as string);
+
+      const logs = await storage.getMaintenanceServiceLogs(organizationId, filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching maintenance logs:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance logs" });
+    }
+  });
+
+  app.post("/api/maintenance/logs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId, firstName, lastName } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const logData = {
+        ...req.body,
+        organizationId,
+        reportedBy: userId,
+        reportedByName: `${firstName || ''} ${lastName || ''}`.trim(),
+        status: 'open'
+      };
+
+      // Owners can only create logs for their properties
+      if (role === 'owner') {
+        const ownedProperties = await storage.getPropertiesByOwner(userId);
+        const propertyIds = ownedProperties.map((p: any) => p.id);
+        if (!propertyIds.includes(logData.propertyId)) {
+          return res.status(403).json({ message: "Access denied to this property" });
+        }
+      }
+
+      const log = await storage.createMaintenanceServiceLog(logData);
+      res.status(201).json(log);
+    } catch (error) {
+      console.error("Error creating maintenance log:", error);
+      res.status(500).json({ message: "Failed to create maintenance log" });
+    }
+  });
+
+  app.post("/api/maintenance/logs/:id/complete", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role, id: userId, firstName, lastName } = req.user;
+      const logId = parseInt(req.params.id);
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const existingLog = await storage.getMaintenanceServiceLog(logId);
+      if (!existingLog) {
+        return res.status(404).json({ message: "Maintenance log not found" });
+      }
+
+      // Staff can only complete their assigned tasks
+      if (role === 'staff' && existingLog.assignedStaffId !== userId) {
+        return res.status(403).json({ message: "Access denied to this maintenance log" });
+      }
+
+      const completionData = {
+        ...req.body,
+        completedBy: `${firstName || ''} ${lastName || ''}`.trim()
+      };
+
+      const log = await storage.completeMaintenanceServiceLog(logId, completionData);
+      res.json(log);
+    } catch (error) {
+      console.error("Error completing maintenance log:", error);
+      res.status(500).json({ message: "Failed to complete maintenance log" });
+    }
+  });
+
+  // Warranty tracker routes
+  app.get("/api/maintenance/warranties", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+      const { propertyId, status, expiringWithinDays } = req.query;
+
+      let filters: any = {};
+
+      // Role-based access control
+      if (role === 'owner') {
+        const ownedProperties = await storage.getPropertiesByOwner(userId);
+        const propertyIds = ownedProperties.map((p: any) => p.id);
+        if (propertyId && propertyIds.includes(parseInt(propertyId as string))) {
+          filters.propertyId = parseInt(propertyId as string);
+        } else if (!propertyId) {
+          filters.propertyId = propertyIds[0]; // Default to first property
+        } else {
+          return res.status(403).json({ message: "Access denied to this property" });
+        }
+      } else if (['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (status) filters.status = status as string;
+      if (expiringWithinDays) filters.expiringWithinDays = parseInt(expiringWithinDays as string);
+
+      const warranties = await storage.getWarrantyTrackers(organizationId, filters);
+      res.json(warranties);
+    } catch (error) {
+      console.error("Error fetching warranties:", error);
+      res.status(500).json({ message: "Failed to fetch warranties" });
+    }
+  });
+
+  // AI maintenance recommendations routes
+  app.get("/api/maintenance/ai-recommendations", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+      const { propertyId, status, priority, minConfidence } = req.query;
+
+      let filters: any = {};
+
+      // Role-based access control
+      if (role === 'owner') {
+        const ownedProperties = await storage.getPropertiesByOwner(userId);
+        const propertyIds = ownedProperties.map((p: any) => p.id);
+        if (propertyId && propertyIds.includes(parseInt(propertyId as string))) {
+          filters.propertyId = parseInt(propertyId as string);
+        } else if (!propertyId) {
+          filters.propertyId = propertyIds[0]; // Default to first property
+        } else {
+          return res.status(403).json({ message: "Access denied to this property" });
+        }
+      } else if (['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (status) filters.status = status as string;
+      if (priority) filters.priority = priority as string;
+      if (minConfidence) filters.minConfidence = parseFloat(minConfidence as string);
+
+      const recommendations = await storage.getAiMaintenanceRecommendations(organizationId, filters);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching AI recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch AI recommendations" });
+    }
+  });
+
+  app.post("/api/maintenance/ai-recommendations/:id/approve", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role, id: userId, firstName, lastName } = req.user;
+      const recommendationId = parseInt(req.params.id);
+      const { reviewNotes } = req.body;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const reviewedBy = `${firstName || ''} ${lastName || ''}`.trim();
+      const recommendation = await storage.approveAiRecommendation(recommendationId, reviewedBy, reviewNotes);
+      
+      if (!recommendation) {
+        return res.status(404).json({ message: "AI recommendation not found" });
+      }
+
+      res.json(recommendation);
+    } catch (error) {
+      console.error("Error approving AI recommendation:", error);
+      res.status(500).json({ message: "Failed to approve AI recommendation" });
+    }
+  });
+
+  app.post("/api/maintenance/ai-recommendations/:id/convert-to-task", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role, id: userId, firstName, lastName } = req.user;
+      const recommendationId = parseInt(req.params.id);
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const convertedBy = `${firstName || ''} ${lastName || ''}`.trim();
+      const result = await storage.convertAiRecommendationToTask(recommendationId, convertedBy);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error converting AI recommendation to task:", error);
+      res.status(500).json({ message: "Failed to convert AI recommendation to task" });
+    }
+  });
+
+  // Maintenance analytics routes
+  app.get("/api/maintenance/dashboard-summary", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+      const { propertyId } = req.query;
+
+      let filters: any = {
+        userRole: role,
+        userId
+      };
+
+      // Role-based access control
+      if (role === 'owner') {
+        const ownedProperties = await storage.getPropertiesByOwner(userId);
+        const propertyIds = ownedProperties.map((p: any) => p.id);
+        if (propertyId && propertyIds.includes(parseInt(propertyId as string))) {
+          filters.propertyId = parseInt(propertyId as string);
+        } else if (!propertyId) {
+          filters.propertyId = propertyIds[0]; // Default to first property
+        } else {
+          return res.status(403).json({ message: "Access denied to this property" });
+        }
+      } else if (['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const summary = await storage.getMaintenanceDashboardSummary(organizationId, filters);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching maintenance dashboard summary:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance dashboard summary" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

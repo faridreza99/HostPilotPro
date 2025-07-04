@@ -240,6 +240,25 @@ import {
   type InsertOwnerDocument,
   type OnboardingStepDetail,
   type InsertOnboardingStepDetail,
+  // Maintenance & Service Tracking types
+  maintenanceServiceLogs,
+  warrantyTracker,
+  predictiveMaintenanceSchedules,
+  aiMaintenanceRecommendations,
+  maintenanceTimelineEvents,
+  maintenanceAnalytics,
+  type MaintenanceServiceLog,
+  type InsertMaintenanceServiceLog,
+  type WarrantyTracker,
+  type InsertWarrantyTracker,
+  type PredictiveMaintenanceSchedule,
+  type InsertPredictiveMaintenanceSchedule,
+  type AiMaintenanceRecommendation,
+  type InsertAiMaintenanceRecommendation,
+  type MaintenanceTimelineEvent,
+  type InsertMaintenanceTimelineEvent,
+  type MaintenanceAnalytics,
+  type InsertMaintenanceAnalytics,
 
   // Maintenance Log tables
   maintenanceLog,
@@ -1593,6 +1612,110 @@ export interface IStorage {
   getSmartInventoryAnalytics(organizationId: string): Promise<any>;
   getSmartLowStockAlerts(organizationId: string): Promise<any[]>;
   getSmartDemandForecast(organizationId: string): Promise<any[]>;
+
+  // ===== MAINTENANCE & SERVICE TRACKING OPERATIONS =====
+  
+  // Maintenance service logs operations
+  getMaintenanceServiceLogs(organizationId: string, filters?: {
+    propertyId?: number;
+    assignedStaffId?: string;
+    status?: string;
+    priority?: string;
+    category?: string;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<MaintenanceServiceLog[]>;
+  getMaintenanceServiceLog(id: number): Promise<MaintenanceServiceLog | undefined>;
+  createMaintenanceServiceLog(log: InsertMaintenanceServiceLog): Promise<MaintenanceServiceLog>;
+  updateMaintenanceServiceLog(id: number, log: Partial<InsertMaintenanceServiceLog>): Promise<MaintenanceServiceLog | undefined>;
+  completeMaintenanceServiceLog(id: number, completionData: {
+    actualCost?: number;
+    completionNotes: string;
+    attachmentUrls?: string[];
+    completedBy: string;
+  }): Promise<MaintenanceServiceLog | undefined>;
+  deleteMaintenanceServiceLog(id: number): Promise<boolean>;
+  
+  // Warranty tracker operations
+  getWarrantyTrackers(organizationId: string, filters?: {
+    propertyId?: number;
+    status?: string;
+    expiringWithinDays?: number;
+  }): Promise<WarrantyTracker[]>;
+  getWarrantyTracker(id: number): Promise<WarrantyTracker | undefined>;
+  createWarrantyTracker(warranty: InsertWarrantyTracker): Promise<WarrantyTracker>;
+  updateWarrantyTracker(id: number, warranty: Partial<InsertWarrantyTracker>): Promise<WarrantyTracker | undefined>;
+  deleteWarrantyTracker(id: number): Promise<boolean>;
+  getExpiringWarranties(organizationId: string, daysAhead: number): Promise<WarrantyTracker[]>;
+  
+  // Predictive maintenance operations
+  getPredictiveMaintenanceSchedules(organizationId: string, filters?: {
+    propertyId?: number;
+    isOverdue?: boolean;
+    isActive?: boolean;
+    serviceCategory?: string;
+  }): Promise<PredictiveMaintenanceSchedule[]>;
+  getPredictiveMaintenanceSchedule(id: number): Promise<PredictiveMaintenanceSchedule | undefined>;
+  createPredictiveMaintenanceSchedule(schedule: InsertPredictiveMaintenanceSchedule): Promise<PredictiveMaintenanceSchedule>;
+  updatePredictiveMaintenanceSchedule(id: number, schedule: Partial<InsertPredictiveMaintenanceSchedule>): Promise<PredictiveMaintenanceSchedule | undefined>;
+  deletePredictiveMaintenanceSchedule(id: number): Promise<boolean>;
+  generateOverdueMaintenanceTasks(organizationId: string): Promise<MaintenanceServiceLog[]>;
+  updatePredictiveScheduleAfterCompletion(scheduleId: number, completedDate: Date): Promise<PredictiveMaintenanceSchedule | undefined>;
+  
+  // AI maintenance recommendations operations
+  getAiMaintenanceRecommendations(organizationId: string, filters?: {
+    propertyId?: number;
+    status?: string;
+    priority?: string;
+    minConfidence?: number;
+  }): Promise<AiMaintenanceRecommendation[]>;
+  getAiMaintenanceRecommendation(id: number): Promise<AiMaintenanceRecommendation | undefined>;
+  createAiMaintenanceRecommendation(recommendation: InsertAiMaintenanceRecommendation): Promise<AiMaintenanceRecommendation>;
+  updateAiMaintenanceRecommendation(id: number, recommendation: Partial<InsertAiMaintenanceRecommendation>): Promise<AiMaintenanceRecommendation | undefined>;
+  approveAiRecommendation(id: number, reviewedBy: string, reviewNotes?: string): Promise<AiMaintenanceRecommendation | undefined>;
+  rejectAiRecommendation(id: number, reviewedBy: string, reviewNotes: string): Promise<AiMaintenanceRecommendation | undefined>;
+  convertAiRecommendationToTask(id: number, convertedBy: string): Promise<{
+    recommendation: AiMaintenanceRecommendation;
+    task: MaintenanceServiceLog;
+  }>;
+  
+  // Maintenance timeline events operations
+  getMaintenanceTimelineEvents(organizationId: string, filters?: {
+    propertyId?: number;
+    eventType?: string;
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<MaintenanceTimelineEvent[]>;
+  getMaintenanceTimelineEvent(id: number): Promise<MaintenanceTimelineEvent | undefined>;
+  createMaintenanceTimelineEvent(event: InsertMaintenanceTimelineEvent): Promise<MaintenanceTimelineEvent>;
+  updateMaintenanceTimelineEvent(id: number, event: Partial<InsertMaintenanceTimelineEvent>): Promise<MaintenanceTimelineEvent | undefined>;
+  deleteMaintenanceTimelineEvent(id: number): Promise<boolean>;
+  
+  // Maintenance analytics operations
+  getMaintenanceAnalytics(organizationId: string, filters?: {
+    propertyId?: number;
+    analyticsType?: string;
+    period?: string;
+  }): Promise<MaintenanceAnalytics[]>;
+  generateMaintenanceAnalytics(organizationId: string, period: string): Promise<MaintenanceAnalytics>;
+  getMaintenanceDashboardSummary(organizationId: string, filters?: {
+    propertyId?: number;
+    userRole?: string;
+    userId?: string;
+  }): Promise<{
+    totalJobs: number;
+    completedJobs: number;
+    overdueJobs: number;
+    emergencyJobs: number;
+    totalCost: number;
+    averageCostPerJob: number;
+    categoryBreakdown: any;
+    recentActivity: MaintenanceServiceLog[];
+    expiringWarranties: WarrantyTracker[];
+    aiRecommendations: AiMaintenanceRecommendation[];
+    overdueSchedules: PredictiveMaintenanceSchedule[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -26915,6 +27038,990 @@ Plant Care:
         incentiveRedeemedAt: "2024-12-31T12:00:00Z"
       }
     ];
+  }
+
+  // ===== MAINTENANCE & SERVICE TRACKING IMPLEMENTATION =====
+
+  // Maintenance service logs operations
+  async getMaintenanceServiceLogs(organizationId: string, filters?: {
+    propertyId?: number;
+    assignedStaffId?: string;
+    status?: string;
+    priority?: string;
+    category?: string;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<MaintenanceServiceLog[]> {
+    const mockLogs: MaintenanceServiceLog[] = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        issueTitle: "Air Conditioner Not Cooling",
+        issueDescription: "Master bedroom AC unit is running but not producing cold air. Guests are complaining about the temperature.",
+        issueType: "repair",
+        category: "hvac",
+        priority: "high",
+        assignedStaffId: "staff_demo_001",
+        assignedStaffName: "John Maintenance",
+        reportedBy: "pm_demo_001",
+        reportedByName: "Sarah Manager",
+        status: "in_progress",
+        workStartedAt: new Date("2025-01-03T09:00:00Z"),
+        workCompletedAt: null,
+        estimatedCost: 150.0,
+        actualCost: null,
+        currency: "THB",
+        attachmentUrls: ["https://example.com/ac_photo1.jpg"],
+        warrantyInfo: "Unit still under warranty until March 2025",
+        vendorUsed: "Cool Air Services",
+        vendorContact: "+66-123-456-789",
+        notes: "Initial inspection shows refrigerant leak. Parts ordered.",
+        completionNotes: null,
+        createdAt: new Date("2025-01-03T08:30:00Z"),
+        updatedAt: new Date("2025-01-03T09:00:00Z"),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        issueTitle: "Pool Pump Making Noise",
+        issueDescription: "Pool filtration pump is making unusual grinding noises during operation. Scheduled for inspection.",
+        issueType: "maintenance",
+        category: "pool",
+        priority: "medium",
+        assignedStaffId: "staff_demo_002",
+        assignedStaffName: "Mike Pool Tech",
+        reportedBy: "staff_demo_001",
+        reportedByName: "John Maintenance",
+        status: "completed",
+        workStartedAt: new Date("2025-01-02T14:00:00Z"),
+        workCompletedAt: new Date("2025-01-02T16:30:00Z"),
+        estimatedCost: 80.0,
+        actualCost: 75.0,
+        currency: "THB",
+        attachmentUrls: ["https://example.com/pool_pump_before.jpg", "https://example.com/pool_pump_after.jpg"],
+        warrantyInfo: "No warranty coverage",
+        vendorUsed: "Internal Staff",
+        vendorContact: null,
+        notes: "Routine maintenance check revealed worn bearings.",
+        completionNotes: "Replaced pump bearings and lubricated motor. System running smoothly.",
+        createdAt: new Date("2025-01-02T10:00:00Z"),
+        updatedAt: new Date("2025-01-02T16:30:00Z"),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: filters?.propertyId || 2,
+        issueTitle: "Garden Irrigation System Leak",
+        issueDescription: "Water leak detected in the main irrigation line near the entrance garden area.",
+        issueType: "repair",
+        category: "garden",
+        priority: "urgent",
+        assignedStaffId: "staff_demo_003",
+        assignedStaffName: "Tom Gardener",
+        reportedBy: "owner_demo_001",
+        reportedByName: "David Owner",
+        status: "awaiting_parts",
+        workStartedAt: new Date("2025-01-01T07:00:00Z"),
+        workCompletedAt: null,
+        estimatedCost: 200.0,
+        actualCost: null,
+        currency: "THB",
+        attachmentUrls: ["https://example.com/irrigation_leak.jpg"],
+        warrantyInfo: "System installed in 2023, warranty expired",
+        vendorUsed: "Green Thumb Irrigation",
+        vendorContact: "+66-987-654-321",
+        notes: "Major pipe rupture requires replacement parts. Water temporarily shut off to affected area.",
+        completionNotes: null,
+        createdAt: new Date("2025-01-01T06:45:00Z"),
+        updatedAt: new Date("2025-01-01T07:30:00Z"),
+      }
+    ];
+
+    return mockLogs.filter(log => {
+      if (filters?.propertyId && log.propertyId !== filters.propertyId) return false;
+      if (filters?.assignedStaffId && log.assignedStaffId !== filters.assignedStaffId) return false;
+      if (filters?.status && log.status !== filters.status) return false;
+      if (filters?.priority && log.priority !== filters.priority) return false;
+      if (filters?.category && log.category !== filters.category) return false;
+      if (filters?.fromDate && log.createdAt < filters.fromDate) return false;
+      if (filters?.toDate && log.createdAt > filters.toDate) return false;
+      return true;
+    });
+  }
+
+  async getMaintenanceServiceLog(id: number): Promise<MaintenanceServiceLog | undefined> {
+    const logs = await this.getMaintenanceServiceLogs("default");
+    return logs.find(log => log.id === id);
+  }
+
+  async createMaintenanceServiceLog(log: InsertMaintenanceServiceLog): Promise<MaintenanceServiceLog> {
+    const newLog: MaintenanceServiceLog = {
+      id: Math.floor(Math.random() * 10000),
+      ...log,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return newLog;
+  }
+
+  async updateMaintenanceServiceLog(id: number, log: Partial<InsertMaintenanceServiceLog>): Promise<MaintenanceServiceLog | undefined> {
+    const existingLog = await this.getMaintenanceServiceLog(id);
+    if (!existingLog) return undefined;
+
+    return {
+      ...existingLog,
+      ...log,
+      updatedAt: new Date(),
+    };
+  }
+
+  async completeMaintenanceServiceLog(id: number, completionData: {
+    actualCost?: number;
+    completionNotes: string;
+    attachmentUrls?: string[];
+    completedBy: string;
+  }): Promise<MaintenanceServiceLog | undefined> {
+    const existingLog = await this.getMaintenanceServiceLog(id);
+    if (!existingLog) return undefined;
+
+    return {
+      ...existingLog,
+      status: "completed",
+      actualCost: completionData.actualCost || existingLog.estimatedCost,
+      completionNotes: completionData.completionNotes,
+      attachmentUrls: [...(existingLog.attachmentUrls || []), ...(completionData.attachmentUrls || [])],
+      workCompletedAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  async deleteMaintenanceServiceLog(id: number): Promise<boolean> {
+    return true; // Mock implementation
+  }
+
+  // Warranty tracker operations
+  async getWarrantyTrackers(organizationId: string, filters?: {
+    propertyId?: number;
+    status?: string;
+    expiringWithinDays?: number;
+  }): Promise<WarrantyTracker[]> {
+    const mockWarranties: WarrantyTracker[] = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        maintenanceLogId: 1,
+        itemName: "Samsung Split AC Unit - Master Bedroom",
+        itemType: "appliance",
+        manufacturer: "Samsung",
+        model: "AR18TYHYCWKXSG",
+        serialNumber: "SN123456789",
+        warrantyType: "manufacturer",
+        warrantyProvider: "Samsung Thailand",
+        warrantyPeriod: "5 years",
+        warrantyStartDate: new Date("2020-03-15"),
+        warrantyEndDate: new Date("2025-03-14"),
+        status: "active",
+        coverageDetails: "Full parts and labor coverage including refrigerant top-ups",
+        claimHistory: ["First repair claim filed Dec 2024"],
+        documentUrls: ["https://example.com/samsung_warranty.pdf"],
+        purchasePrice: 25000.0,
+        purchaseDate: new Date("2020-03-15"),
+        alertDaysBefore: 30,
+        lastAlertSent: null,
+        notes: "High-efficiency unit with inverter technology",
+        createdAt: new Date("2020-03-15T10:00:00Z"),
+        updatedAt: new Date("2024-12-01T14:30:00Z"),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        maintenanceLogId: 2,
+        itemName: "Pentair Pool Pump",
+        itemType: "equipment",
+        manufacturer: "Pentair",
+        model: "SuperFlo VS",
+        serialNumber: "PMP987654321",
+        warrantyType: "extended",
+        warrantyProvider: "Pool Equipment Solutions",
+        warrantyPeriod: "3 years extended",
+        warrantyStartDate: new Date("2022-06-01"),
+        warrantyEndDate: new Date("2025-05-31"),
+        status: "active",
+        coverageDetails: "Motor and electrical components covered",
+        claimHistory: [],
+        documentUrls: ["https://example.com/pentair_warranty.pdf"],
+        purchasePrice: 15000.0,
+        purchaseDate: new Date("2022-06-01"),
+        alertDaysBefore: 45,
+        lastAlertSent: null,
+        notes: "Variable speed pump for energy efficiency",
+        createdAt: new Date("2022-06-01T12:00:00Z"),
+        updatedAt: new Date("2024-11-15T16:20:00Z"),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: filters?.propertyId || 2,
+        maintenanceLogId: null,
+        itemName: "Rainbird Irrigation Controller",
+        itemType: "systems",
+        manufacturer: "Rainbird",
+        model: "ESP-ME3",
+        serialNumber: "RB2024789456",
+        warrantyType: "manufacturer",
+        warrantyProvider: "Rainbird Asia Pacific",
+        warrantyPeriod: "2 years",
+        warrantyStartDate: new Date("2023-01-20"),
+        warrantyEndDate: new Date("2025-01-19"),
+        status: "expired",
+        coverageDetails: "Controller and sensor coverage only",
+        claimHistory: [],
+        documentUrls: ["https://example.com/rainbird_warranty.pdf"],
+        purchasePrice: 8000.0,
+        purchaseDate: new Date("2023-01-20"),
+        alertDaysBefore: 15,
+        lastAlertSent: new Date("2024-12-20T08:00:00Z"),
+        notes: "Smart irrigation system with weather monitoring",
+        createdAt: new Date("2023-01-20T09:00:00Z"),
+        updatedAt: new Date("2025-01-20T00:00:00Z"),
+      }
+    ];
+
+    return mockWarranties.filter(warranty => {
+      if (filters?.propertyId && warranty.propertyId !== filters.propertyId) return false;
+      if (filters?.status && warranty.status !== filters.status) return false;
+      if (filters?.expiringWithinDays) {
+        const daysUntilExpiry = Math.ceil((warranty.warrantyEndDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        if (daysUntilExpiry > filters.expiringWithinDays) return false;
+      }
+      return true;
+    });
+  }
+
+  async getWarrantyTracker(id: number): Promise<WarrantyTracker | undefined> {
+    const warranties = await this.getWarrantyTrackers("default");
+    return warranties.find(warranty => warranty.id === id);
+  }
+
+  async createWarrantyTracker(warranty: InsertWarrantyTracker): Promise<WarrantyTracker> {
+    const newWarranty: WarrantyTracker = {
+      id: Math.floor(Math.random() * 10000),
+      ...warranty,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return newWarranty;
+  }
+
+  async updateWarrantyTracker(id: number, warranty: Partial<InsertWarrantyTracker>): Promise<WarrantyTracker | undefined> {
+    const existingWarranty = await this.getWarrantyTracker(id);
+    if (!existingWarranty) return undefined;
+
+    return {
+      ...existingWarranty,
+      ...warranty,
+      updatedAt: new Date(),
+    };
+  }
+
+  async deleteWarrantyTracker(id: number): Promise<boolean> {
+    return true; // Mock implementation
+  }
+
+  async getExpiringWarranties(organizationId: string, daysAhead: number): Promise<WarrantyTracker[]> {
+    return this.getWarrantyTrackers(organizationId, { expiringWithinDays: daysAhead });
+  }
+
+  // Predictive maintenance operations
+  async getPredictiveMaintenanceSchedules(organizationId: string, filters?: {
+    propertyId?: number;
+    isOverdue?: boolean;
+    isActive?: boolean;
+    serviceCategory?: string;
+  }): Promise<PredictiveMaintenanceSchedule[]> {
+    const mockSchedules: PredictiveMaintenanceSchedule[] = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        serviceType: "ac_cleaning",
+        serviceName: "Air Conditioner Deep Cleaning",
+        serviceCategory: "hvac",
+        recurrenceType: "monthly",
+        recurrenceValue: 3,
+        lastServiceDate: new Date("2024-10-15"),
+        nextScheduledDate: new Date("2025-01-15"),
+        isActive: true,
+        isOverdue: false,
+        overdueByDays: 0,
+        preferredVendor: "Cool Air Services",
+        estimatedCost: 120.0,
+        estimatedDuration: "2 hours",
+        autoGenerateTask: true,
+        notificationDaysBefore: 7,
+        lastNotificationSent: null,
+        notes: "Includes filter replacement and condenser coil cleaning",
+        serviceInstructions: "Turn off AC 1 hour before service. Ensure access to outdoor unit.",
+        createdAt: new Date("2024-07-01T10:00:00Z"),
+        updatedAt: new Date("2024-10-16T14:30:00Z"),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        serviceType: "pool_maintenance",
+        serviceName: "Pool Chemical Balance & Equipment Check",
+        serviceCategory: "pool",
+        recurrenceType: "weekly",
+        recurrenceValue: 2,
+        lastServiceDate: new Date("2024-12-20"),
+        nextScheduledDate: new Date("2025-01-03"),
+        isActive: true,
+        isOverdue: true,
+        overdueByDays: 2,
+        preferredVendor: "AquaClear Pool Services",
+        estimatedCost: 80.0,
+        estimatedDuration: "1.5 hours",
+        autoGenerateTask: true,
+        notificationDaysBefore: 3,
+        lastNotificationSent: new Date("2024-12-31T08:00:00Z"),
+        notes: "Bi-weekly comprehensive pool maintenance",
+        serviceInstructions: "Test all chemical levels, clean skimmer baskets, check pump operation.",
+        createdAt: new Date("2024-06-01T09:00:00Z"),
+        updatedAt: new Date("2025-01-01T08:00:00Z"),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: filters?.propertyId || 2,
+        serviceType: "garden_care",
+        serviceName: "Landscape Trimming & Irrigation Check",
+        serviceCategory: "garden",
+        recurrenceType: "monthly",
+        recurrenceValue: 1,
+        lastServiceDate: new Date("2024-12-01"),
+        nextScheduledDate: new Date("2025-01-01"),
+        isActive: true,
+        isOverdue: true,
+        overdueByDays: 4,
+        preferredVendor: "Green Thumb Landscaping",
+        estimatedCost: 150.0,
+        estimatedDuration: "3 hours",
+        autoGenerateTask: true,
+        notificationDaysBefore: 5,
+        lastNotificationSent: new Date("2024-12-27T10:00:00Z"),
+        notes: "Monthly landscape maintenance including hedge trimming",
+        serviceInstructions: "Focus on entrance area visibility and irrigation system inspection.",
+        createdAt: new Date("2024-05-01T11:00:00Z"),
+        updatedAt: new Date("2024-12-27T10:00:00Z"),
+      }
+    ];
+
+    return mockSchedules.filter(schedule => {
+      if (filters?.propertyId && schedule.propertyId !== filters.propertyId) return false;
+      if (filters?.isOverdue !== undefined && schedule.isOverdue !== filters.isOverdue) return false;
+      if (filters?.isActive !== undefined && schedule.isActive !== filters.isActive) return false;
+      if (filters?.serviceCategory && schedule.serviceCategory !== filters.serviceCategory) return false;
+      return true;
+    });
+  }
+
+  async getPredictiveMaintenanceSchedule(id: number): Promise<PredictiveMaintenanceSchedule | undefined> {
+    const schedules = await this.getPredictiveMaintenanceSchedules("default");
+    return schedules.find(schedule => schedule.id === id);
+  }
+
+  async createPredictiveMaintenanceSchedule(schedule: InsertPredictiveMaintenanceSchedule): Promise<PredictiveMaintenanceSchedule> {
+    const newSchedule: PredictiveMaintenanceSchedule = {
+      id: Math.floor(Math.random() * 10000),
+      ...schedule,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return newSchedule;
+  }
+
+  async updatePredictiveMaintenanceSchedule(id: number, schedule: Partial<InsertPredictiveMaintenanceSchedule>): Promise<PredictiveMaintenanceSchedule | undefined> {
+    const existingSchedule = await this.getPredictiveMaintenanceSchedule(id);
+    if (!existingSchedule) return undefined;
+
+    return {
+      ...existingSchedule,
+      ...schedule,
+      updatedAt: new Date(),
+    };
+  }
+
+  async deletePredictiveMaintenanceSchedule(id: number): Promise<boolean> {
+    return true; // Mock implementation
+  }
+
+  async generateOverdueMaintenanceTasks(organizationId: string): Promise<MaintenanceServiceLog[]> {
+    const overdueSchedules = await this.getPredictiveMaintenanceSchedules(organizationId, { isOverdue: true });
+    const generatedTasks: MaintenanceServiceLog[] = [];
+
+    for (const schedule of overdueSchedules) {
+      const task: MaintenanceServiceLog = {
+        id: Math.floor(Math.random() * 10000),
+        organizationId,
+        propertyId: schedule.propertyId,
+        issueTitle: `Scheduled: ${schedule.serviceName}`,
+        issueDescription: `Auto-generated from predictive maintenance schedule. ${schedule.notes || ''}`,
+        issueType: "maintenance",
+        category: schedule.serviceCategory,
+        priority: schedule.overdueByDays > 7 ? "high" : "medium",
+        assignedStaffId: null,
+        assignedStaffName: null,
+        reportedBy: "system",
+        reportedByName: "Automated System",
+        status: "open",
+        workStartedAt: null,
+        workCompletedAt: null,
+        estimatedCost: schedule.estimatedCost || undefined,
+        actualCost: null,
+        currency: "THB",
+        attachmentUrls: [],
+        warrantyInfo: null,
+        vendorUsed: schedule.preferredVendor || null,
+        vendorContact: null,
+        notes: `Generated from schedule ID: ${schedule.id}. ${schedule.serviceInstructions || ''}`,
+        completionNotes: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      generatedTasks.push(task);
+    }
+
+    return generatedTasks;
+  }
+
+  async updatePredictiveScheduleAfterCompletion(scheduleId: number, completedDate: Date): Promise<PredictiveMaintenanceSchedule | undefined> {
+    const schedule = await this.getPredictiveMaintenanceSchedule(scheduleId);
+    if (!schedule) return undefined;
+
+    // Calculate next scheduled date based on recurrence
+    const nextDate = new Date(completedDate);
+    if (schedule.recurrenceType === "weekly") {
+      nextDate.setDate(nextDate.getDate() + (schedule.recurrenceValue * 7));
+    } else if (schedule.recurrenceType === "monthly") {
+      nextDate.setMonth(nextDate.getMonth() + schedule.recurrenceValue);
+    } else if (schedule.recurrenceType === "quarterly") {
+      nextDate.setMonth(nextDate.getMonth() + (schedule.recurrenceValue * 3));
+    }
+
+    return {
+      ...schedule,
+      lastServiceDate: completedDate,
+      nextScheduledDate: nextDate,
+      isOverdue: false,
+      overdueByDays: 0,
+      updatedAt: new Date(),
+    };
+  }
+
+  // AI maintenance recommendations operations
+  async getAiMaintenanceRecommendations(organizationId: string, filters?: {
+    propertyId?: number;
+    status?: string;
+    priority?: string;
+    minConfidence?: number;
+  }): Promise<AiMaintenanceRecommendation[]> {
+    const mockRecommendations: AiMaintenanceRecommendation[] = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        recommendationType: "preventive",
+        serviceType: "pool_equipment_maintenance",
+        serviceName: "Pool Filter Deep Clean",
+        category: "pool",
+        aiConfidence: 0.85,
+        basedOnPattern: "Analysis of guest feedback mentions pool water clarity issues recurring every 6 weeks",
+        triggerSource: "guest_feedback",
+        suggestedDate: new Date("2025-01-10"),
+        priority: "medium",
+        estimatedCost: 95.0,
+        status: "pending",
+        reviewedBy: null,
+        reviewedAt: null,
+        reviewNotes: null,
+        convertedToTaskId: null,
+        convertedAt: null,
+        aiExplanation: "Historical data shows pool clarity complaints increase when filter cleaning interval exceeds 6 weeks. Current filter was last cleaned 5 weeks ago.",
+        supportingData: {
+          "guest_feedback_mentions": 8,
+          "average_interval_between_complaints": "42 days",
+          "last_filter_service": "2024-11-28",
+          "historical_accuracy": "78%"
+        },
+        createdAt: new Date("2025-01-03T10:30:00Z"),
+        updatedAt: new Date("2025-01-03T10:30:00Z"),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        recommendationType: "predictive",
+        serviceType: "ac_refrigerant_check",
+        serviceName: "AC Refrigerant Level Inspection",
+        category: "hvac",
+        aiConfidence: 0.92,
+        basedOnPattern: "Energy consumption patterns suggest refrigerant loss in master bedroom AC unit",
+        triggerSource: "equipment_age",
+        suggestedDate: new Date("2025-01-08"),
+        priority: "high",
+        estimatedCost: 200.0,
+        status: "pending",
+        reviewedBy: null,
+        reviewedAt: null,
+        reviewNotes: null,
+        convertedToTaskId: null,
+        convertedAt: null,
+        aiExplanation: "Power consumption has increased 23% for master bedroom AC over the past 3 months, typically indicating refrigerant issues in units over 4 years old.",
+        supportingData: {
+          "power_consumption_increase": "23%",
+          "unit_age_years": 4.8,
+          "similar_cases_resolved": 15,
+          "prediction_confidence": "92%"
+        },
+        createdAt: new Date("2025-01-02T14:15:00Z"),
+        updatedAt: new Date("2025-01-02T14:15:00Z"),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: filters?.propertyId || 2,
+        recommendationType: "seasonal",
+        serviceType: "garden_seasonal_prep",
+        serviceName: "Garden Seasonal Transition Maintenance",
+        category: "garden",
+        aiConfidence: 0.78,
+        basedOnPattern: "Seasonal weather patterns indicate optimal timing for landscape preparation",
+        triggerSource: "seasonal",
+        suggestedDate: new Date("2025-01-15"),
+        priority: "low",
+        estimatedCost: 120.0,
+        status: "approved",
+        reviewedBy: "pm_demo_001",
+        reviewedAt: new Date("2025-01-03T16:00:00Z"),
+        reviewNotes: "Good timing for seasonal prep before peak booking season",
+        convertedToTaskId: null,
+        convertedAt: null,
+        aiExplanation: "Weather forecast shows ideal conditions for pruning and fertilization in mid-January. Property booking data shows increased guest activity starting February.",
+        supportingData: {
+          "optimal_weather_window": "Jan 10-20",
+          "next_guest_arrival": "2025-02-01",
+          "seasonal_maintenance_history": "annually",
+          "guest_satisfaction_impact": "+15%"
+        },
+        createdAt: new Date("2025-01-01T09:00:00Z"),
+        updatedAt: new Date("2025-01-03T16:00:00Z"),
+      }
+    ];
+
+    return mockRecommendations.filter(rec => {
+      if (filters?.propertyId && rec.propertyId !== filters.propertyId) return false;
+      if (filters?.status && rec.status !== filters.status) return false;
+      if (filters?.priority && rec.priority !== filters.priority) return false;
+      if (filters?.minConfidence && rec.aiConfidence < filters.minConfidence) return false;
+      return true;
+    });
+  }
+
+  async getAiMaintenanceRecommendation(id: number): Promise<AiMaintenanceRecommendation | undefined> {
+    const recommendations = await this.getAiMaintenanceRecommendations("default");
+    return recommendations.find(rec => rec.id === id);
+  }
+
+  async createAiMaintenanceRecommendation(recommendation: InsertAiMaintenanceRecommendation): Promise<AiMaintenanceRecommendation> {
+    const newRecommendation: AiMaintenanceRecommendation = {
+      id: Math.floor(Math.random() * 10000),
+      ...recommendation,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return newRecommendation;
+  }
+
+  async updateAiMaintenanceRecommendation(id: number, recommendation: Partial<InsertAiMaintenanceRecommendation>): Promise<AiMaintenanceRecommendation | undefined> {
+    const existingRecommendation = await this.getAiMaintenanceRecommendation(id);
+    if (!existingRecommendation) return undefined;
+
+    return {
+      ...existingRecommendation,
+      ...recommendation,
+      updatedAt: new Date(),
+    };
+  }
+
+  async approveAiRecommendation(id: number, reviewedBy: string, reviewNotes?: string): Promise<AiMaintenanceRecommendation | undefined> {
+    const recommendation = await this.getAiMaintenanceRecommendation(id);
+    if (!recommendation) return undefined;
+
+    return {
+      ...recommendation,
+      status: "approved",
+      reviewedBy,
+      reviewedAt: new Date(),
+      reviewNotes: reviewNotes || null,
+      updatedAt: new Date(),
+    };
+  }
+
+  async rejectAiRecommendation(id: number, reviewedBy: string, reviewNotes: string): Promise<AiMaintenanceRecommendation | undefined> {
+    const recommendation = await this.getAiMaintenanceRecommendation(id);
+    if (!recommendation) return undefined;
+
+    return {
+      ...recommendation,
+      status: "rejected",
+      reviewedBy,
+      reviewedAt: new Date(),
+      reviewNotes,
+      updatedAt: new Date(),
+    };
+  }
+
+  async convertAiRecommendationToTask(id: number, convertedBy: string): Promise<{
+    recommendation: AiMaintenanceRecommendation;
+    task: MaintenanceServiceLog;
+  }> {
+    const recommendation = await this.getAiMaintenanceRecommendation(id);
+    if (!recommendation) throw new Error("Recommendation not found");
+
+    const task: MaintenanceServiceLog = {
+      id: Math.floor(Math.random() * 10000),
+      organizationId: recommendation.organizationId,
+      propertyId: recommendation.propertyId,
+      issueTitle: `AI Suggested: ${recommendation.serviceName}`,
+      issueDescription: `${recommendation.aiExplanation}\n\nBased on: ${recommendation.basedOnPattern}`,
+      issueType: "maintenance",
+      category: recommendation.category,
+      priority: recommendation.priority,
+      assignedStaffId: null,
+      assignedStaffName: null,
+      reportedBy: convertedBy,
+      reportedByName: "AI System",
+      status: "open",
+      workStartedAt: null,
+      workCompletedAt: null,
+      estimatedCost: recommendation.estimatedCost || undefined,
+      actualCost: null,
+      currency: "THB",
+      attachmentUrls: [],
+      warrantyInfo: null,
+      vendorUsed: null,
+      vendorContact: null,
+      notes: `Generated from AI recommendation ID: ${id}. Confidence: ${(recommendation.aiConfidence * 100).toFixed(0)}%`,
+      completionNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const updatedRecommendation: AiMaintenanceRecommendation = {
+      ...recommendation,
+      status: "converted_to_task",
+      convertedToTaskId: task.id,
+      convertedAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    return { recommendation: updatedRecommendation, task };
+  }
+
+  // Maintenance timeline events operations
+  async getMaintenanceTimelineEvents(organizationId: string, filters?: {
+    propertyId?: number;
+    eventType?: string;
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+  }): Promise<MaintenanceTimelineEvent[]> {
+    const mockEvents: MaintenanceTimelineEvent[] = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        maintenanceLogId: 2,
+        predictiveScheduleId: null,
+        eventType: "completed_maintenance",
+        eventTitle: "Pool Pump Maintenance Completed",
+        eventDescription: "Replaced pump bearings and lubricated motor. System running smoothly.",
+        startDate: new Date("2025-01-02"),
+        endDate: new Date("2025-01-02"),
+        estimatedDuration: "2.5 hours",
+        status: "completed",
+        category: "pool",
+        priority: "medium",
+        cost: 75.0,
+        assignedStaff: "Mike Pool Tech",
+        metadata: {
+          "vendor": "Internal Staff",
+          "parts_used": ["Pump bearings", "Motor lubricant"],
+          "next_service": "2025-03-02"
+        },
+        createdAt: new Date("2025-01-02T14:00:00Z"),
+        updatedAt: new Date("2025-01-02T16:30:00Z"),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        maintenanceLogId: 1,
+        predictiveScheduleId: null,
+        eventType: "in_progress",
+        eventTitle: "AC Repair In Progress",
+        eventDescription: "Master bedroom AC unit repair - refrigerant leak identified, parts ordered.",
+        startDate: new Date("2025-01-03"),
+        endDate: new Date("2025-01-05"),
+        estimatedDuration: "1 day (parts pending)",
+        status: "in_progress",
+        category: "hvac",
+        priority: "high",
+        cost: 150.0,
+        assignedStaff: "John Maintenance",
+        metadata: {
+          "vendor": "Cool Air Services",
+          "issue": "Refrigerant leak",
+          "parts_status": "ordered",
+          "expected_completion": "2025-01-05"
+        },
+        createdAt: new Date("2025-01-03T09:00:00Z"),
+        updatedAt: new Date("2025-01-03T09:00:00Z"),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        maintenanceLogId: null,
+        predictiveScheduleId: 1,
+        eventType: "scheduled_maintenance",
+        eventTitle: "AC Deep Cleaning Scheduled",
+        eventDescription: "Quarterly air conditioner deep cleaning and filter replacement.",
+        startDate: new Date("2025-01-15"),
+        endDate: new Date("2025-01-15"),
+        estimatedDuration: "2 hours",
+        status: "scheduled",
+        category: "hvac",
+        priority: "medium",
+        cost: 120.0,
+        assignedStaff: "TBD",
+        metadata: {
+          "vendor": "Cool Air Services",
+          "service_type": "Preventive",
+          "includes": ["Filter replacement", "Condenser cleaning"],
+          "recurring": true
+        },
+        createdAt: new Date("2024-12-01T10:00:00Z"),
+        updatedAt: new Date("2024-12-01T10:00:00Z"),
+      },
+      {
+        id: 4,
+        organizationId,
+        propertyId: filters?.propertyId || 2,
+        maintenanceLogId: 3,
+        predictiveScheduleId: null,
+        eventType: "predicted_maintenance",
+        eventTitle: "Garden Irrigation Repair Urgent",
+        eventDescription: "Water leak in main irrigation line requires immediate attention.",
+        startDate: new Date("2025-01-01"),
+        endDate: new Date("2025-01-06"),
+        estimatedDuration: "3 days (parts dependent)",
+        status: "overdue",
+        category: "garden",
+        priority: "urgent",
+        cost: 200.0,
+        assignedStaff: "Tom Gardener",
+        metadata: {
+          "vendor": "Green Thumb Irrigation",
+          "issue": "Major pipe rupture",
+          "impact": "Water shut off to affected area",
+          "urgency": "High - affects guest experience"
+        },
+        createdAt: new Date("2025-01-01T06:45:00Z"),
+        updatedAt: new Date("2025-01-01T07:30:00Z"),
+      }
+    ];
+
+    return mockEvents.filter(event => {
+      if (filters?.propertyId && event.propertyId !== filters.propertyId) return false;
+      if (filters?.eventType && event.eventType !== filters.eventType) return false;
+      if (filters?.status && event.status !== filters.status) return false;
+      if (filters?.fromDate && event.startDate < filters.fromDate) return false;
+      if (filters?.toDate && event.startDate > filters.toDate) return false;
+      return true;
+    });
+  }
+
+  async getMaintenanceTimelineEvent(id: number): Promise<MaintenanceTimelineEvent | undefined> {
+    const events = await this.getMaintenanceTimelineEvents("default");
+    return events.find(event => event.id === id);
+  }
+
+  async createMaintenanceTimelineEvent(event: InsertMaintenanceTimelineEvent): Promise<MaintenanceTimelineEvent> {
+    const newEvent: MaintenanceTimelineEvent = {
+      id: Math.floor(Math.random() * 10000),
+      ...event,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return newEvent;
+  }
+
+  async updateMaintenanceTimelineEvent(id: number, event: Partial<InsertMaintenanceTimelineEvent>): Promise<MaintenanceTimelineEvent | undefined> {
+    const existingEvent = await this.getMaintenanceTimelineEvent(id);
+    if (!existingEvent) return undefined;
+
+    return {
+      ...existingEvent,
+      ...event,
+      updatedAt: new Date(),
+    };
+  }
+
+  async deleteMaintenanceTimelineEvent(id: number): Promise<boolean> {
+    return true; // Mock implementation
+  }
+
+  // Maintenance analytics operations
+  async getMaintenanceAnalytics(organizationId: string, filters?: {
+    propertyId?: number;
+    analyticsType?: string;
+    period?: string;
+  }): Promise<MaintenanceAnalytics[]> {
+    const mockAnalytics: MaintenanceAnalytics[] = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        analyticsType: "monthly_summary",
+        period: "2025-01",
+        totalMaintenanceJobs: 15,
+        completedJobs: 8,
+        overdueJobs: 3,
+        emergencyJobs: 2,
+        totalCost: 2150.0,
+        averageCostPerJob: 143.33,
+        budgetVariance: -150.0,
+        categoryBreakdown: {
+          "hvac": { "jobs": 5, "cost": 850.0 },
+          "pool": { "jobs": 4, "cost": 420.0 },
+          "garden": { "jobs": 3, "cost": 480.0 },
+          "electrical": { "jobs": 2, "cost": 300.0 },
+          "plumbing": { "jobs": 1, "cost": 100.0 }
+        },
+        vendorPerformance: {
+          "Cool Air Services": { "rating": 4.5, "cost": 850.0, "jobs": 5 },
+          "AquaClear Pool": { "rating": 4.8, "cost": 420.0, "jobs": 4 },
+          "Green Thumb": { "rating": 4.2, "cost": 480.0, "jobs": 3 }
+        },
+        predictiveAccuracy: 0.82,
+        aiRecommendationsAccepted: 6,
+        aiRecommendationsTotal: 9,
+        averageJobDuration: 1.8,
+        staffUtilization: {
+          "John Maintenance": { "hours": 45, "jobs": 8, "efficiency": 0.89 },
+          "Mike Pool Tech": { "hours": 22, "jobs": 4, "efficiency": 0.95 },
+          "Tom Gardener": { "hours": 38, "jobs": 3, "efficiency": 0.75 }
+        },
+        generatedAt: new Date("2025-01-04T08:00:00Z"),
+        createdAt: new Date("2025-01-04T08:00:00Z"),
+      }
+    ];
+
+    return mockAnalytics.filter(analytics => {
+      if (filters?.propertyId && analytics.propertyId !== filters.propertyId) return false;
+      if (filters?.analyticsType && analytics.analyticsType !== filters.analyticsType) return false;
+      if (filters?.period && analytics.period !== filters.period) return false;
+      return true;
+    });
+  }
+
+  async generateMaintenanceAnalytics(organizationId: string, period: string): Promise<MaintenanceAnalytics> {
+    // Mock implementation - in real system this would calculate from actual data
+    const newAnalytics: MaintenanceAnalytics = {
+      id: Math.floor(Math.random() * 10000),
+      organizationId,
+      propertyId: null,
+      analyticsType: "monthly_summary",
+      period,
+      totalMaintenanceJobs: 0,
+      completedJobs: 0,
+      overdueJobs: 0,
+      emergencyJobs: 0,
+      totalCost: 0.0,
+      averageCostPerJob: 0.0,
+      budgetVariance: 0.0,
+      categoryBreakdown: {},
+      vendorPerformance: {},
+      predictiveAccuracy: 0.0,
+      aiRecommendationsAccepted: 0,
+      aiRecommendationsTotal: 0,
+      averageJobDuration: 0.0,
+      staffUtilization: {},
+      generatedAt: new Date(),
+      createdAt: new Date(),
+    };
+    return newAnalytics;
+  }
+
+  async getMaintenanceDashboardSummary(organizationId: string, filters?: {
+    propertyId?: number;
+    userRole?: string;
+    userId?: string;
+  }): Promise<{
+    totalJobs: number;
+    completedJobs: number;
+    overdueJobs: number;
+    emergencyJobs: number;
+    totalCost: number;
+    averageCostPerJob: number;
+    categoryBreakdown: any;
+    recentActivity: MaintenanceServiceLog[];
+    expiringWarranties: WarrantyTracker[];
+    aiRecommendations: AiMaintenanceRecommendation[];
+    overdueSchedules: PredictiveMaintenanceSchedule[];
+  }> {
+    const logs = await this.getMaintenanceServiceLogs(organizationId, filters);
+    const warranties = await this.getExpiringWarranties(organizationId, 30);
+    const recommendations = await this.getAiMaintenanceRecommendations(organizationId, { status: "pending" });
+    const overdueSchedules = await this.getPredictiveMaintenanceSchedules(organizationId, { isOverdue: true });
+
+    const totalJobs = logs.length;
+    const completedJobs = logs.filter(log => log.status === "completed").length;
+    const overdueJobs = logs.filter(log => log.status === "open" && 
+      log.createdAt < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length;
+    const emergencyJobs = logs.filter(log => log.priority === "urgent").length;
+
+    const totalCost = logs.reduce((sum, log) => sum + (log.actualCost || log.estimatedCost || 0), 0);
+    const averageCostPerJob = totalJobs > 0 ? totalCost / totalJobs : 0;
+
+    const categoryBreakdown = logs.reduce((acc, log) => {
+      acc[log.category] = (acc[log.category] || 0) + 1;
+      return acc;
+    }, {} as any);
+
+    const recentActivity = logs
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 5);
+
+    return {
+      totalJobs,
+      completedJobs,
+      overdueJobs,
+      emergencyJobs,
+      totalCost,
+      averageCostPerJob,
+      categoryBreakdown,
+      recentActivity,
+      expiringWarranties: warranties,
+      aiRecommendations: recommendations,
+      overdueSchedules,
+    };
   }
 }
 
