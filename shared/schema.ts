@@ -2513,180 +2513,199 @@ export type InsertPropertyAlert = z.infer<typeof insertPropertyAlertSchema>;
 export const propertyDocuments = pgTable("property_documents", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
-  
-  // File Information
-  fileName: varchar("file_name").notNull(),
-  originalFileName: varchar("original_file_name").notNull(),
-  fileSize: integer("file_size").notNull(), // in bytes
-  fileType: varchar("file_type").notNull(), // pdf, docx, xlsx, jpg, png, etc.
-  filePath: varchar("file_path").notNull(), // Storage path or URL
-  
-  // Categorization
-  category: varchar("category").notNull(), // contracts, legal, tax_receipts, service_contracts, plans_drawings, owner_notes, others
-  subcategory: varchar("subcategory"), // Custom subcategory
-  title: varchar("title").notNull(),
-  description: text("description"),
-  
-  // Access Control
-  visibility: varchar("visibility").default("visible_to_owner"), // visible_to_owner, admin_pm_only
-  uploadedByRole: varchar("uploaded_by_role").notNull(), // admin, portfolio-manager, owner
+  propertyId: integer("property_id").references(() => properties.id),
   uploadedBy: varchar("uploaded_by").references(() => users.id).notNull(),
   
-  // Expiration Tracking
+  // Document Information
+  title: varchar("title").notNull(),
+  filename: varchar("filename").notNull(),
+  originalFilename: varchar("original_filename").notNull(),
+  fileSize: integer("file_size").notNull(), // in bytes
+  mimeType: varchar("mime_type").notNull(),
+  fileUrl: text("file_url").notNull(), // URL or path to stored file
+  
+  // Document Categorization
+  category: varchar("category").notNull(), // contracts, licenses, manuals, floorplans, inventory, logs, identification, utility_accounts, insurance, certificates
+  subCategory: varchar("sub_category"), // specific type within category
+  tags: text("tags").array().default([]),
+  
+  // Document Management
+  description: text("description"),
+  version: varchar("version").default("1.0"),
+  isLatestVersion: boolean("is_latest_version").default(true),
+  parentDocumentId: integer("parent_document_id"), // For versioning
+  
+  // Access Control
+  visibility: varchar("visibility").default("admin_pm_only"), // admin_pm_only, owner_visible, staff_visible, all_visible
+  accessLevel: varchar("access_level").default("view_only"), // view_only, download_allowed, edit_allowed
+  
+  // Document Status & Lifecycle
+  status: varchar("status").default("active"), // active, archived, expired, pending_approval
+  isRequired: boolean("is_required").default(false),
+  requiresApproval: boolean("requires_approval").default(false),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  
+  // Expiration Management
   hasExpiration: boolean("has_expiration").default(false),
   expirationDate: date("expiration_date"),
-  expirationReminderDays: integer("expiration_reminder_days").default(30), // Days before expiration to send reminder
-  lastReminderSent: timestamp("last_reminder_sent"),
+  expirationNotificationSent: boolean("expiration_notification_sent").default(false),
   
-  // Document Status
-  isActive: boolean("is_active").default(true),
+  // Metadata
+  checksumHash: varchar("checksum_hash"), // For file integrity verification
+  encryptionStatus: varchar("encryption_status").default("none"), // none, client_side, server_side
   
-  // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  index("IDX_property_documents_property").on(table.propertyId),
-  index("IDX_property_documents_org").on(table.organizationId),
-  index("IDX_property_documents_category").on(table.category),
-  index("IDX_property_documents_expiration").on(table.expirationDate),
+  index("IDX_docs_property").on(table.propertyId),
+  index("IDX_docs_category").on(table.category),
+  index("IDX_docs_visibility").on(table.visibility),
+  index("IDX_docs_expiration").on(table.expirationDate),
 ]);
 
-// Document access log for audit trail
-export const documentAccessLog = pgTable("document_access_log", {
+// Document Access Logs for audit trail
+export const documentAccessLogs = pgTable("document_access_logs", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
   documentId: integer("document_id").references(() => propertyDocuments.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
   
   // Access Details
-  accessedBy: varchar("accessed_by").references(() => users.id).notNull(),
-  accessedByRole: varchar("accessed_by_role").notNull(),
-  actionType: varchar("action_type").notNull(), // view, download, upload, delete, update
-  userAgent: text("user_agent"),
+  actionType: varchar("action_type").notNull(), // view, download, upload, edit, delete, share
+  accessMethod: varchar("access_method").default("web"), // web, mobile, api
   ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
   
-  // Timestamps
-  accessedAt: timestamp("accessed_at").defaultNow(),
-}, (table) => [
-  index("IDX_document_access_document").on(table.documentId),
-  index("IDX_document_access_user").on(table.accessedBy),
-  index("IDX_document_access_date").on(table.accessedAt),
-]);
-
-// Document expiration alerts
-export const documentExpirationAlerts = pgTable("document_expiration_alerts", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  documentId: integer("document_id").references(() => propertyDocuments.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
-  
-  // Alert Details
-  alertType: varchar("alert_type").notNull(), // 30_days, 7_days, expired, custom
-  daysBeforeExpiration: integer("days_before_expiration").notNull(),
-  
-  // Recipients
-  alertSentTo: text("alert_sent_to").array(), // Array of user IDs who received alert
-  
-  // Status
-  isProcessed: boolean("is_processed").default(false),
-  
-  // Timestamps
-  scheduledFor: timestamp("scheduled_for").notNull(),
-  sentAt: timestamp("sent_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-}, (table) => [
-  index("IDX_expiration_alerts_document").on(table.documentId),
-  index("IDX_expiration_alerts_scheduled").on(table.scheduledFor),
-]);
-
-// Document export records for property-specific document exports
-export const documentExportHistory = pgTable("document_export_history", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
-  
-  // Export Details
-  exportType: varchar("export_type").notNull(), // pdf_list, excel_list, zip_archive
-  fileName: varchar("file_name").notNull(),
-  filePath: varchar("file_path"),
-  fileSize: integer("file_size"), // in bytes
-  
-  // Export Filters
-  categories: text("categories").array(), // Categories included in export
-  dateRange: jsonb("date_range"), // {start: date, end: date}
-  includeExpired: boolean("include_expired").default(true),
-  
-  // User Info
-  exportedBy: varchar("exported_by").references(() => users.id).notNull(),
-  exportedByRole: varchar("exported_by_role").notNull(),
-  
-  // Status
-  status: varchar("status").default("generating"), // generating, completed, failed
+  // Additional Context
+  success: boolean("success").default(true),
   errorMessage: text("error_message"),
+  sessionId: varchar("session_id"),
   
-  // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
-  completedAt: timestamp("completed_at"),
 }, (table) => [
-  index("IDX_export_history_property").on(table.propertyId),
-  index("IDX_export_history_user").on(table.exportedBy),
+  index("IDX_access_logs_document").on(table.documentId),
+  index("IDX_access_logs_user").on(table.userId),
+  index("IDX_access_logs_action").on(table.actionType),
 ]);
 
-// Relations for Document Center
-export const propertyDocumentsRelations = relations(propertyDocuments, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [propertyDocuments.organizationId],
-    references: [organizations.id],
-  }),
-  property: one(properties, {
-    fields: [propertyDocuments.propertyId],
-    references: [properties.id],
-  }),
-  uploader: one(users, {
-    fields: [propertyDocuments.uploadedBy],
-    references: [users.id],
-  }),
-  accessLogs: many(documentAccessLog),
-  expirationAlerts: many(documentExpirationAlerts),
-}));
+// Owner Onboarding Checklist
+export const ownerOnboardingChecklists = pgTable("owner_onboarding_checklists", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  
+  // Checklist Progress
+  overallProgress: integer("overall_progress").default(0), // percentage 0-100
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  
+  // Document Upload Tasks
+  passportIdUploaded: boolean("passport_id_uploaded").default(false),
+  proofOfOwnershipUploaded: boolean("proof_of_ownership_uploaded").default(false),
+  rentalLicenseUploaded: boolean("rental_license_uploaded").default(false),
+  floorPlansUploaded: boolean("floor_plans_uploaded").default(false),
+  houseManualUploaded: boolean("house_manual_uploaded").default(false),
+  inventoryListUploaded: boolean("inventory_list_uploaded").default(false),
+  insuranceDocsUploaded: boolean("insurance_docs_uploaded").default(false),
+  utilityAccountsUploaded: boolean("utility_accounts_uploaded").default(false),
+  
+  // Setup Tasks
+  propertyDetailsCompleted: boolean("property_details_completed").default(false),
+  bankDetailsProvided: boolean("bank_details_provided").default(false),
+  contactInfoCompleted: boolean("contact_info_completed").default(false),
+  preferencesSet: boolean("preferences_set").default(false),
+  welcomePackConfigured: boolean("welcome_pack_configured").default(false),
+  
+  // Communication Tasks
+  introductionCallScheduled: boolean("introduction_call_scheduled").default(false),
+  introductionCallCompleted: boolean("introduction_call_completed").default(false),
+  
+  // Administrative Tasks
+  contractSigned: boolean("contract_signed").default(false),
+  firstPayoutScheduled: boolean("first_payout_scheduled").default(false),
+  
+  // Task Completion Dates
+  taskCompletionDates: jsonb("task_completion_dates"), // Store completion timestamps for each task
+  
+  // Onboarding Management
+  assignedTo: varchar("assigned_to").references(() => users.id), // PM or admin handling onboarding
+  notes: text("notes"),
+  priority: varchar("priority").default("normal"), // low, normal, high, urgent
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_onboarding_owner").on(table.ownerId),
+  index("IDX_onboarding_property").on(table.propertyId),
+  index("IDX_onboarding_progress").on(table.overallProgress),
+]);
 
-export const documentAccessLogRelations = relations(documentAccessLog, ({ one }) => ({
-  document: one(propertyDocuments, {
-    fields: [documentAccessLog.documentId],
-    references: [propertyDocuments.id],
-  }),
-  property: one(properties, {
-    fields: [documentAccessLog.propertyId],
-    references: [properties.id],
-  }),
-  user: one(users, {
-    fields: [documentAccessLog.accessedBy],
-    references: [users.id],
-  }),
-}));
+// Document Categories configuration
+export const documentCategories = pgTable("document_categories", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Category Details
+  categoryKey: varchar("category_key").notNull(), // contracts, licenses, etc.
+  displayName: varchar("display_name").notNull(),
+  description: text("description"),
+  icon: varchar("icon").default("file-text"),
+  
+  // Category Configuration
+  isRequired: boolean("is_required").default(false),
+  maxFiles: integer("max_files").default(10),
+  allowedFileTypes: text("allowed_file_types").array().default(['pdf', 'jpg', 'jpeg', 'png']),
+  maxFileSize: integer("max_file_size").default(10485760), // 10MB in bytes
+  
+  // Access Rules
+  defaultVisibility: varchar("default_visibility").default("admin_pm_only"),
+  requiresApproval: boolean("requires_approval").default(false),
+  
+  // Organization Customization
+  customInstructions: text("custom_instructions"),
+  exampleDocuments: text("example_documents").array(),
+  
+  // Category Management
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_doc_categories_org").on(table.organizationId),
+  index("IDX_doc_categories_key").on(table.categoryKey),
+]);
 
-export const documentExpirationAlertsRelations = relations(documentExpirationAlerts, ({ one }) => ({
-  document: one(propertyDocuments, {
-    fields: [documentExpirationAlerts.documentId],
-    references: [propertyDocuments.id],
-  }),
-  property: one(properties, {
-    fields: [documentExpirationAlerts.propertyId],
-    references: [properties.id],
-  }),
-}));
-
-export const documentExportHistoryRelations = relations(documentExportHistory, ({ one }) => ({
-  property: one(properties, {
-    fields: [documentExportHistory.propertyId],
-    references: [properties.id],
-  }),
-  exporter: one(users, {
-    fields: [documentExportHistory.exportedBy],
-    references: [users.id],
-  }),
-}));
+// File Upload Progress tracking
+export const fileUploadSessions = pgTable("file_upload_sessions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  uploadedBy: varchar("uploaded_by").references(() => users.id).notNull(),
+  
+  // Session Details
+  sessionId: varchar("session_id").notNull().unique(),
+  totalFiles: integer("total_files").default(0),
+  completedFiles: integer("completed_files").default(0),
+  failedFiles: integer("failed_files").default(0),
+  
+  // Upload Progress
+  status: varchar("status").default("in_progress"), // in_progress, completed, failed, cancelled
+  totalBytes: integer("total_bytes").default(0),
+  uploadedBytes: integer("uploaded_bytes").default(0),
+  
+  // Session Management
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at"),
+  errorDetails: jsonb("error_details"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_upload_sessions_user").on(table.uploadedBy),
+  index("IDX_upload_sessions_status").on(table.status),
+]);
 
 // Insert Schemas for Document Center
 export const insertPropertyDocumentSchema = createInsertSchema(propertyDocuments).omit({
@@ -2695,28 +2714,44 @@ export const insertPropertyDocumentSchema = createInsertSchema(propertyDocuments
   updatedAt: true,
 });
 
-export const insertDocumentAccessLogSchema = createInsertSchema(documentAccessLog).omit({
-  id: true,
-  accessedAt: true,
-});
-
-export const insertDocumentExpirationAlertSchema = createInsertSchema(documentExpirationAlerts).omit({
+export const insertDocumentAccessLogSchema = createInsertSchema(documentAccessLogs).omit({
   id: true,
   createdAt: true,
 });
 
-export const insertDocumentExportHistorySchema = createInsertSchema(documentExportHistory).omit({
+export const insertOwnerOnboardingChecklistSchema = createInsertSchema(ownerOnboardingChecklists).omit({
   id: true,
   createdAt: true,
-  completedAt: true,
+  updatedAt: true,
+});
+
+export const insertDocumentCategorySchema = createInsertSchema(documentCategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFileUploadSessionSchema = createInsertSchema(fileUploadSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Type exports for Document Center
 export type PropertyDocument = typeof propertyDocuments.$inferSelect;
 export type InsertPropertyDocument = z.infer<typeof insertPropertyDocumentSchema>;
 
-export type DocumentAccessLog = typeof documentAccessLog.$inferSelect;
+export type DocumentAccessLog = typeof documentAccessLogs.$inferSelect;
 export type InsertDocumentAccessLog = z.infer<typeof insertDocumentAccessLogSchema>;
+
+export type OwnerOnboardingChecklist = typeof ownerOnboardingChecklists.$inferSelect;
+export type InsertOwnerOnboardingChecklist = z.infer<typeof insertOwnerOnboardingChecklistSchema>;
+
+export type DocumentCategory = typeof documentCategories.$inferSelect;
+export type InsertDocumentCategory = z.infer<typeof insertDocumentCategorySchema>;
+
+export type FileUploadSession = typeof fileUploadSessions.$inferSelect;
+export type InsertFileUploadSession = z.infer<typeof insertFileUploadSessionSchema>;
 
 export type DocumentExpirationAlert = typeof documentExpirationAlerts.$inferSelect;
 export type InsertDocumentExpirationAlert = z.infer<typeof insertDocumentExpirationAlertSchema>;
@@ -7068,6 +7103,8 @@ export type InsertMaintenanceSuggestionSettings = z.infer<typeof insertMaintenan
 
 export type MaintenanceTimelineEntry = typeof maintenanceTimelineEntries.$inferSelect;
 export type InsertMaintenanceTimelineEntry = z.infer<typeof insertMaintenanceTimelineEntrySchema>;
+
+
 
 // ===== PLATFORM ROUTING TYPES =====
 

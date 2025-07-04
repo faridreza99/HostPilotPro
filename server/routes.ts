@@ -18936,6 +18936,142 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== DOCUMENT CENTER & FILE VAULT ROUTES =====
+
+  // Document management routes
+  app.get('/api/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const { propertyId, category, visibility, status, search } = req.query;
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId);
+      if (category) filters.category = category;
+      if (visibility) filters.visibility = visibility;
+      if (status) filters.status = status;
+      if (search) filters.search = search;
+      
+      const documents = await storage.getPropertyDocuments(organizationId, filters);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  app.post('/api/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+        uploadedBy: req.user.id,
+        fileUrl: `/uploads/documents/${req.body.filename}`, // Simulated file upload
+        fileSize: req.body.fileSize || 1024,
+        mimeType: req.body.mimeType || 'application/pdf',
+        checksumHash: 'simulated-hash-' + Date.now()
+      };
+      
+      const document = await storage.createPropertyDocument(documentData);
+      
+      // Log upload
+      await storage.logDocumentAccess({
+        organizationId: req.user.organizationId,
+        documentId: document.id,
+        userId: req.user.id,
+        actionType: 'upload',
+        accessMethod: 'web',
+        success: true
+      });
+      
+      res.status(201).json(document);
+    } catch (error) {
+      console.error("Error creating document:", error);
+      res.status(500).json({ message: "Failed to create document" });
+    }
+  });
+
+  // Document summary and analytics
+  app.get('/api/documents/summary', isAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const { propertyId } = req.query;
+      
+      const summary = await storage.getDocumentSummary(
+        organizationId, 
+        propertyId ? parseInt(propertyId) : undefined
+      );
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching document summary:", error);
+      res.status(500).json({ message: "Failed to fetch document summary" });
+    }
+  });
+
+  // Expiring documents
+  app.get('/api/documents/expiring', isAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const { days } = req.query;
+      
+      const expiringDocs = await storage.getExpiringDocuments(
+        organizationId, 
+        days ? parseInt(days) : 30
+      );
+      res.json(expiringDocs);
+    } catch (error) {
+      console.error("Error fetching expiring documents:", error);
+      res.status(500).json({ message: "Failed to fetch expiring documents" });
+    }
+  });
+
+  // Owner onboarding checklist routes
+  app.get('/api/onboarding/checklist/:ownerId', isAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const ownerId = req.params.ownerId;
+      const { propertyId } = req.query;
+      
+      const checklist = await storage.getOwnerOnboardingChecklist(
+        organizationId, 
+        ownerId, 
+        propertyId ? parseInt(propertyId) : undefined
+      );
+      
+      res.json(checklist);
+    } catch (error) {
+      console.error("Error fetching onboarding checklist:", error);
+      res.status(500).json({ message: "Failed to fetch onboarding checklist" });
+    }
+  });
+
+  app.post('/api/onboarding/checklist', isAuthenticated, async (req: any, res) => {
+    try {
+      const checklistData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+      };
+      
+      const checklist = await storage.createOwnerOnboardingChecklist(checklistData);
+      res.status(201).json(checklist);
+    } catch (error) {
+      console.error("Error creating onboarding checklist:", error);
+      res.status(500).json({ message: "Failed to create onboarding checklist" });
+    }
+  });
+
+  app.put('/api/onboarding/checklist/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      
+      const checklist = await storage.updateOwnerOnboardingChecklist(id, updates);
+      res.json(checklist);
+    } catch (error) {
+      console.error("Error updating onboarding checklist:", error);
+      res.status(500).json({ message: "Failed to update onboarding checklist" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

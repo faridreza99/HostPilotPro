@@ -1,55 +1,52 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, Calendar, Download, Eye, File, FileText, Upload, Search, Filter, Plus, Trash2, Edit, FileImage, FileVideo, Clock, Building2 } from "lucide-react";
-
-const DOCUMENT_CATEGORIES = [
-  { value: 'contracts', label: 'Contracts', icon: FileText, description: 'Rental agreements and contracts' },
-  { value: 'legal', label: 'Legal Documents', icon: File, description: 'Legal documents and certifications' },
-  { value: 'tax_receipts', label: 'Tax Receipts', icon: FileText, description: 'Tax documents and receipts' },
-  { value: 'service_contracts', label: 'Service Contracts', icon: File, description: 'Service provider contracts' },
-  { value: 'plans', label: 'Plans & Blueprints', icon: FileImage, description: 'Property plans and blueprints' },
-  { value: 'owner_notes', label: 'Owner Notes', icon: FileText, description: 'Owner notes and instructions' }
-];
-
-const VISIBILITY_OPTIONS = [
-  { value: 'private', label: 'Private (Admin/PM Only)', description: 'Only visible to Admin and Portfolio Managers' },
-  { value: 'visible_to_owner', label: 'Visible to Owner', description: 'Owner can view this document' }
-];
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  Upload, 
+  FileText, 
+  Eye,
+  Download,
+  Edit,
+  Trash2,
+  Search,
+  Filter,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Users,
+  Building,
+  Shield,
+  FolderOpen
+} from "lucide-react";
 
 interface PropertyDocument {
   id: number;
-  organizationId: string;
-  propertyId: number;
   title: string;
+  filename: string;
+  originalFilename: string;
+  fileSize: number;
   category: string;
   visibility: string;
-  fileName: string;
-  filePath: string;
-  fileSize: number;
-  fileType: string;
-  description?: string;
+  status: string;
   hasExpiration: boolean;
   expirationDate?: string;
+  propertyId?: number;
+  description?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
   uploadedBy: string;
-  uploadedByRole: string;
-  tags?: string[];
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 interface DocumentSummary {
@@ -57,7 +54,29 @@ interface DocumentSummary {
   documentsByCategory: Array<{ category: string; count: number }>;
   expiringCount: number;
   recentUploads: number;
+  pendingApproval: number;
+  byVisibility: Array<{ visibility: string; count: number }>;
 }
+
+const documentCategories = [
+  { value: "contracts", label: "📄 Signed Contracts", icon: "📄" },
+  { value: "licenses", label: "🏛️ Government Licenses", icon: "🏛️" },
+  { value: "manuals", label: "📖 House Manuals", icon: "📖" },
+  { value: "floorplans", label: "🏗️ Floor Plans", icon: "🏗️" },
+  { value: "inventory", label: "📋 Inventory Lists", icon: "📋" },
+  { value: "logs", label: "📊 Service Logs", icon: "📊" },
+  { value: "identification", label: "🆔 Owner ID/Passport", icon: "🆔" },
+  { value: "utility_accounts", label: "⚡ Utility Screenshots", icon: "⚡" },
+  { value: "insurance", label: "🛡️ Insurance Documents", icon: "🛡️" },
+  { value: "certificates", label: "🎖️ Safety Certificates", icon: "🎖️" }
+];
+
+const visibilityOptions = [
+  { value: "admin_pm_only", label: "Admin/PM Only", icon: Shield },
+  { value: "owner_visible", label: "Owner Visible", icon: Users },
+  { value: "staff_visible", label: "Staff Visible", icon: Building },
+  { value: "all_visible", label: "All Visible", icon: Eye }
+];
 
 export default function DocumentCenter() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -69,7 +88,7 @@ export default function DocumentCenter() {
   const [uploadForm, setUploadForm] = useState({
     title: "",
     category: "",
-    visibility: "visible_to_owner",
+    visibility: "admin_pm_only",
     description: "",
     hasExpiration: false,
     expirationDate: "",
@@ -87,17 +106,18 @@ export default function DocumentCenter() {
 
   // Fetch documents
   const { data: documents = [], isLoading: documentsLoading } = useQuery({
-    queryKey: ["/api/documents", selectedProperty, selectedCategory],
+    queryKey: ["/api/documents", selectedProperty, selectedCategory, searchQuery],
     queryFn: () => {
       const params = new URLSearchParams();
       if (selectedProperty) params.append('propertyId', selectedProperty);
       if (selectedCategory) params.append('category', selectedCategory);
+      if (searchQuery) params.append('search', searchQuery);
       return apiRequest("GET", `/api/documents?${params.toString()}`);
     }
   });
 
   // Fetch document summary
-  const { data: summary } = useQuery<DocumentSummary>({
+  const { data: summary } = useQuery({
     queryKey: ["/api/documents/summary", selectedProperty],
     queryFn: () => {
       const params = new URLSearchParams();
@@ -107,8 +127,9 @@ export default function DocumentCenter() {
   });
 
   // Fetch expiring documents
-  const { data: expiringDocuments = [] } = useQuery({
+  const { data: expiringDocs = [] } = useQuery({
     queryKey: ["/api/documents/expiring"],
+    queryFn: () => apiRequest("GET", "/api/documents/expiring"),
   });
 
   // Upload document mutation
@@ -117,23 +138,23 @@ export default function DocumentCenter() {
       return apiRequest("POST", "/api/documents", documentData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents/summary"] });
+      toast({
+        title: "Document uploaded successfully",
+        description: "The document has been added to the system.",
+      });
       setShowUploadDialog(false);
       setUploadForm({
         title: "",
         category: "",
-        visibility: "visible_to_owner",
+        visibility: "admin_pm_only",
         description: "",
         hasExpiration: false,
         expirationDate: "",
         propertyId: "",
         tags: ""
       });
-      toast({
-        title: "Document uploaded successfully",
-        description: "The document has been added to the system.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/summary"] });
     },
     onError: (error: any) => {
       toast({
@@ -144,33 +165,11 @@ export default function DocumentCenter() {
     },
   });
 
-  // Delete document mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (documentId: number) => {
-      return apiRequest("DELETE", `/api/documents/${documentId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents/summary"] });
-      toast({
-        title: "Document deleted",
-        description: "The document has been removed from the system.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Delete failed",
-        description: error.message || "Failed to delete document",
-        variant: "destructive",
-      });
-    },
-  });
-
   const handleUpload = () => {
-    if (!uploadForm.title || !uploadForm.category || !uploadForm.propertyId) {
+    if (!uploadForm.title || !uploadForm.category) {
       toast({
-        title: "Missing information",
-        description: "Please fill in all required fields.",
+        title: "Validation Error",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
@@ -178,30 +177,38 @@ export default function DocumentCenter() {
 
     const documentData = {
       ...uploadForm,
-      propertyId: parseInt(uploadForm.propertyId),
-      tags: uploadForm.tags ? uploadForm.tags.split(',').map(tag => tag.trim()) : [],
-      fileName: `${uploadForm.title}.pdf`, // Mock file name
-      filePath: `/documents/${uploadForm.title.replace(/\s+/g, '_')}.pdf`,
-      fileSize: Math.floor(Math.random() * 1000000) + 100000, // Mock file size
-      fileType: 'application/pdf'
+      filename: `${uploadForm.title.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`,
+      originalFilename: `${uploadForm.title}.pdf`,
+      propertyId: uploadForm.propertyId ? parseInt(uploadForm.propertyId) : null,
+      tags: uploadForm.tags ? uploadForm.tags.split(',').map(t => t.trim()) : [],
+      expirationDate: uploadForm.hasExpiration ? uploadForm.expirationDate : null
     };
 
     uploadMutation.mutate(documentData);
   };
 
-  const filteredDocuments = documents.filter((doc: PropertyDocument) => {
-    const matchesSearch = !searchQuery || 
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.fileName.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesSearch;
-  });
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "active":
+        return <Badge variant="default" className="bg-green-100 text-green-800">Active</Badge>;
+      case "pending_approval":
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case "expired":
+        return <Badge variant="destructive">Expired</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
 
-  const getFileIcon = (fileType: string) => {
-    if (fileType.includes('image')) return FileImage;
-    if (fileType.includes('video')) return FileVideo;
-    return FileText;
+  const getVisibilityIcon = (visibility: string) => {
+    const option = visibilityOptions.find(opt => opt.value === visibility);
+    const IconComponent = option?.icon || Eye;
+    return <IconComponent className="h-4 w-4" />;
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const cat = documentCategories.find(c => c.value === category);
+    return cat?.icon || "📄";
   };
 
   const formatFileSize = (bytes: number) => {
@@ -212,22 +219,20 @@ export default function DocumentCenter() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const isExpiringSoon = (expirationDate?: string) => {
-    if (!expirationDate) return false;
-    const expiry = new Date(expirationDate);
-    const now = new Date();
-    const diffTime = expiry.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 30 && diffDays >= 0;
+  const isExpiringDocument = (doc: PropertyDocument) => {
+    if (!doc.hasExpiration || !doc.expirationDate) return false;
+    const expirationDate = new Date(doc.expirationDate);
+    const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    return expirationDate <= thirtyDaysFromNow;
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Document Center</h1>
+          <h1 className="text-3xl font-bold tracking-tight">📂 Document Center</h1>
           <p className="text-muted-foreground">
-            Manage property documents, contracts, and important files
+            Secure document vault and owner onboarding file management
           </p>
         </div>
         <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
@@ -256,12 +261,16 @@ export default function DocumentCenter() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="property">Property*</Label>
-                  <Select value={uploadForm.propertyId} onValueChange={(value) => setUploadForm({...uploadForm, propertyId: value})}>
+                  <Label htmlFor="property">Property</Label>
+                  <Select 
+                    value={uploadForm.propertyId} 
+                    onValueChange={(value) => setUploadForm({...uploadForm, propertyId: value})}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select property" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">All Properties</SelectItem>
                       {properties.map((property: any) => (
                         <SelectItem key={property.id} value={property.id.toString()}>
                           {property.name}
@@ -271,18 +280,21 @@ export default function DocumentCenter() {
                   </Select>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="category">Category*</Label>
-                  <Select value={uploadForm.category} onValueChange={(value) => setUploadForm({...uploadForm, category: value})}>
+                  <Select 
+                    value={uploadForm.category} 
+                    onValueChange={(value) => setUploadForm({...uploadForm, category: value})}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {DOCUMENT_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
+                      {documentCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -290,12 +302,15 @@ export default function DocumentCenter() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="visibility">Visibility</Label>
-                  <Select value={uploadForm.visibility} onValueChange={(value) => setUploadForm({...uploadForm, visibility: value})}>
+                  <Select 
+                    value={uploadForm.visibility} 
+                    onValueChange={(value) => setUploadForm({...uploadForm, visibility: value})}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {VISIBILITY_OPTIONS.map((option) => (
+                      {visibilityOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -311,26 +326,27 @@ export default function DocumentCenter() {
                   id="description"
                   value={uploadForm.description}
                   onChange={(e) => setUploadForm({...uploadForm, description: e.target.value})}
-                  placeholder="Document description (optional)"
+                  placeholder="Brief description of the document"
                   rows={3}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tags">Tags</Label>
+                <Label htmlFor="tags">Tags (comma-separated)</Label>
                 <Input
                   id="tags"
                   value={uploadForm.tags}
                   onChange={(e) => setUploadForm({...uploadForm, tags: e.target.value})}
-                  placeholder="Comma-separated tags (optional)"
+                  placeholder="important, signed, current"
                 />
               </div>
 
               <div className="flex items-center space-x-2">
-                <Switch
+                <input
+                  type="checkbox"
                   id="hasExpiration"
                   checked={uploadForm.hasExpiration}
-                  onCheckedChange={(checked) => setUploadForm({...uploadForm, hasExpiration: checked})}
+                  onChange={(e) => setUploadForm({...uploadForm, hasExpiration: e.target.checked})}
                 />
                 <Label htmlFor="hasExpiration">Document has expiration date</Label>
               </div>
@@ -361,28 +377,29 @@ export default function DocumentCenter() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">📊 Overview</TabsTrigger>
           <TabsTrigger value="documents">📁 All Documents</TabsTrigger>
-          <TabsTrigger value="expiring">⚠️ Expiring</TabsTrigger>
+          <TabsTrigger value="expiring">⚠️ Expiring Soon</TabsTrigger>
+          <TabsTrigger value="onboarding">✅ Owner Onboarding</TabsTrigger>
           <TabsTrigger value="access-logs">📋 Access Logs</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
-                <File className="h-4 w-4 text-muted-foreground" />
+                <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{summary?.totalDocuments || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  Across all properties
+                  +{summary?.recentUploads || 0} this week
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
@@ -395,66 +412,66 @@ export default function DocumentCenter() {
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Recent Uploads</CardTitle>
-                <Upload className="h-4 w-4 text-green-500" />
+                <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{summary?.recentUploads || 0}</div>
+                <div className="text-2xl font-bold text-yellow-600">{summary?.pendingApproval || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  Last 7 days
+                  Requires review
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Properties</CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Categories</CardTitle>
+                <FolderOpen className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{properties.length}</div>
+                <div className="text-2xl font-bold">{summary?.documentsByCategory?.length || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  With documents
+                  Document types
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents by Category</CardTitle>
-              <CardDescription>Distribution of documents across categories</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {DOCUMENT_CATEGORIES.map((category) => {
-                  const categoryData = summary?.documentsByCategory?.find(c => c.category === category.value);
-                  const count = categoryData?.count || 0;
-                  const Icon = category.icon;
-                  
-                  return (
-                    <div key={category.value} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">{category.label}</p>
-                          <p className="text-xs text-muted-foreground">{category.description}</p>
+          {summary?.documentsByCategory && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Documents by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {summary.documentsByCategory.map((category) => {
+                    const categoryInfo = documentCategories.find(c => c.value === category.category);
+                    const percentage = summary.totalDocuments > 0 ? (category.count / summary.totalDocuments) * 100 : 0;
+                    
+                    return (
+                      <div key={category.category} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="flex items-center gap-2">
+                            <span>{getCategoryIcon(category.category)}</span>
+                            {categoryInfo?.label || category.category}
+                          </span>
+                          <span className="font-medium">{category.count}</span>
                         </div>
+                        <Progress value={percentage} className="h-2" />
                       </div>
-                      <Badge variant="secondary">{count}</Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
-        <TabsContent value="documents" className="space-y-6">
-          <div className="flex items-center space-x-4">
+        <TabsContent value="documents" className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -466,8 +483,9 @@ export default function DocumentCenter() {
                 />
               </div>
             </div>
+            
             <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="All Properties" />
               </SelectTrigger>
               <SelectContent>
@@ -479,232 +497,186 @@ export default function DocumentCenter() {
                 ))}
               </SelectContent>
             </Select>
+
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">All Categories</SelectItem>
-                {DOCUMENT_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.label}
+                {documentCategories.map((category) => (
+                  <SelectItem key={category.value} value={category.value}>
+                    {category.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredDocuments.map((document: PropertyDocument) => {
-              const FileIcon = getFileIcon(document.fileType);
-              const categoryData = DOCUMENT_CATEGORIES.find(c => c.value === document.category);
-              
-              return (
-                <Card key={document.id} className="hover:shadow-md transition-shadow">
+          {documentsLoading ? (
+            <div className="text-center py-8">Loading documents...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {documents.map((doc: PropertyDocument) => (
+                <Card key={doc.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-2">
-                        <FileIcon className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-sm truncate">{document.title}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{getCategoryIcon(doc.category)}</span>
+                        <div>
+                          <CardTitle className="text-sm font-medium line-clamp-1">
+                            {doc.title}
+                          </CardTitle>
                           <CardDescription className="text-xs">
-                            {categoryData?.label}
+                            {formatFileSize(doc.fileSize)}
                           </CardDescription>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedDocument(document)}>
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(document.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                      <div className="flex items-center gap-1">
+                        {getVisibilityIcon(doc.visibility)}
+                        {isExpiringDocument(doc) && (
+                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                        )}
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{formatFileSize(document.fileSize)}</span>
-                      <span>{new Date(document.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    
-                    {document.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {document.description}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center justify-between">
-                      <Badge variant={document.visibility === 'private' ? 'destructive' : 'secondary'}>
-                        {document.visibility === 'private' ? 'Private' : 'Owner Visible'}
-                      </Badge>
+                  <CardContent className="pt-0">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        {getStatusBadge(doc.status)}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(doc.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
                       
-                      {document.hasExpiration && isExpiringSoon(document.expirationDate) && (
-                        <Badge variant="destructive" className="text-xs">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Expires Soon
-                        </Badge>
+                      {doc.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {doc.description}
+                        </p>
                       )}
+                      
+                      {doc.tags && doc.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {doc.tags.slice(0, 3).map((tag, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {doc.tags.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{doc.tags.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between items-center pt-2">
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline">
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            <Download className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        
+                        {doc.hasExpiration && doc.expirationDate && (
+                          <div className="text-xs text-muted-foreground">
+                            Expires: {new Date(doc.expirationDate).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
-
-          {filteredDocuments.length === 0 && !documentsLoading && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <File className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No documents found</h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  {searchQuery || selectedProperty || selectedCategory 
-                    ? "Try adjusting your filters or search query."
-                    : "Upload your first document to get started."
-                  }
-                </p>
-                <Button onClick={() => setShowUploadDialog(true)}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Document
-                </Button>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
 
-        <TabsContent value="expiring" className="space-y-6">
+        <TabsContent value="expiring" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
+              <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-500" />
-                <span>Documents Expiring Soon</span>
+                Documents Expiring Soon
               </CardTitle>
               <CardDescription>
                 Documents that will expire within the next 30 days
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {expiringDocuments.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No expiring documents</h3>
-                  <p className="text-muted-foreground">All documents are up to date.</p>
+              {expiringDocs.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                  <p>No documents expiring soon</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {expiringDocuments.map((document: PropertyDocument) => {
-                    const daysUntilExpiry = document.expirationDate 
-                      ? Math.ceil((new Date(document.expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-                      : 0;
-                    
-                    return (
-                      <div key={document.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2">
-                            <File className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                              <h4 className="font-medium">{document.title}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                Expires: {new Date(document.expirationDate!).toLocaleDateString()}
-                              </p>
-                            </div>
+                <div className="space-y-3">
+                  {expiringDocs.map((doc: PropertyDocument) => (
+                    <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{getCategoryIcon(doc.category)}</span>
+                        <div>
+                          <div className="font-medium">{doc.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Expires: {doc.expirationDate ? new Date(doc.expirationDate).toLocaleDateString() : 'N/A'}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={daysUntilExpiry <= 7 ? "destructive" : "destructive"}>
-                            {daysUntilExpiry <= 0 ? "EXPIRED" : `${daysUntilExpiry} days`}
-                          </Badge>
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
                       </div>
-                    );
-                  })}
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(doc.status)}
+                        <Button size="sm" variant="outline">
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="access-logs" className="space-y-6">
+        <TabsContent value="onboarding" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Document Access Logs</CardTitle>
+              <CardTitle>✅ Owner Onboarding Checklist</CardTitle>
               <CardDescription>
-                Track who accessed which documents and when (Admin/PM only)
+                Track document collection and setup progress for new owners
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Access logs</h3>
-                <p className="text-muted-foreground">
-                  Document access history will appear here when documents are viewed or modified.
-                </p>
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-4" />
+                <p>Owner onboarding checklist interface coming soon</p>
+                <p className="text-sm">Will include step-by-step document collection workflow</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="access-logs" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>📋 Document Access Logs</CardTitle>
+              <CardDescription>
+                Audit trail of all document access and modifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                <Shield className="h-12 w-12 mx-auto mb-4" />
+                <p>Access logs interface coming soon</p>
+                <p className="text-sm">Will display detailed audit trail for compliance</p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Document Preview Dialog */}
-      {selectedDocument && (
-        <Dialog open={!!selectedDocument} onOpenChange={() => setSelectedDocument(null)}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>{selectedDocument.title}</DialogTitle>
-              <DialogDescription>
-                {DOCUMENT_CATEGORIES.find(c => c.value === selectedDocument.category)?.label}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <Label>File Name</Label>
-                  <p className="text-muted-foreground">{selectedDocument.fileName}</p>
-                </div>
-                <div>
-                  <Label>File Size</Label>
-                  <p className="text-muted-foreground">{formatFileSize(selectedDocument.fileSize)}</p>
-                </div>
-                <div>
-                  <Label>Uploaded By</Label>
-                  <p className="text-muted-foreground">{selectedDocument.uploadedByRole}</p>
-                </div>
-                <div>
-                  <Label>Upload Date</Label>
-                  <p className="text-muted-foreground">{new Date(selectedDocument.createdAt).toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              {selectedDocument.description && (
-                <div>
-                  <Label>Description</Label>
-                  <p className="text-muted-foreground text-sm">{selectedDocument.description}</p>
-                </div>
-              )}
-              
-              {selectedDocument.hasExpiration && (
-                <div>
-                  <Label>Expiration Date</Label>
-                  <p className="text-muted-foreground">{new Date(selectedDocument.expirationDate!).toLocaleDateString()}</p>
-                </div>
-              )}
-              
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setSelectedDocument(null)}>
-                  Close
-                </Button>
-                <Button>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

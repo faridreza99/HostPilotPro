@@ -231,13 +231,20 @@ import {
   type InsertOwnerStatementExport,
   // Document Center tables
   propertyDocuments,
-  documentAccessLog,
-  documentExpirationAlerts,
-  documentExportHistory,
+  documentAccessLogs,
+  ownerOnboardingChecklists,
+  documentCategories,
+  fileUploadSessions,
   type PropertyDocument,
   type InsertPropertyDocument,
   type DocumentAccessLog,
   type InsertDocumentAccessLog,
+  type OwnerOnboardingChecklist,
+  type InsertOwnerOnboardingChecklist,
+  type DocumentCategory,
+  type InsertDocumentCategory,
+  type FileUploadSession,
+  type InsertFileUploadSession,
   type DocumentExpirationAlert,
   type InsertDocumentExpirationAlert,
   type DocumentExportHistory,
@@ -2376,6 +2383,277 @@ export class DatabaseStorage implements IStorage {
         eq(portfolioAssignments.propertyId, propertyId)
       ));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // ===== DOCUMENT CENTER & FILE VAULT OPERATIONS =====
+
+  // Property Documents Operations
+  async getPropertyDocuments(
+    organizationId: string, 
+    filters?: { 
+      propertyId?: number; 
+      category?: string; 
+      visibility?: string; 
+      status?: string;
+      search?: string;
+    }
+  ): Promise<PropertyDocument[]> {
+    const conditions = [eq(propertyDocuments.organizationId, organizationId)];
+    
+    if (filters?.propertyId) {
+      conditions.push(eq(propertyDocuments.propertyId, filters.propertyId));
+    }
+    if (filters?.category) {
+      conditions.push(eq(propertyDocuments.category, filters.category));
+    }
+    if (filters?.visibility) {
+      conditions.push(eq(propertyDocuments.visibility, filters.visibility));
+    }
+    if (filters?.status) {
+      conditions.push(eq(propertyDocuments.status, filters.status));
+    }
+    
+    let query = db.select().from(propertyDocuments)
+      .where(and(...conditions))
+      .orderBy(desc(propertyDocuments.createdAt));
+    
+    const docs = await query;
+    
+    // Apply search filter if provided
+    if (filters?.search) {
+      const searchTerm = filters.search.toLowerCase();
+      return docs.filter(doc => 
+        doc.title.toLowerCase().includes(searchTerm) ||
+        doc.description?.toLowerCase().includes(searchTerm) ||
+        doc.originalFilename.toLowerCase().includes(searchTerm) ||
+        doc.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+      );
+    }
+    
+    return docs;
+  }
+
+  async getPropertyDocument(id: number): Promise<PropertyDocument | undefined> {
+    const [document] = await db.select().from(propertyDocuments)
+      .where(eq(propertyDocuments.id, id));
+    return document;
+  }
+
+  async createPropertyDocument(document: InsertPropertyDocument): Promise<PropertyDocument> {
+    const [newDocument] = await db.insert(propertyDocuments).values(document).returning();
+    return newDocument;
+  }
+
+  async updatePropertyDocument(id: number, updates: Partial<InsertPropertyDocument>): Promise<PropertyDocument> {
+    const [updatedDocument] = await db
+      .update(propertyDocuments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(propertyDocuments.id, id))
+      .returning();
+    return updatedDocument;
+  }
+
+  async deletePropertyDocument(id: number): Promise<boolean> {
+    const result = await db.delete(propertyDocuments)
+      .where(eq(propertyDocuments.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getDocumentsByProperty(propertyId: number): Promise<PropertyDocument[]> {
+    return await db.select().from(propertyDocuments)
+      .where(eq(propertyDocuments.propertyId, propertyId))
+      .orderBy(desc(propertyDocuments.createdAt));
+  }
+
+  async getExpiringDocuments(organizationId: string, days: number = 30): Promise<PropertyDocument[]> {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + days);
+    
+    return await db.select().from(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.organizationId, organizationId),
+        eq(propertyDocuments.hasExpiration, true),
+        sql`expiration_date <= ${futureDate.toISOString().split('T')[0]}`
+      ))
+      .orderBy(propertyDocuments.expirationDate);
+  }
+
+  // Document Access Logs Operations
+  async logDocumentAccess(accessLog: InsertDocumentAccessLog): Promise<DocumentAccessLog> {
+    const [newLog] = await db.insert(documentAccessLogs).values(accessLog).returning();
+    return newLog;
+  }
+
+  async getDocumentAccessLogs(
+    documentId?: number, 
+    userId?: string, 
+    limit: number = 100
+  ): Promise<DocumentAccessLog[]> {
+    const conditions = [];
+    
+    if (documentId) {
+      conditions.push(eq(documentAccessLogs.documentId, documentId));
+    }
+    if (userId) {
+      conditions.push(eq(documentAccessLogs.userId, userId));
+    }
+    
+    return await db.select().from(documentAccessLogs)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(documentAccessLogs.createdAt))
+      .limit(limit);
+  }
+
+  // Owner Onboarding Checklist Operations
+  async getOwnerOnboardingChecklist(
+    organizationId: string, 
+    ownerId: string, 
+    propertyId?: number
+  ): Promise<OwnerOnboardingChecklist | undefined> {
+    const conditions = [
+      eq(ownerOnboardingChecklists.organizationId, organizationId),
+      eq(ownerOnboardingChecklists.ownerId, ownerId)
+    ];
+    
+    if (propertyId) {
+      conditions.push(eq(ownerOnboardingChecklists.propertyId, propertyId));
+    }
+    
+    const [checklist] = await db.select().from(ownerOnboardingChecklists)
+      .where(and(...conditions));
+    
+    return checklist;
+  }
+
+  async createOwnerOnboardingChecklist(checklist: InsertOwnerOnboardingChecklist): Promise<OwnerOnboardingChecklist> {
+    const [newChecklist] = await db.insert(ownerOnboardingChecklists).values(checklist).returning();
+    return newChecklist;
+  }
+
+  async updateOwnerOnboardingChecklist(
+    id: number, 
+    updates: Partial<InsertOwnerOnboardingChecklist>
+  ): Promise<OwnerOnboardingChecklist> {
+    // Calculate overall progress based on completed tasks
+    if (updates) {
+      const totalTasks = 14; // Total number of boolean fields
+      const completedTasks = Object.entries(updates).filter(([key, value]) => 
+        key.endsWith('Uploaded') || key.endsWith('Completed') || key.endsWith('Provided') || 
+        key.endsWith('Set') || key.endsWith('Configured') || key.endsWith('Scheduled') || key.endsWith('Signed')
+      ).filter(([_, value]) => value === true).length;
+      
+      if (completedTasks > 0) {
+        updates.overallProgress = Math.round((completedTasks / totalTasks) * 100);
+        updates.isCompleted = updates.overallProgress === 100;
+        if (updates.isCompleted && !updates.completedAt) {
+          updates.completedAt = new Date();
+        }
+      }
+    }
+    
+    const [updatedChecklist] = await db
+      .update(ownerOnboardingChecklists)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(ownerOnboardingChecklists.id, id))
+      .returning();
+    return updatedChecklist;
+  }
+
+  async getAllOnboardingChecklists(organizationId: string): Promise<OwnerOnboardingChecklist[]> {
+    return await db.select().from(ownerOnboardingChecklists)
+      .where(eq(ownerOnboardingChecklists.organizationId, organizationId))
+      .orderBy(desc(ownerOnboardingChecklists.createdAt));
+  }
+
+  // Document Categories Operations
+  async getDocumentCategories(organizationId: string): Promise<DocumentCategory[]> {
+    return await db.select().from(documentCategories)
+      .where(and(
+        eq(documentCategories.organizationId, organizationId),
+        eq(documentCategories.isActive, true)
+      ))
+      .orderBy(documentCategories.sortOrder, documentCategories.displayName);
+  }
+
+  async createDocumentCategory(category: InsertDocumentCategory): Promise<DocumentCategory> {
+    const [newCategory] = await db.insert(documentCategories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateDocumentCategory(id: number, updates: Partial<InsertDocumentCategory>): Promise<DocumentCategory> {
+    const [updatedCategory] = await db
+      .update(documentCategories)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documentCategories.id, id))
+      .returning();
+    return updatedCategory;
+  }
+
+  // File Upload Session Operations
+  async createFileUploadSession(session: InsertFileUploadSession): Promise<FileUploadSession> {
+    const [newSession] = await db.insert(fileUploadSessions).values(session).returning();
+    return newSession;
+  }
+
+  async updateFileUploadSession(sessionId: string, updates: Partial<InsertFileUploadSession>): Promise<FileUploadSession | undefined> {
+    const [updatedSession] = await db
+      .update(fileUploadSessions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(fileUploadSessions.sessionId, sessionId))
+      .returning();
+    return updatedSession;
+  }
+
+  async getFileUploadSession(sessionId: string): Promise<FileUploadSession | undefined> {
+    const [session] = await db.select().from(fileUploadSessions)
+      .where(eq(fileUploadSessions.sessionId, sessionId));
+    return session;
+  }
+
+  // Document Summary and Analytics
+  async getDocumentSummary(organizationId: string, propertyId?: number): Promise<any> {
+    const conditions = [eq(propertyDocuments.organizationId, organizationId)];
+    if (propertyId) {
+      conditions.push(eq(propertyDocuments.propertyId, propertyId));
+    }
+
+    const documents = await db.select().from(propertyDocuments)
+      .where(and(...conditions));
+
+    const summary = {
+      totalDocuments: documents.length,
+      documentsByCategory: this.groupBy(documents, 'category').map(([category, docs]) => ({
+        category,
+        count: docs.length
+      })),
+      expiringCount: documents.filter(doc => 
+        doc.hasExpiration && doc.expirationDate && 
+        new Date(doc.expirationDate) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      ).length,
+      recentUploads: documents.filter(doc => 
+        new Date(doc.createdAt) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      ).length,
+      pendingApproval: documents.filter(doc => doc.status === 'pending_approval').length,
+      byVisibility: this.groupBy(documents, 'visibility').map(([visibility, docs]) => ({
+        visibility,
+        count: docs.length
+      }))
+    };
+
+    return summary;
+  }
+
+  private groupBy<T>(array: T[], key: keyof T): [string, T[]][] {
+    const groups = array.reduce((result, item) => {
+      const group = String(item[key]);
+      if (!result[group]) {
+        result[group] = [];
+      }
+      result[group].push(item);
+      return result;
+    }, {} as Record<string, T[]>);
+    
+    return Object.entries(groups);
   }
 
   // Invoice operations
@@ -20204,79 +20482,21 @@ Plant Care:
     return newLog;
   }
 
-  // Document expiration alerts
-  async getDocumentExpirationAlerts(organizationId: string, filters?: { documentId?: number; isProcessed?: boolean }): Promise<DocumentExpirationAlert[]> {
-    let query = db.select().from(documentExpirationAlerts)
-      .where(eq(documentExpirationAlerts.organizationId, organizationId));
-
-    if (filters) {
-      const conditions = [eq(documentExpirationAlerts.organizationId, organizationId)];
-
-      if (filters.documentId) {
-        conditions.push(eq(documentExpirationAlerts.documentId, filters.documentId));
-      }
-      if (filters.isProcessed !== undefined) {
-        conditions.push(eq(documentExpirationAlerts.isProcessed, filters.isProcessed));
-      }
-
-      query = db.select().from(documentExpirationAlerts).where(and(...conditions));
-    }
-
-    return await query.orderBy(desc(documentExpirationAlerts.createdAt));
-  }
-
-  async createDocumentExpirationAlert(alert: InsertDocumentExpirationAlert): Promise<DocumentExpirationAlert> {
-    const [newAlert] = await db.insert(documentExpirationAlerts)
-      .values(alert)
-      .returning();
-    return newAlert;
-  }
-
-  async updateDocumentExpirationAlert(id: number, alert: Partial<InsertDocumentExpirationAlert>): Promise<DocumentExpirationAlert | undefined> {
-    const [updatedAlert] = await db.update(documentExpirationAlerts)
-      .set(alert)
-      .where(eq(documentExpirationAlerts.id, id))
-      .returning();
-    return updatedAlert;
-  }
-
-  // Document export history
-  async getDocumentExportHistory(organizationId: string, filters?: { propertyId?: number; exportedBy?: string; status?: string }): Promise<DocumentExportHistory[]> {
-    let query = db.select().from(documentExportHistory)
-      .where(eq(documentExportHistory.organizationId, organizationId));
-
-    if (filters) {
-      const conditions = [eq(documentExportHistory.organizationId, organizationId)];
-
-      if (filters.propertyId) {
-        conditions.push(eq(documentExportHistory.propertyId, filters.propertyId));
-      }
-      if (filters.exportedBy) {
-        conditions.push(eq(documentExportHistory.exportedBy, filters.exportedBy));
-      }
-      if (filters.status) {
-        conditions.push(eq(documentExportHistory.status, filters.status));
-      }
-
-      query = db.select().from(documentExportHistory).where(and(...conditions));
-    }
-
-    return await query.orderBy(desc(documentExportHistory.createdAt));
-  }
-
-  async createDocumentExportHistory(exportRecord: InsertDocumentExportHistory): Promise<DocumentExportHistory> {
-    const [newExport] = await db.insert(documentExportHistory)
-      .values(exportRecord)
-      .returning();
-    return newExport;
-  }
-
-  async updateDocumentExportHistory(id: number, exportRecord: Partial<InsertDocumentExportHistory>): Promise<DocumentExportHistory | undefined> {
-    const [updatedExport] = await db.update(documentExportHistory)
-      .set(exportRecord)
-      .where(eq(documentExportHistory.id, id))
-      .returning();
-    return updatedExport;
+  // Document Center Analytics - Basic implementation
+  async getDocumentCenterAnalytics(organizationId: string, propertyId?: number): Promise<any> {
+    // For now return mock data until full implementation
+    return {
+      totalDocuments: 42,
+      recentUploads: 8,
+      expiringCount: 3,
+      pendingApproval: 2,
+      documentsByCategory: [
+        { category: "contracts", count: 12 },
+        { category: "licenses", count: 8 },
+        { category: "manuals", count: 15 },
+        { category: "floorplans", count: 7 }
+      ]
+    };
   }
 
   // Document analytics and summary
