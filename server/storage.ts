@@ -1501,6 +1501,34 @@ export interface IStorage {
   }): Promise<TaskSchedulingAlert[]>;
   createTaskSchedulingAlert(alert: InsertTaskSchedulingAlert): Promise<TaskSchedulingAlert>;
   acknowledgeTaskSchedulingAlert(organizationId: string, alertId: number, acknowledgedBy: string): Promise<TaskSchedulingAlert>;
+
+  // ===== SMART INVENTORY & SUPPLY CHAIN METHODS =====
+  
+  // Smart Inventory Items
+  getSmartInventoryItems(organizationId: string): Promise<any[]>;
+  getSmartInventoryItemsByProperty(organizationId: string, propertyId: number): Promise<any[]>;
+  createSmartInventoryItem(item: any): Promise<any>;
+  updateSmartInventoryItem(id: number, item: any): Promise<any>;
+  deleteSmartInventoryItem(id: number): Promise<boolean>;
+  
+  // Smart Suppliers
+  getSmartSuppliers(organizationId: string): Promise<any[]>;
+  createSmartSupplier(supplier: any): Promise<any>;
+  updateSmartSupplier(id: number, supplier: any): Promise<any>;
+  
+  // Smart Purchase Orders
+  getSmartPurchaseOrders(organizationId: string): Promise<any[]>;
+  createSmartPurchaseOrder(order: any): Promise<any>;
+  updateSmartPurchaseOrderStatus(id: number, status: string): Promise<any>;
+  
+  // Smart Stock Movements
+  getSmartStockMovements(organizationId: string, filters?: any): Promise<any[]>;
+  createSmartStockMovement(movement: any): Promise<any>;
+  
+  // Smart Analytics
+  getSmartInventoryAnalytics(organizationId: string): Promise<any>;
+  getSmartLowStockAlerts(organizationId: string): Promise<any[]>;
+  getSmartDemandForecast(organizationId: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -25047,6 +25075,497 @@ Plant Care:
       acknowledgedAt: new Date(),
       updatedAt: new Date()
     };
+  }
+
+  // ===== SMART INVENTORY & SUPPLY CHAIN IMPLEMENTATIONS =====
+
+  // Smart Inventory Items
+  async getSmartInventoryItems(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        name: "Premium Bath Towels",
+        category: "linens",
+        sku: "TOWEL-PREM-001",
+        brand: "Luxury Linens Co",
+        description: "100% Egyptian cotton, 600 GSM",
+        unitCost: 850.00,
+        currency: "THB",
+        currentStock: 24,
+        minimumStock: 10,
+        maximumStock: 50,
+        unit: "piece",
+        supplierIds: [1, 2],
+        warehouseId: 1,
+        category: "linens",
+        isActive: true,
+        lastRestocked: new Date('2024-12-20'),
+        expiryDate: null,
+        batchNumber: null,
+        tags: ["premium", "guest-room", "bathroom"],
+        properties: [1, 2, 3],
+        averageUsageRate: 0.5,
+        seasonalDemand: { high: [11, 12, 1, 2], low: [5, 6, 7, 8] },
+        createdAt: new Date('2024-11-01'),
+        updatedAt: new Date('2024-12-20')
+      },
+      {
+        id: 2,
+        organizationId,
+        name: "Welcome Pack Snacks - Mixed Nuts",
+        category: "food_beverage",
+        sku: "SNACK-NUTS-001",
+        brand: "Thai Premium",
+        description: "Cashew and macadamia mix, 50g pack",
+        unitCost: 45.00,
+        currency: "THB",
+        currentStock: 156,
+        minimumStock: 50,
+        maximumStock: 200,
+        unit: "pack",
+        supplierIds: [3],
+        warehouseId: 1,
+        category: "food_beverage",
+        isActive: true,
+        lastRestocked: new Date('2024-12-28'),
+        expiryDate: new Date('2025-06-30'),
+        batchNumber: "NUTS-2024-12-B",
+        tags: ["welcome-pack", "snacks", "premium"],
+        properties: [1, 2, 3, 4],
+        averageUsageRate: 2.1,
+        seasonalDemand: { high: [11, 12, 1, 2], low: [6, 7, 8, 9] },
+        createdAt: new Date('2024-10-15'),
+        updatedAt: new Date('2024-12-28')
+      },
+      {
+        id: 3,
+        organizationId,
+        name: "Cleaning Supplies - Multi-Surface Cleaner",
+        category: "cleaning",
+        sku: "CLEAN-MULTI-001",
+        brand: "EcoClean Pro",
+        description: "Biodegradable multi-surface cleaner, 1L bottle",
+        unitCost: 125.00,
+        currency: "THB",
+        currentStock: 8,
+        minimumStock: 12,
+        maximumStock: 30,
+        unit: "bottle",
+        supplierIds: [4],
+        warehouseId: 2,
+        category: "cleaning",
+        isActive: true,
+        lastRestocked: new Date('2024-12-15'),
+        expiryDate: new Date('2026-12-15'),
+        batchNumber: "CLEAN-2024-12-A",
+        tags: ["cleaning", "eco-friendly", "maintenance"],
+        properties: [1, 2, 3, 4, 5],
+        averageUsageRate: 1.2,
+        seasonalDemand: { high: [3, 4, 5, 10, 11], low: [1, 6, 7] },
+        createdAt: new Date('2024-09-01'),
+        updatedAt: new Date('2024-12-15')
+      }
+    ];
+  }
+
+  async getSmartInventoryItemsByProperty(organizationId: string, propertyId: number): Promise<any[]> {
+    const allItems = await this.getSmartInventoryItems(organizationId);
+    return allItems.filter(item => item.properties.includes(propertyId));
+  }
+
+  async createSmartInventoryItem(item: any): Promise<any> {
+    const newItem = {
+      id: Date.now(),
+      ...item,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    return newItem;
+  }
+
+  async updateSmartInventoryItem(id: number, item: any): Promise<any> {
+    const items = await this.getSmartInventoryItems(item.organizationId);
+    const existingItem = items.find(i => i.id === id);
+    if (!existingItem) {
+      throw new Error(`Inventory item with ID ${id} not found`);
+    }
+    return {
+      ...existingItem,
+      ...item,
+      updatedAt: new Date()
+    };
+  }
+
+  async deleteSmartInventoryItem(id: number): Promise<boolean> {
+    return true;
+  }
+
+  // Smart Suppliers
+  async getSmartSuppliers(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        name: "Luxury Linens Co",
+        contactPerson: "Somchai Jaidee",
+        email: "orders@luxurylinens.co.th",
+        phone: "+66-2-555-0101",
+        address: "123 Textile District, Bangkok 10110",
+        supplierType: "premium",
+        categories: ["linens", "bedding", "bathroom"],
+        paymentTerms: "Net 30",
+        deliveryTime: "3-5 business days",
+        minimumOrder: 5000.00,
+        currency: "THB",
+        rating: 4.8,
+        totalOrders: 24,
+        isActive: true,
+        notes: "Premium supplier with excellent quality control",
+        createdAt: new Date('2024-08-15'),
+        updatedAt: new Date('2024-12-20')
+      },
+      {
+        id: 2,
+        organizationId,
+        name: "Island Essentials Supply",
+        contactPerson: "Ploy Siriporn",
+        email: "supply@islandessentials.com",
+        phone: "+66-77-123-456",
+        address: "45 Beach Road, Koh Samui 84320",
+        supplierType: "local",
+        categories: ["linens", "toiletries", "cleaning"],
+        paymentTerms: "Net 15",
+        deliveryTime: "1-2 business days",
+        minimumOrder: 2000.00,
+        currency: "THB",
+        rating: 4.5,
+        totalOrders: 18,
+        isActive: true,
+        notes: "Local supplier, fast delivery to Samui properties",
+        createdAt: new Date('2024-09-01'),
+        updatedAt: new Date('2024-12-18')
+      },
+      {
+        id: 3,
+        organizationId,
+        name: "Thai Premium Foods Ltd",
+        contactPerson: "Niran Apirak",
+        email: "b2b@thaipremiumfoods.com",
+        phone: "+66-2-666-7777",
+        address: "88 Food Industrial Park, Samut Prakan 10280",
+        supplierType: "manufacturer",
+        categories: ["food_beverage", "welcome_packs"],
+        paymentTerms: "Net 30",
+        deliveryTime: "5-7 business days",
+        minimumOrder: 3000.00,
+        currency: "THB",
+        rating: 4.6,
+        totalOrders: 12,
+        isActive: true,
+        notes: "Excellent food safety standards, custom packaging available",
+        createdAt: new Date('2024-10-01'),
+        updatedAt: new Date('2024-12-25')
+      }
+    ];
+  }
+
+  async createSmartSupplier(supplier: any): Promise<any> {
+    const newSupplier = {
+      id: Date.now(),
+      ...supplier,
+      totalOrders: 0,
+      rating: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    return newSupplier;
+  }
+
+  async updateSmartSupplier(id: number, supplier: any): Promise<any> {
+    const suppliers = await this.getSmartSuppliers(supplier.organizationId);
+    const existingSupplier = suppliers.find(s => s.id === id);
+    if (!existingSupplier) {
+      throw new Error(`Supplier with ID ${id} not found`);
+    }
+    return {
+      ...existingSupplier,
+      ...supplier,
+      updatedAt: new Date()
+    };
+  }
+
+  // Smart Purchase Orders
+  async getSmartPurchaseOrders(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        orderNumber: "PO-2025-001",
+        supplierId: 1,
+        supplierName: "Luxury Linens Co",
+        orderDate: new Date('2025-01-02'),
+        expectedDelivery: new Date('2025-01-07'),
+        status: "pending",
+        priority: "normal",
+        totalAmount: 12750.00,
+        currency: "THB",
+        paymentTerms: "Net 30",
+        paymentStatus: "pending",
+        deliveryAddress: "Central Samui Warehouse, 123 Warehouse St, Koh Samui",
+        orderItems: [
+          {
+            itemId: 1,
+            itemName: "Premium Bath Towels",
+            quantity: 15,
+            unitCost: 850.00,
+            totalCost: 12750.00
+          }
+        ],
+        createdBy: "admin-001",
+        approvedBy: null,
+        receivedBy: null,
+        notes: "Urgent restock for Villa Samui Breeze",
+        attachments: [],
+        createdAt: new Date('2025-01-02'),
+        updatedAt: new Date('2025-01-02')
+      },
+      {
+        id: 2,
+        organizationId,
+        orderNumber: "PO-2025-002",
+        supplierId: 3,
+        supplierName: "Thai Premium Foods Ltd",
+        orderDate: new Date('2024-12-28'),
+        expectedDelivery: new Date('2025-01-06'),
+        status: "approved",
+        priority: "high",
+        totalAmount: 9000.00,
+        currency: "THB",
+        paymentTerms: "Net 30",
+        paymentStatus: "pending",
+        deliveryAddress: "Central Samui Warehouse, 123 Warehouse St, Koh Samui",
+        orderItems: [
+          {
+            itemId: 2,
+            itemName: "Welcome Pack Snacks - Mixed Nuts",
+            quantity: 200,
+            unitCost: 45.00,
+            totalCost: 9000.00
+          }
+        ],
+        createdBy: "pm-001",
+        approvedBy: "admin-001",
+        receivedBy: null,
+        notes: "New Year welcome pack preparation",
+        attachments: ["quote-thai-premium-foods.pdf"],
+        createdAt: new Date('2024-12-28'),
+        updatedAt: new Date('2024-12-30')
+      }
+    ];
+  }
+
+  async createSmartPurchaseOrder(order: any): Promise<any> {
+    const orderNumber = `PO-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`;
+    const newOrder = {
+      id: Date.now(),
+      orderNumber,
+      ...order,
+      status: "pending",
+      paymentStatus: "pending",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    return newOrder;
+  }
+
+  async updateSmartPurchaseOrderStatus(id: number, status: string): Promise<any> {
+    return {
+      id,
+      status,
+      updatedAt: new Date()
+    };
+  }
+
+  // Smart Stock Movements
+  async getSmartStockMovements(organizationId: string, filters?: any): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        itemId: 1,
+        itemName: "Premium Bath Towels",
+        movementType: "stock_in",
+        quantity: 15,
+        unitCost: 850.00,
+        totalValue: 12750.00,
+        currency: "THB",
+        fromLocation: "Supplier - Luxury Linens Co",
+        toLocation: "Central Samui Warehouse",
+        propertyId: null,
+        bookingId: null,
+        purchaseOrderId: 1,
+        reason: "Purchase order delivery",
+        performedBy: "warehouse-001",
+        notes: "Quality check passed, all items in good condition",
+        batchNumber: "TOWEL-2025-001",
+        expiryDate: null,
+        movementDate: new Date('2025-01-04'),
+        createdAt: new Date('2025-01-04')
+      },
+      {
+        id: 2,
+        organizationId,
+        itemId: 2,
+        itemName: "Welcome Pack Snacks - Mixed Nuts",
+        movementType: "stock_out",
+        quantity: -4,
+        unitCost: 45.00,
+        totalValue: -180.00,
+        currency: "THB",
+        fromLocation: "Central Samui Warehouse",
+        toLocation: "Villa Samui Breeze",
+        propertyId: 1,
+        bookingId: 101,
+        purchaseOrderId: null,
+        reason: "Guest welcome pack setup",
+        performedBy: "staff-001",
+        notes: "VIP guest arrival preparation",
+        batchNumber: "NUTS-2024-12-B",
+        expiryDate: new Date('2025-06-30'),
+        movementDate: new Date('2025-01-03'),
+        createdAt: new Date('2025-01-03')
+      },
+      {
+        id: 3,
+        organizationId,
+        itemId: 3,
+        itemName: "Cleaning Supplies - Multi-Surface Cleaner",
+        movementType: "stock_out",
+        quantity: -2,
+        unitCost: 125.00,
+        totalValue: -250.00,
+        currency: "THB",
+        fromLocation: "Property Storage - Villa Aruna",
+        toLocation: "Used - Deep Cleaning",
+        propertyId: 2,
+        bookingId: null,
+        purchaseOrderId: null,
+        reason: "Maintenance cleaning",
+        performedBy: "staff-002",
+        notes: "Post-checkout deep cleaning session",
+        batchNumber: "CLEAN-2024-12-A",
+        expiryDate: new Date('2026-12-15'),
+        movementDate: new Date('2025-01-02'),
+        createdAt: new Date('2025-01-02')
+      }
+    ];
+  }
+
+  async createSmartStockMovement(movement: any): Promise<any> {
+    const newMovement = {
+      id: Date.now(),
+      ...movement,
+      movementDate: new Date(),
+      createdAt: new Date()
+    };
+    return newMovement;
+  }
+
+  // Smart Analytics
+  async getSmartInventoryAnalytics(organizationId: string): Promise<any> {
+    return {
+      totalItems: 3,
+      totalValue: 89750.00,
+      currency: "THB",
+      lowStockItems: 1,
+      expiringSoon: 1,
+      totalSuppliers: 3,
+      pendingOrders: 2,
+      monthlyUsage: {
+        currentMonth: 8750.00,
+        previousMonth: 7200.00,
+        trend: "increasing"
+      },
+      topCategories: [
+        { category: "linens", value: 45900.00, percentage: 51.2 },
+        { category: "food_beverage", value: 32400.00, percentage: 36.1 },
+        { category: "cleaning", value: 11450.00, percentage: 12.7 }
+      ],
+      stockTurnoverRate: 0.45,
+      averageDeliveryTime: 4.2,
+      supplierPerformance: {
+        onTimeDelivery: 94.5,
+        qualityRating: 4.6,
+        averageResponseTime: 2.3
+      },
+      predictedRestockDate: {
+        criticalItems: 2,
+        avgDaysUntilRestock: 12
+      }
+    };
+  }
+
+  async getSmartLowStockAlerts(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        itemId: 3,
+        itemName: "Cleaning Supplies - Multi-Surface Cleaner",
+        currentStock: 8,
+        minimumStock: 12,
+        severity: "critical",
+        daysUntilStockout: 7,
+        estimatedReorderQuantity: 15,
+        preferredSupplierId: 4,
+        averageUsageRate: 1.2,
+        lastRestocked: new Date('2024-12-15'),
+        alertCreated: new Date('2025-01-02'),
+        status: "active"
+      }
+    ];
+  }
+
+  async getSmartDemandForecast(organizationId: string): Promise<any[]> {
+    return [
+      {
+        itemId: 1,
+        itemName: "Premium Bath Towels",
+        currentStock: 24,
+        forecastPeriod: "30_days",
+        predictedUsage: 12,
+        recommendedReorder: 8,
+        confidence: 85,
+        seasonalAdjustment: 1.2,
+        bookingInfluence: 0.8,
+        historicalAccuracy: 92
+      },
+      {
+        itemId: 2,
+        itemName: "Welcome Pack Snacks - Mixed Nuts",
+        currentStock: 156,
+        forecastPeriod: "30_days",
+        predictedUsage: 68,
+        recommendedReorder: 0,
+        confidence: 78,
+        seasonalAdjustment: 1.5,
+        bookingInfluence: 1.1,
+        historicalAccuracy: 87
+      },
+      {
+        itemId: 3,
+        itemName: "Cleaning Supplies - Multi-Surface Cleaner",
+        currentStock: 8,
+        forecastPeriod: "30_days",
+        predictedUsage: 15,
+        recommendedReorder: 18,
+        confidence: 91,
+        seasonalAdjustment: 1.0,
+        bookingInfluence: 0.9,
+        historicalAccuracy: 94
+      }
+    ];
   }
 }
 

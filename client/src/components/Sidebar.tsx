@@ -101,7 +101,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Property Access", icon: Key, href: "/property-access" },
           { label: "AI Task Manager", icon: Activity, href: "/ai-task-manager" },
           { label: "Welcome Packs", icon: Package, href: "/welcome-packs" },
-          { label: "Inventory Dashboard", icon: Package, href: "/inventory-dashboard" },
+          { label: "Smart Inventory", icon: Package, href: "/smart-inventory-dashboard", badge: "New" },
         ]
       },
       {

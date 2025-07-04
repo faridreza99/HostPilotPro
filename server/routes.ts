@@ -19269,6 +19269,300 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== SMART INVENTORY & SUPPLY CHAIN API ROUTES =====
+
+  // Smart Inventory Items
+  app.get("/api/smart-inventory/items", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { propertyId } = req.query;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      let items;
+      if (propertyId) {
+        items = await storage.getSmartInventoryItemsByProperty(organizationId, parseInt(propertyId));
+      } else {
+        items = await storage.getSmartInventoryItems(organizationId);
+      }
+      
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching smart inventory items:", error);
+      res.status(500).json({ message: "Failed to fetch inventory items" });
+    }
+  });
+
+  app.post("/api/smart-inventory/items", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or PM access required" });
+      }
+
+      const itemData = {
+        ...req.body,
+        organizationId,
+      };
+
+      const item = await storage.createSmartInventoryItem(itemData);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating inventory item:", error);
+      res.status(500).json({ message: "Failed to create inventory item" });
+    }
+  });
+
+  app.patch("/api/smart-inventory/items/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { id } = req.params;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or PM access required" });
+      }
+
+      const updateData = {
+        ...req.body,
+        organizationId,
+      };
+
+      const item = await storage.updateSmartInventoryItem(parseInt(id), updateData);
+      res.json(item);
+    } catch (error) {
+      console.error("Error updating inventory item:", error);
+      res.status(500).json({ message: "Failed to update inventory item" });
+    }
+  });
+
+  app.delete("/api/smart-inventory/items/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.user;
+      const { id } = req.params;
+
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const success = await storage.deleteSmartInventoryItem(parseInt(id));
+      if (!success) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      res.json({ message: "Inventory item deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting inventory item:", error);
+      res.status(500).json({ message: "Failed to delete inventory item" });
+    }
+  });
+
+  // Smart Suppliers
+  app.get("/api/smart-inventory/suppliers", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const suppliers = await storage.getSmartSuppliers(organizationId);
+      res.json(suppliers);
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+      res.status(500).json({ message: "Failed to fetch suppliers" });
+    }
+  });
+
+  app.post("/api/smart-inventory/suppliers", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or PM access required" });
+      }
+
+      const supplierData = {
+        ...req.body,
+        organizationId,
+      };
+
+      const supplier = await storage.createSmartSupplier(supplierData);
+      res.status(201).json(supplier);
+    } catch (error) {
+      console.error("Error creating supplier:", error);
+      res.status(500).json({ message: "Failed to create supplier" });
+    }
+  });
+
+  app.patch("/api/smart-inventory/suppliers/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { id } = req.params;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or PM access required" });
+      }
+
+      const updateData = {
+        ...req.body,
+        organizationId,
+      };
+
+      const supplier = await storage.updateSmartSupplier(parseInt(id), updateData);
+      res.json(supplier);
+    } catch (error) {
+      console.error("Error updating supplier:", error);
+      res.status(500).json({ message: "Failed to update supplier" });
+    }
+  });
+
+  // Smart Purchase Orders
+  app.get("/api/smart-inventory/purchase-orders", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const orders = await storage.getSmartPurchaseOrders(organizationId);
+      res.json(orders);
+    } catch (error) {
+      console.error("Error fetching purchase orders:", error);
+      res.status(500).json({ message: "Failed to fetch purchase orders" });
+    }
+  });
+
+  app.post("/api/smart-inventory/purchase-orders", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or PM access required" });
+      }
+
+      const orderData = {
+        ...req.body,
+        organizationId,
+        createdBy: userId,
+      };
+
+      const order = await storage.createSmartPurchaseOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Error creating purchase order:", error);
+      res.status(500).json({ message: "Failed to create purchase order" });
+    }
+  });
+
+  app.patch("/api/smart-inventory/purchase-orders/:id/status", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.user;
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or PM access required" });
+      }
+
+      const order = await storage.updateSmartPurchaseOrderStatus(parseInt(id), status);
+      res.json(order);
+    } catch (error) {
+      console.error("Error updating purchase order status:", error);
+      res.status(500).json({ message: "Failed to update purchase order status" });
+    }
+  });
+
+  // Smart Stock Movements
+  app.get("/api/smart-inventory/stock-movements", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const movements = await storage.getSmartStockMovements(organizationId, req.query);
+      res.json(movements);
+    } catch (error) {
+      console.error("Error fetching stock movements:", error);
+      res.status(500).json({ message: "Failed to fetch stock movements" });
+    }
+  });
+
+  app.post("/api/smart-inventory/stock-movements", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role, id: userId } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const movementData = {
+        ...req.body,
+        organizationId,
+        performedBy: userId,
+      };
+
+      const movement = await storage.createSmartStockMovement(movementData);
+      res.status(201).json(movement);
+    } catch (error) {
+      console.error("Error creating stock movement:", error);
+      res.status(500).json({ message: "Failed to create stock movement" });
+    }
+  });
+
+  // Smart Analytics
+  app.get("/api/smart-inventory/analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or PM access required" });
+      }
+
+      const analytics = await storage.getSmartInventoryAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching inventory analytics:", error);
+      res.status(500).json({ message: "Failed to fetch inventory analytics" });
+    }
+  });
+
+  app.get("/api/smart-inventory/alerts/low-stock", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager', 'staff'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const alerts = await storage.getSmartLowStockAlerts(organizationId);
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching low stock alerts:", error);
+      res.status(500).json({ message: "Failed to fetch low stock alerts" });
+    }
+  });
+
+  app.get("/api/smart-inventory/demand-forecast", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or PM access required" });
+      }
+
+      const forecast = await storage.getSmartDemandForecast(organizationId);
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error fetching demand forecast:", error);
+      res.status(500).json({ message: "Failed to fetch demand forecast" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

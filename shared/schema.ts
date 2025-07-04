@@ -9493,5 +9493,486 @@ export type InsertRecurringTaskAnalytics = z.infer<typeof insertRecurringTaskAna
 export type TaskSchedulingAlert = typeof taskSchedulingAlerts.$inferSelect;
 export type InsertTaskSchedulingAlert = z.infer<typeof insertTaskSchedulingAlertSchema>;
 
+// ===== SMART INVENTORY & SUPPLY CHAIN TRACKER MODULE =====
+
+// Inventory item categories and master list
+export const inventoryItems = pgTable("inventory_items", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Item Details
+  name: varchar("name").notNull(),
+  category: varchar("category").notNull(), // standard, cleaning, optional
+  subcategory: varchar("subcategory"), // toiletries, beverages, snacks, equipment
+  description: text("description"),
+  unit: varchar("unit").notNull(), // pieces, bottles, rolls, kg, liters
+  
+  // Default Settings
+  defaultCostPerUnit: decimal("default_cost_per_unit", { precision: 10, scale: 2 }).notNull(),
+  defaultCurrency: varchar("default_currency").default("THB"),
+  defaultBillingType: varchar("default_billing_type").default("guest-billable"), // guest-billable, owner-billable, company-gift, complimentary
+  
+  // Stock Management
+  lowStockThreshold: integer("low_stock_threshold").default(10),
+  isActive: boolean("is_active").default(true),
+  
+  // Metadata
+  barcode: varchar("barcode"),
+  supplierInfo: jsonb("supplier_info"), // supplier details, order codes, etc.
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_inventory_items_org").on(table.organizationId),
+  index("IDX_inventory_items_category").on(table.category),
+]);
+
+// Smart inventory welcome pack configurations (Pack A, B, C, etc.)
+export const smartInventoryPacks = pgTable("smart_inventory_packs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Template Details
+  name: varchar("name").notNull(), // Pack A, Pack B, VIP Pack, etc.
+  description: text("description"),
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  
+  // Cost Settings
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_smart_inventory_packs_org").on(table.organizationId),
+]);
+
+// Items included in smart inventory pack configurations
+export const smartInventoryPackItems = pgTable("smart_inventory_pack_items", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // References
+  packId: integer("pack_id").references(() => smartInventoryPacks.id).notNull(),
+  itemId: integer("item_id").references(() => inventoryItems.id).notNull(),
+  
+  // Item Configuration
+  quantity: integer("quantity").notNull(),
+  costPerUnit: decimal("cost_per_unit", { precision: 10, scale: 2 }),
+  billingType: varchar("billing_type").default("guest-billable"), // guest-billable, owner-billable, company-gift, complimentary
+  
+  // Custom Notes
+  notes: text("notes"), // VIP guest so gave extra water/snacks
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_smart_inventory_pack_items_pack").on(table.packId),
+  index("IDX_smart_inventory_pack_items_item").on(table.itemId),
+]);
+
+// Property-specific inventory settings
+export const propertyInventorySettings = pgTable("property_inventory_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Default Smart Inventory Pack
+  defaultInventoryPackId: integer("default_inventory_pack_id").references(() => smartInventoryPacks.id),
+  
+  // Custom Settings
+  allowCustomizePerCheckIn: boolean("allow_customize_per_check_in").default(true),
+  autoLogUsage: boolean("auto_log_usage").default(true),
+  requireStaffApproval: boolean("require_staff_approval").default(false),
+  
+  // Billing Defaults
+  defaultBillingCurrency: varchar("default_billing_currency").default("THB"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_inventory_settings_org").on(table.organizationId),
+  index("IDX_property_inventory_settings_property").on(table.propertyId),
+]);
+
+// Property stock levels and warehouse assignments
+export const propertyStock = pgTable("property_stock", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // References
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  itemId: integer("item_id").references(() => inventoryItems.id).notNull(),
+  
+  // Stock Information
+  currentStock: integer("current_stock").default(0),
+  reservedStock: integer("reserved_stock").default(0), // allocated but not yet used
+  minStockLevel: integer("min_stock_level").default(5),
+  maxStockLevel: integer("max_stock_level").default(50),
+  
+  // Warehouse Information
+  warehouseLocation: varchar("warehouse_location"), // Central Samui, Koh Phangan, Villa Storage
+  shelfLocation: varchar("shelf_location"), // A1, B2, etc.
+  
+  // Last Restock
+  lastRestockDate: timestamp("last_restock_date"),
+  lastRestockQuantity: integer("last_restock_quantity"),
+  lastRestockBy: varchar("last_restock_by").references(() => users.id),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_stock_property").on(table.propertyId),
+  index("IDX_property_stock_item").on(table.itemId),
+  index("IDX_property_stock_low").on(table.currentStock), // for low stock alerts
+]);
+
+// Inventory usage logs (when items are consumed)
+export const inventoryUsageLogs = pgTable("inventory_usage_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // References
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  itemId: integer("item_id").references(() => inventoryItems.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id), // if linked to specific booking
+  
+  // Usage Details
+  quantityUsed: integer("quantity_used").notNull(),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("THB"),
+  
+  // Billing Information
+  billingType: varchar("billing_type").notNull(), // guest-billable, owner-billable, company-gift, complimentary
+  billedTo: varchar("billed_to"), // guest name or "Company" or "Owner"
+  
+  // Context Information
+  usageReason: varchar("usage_reason").default("checkout-clean"), // checkout-clean, maintenance, restock, damage, theft
+  guestName: varchar("guest_name"),
+  checkInDate: date("check_in_date"),
+  checkOutDate: date("check_out_date"),
+  
+  // Staff Information
+  loggedBy: varchar("logged_by").references(() => users.id).notNull(),
+  loggedByRole: varchar("logged_by_role").notNull(),
+  
+  // Additional Notes
+  notes: text("notes"), // VIP guest so gave extra water/snacks
+  photos: text("photos").array(), // proof photos if needed
+  
+  // Approval (if required)
+  requiresApproval: boolean("requires_approval").default(false),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  approvalNotes: text("approval_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_inventory_usage_property").on(table.propertyId),
+  index("IDX_inventory_usage_item").on(table.itemId),
+  index("IDX_inventory_usage_booking").on(table.bookingId),
+  index("IDX_inventory_usage_date").on(table.checkOutDate),
+  index("IDX_inventory_usage_billing").on(table.billingType),
+]);
+
+// Stock refill requests from staff
+export const stockRefillRequests = pgTable("stock_refill_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // References
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  itemId: integer("item_id").references(() => inventoryItems.id).notNull(),
+  
+  // Request Details
+  currentStock: integer("current_stock").notNull(),
+  requestedQuantity: integer("requested_quantity").notNull(),
+  priority: varchar("priority").default("normal"), // low, normal, urgent
+  reason: text("reason"),
+  
+  // Request Status
+  status: varchar("status").default("pending"), // pending, approved, fulfilled, cancelled
+  
+  // Staff Information
+  requestedBy: varchar("requested_by").references(() => users.id).notNull(),
+  requestedByRole: varchar("requested_by_role").notNull(),
+  
+  // Approval Information
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  approvalNotes: text("approval_notes"),
+  
+  // Fulfillment Information
+  fulfilledBy: varchar("fulfilled_by").references(() => users.id),
+  fulfilledAt: timestamp("fulfilled_at"),
+  actualQuantityProvided: integer("actual_quantity_provided"),
+  fulfillmentNotes: text("fulfillment_notes"),
+  
+  // Expected Delivery
+  expectedDeliveryDate: date("expected_delivery_date"),
+  actualDeliveryDate: date("actual_delivery_date"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_stock_refill_property").on(table.propertyId),
+  index("IDX_stock_refill_status").on(table.status),
+  index("IDX_stock_refill_priority").on(table.priority),
+]);
+
+// Inventory alerts and notifications
+export const inventoryAlerts = pgTable("inventory_alerts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Alert Details
+  alertType: varchar("alert_type").notNull(), // low_stock, out_of_stock, overstock, expiry_warning
+  propertyId: integer("property_id").references(() => properties.id),
+  itemId: integer("item_id").references(() => inventoryItems.id),
+  
+  // Alert Content
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  severity: varchar("severity").default("medium"), // low, medium, high, critical
+  
+  // Alert Status
+  status: varchar("status").default("active"), // active, acknowledged, resolved, dismissed
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedAt: timestamp("resolved_at"),
+  
+  // Alert Data
+  currentStock: integer("current_stock"),
+  thresholdValue: integer("threshold_value"),
+  recommendedAction: text("recommended_action"),
+  
+  // Notification Settings
+  notifyRoles: text("notify_roles").array(), // ["admin", "portfolio-manager", "staff"]
+  emailSent: boolean("email_sent").default(false),
+  smsSent: boolean("sms_sent").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_inventory_alerts_property").on(table.propertyId),
+  index("IDX_inventory_alerts_type").on(table.alertType),
+  index("IDX_inventory_alerts_status").on(table.status),
+]);
+
+// Monthly stock reports and analytics
+export const inventoryReports = pgTable("inventory_reports", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Report Details
+  reportType: varchar("report_type").notNull(), // monthly_usage, property_consumption, cost_analysis, stock_movement
+  reportPeriod: varchar("report_period").notNull(), // 2024-01, Q1-2024, 2024
+  propertyId: integer("property_id").references(() => properties.id), // null for organization-wide reports
+  
+  // Report Data
+  reportData: jsonb("report_data").notNull(), // contains all analytics and metrics
+  
+  // Cost Breakdown
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
+  guestBillableCost: decimal("guest_billable_cost", { precision: 10, scale: 2 }),
+  ownerBillableCost: decimal("owner_billable_cost", { precision: 10, scale: 2 }),
+  companyGiftCost: decimal("company_gift_cost", { precision: 10, scale: 2 }),
+  complimentaryCost: decimal("complimentary_cost", { precision: 10, scale: 2 }),
+  
+  // File Exports
+  pdfFilePath: varchar("pdf_file_path"),
+  excelFilePath: varchar("excel_file_path"),
+  csvFilePath: varchar("csv_file_path"),
+  
+  // Generation Info
+  generatedBy: varchar("generated_by").references(() => users.id).notNull(),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_inventory_reports_org").on(table.organizationId),
+  index("IDX_inventory_reports_period").on(table.reportPeriod),
+  index("IDX_inventory_reports_property").on(table.propertyId),
+]);
+
+// Central warehouse/storage locations
+export const inventoryWarehouses = pgTable("inventory_warehouses", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Warehouse Details
+  name: varchar("name").notNull(), // Central Samui, Koh Phangan Storage, Villa Aruna Storage
+  location: text("location").notNull(),
+  warehouseType: varchar("warehouse_type").default("central"), // central, property, temporary
+  
+  // Contact Information
+  contactPerson: varchar("contact_person"),
+  contactPhone: varchar("contact_phone"),
+  contactEmail: varchar("contact_email"),
+  
+  // Capacity and Settings
+  totalCapacity: integer("total_capacity"), // in cubic meters or items
+  currentUtilization: decimal("current_utilization", { precision: 5, scale: 2 }), // percentage
+  isActive: boolean("is_active").default(true),
+  
+  // Operating Hours
+  operatingHours: jsonb("operating_hours"), // days and time ranges
+  deliverySchedule: jsonb("delivery_schedule"), // delivery days and routes
+  
+  // Assigned Properties
+  servesProperties: integer("serves_properties").array(), // property IDs served by this warehouse
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_inventory_warehouses_org").on(table.organizationId),
+  index("IDX_inventory_warehouses_type").on(table.warehouseType),
+]);
+
+// Inventory system settings
+export const inventorySettings = pgTable("inventory_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  
+  // Default Settings
+  defaultCurrency: varchar("default_currency").default("THB"),
+  defaultBillingType: varchar("default_billing_type").default("guest-billable"),
+  
+  // Stock Management
+  enableLowStockAlerts: boolean("enable_low_stock_alerts").default(true),
+  lowStockAlertThreshold: integer("low_stock_alert_threshold").default(10),
+  enableAutoRefillRequests: boolean("enable_auto_refill_requests").default(false),
+  autoRefillThreshold: integer("auto_refill_threshold").default(5),
+  
+  // Usage Logging
+  requireUsageApproval: boolean("require_usage_approval").default(false),
+  usageApprovalThreshold: decimal("usage_approval_threshold", { precision: 10, scale: 2 }).default("500.00"),
+  enablePhotosForUsage: boolean("enable_photos_for_usage").default(true),
+  requireReasonForUsage: boolean("require_reason_for_usage").default(true),
+  
+  // Reporting
+  autoGenerateMonthlyReports: boolean("auto_generate_monthly_reports").default(true),
+  reportRecipients: text("report_recipients").array(), // email addresses
+  enableCostBreakdownReports: boolean("enable_cost_breakdown_reports").default(true),
+  
+  // Notifications
+  enableEmailNotifications: boolean("enable_email_notifications").default(true),
+  enableSmsNotifications: boolean("enable_sms_notifications").default(false),
+  notificationRecipients: jsonb("notification_recipients"), // role-based notification settings
+  
+  // Advanced Features
+  enableBarcodeScanning: boolean("enable_barcode_scanning").default(false),
+  enableExpiryTracking: boolean("enable_expiry_tracking").default(false),
+  enableBatchTracking: boolean("enable_batch_tracking").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_inventory_settings_org").on(table.organizationId),
+]);
+
+// ===== SMART INVENTORY INSERT SCHEMAS =====
+
+export const insertInventoryItemSchema = createInsertSchema(inventoryItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSmartInventoryPackSchema = createInsertSchema(smartInventoryPacks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSmartInventoryPackItemSchema = createInsertSchema(smartInventoryPackItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPropertyInventorySettingsSchema = createInsertSchema(propertyInventorySettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyStockSchema = createInsertSchema(propertyStock).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryUsageLogSchema = createInsertSchema(inventoryUsageLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStockRefillRequestSchema = createInsertSchema(stockRefillRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryAlertSchema = createInsertSchema(inventoryAlerts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryReportSchema = createInsertSchema(inventoryReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInventoryWarehouseSchema = createInsertSchema(inventoryWarehouses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventorySettingsSchema = createInsertSchema(inventorySettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== SMART INVENTORY TYPE DEFINITIONS =====
+
+export type InventoryItem = typeof inventoryItems.$inferSelect;
+export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
+
+export type SmartInventoryPack = typeof smartInventoryPacks.$inferSelect;
+export type InsertSmartInventoryPack = z.infer<typeof insertSmartInventoryPackSchema>;
+
+export type SmartInventoryPackItem = typeof smartInventoryPackItems.$inferSelect;
+export type InsertSmartInventoryPackItem = z.infer<typeof insertSmartInventoryPackItemSchema>;
+
+export type PropertyInventorySettings = typeof propertyInventorySettings.$inferSelect;
+export type InsertPropertyInventorySettings = z.infer<typeof insertPropertyInventorySettingsSchema>;
+
+export type PropertyStock = typeof propertyStock.$inferSelect;
+export type InsertPropertyStock = z.infer<typeof insertPropertyStockSchema>;
+
+export type InventoryUsageLog = typeof inventoryUsageLogs.$inferSelect;
+export type InsertInventoryUsageLog = z.infer<typeof insertInventoryUsageLogSchema>;
+
+export type StockRefillRequest = typeof stockRefillRequests.$inferSelect;
+export type InsertStockRefillRequest = z.infer<typeof insertStockRefillRequestSchema>;
+
+export type InventoryAlert = typeof inventoryAlerts.$inferSelect;
+export type InsertInventoryAlert = z.infer<typeof insertInventoryAlertSchema>;
+
+export type InventoryReport = typeof inventoryReports.$inferSelect;
+export type InsertInventoryReport = z.infer<typeof insertInventoryReportSchema>;
+
+export type InventoryWarehouse = typeof inventoryWarehouses.$inferSelect;
+export type InsertInventoryWarehouse = z.infer<typeof insertInventoryWarehouseSchema>;
+
+export type InventorySettings = typeof inventorySettings.$inferSelect;
+export type InsertInventorySettings = z.infer<typeof insertInventorySettingsSchema>;
+
 
 
