@@ -23374,6 +23374,491 @@ Plant Care:
       cacheVersion: 1,
     };
   }
+  // ===== GUEST CHECK-IN / CHECK-OUT TRACKER =====
+
+  // Property Electricity Settings
+  async getPropertyElectricitySettings(organizationId: string, propertyId: number): Promise<any> {
+    // Mock property electricity settings for demo
+    return {
+      id: 1,
+      organizationId,
+      propertyId,
+      defaultRatePerKwh: "7.00",
+      currency: "THB",
+      enableOcrReading: true,
+      ocrProvider: "openai_vision",
+      electricityBillingDefault: "included",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  async createPropertyElectricitySettings(settings: any): Promise<any> {
+    return { id: 1, ...settings, createdAt: new Date(), updatedAt: new Date() };
+  }
+
+  async updatePropertyElectricitySettings(propertyId: number, settings: any): Promise<any> {
+    return { id: 1, propertyId, ...settings, updatedAt: new Date() };
+  }
+
+  // Guest Check-Ins
+  async getGuestCheckIns(organizationId: string, filters?: { propertyId?: number; status?: string; assignedStaff?: string }): Promise<any[]> {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    const mockCheckIns = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        bookingId: 1,
+        guestName: "Sarah Johnson",
+        guestEmail: "sarah.johnson@email.com",
+        guestPhone: "+66123456789",
+        numberOfGuests: 2,
+        checkInDate: yesterday,
+        assignedStaff: "demo-staff",
+        staffName: "Demo Staff",
+        passportPhotos: ["/uploads/passport1.jpg", "/uploads/passport2.jpg"],
+        passportNumbers: ["A12345678", "B87654321"],
+        passportNames: ["Sarah Johnson", "Mike Johnson"],
+        depositType: "cash",
+        depositAmount: "5000.00",
+        depositCurrency: "THB",
+        depositPhotoUrl: "/uploads/deposit1.jpg",
+        meterPhotoUrl: "/uploads/meter_checkin1.jpg",
+        meterReading: "1245.5",
+        meterReadingMethod: "ocr_auto",
+        ocrConfidence: "95.8",
+        checkInNotes: "Guests arrived on time. All documentation verified.",
+        taskStatus: "completed",
+        completedAt: yesterday,
+        completedBy: "demo-staff",
+        createdAt: yesterday,
+        updatedAt: yesterday,
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        bookingId: null,
+        guestName: "David Chen",
+        guestEmail: "david.chen@email.com",
+        guestPhone: "+66987654321",
+        numberOfGuests: 1,
+        checkInDate: now,
+        assignedStaff: "demo-staff",
+        staffName: "Demo Staff",
+        passportPhotos: ["/uploads/passport3.jpg"],
+        passportNumbers: ["C98765432"],
+        passportNames: ["David Chen"],
+        depositType: "digital",
+        depositAmount: "3000.00",
+        depositCurrency: "THB",
+        depositPhotoUrl: null,
+        meterPhotoUrl: "/uploads/meter_checkin2.jpg",
+        meterReading: "1278.2",
+        meterReadingMethod: "manual",
+        ocrConfidence: null,
+        checkInNotes: "Late arrival, but check-in completed successfully.",
+        taskStatus: "in_progress",
+        completedAt: null,
+        completedBy: null,
+        createdAt: now,
+        updatedAt: now,
+      }
+    ];
+
+    if (filters?.status) {
+      return mockCheckIns.filter(checkIn => checkIn.taskStatus === filters.status);
+    }
+    
+    if (filters?.assignedStaff) {
+      return mockCheckIns.filter(checkIn => checkIn.assignedStaff === filters.assignedStaff);
+    }
+
+    return mockCheckIns;
+  }
+
+  async getGuestCheckInById(organizationId: string, checkInId: number): Promise<any> {
+    const checkIns = await this.getGuestCheckIns(organizationId);
+    return checkIns.find(checkIn => checkIn.id === checkInId);
+  }
+
+  async createGuestCheckIn(checkInData: any): Promise<any> {
+    const newCheckIn = {
+      id: Date.now(),
+      ...checkInData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    // Create check-in history entry
+    await this.createCheckInOutHistory({
+      organizationId: checkInData.organizationId,
+      propertyId: checkInData.propertyId,
+      entryType: 'check_in_created',
+      entryTitle: `Check-in created for ${checkInData.guestName}`,
+      entryDescription: `Guest check-in scheduled for ${new Date(checkInData.checkInDate).toLocaleDateString()}`,
+      checkInId: newCheckIn.id,
+      actionBy: checkInData.assignedStaff || 'system',
+      actionByName: checkInData.staffName || 'System',
+    });
+    
+    return newCheckIn;
+  }
+
+  async updateGuestCheckIn(checkInId: number, updates: any): Promise<any> {
+    return { id: checkInId, ...updates, updatedAt: new Date() };
+  }
+
+  async completeGuestCheckIn(checkInId: number, completedBy: string): Promise<any> {
+    const completed = {
+      id: checkInId,
+      taskStatus: 'completed',
+      completedAt: new Date(),
+      completedBy,
+      updatedAt: new Date()
+    };
+
+    // Create completion history entry
+    await this.createCheckInOutHistory({
+      organizationId: "default-org",
+      propertyId: 1,
+      entryType: 'check_in_completed',
+      entryTitle: `Check-in completed`,
+      entryDescription: `Guest check-in process completed. Passport photos and meter reading recorded.`,
+      checkInId: checkInId,
+      actionBy: completedBy,
+      actionByName: completedBy,
+    });
+    
+    return completed;
+  }
+
+  // Guest Check-Outs
+  async getGuestCheckOuts(organizationId: string, filters?: { propertyId?: number; status?: string; assignedStaff?: string }): Promise<any[]> {
+    const now = new Date();
+    
+    const mockCheckOuts = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        checkInId: 1,
+        checkOutDate: now,
+        assignedStaff: "demo-staff",
+        staffName: "Demo Staff",
+        finalMeterPhotoUrl: "/uploads/meter_checkout1.jpg",
+        finalMeterReading: "1267.8",
+        finalMeterReadingMethod: "ocr_auto",
+        finalOcrConfidence: "92.4",
+        unitsUsed: "22.3",
+        ratePerKwh: "7.00",
+        totalElectricityCost: "156.10",
+        electricityBilling: "guest_pays",
+        companyCompensationReason: null,
+        depositPaid: "5000.00",
+        electricityCost: "156.10",
+        discounts: "0.00",
+        discountReason: null,
+        damageCosts: "0.00",
+        damageCostReason: null,
+        finalRefundAmount: "4843.90",
+        refundMethod: "cash",
+        refundReceiptUrl: "/uploads/refund_receipt1.jpg",
+        refundStatus: "processed",
+        refundProcessedBy: "demo-admin",
+        refundProcessedAt: now,
+        checkOutNotes: "Clean checkout. No damages observed.",
+        taskStatus: "completed",
+        completedAt: now,
+        completedBy: "demo-staff",
+        createdAt: now,
+        updatedAt: now,
+      }
+    ];
+
+    if (filters?.status) {
+      return mockCheckOuts.filter(checkOut => checkOut.taskStatus === filters.status);
+    }
+    
+    if (filters?.assignedStaff) {
+      return mockCheckOuts.filter(checkOut => checkOut.assignedStaff === filters.assignedStaff);
+    }
+
+    return mockCheckOuts;
+  }
+
+  async getGuestCheckOutById(organizationId: string, checkOutId: number): Promise<any> {
+    const checkOuts = await this.getGuestCheckOuts(organizationId);
+    return checkOuts.find(checkOut => checkOut.id === checkOutId);
+  }
+
+  async createGuestCheckOut(checkOutData: any): Promise<any> {
+    const newCheckOut = {
+      id: Date.now(),
+      ...checkOutData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    // Create check-out history entry
+    await this.createCheckInOutHistory({
+      organizationId: checkOutData.organizationId,
+      propertyId: checkOutData.propertyId,
+      entryType: 'check_out_created',
+      entryTitle: `Check-out created`,
+      entryDescription: `Guest check-out scheduled for ${new Date(checkOutData.checkOutDate).toLocaleDateString()}`,
+      checkOutId: newCheckOut.id,
+      actionBy: checkOutData.assignedStaff || 'system',
+      actionByName: checkOutData.staffName || 'System',
+    });
+    
+    return newCheckOut;
+  }
+
+  async updateGuestCheckOut(checkOutId: number, updates: any): Promise<any> {
+    return { id: checkOutId, ...updates, updatedAt: new Date() };
+  }
+
+  async completeGuestCheckOut(checkOutId: number, completedBy: string): Promise<any> {
+    const completed = {
+      id: checkOutId,
+      taskStatus: 'completed',
+      completedAt: new Date(),
+      completedBy,
+      updatedAt: new Date()
+    };
+
+    // Create completion history entry
+    await this.createCheckInOutHistory({
+      organizationId: "default-org",
+      propertyId: 1,
+      entryType: 'check_out_completed',
+      entryTitle: `Check-out completed`,
+      entryDescription: `Guest check-out process completed. Final meter reading and refund calculation processed.`,
+      checkOutId: checkOutId,
+      actionBy: completedBy,
+      actionByName: completedBy,
+    });
+    
+    return completed;
+  }
+
+  async processRefund(checkOutId: number, refundData: { refundMethod: string; refundReceiptUrl?: string; processedBy: string }): Promise<any> {
+    const processed = {
+      id: checkOutId,
+      refundMethod: refundData.refundMethod,
+      refundReceiptUrl: refundData.refundReceiptUrl,
+      refundStatus: 'processed',
+      refundProcessedBy: refundData.processedBy,
+      refundProcessedAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    // Create refund history entry
+    await this.createCheckInOutHistory({
+      organizationId: "default-org",
+      propertyId: 1,
+      entryType: 'refund_processed',
+      entryTitle: `Refund processed`,
+      entryDescription: `Deposit refund processed via ${refundData.refundMethod}`,
+      checkOutId: checkOutId,
+      actionBy: refundData.processedBy,
+      actionByName: refundData.processedBy,
+    });
+    
+    return processed;
+  }
+
+  // Check-In/Out Tasks
+  async getCheckInOutTasks(organizationId: string, filters?: { propertyId?: number; assignedTo?: string; taskType?: string; status?: string }): Promise<any[]> {
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const mockTasks = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        taskType: "check_out",
+        taskTitle: "Check-out for David Chen",
+        taskDescription: "Process guest check-out including final meter reading and refund calculation",
+        checkInId: null,
+        checkOutId: null,
+        assignedTo: "demo-staff",
+        assignedBy: "demo-admin",
+        assignedAt: now,
+        dueDate: tomorrow,
+        scheduledDate: tomorrow,
+        status: "pending",
+        priority: "normal",
+        startedAt: null,
+        completedAt: null,
+        completionNotes: null,
+        requiresApproval: true,
+        approvalStatus: null,
+        approvedBy: null,
+        approvedAt: null,
+        approvalNotes: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        taskType: "check_in",
+        taskTitle: "Check-in for Emma Wilson",
+        taskDescription: "Process guest check-in including passport documentation and meter reading",
+        checkInId: null,
+        checkOutId: null,
+        assignedTo: "demo-staff",
+        assignedBy: "demo-admin",
+        assignedAt: now,
+        dueDate: tomorrow,
+        scheduledDate: tomorrow,
+        status: "in_progress",
+        priority: "high",
+        startedAt: now,
+        completedAt: null,
+        completionNotes: null,
+        requiresApproval: false,
+        approvalStatus: null,
+        approvedBy: null,
+        approvedAt: null,
+        approvalNotes: null,
+        createdAt: now,
+        updatedAt: now,
+      }
+    ];
+
+    let filteredTasks = mockTasks;
+
+    if (filters?.taskType) {
+      filteredTasks = filteredTasks.filter(task => task.taskType === filters.taskType);
+    }
+    
+    if (filters?.status) {
+      filteredTasks = filteredTasks.filter(task => task.status === filters.status);
+    }
+    
+    if (filters?.assignedTo) {
+      filteredTasks = filteredTasks.filter(task => task.assignedTo === filters.assignedTo);
+    }
+
+    return filteredTasks;
+  }
+
+  async createCheckInOutTask(taskData: any): Promise<any> {
+    return {
+      id: Date.now(),
+      ...taskData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  async updateCheckInOutTask(taskId: number, updates: any): Promise<any> {
+    return { id: taskId, ...updates, updatedAt: new Date() };
+  }
+
+  // Check-In/Out History
+  async getCheckInOutHistory(organizationId: string, filters?: { propertyId?: number; entryType?: string }): Promise<any[]> {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const mockHistory = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        entryType: "check_in_completed",
+        entryTitle: "Check-in completed for Sarah Johnson",
+        entryDescription: "Guest check-in process completed. Passport photos and meter reading recorded.",
+        entryIcon: "luggage",
+        checkInId: 1,
+        checkOutId: null,
+        taskId: null,
+        actionBy: "demo-staff",
+        actionByName: "Demo Staff",
+        visibleToOwner: true,
+        visibleToStaff: true,
+        visibleToGuests: false,
+        additionalData: { meterReading: "1245.5", depositAmount: "5000.00" },
+        createdAt: yesterday,
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        entryType: "check_out_completed",
+        entryTitle: "Check-out completed for Sarah Johnson",
+        entryDescription: "Guest check-out process completed. Final meter reading and refund calculation processed.",
+        entryIcon: "luggage",
+        checkInId: null,
+        checkOutId: 1,
+        taskId: null,
+        actionBy: "demo-staff",
+        actionByName: "Demo Staff",
+        visibleToOwner: true,
+        visibleToStaff: true,
+        visibleToGuests: false,
+        additionalData: { finalMeterReading: "1267.8", refundAmount: "4843.90" },
+        createdAt: now,
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: filters?.propertyId || 1,
+        entryType: "refund_processed",
+        entryTitle: "Refund processed for Sarah Johnson",
+        entryDescription: "Deposit refund of 4843.90 THB processed via cash",
+        entryIcon: "dollar-sign",
+        checkInId: null,
+        checkOutId: 1,
+        taskId: null,
+        actionBy: "demo-admin",
+        actionByName: "Demo Admin",
+        visibleToOwner: true,
+        visibleToStaff: true,
+        visibleToGuests: false,
+        additionalData: { refundMethod: "cash", refundAmount: "4843.90" },
+        createdAt: now,
+      }
+    ];
+
+    if (filters?.entryType) {
+      return mockHistory.filter(entry => entry.entryType === filters.entryType);
+    }
+
+    return mockHistory;
+  }
+
+  async createCheckInOutHistory(historyData: any): Promise<any> {
+    return {
+      id: Date.now(),
+      ...historyData,
+      createdAt: new Date(),
+    };
+  }
+
+  // Utility Methods for Check-In/Out
+  async calculateElectricityUsage(checkInReading: number, checkOutReading: number, ratePerKwh: number): Promise<{ unitsUsed: number; totalCost: number }> {
+    const unitsUsed = Math.max(0, checkOutReading - checkInReading);
+    const totalCost = unitsUsed * ratePerKwh;
+    
+    return {
+      unitsUsed: Math.round(unitsUsed * 100) / 100, // Round to 2 decimal places
+      totalCost: Math.round(totalCost * 100) / 100
+    };
+  }
+
+  async calculateRefund(depositAmount: number, electricityCost: number, discounts: number, damageCosts: number): Promise<number> {
+    const refundAmount = depositAmount - electricityCost + discounts - damageCosts;
+    return Math.max(0, Math.round(refundAmount * 100) / 100); // No negative refunds
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -18300,6 +18300,324 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== GUEST CHECK-IN / CHECK-OUT TRACKER ROUTES =====
+
+  // Property Electricity Settings
+  app.get("/api/guest-checkin/property-settings/:propertyId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { propertyId } = req.params;
+      const { organizationId } = req.user;
+      
+      const settings = await storage.getPropertyElectricitySettings(organizationId, parseInt(propertyId));
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching property electricity settings:", error);
+      res.status(500).json({ message: "Failed to fetch property electricity settings" });
+    }
+  });
+
+  app.post("/api/guest-checkin/property-settings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const settingsData = { ...req.body, organizationId };
+      
+      const settings = await storage.createPropertyElectricitySettings(settingsData);
+      res.status(201).json(settings);
+    } catch (error) {
+      console.error("Error creating property electricity settings:", error);
+      res.status(500).json({ message: "Failed to create property electricity settings" });
+    }
+  });
+
+  app.patch("/api/guest-checkin/property-settings/:propertyId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { propertyId } = req.params;
+      
+      const settings = await storage.updatePropertyElectricitySettings(parseInt(propertyId), req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating property electricity settings:", error);
+      res.status(500).json({ message: "Failed to update property electricity settings" });
+    }
+  });
+
+  // Guest Check-Ins
+  app.get("/api/guest-checkin/check-ins", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, status, assignedStaff } = req.query;
+      
+      const filters = { propertyId: propertyId ? parseInt(propertyId) : undefined, status, assignedStaff };
+      const checkIns = await storage.getGuestCheckIns(organizationId, filters);
+      res.json(checkIns);
+    } catch (error) {
+      console.error("Error fetching check-ins:", error);
+      res.status(500).json({ message: "Failed to fetch check-ins" });
+    }
+  });
+
+  app.get("/api/guest-checkin/check-ins/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { organizationId } = req.user;
+      
+      const checkIn = await storage.getGuestCheckInById(organizationId, parseInt(id));
+      if (!checkIn) {
+        return res.status(404).json({ message: "Check-in not found" });
+      }
+      res.json(checkIn);
+    } catch (error) {
+      console.error("Error fetching check-in:", error);
+      res.status(500).json({ message: "Failed to fetch check-in" });
+    }
+  });
+
+  app.post("/api/guest-checkin/check-ins", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      const checkInData = { 
+        ...req.body, 
+        organizationId, 
+        assignedStaff: req.body.assignedStaff || userId,
+        staffName: req.body.staffName || req.user.name
+      };
+      
+      const checkIn = await storage.createGuestCheckIn(checkInData);
+      res.status(201).json(checkIn);
+    } catch (error) {
+      console.error("Error creating check-in:", error);
+      res.status(500).json({ message: "Failed to create check-in" });
+    }
+  });
+
+  app.patch("/api/guest-checkin/check-ins/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const checkIn = await storage.updateGuestCheckIn(parseInt(id), req.body);
+      res.json(checkIn);
+    } catch (error) {
+      console.error("Error updating check-in:", error);
+      res.status(500).json({ message: "Failed to update check-in" });
+    }
+  });
+
+  app.post("/api/guest-checkin/check-ins/:id/complete", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { id: userId } = req.user;
+      
+      const checkIn = await storage.completeGuestCheckIn(parseInt(id), userId);
+      res.json(checkIn);
+    } catch (error) {
+      console.error("Error completing check-in:", error);
+      res.status(500).json({ message: "Failed to complete check-in" });
+    }
+  });
+
+  // Guest Check-Outs
+  app.get("/api/guest-checkin/check-outs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, status, assignedStaff } = req.query;
+      
+      const filters = { propertyId: propertyId ? parseInt(propertyId) : undefined, status, assignedStaff };
+      const checkOuts = await storage.getGuestCheckOuts(organizationId, filters);
+      res.json(checkOuts);
+    } catch (error) {
+      console.error("Error fetching check-outs:", error);
+      res.status(500).json({ message: "Failed to fetch check-outs" });
+    }
+  });
+
+  app.get("/api/guest-checkin/check-outs/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { organizationId } = req.user;
+      
+      const checkOut = await storage.getGuestCheckOutById(organizationId, parseInt(id));
+      if (!checkOut) {
+        return res.status(404).json({ message: "Check-out not found" });
+      }
+      res.json(checkOut);
+    } catch (error) {
+      console.error("Error fetching check-out:", error);
+      res.status(500).json({ message: "Failed to fetch check-out" });
+    }
+  });
+
+  app.post("/api/guest-checkin/check-outs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      const checkOutData = { 
+        ...req.body, 
+        organizationId,
+        assignedStaff: req.body.assignedStaff || userId,
+        staffName: req.body.staffName || req.user.name
+      };
+      
+      const checkOut = await storage.createGuestCheckOut(checkOutData);
+      res.status(201).json(checkOut);
+    } catch (error) {
+      console.error("Error creating check-out:", error);
+      res.status(500).json({ message: "Failed to create check-out" });
+    }
+  });
+
+  app.patch("/api/guest-checkin/check-outs/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const checkOut = await storage.updateGuestCheckOut(parseInt(id), req.body);
+      res.json(checkOut);
+    } catch (error) {
+      console.error("Error updating check-out:", error);
+      res.status(500).json({ message: "Failed to update check-out" });
+    }
+  });
+
+  app.post("/api/guest-checkin/check-outs/:id/complete", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { id: userId } = req.user;
+      
+      const checkOut = await storage.completeGuestCheckOut(parseInt(id), userId);
+      res.json(checkOut);
+    } catch (error) {
+      console.error("Error completing check-out:", error);
+      res.status(500).json({ message: "Failed to complete check-out" });
+    }
+  });
+
+  app.post("/api/guest-checkin/check-outs/:id/process-refund", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { id: userId } = req.user;
+      const { refundMethod, refundReceiptUrl } = req.body;
+      
+      const refundData = {
+        refundMethod,
+        refundReceiptUrl,
+        processedBy: userId
+      };
+      
+      const checkOut = await storage.processRefund(parseInt(id), refundData);
+      res.json(checkOut);
+    } catch (error) {
+      console.error("Error processing refund:", error);
+      res.status(500).json({ message: "Failed to process refund" });
+    }
+  });
+
+  // Check-In/Out Tasks
+  app.get("/api/guest-checkin/tasks", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, assignedTo, taskType, status } = req.query;
+      
+      const filters = { 
+        propertyId: propertyId ? parseInt(propertyId) : undefined, 
+        assignedTo, 
+        taskType, 
+        status 
+      };
+      const tasks = await storage.getCheckInOutTasks(organizationId, filters);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching check-in/out tasks:", error);
+      res.status(500).json({ message: "Failed to fetch check-in/out tasks" });
+    }
+  });
+
+  app.post("/api/guest-checkin/tasks", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      const taskData = { 
+        ...req.body, 
+        organizationId,
+        assignedBy: userId
+      };
+      
+      const task = await storage.createCheckInOutTask(taskData);
+      res.status(201).json(task);
+    } catch (error) {
+      console.error("Error creating check-in/out task:", error);
+      res.status(500).json({ message: "Failed to create check-in/out task" });
+    }
+  });
+
+  app.patch("/api/guest-checkin/tasks/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const task = await storage.updateCheckInOutTask(parseInt(id), req.body);
+      res.json(task);
+    } catch (error) {
+      console.error("Error updating check-in/out task:", error);
+      res.status(500).json({ message: "Failed to update check-in/out task" });
+    }
+  });
+
+  // Check-In/Out History
+  app.get("/api/guest-checkin/history", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, entryType } = req.query;
+      
+      const filters = { 
+        propertyId: propertyId ? parseInt(propertyId) : undefined, 
+        entryType 
+      };
+      const history = await storage.getCheckInOutHistory(organizationId, filters);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching check-in/out history:", error);
+      res.status(500).json({ message: "Failed to fetch check-in/out history" });
+    }
+  });
+
+  // Utility Calculations
+  app.post("/api/guest-checkin/calculate-electricity", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { checkInReading, checkOutReading, ratePerKwh } = req.body;
+      
+      if (!checkInReading || !checkOutReading || !ratePerKwh) {
+        return res.status(400).json({ message: "Missing required readings or rate" });
+      }
+      
+      const calculation = await storage.calculateElectricityUsage(
+        parseFloat(checkInReading), 
+        parseFloat(checkOutReading), 
+        parseFloat(ratePerKwh)
+      );
+      res.json(calculation);
+    } catch (error) {
+      console.error("Error calculating electricity usage:", error);
+      res.status(500).json({ message: "Failed to calculate electricity usage" });
+    }
+  });
+
+  app.post("/api/guest-checkin/calculate-refund", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { depositAmount, electricityCost, discounts, damageCosts } = req.body;
+      
+      if (depositAmount === undefined || electricityCost === undefined) {
+        return res.status(400).json({ message: "Missing required refund calculation parameters" });
+      }
+      
+      const refundAmount = await storage.calculateRefund(
+        parseFloat(depositAmount), 
+        parseFloat(electricityCost), 
+        parseFloat(discounts || 0), 
+        parseFloat(damageCosts || 0)
+      );
+      res.json({ refundAmount });
+    } catch (error) {
+      console.error("Error calculating refund:", error);
+      res.status(500).json({ message: "Failed to calculate refund" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

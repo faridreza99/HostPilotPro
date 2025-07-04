@@ -42,7 +42,8 @@ import {
   Car,
   Coffee,
   FolderOpen,
-  Key
+  Key,
+  Luggage
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -90,8 +91,9 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         title: "Property Management",
         items: [
           { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
+          { label: "Guest Check-In Tracker", icon: Luggage, href: "/guest-checkin-checkout-tracker", badge: "New" },
           { label: "Maintenance System", icon: Wrench, href: "/maintenance-task-system" },
-          { label: "Utilities & Maintenance", icon: Settings, href: "/maintenance-utilities-renovation-tracker", badge: "New" },
+          { label: "Utilities & Maintenance", icon: Settings, href: "/maintenance-utilities-renovation-tracker" },
           { label: "Task Attachments", icon: FileText, href: "/task-attachments-notes" },
           { label: "Document Center", icon: FolderOpen, href: "/document-center" },
           { label: "Property Access", icon: Key, href: "/property-access" },
@@ -169,6 +171,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Task List", icon: CheckSquare, href: "/staff-tasks", badge: "Priority" },
           { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
+          { label: "Guest Check-In Tracker", icon: Luggage, href: "/guest-checkin-checkout-tracker", badge: "New" },
           { label: "Maintenance", icon: Wrench, href: "/maintenance-task-system" },
           { label: "Task Attachments", icon: FileText, href: "/task-attachments-notes" },
         ]

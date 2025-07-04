@@ -8985,3 +8985,5 @@ export type InsertUtilityBillAlert = z.infer<typeof insertUtilityBillAlertSchema
 export type PropertyInfoSummary = typeof propertyInfoSummary.$inferSelect;
 export type InsertPropertyInfoSummary = z.infer<typeof insertPropertyInfoSummarySchema>;
 
+
+
