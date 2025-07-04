@@ -18019,6 +18019,287 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== MAINTENANCE, UTILITIES & RENOVATION TRACKER API ENDPOINTS =====
+
+  // Maintenance Issues Routes
+  app.get("/api/maintenance-tracker/issues", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      
+      // Role-based access control
+      if (user?.role === 'owner') {
+        // Owners can only see issues for their properties
+        // In a real system, we'd filter by user properties
+        const issues = await storage.getMaintenanceIssues(organizationId, propertyId);
+        res.json(issues);
+      } else if (['admin', 'portfolio-manager', 'staff'].includes(user?.role)) {
+        const issues = await storage.getMaintenanceIssues(organizationId, propertyId);
+        res.json(issues);
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+    } catch (error) {
+      console.error("Error fetching maintenance issues:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance issues" });
+    }
+  });
+
+  app.post("/api/maintenance-tracker/issues", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      // Only allow creation for authenticated users
+      if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const issueData = {
+        organizationId,
+        ...req.body,
+      };
+      
+      const newIssue = await storage.createMaintenanceIssue(issueData);
+      res.json(newIssue);
+    } catch (error) {
+      console.error("Error creating maintenance issue:", error);
+      res.status(500).json({ message: "Failed to create maintenance issue" });
+    }
+  });
+
+  // Service History Routes
+  app.get("/api/maintenance-tracker/service-history", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      
+      // Role-based access control
+      if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const serviceHistory = await storage.getPropertyServiceHistory(organizationId, propertyId);
+      res.json(serviceHistory);
+    } catch (error) {
+      console.error("Error fetching service history:", error);
+      res.status(500).json({ message: "Failed to fetch service history" });
+    }
+  });
+
+  app.post("/api/maintenance-tracker/service-history", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      // Only allow creation for admin, PM, and staff
+      if (!['admin', 'portfolio-manager', 'staff'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const serviceData = {
+        organizationId,
+        ...req.body,
+      };
+      
+      const newService = await storage.createPropertyServiceHistory(serviceData);
+      res.json(newService);
+    } catch (error) {
+      console.error("Error creating service history:", error);
+      res.status(500).json({ message: "Failed to create service history" });
+    }
+  });
+
+  // AI Task Suggestions Routes
+  app.get("/api/maintenance-tracker/task-suggestions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      
+      // Role-based access control
+      if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const suggestions = await storage.getMaintenanceTaskSuggestions(organizationId, propertyId);
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error fetching task suggestions:", error);
+      res.status(500).json({ message: "Failed to fetch task suggestions" });
+    }
+  });
+
+  app.post("/api/maintenance-tracker/task-suggestions/:id/approve", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const suggestionId = parseInt(req.params.id);
+      const user = req.user;
+      
+      // Only admin and PM can approve suggestions
+      if (!['admin', 'portfolio-manager'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Only admin/PM can approve suggestions" });
+      }
+      
+      const result = await storage.approveSuggestion(suggestionId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error approving suggestion:", error);
+      res.status(500).json({ message: "Failed to approve suggestion" });
+    }
+  });
+
+  app.post("/api/maintenance-tracker/task-suggestions/:id/dismiss", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const suggestionId = parseInt(req.params.id);
+      const { reason } = req.body;
+      const user = req.user;
+      
+      // Only admin and PM can dismiss suggestions
+      if (!['admin', 'portfolio-manager'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Only admin/PM can dismiss suggestions" });
+      }
+      
+      const result = await storage.dismissSuggestion(suggestionId, reason);
+      res.json(result);
+    } catch (error) {
+      console.error("Error dismissing suggestion:", error);
+      res.status(500).json({ message: "Failed to dismiss suggestion" });
+    }
+  });
+
+  // Property Utilities Routes
+  app.get("/api/maintenance-tracker/utilities", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      
+      // Role-based access control
+      if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const utilities = await storage.getPropertyUtilities(organizationId, propertyId);
+      res.json(utilities);
+    } catch (error) {
+      console.error("Error fetching property utilities:", error);
+      res.status(500).json({ message: "Failed to fetch property utilities" });
+    }
+  });
+
+  app.post("/api/maintenance-tracker/utilities", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      // Only admin and PM can create utility accounts
+      if (!['admin', 'portfolio-manager'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Only admin/PM can manage utility accounts" });
+      }
+      
+      const utilityData = {
+        organizationId,
+        ...req.body,
+      };
+      
+      const newUtility = await storage.createPropertyUtility(utilityData);
+      res.json(newUtility);
+    } catch (error) {
+      console.error("Error creating property utility:", error);
+      res.status(500).json({ message: "Failed to create property utility" });
+    }
+  });
+
+  // Utility Bill History Routes
+  app.get("/api/maintenance-tracker/utility-bills", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      const utilityId = req.query.utilityId ? parseInt(req.query.utilityId) : undefined;
+      
+      // Role-based access control
+      if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const bills = await storage.getUtilityBillHistory(organizationId, propertyId, utilityId);
+      res.json(bills);
+    } catch (error) {
+      console.error("Error fetching utility bills:", error);
+      res.status(500).json({ message: "Failed to fetch utility bills" });
+    }
+  });
+
+  app.post("/api/maintenance-tracker/utility-bills", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      // Admin, PM, and staff can add bills
+      if (!['admin', 'portfolio-manager', 'staff'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const billData = {
+        organizationId,
+        ...req.body,
+      };
+      
+      const newBill = await storage.createUtilityBill(billData);
+      res.json(newBill);
+    } catch (error) {
+      console.error("Error creating utility bill:", error);
+      res.status(500).json({ message: "Failed to create utility bill" });
+    }
+  });
+
+  // Utility Alerts Routes
+  app.get("/api/maintenance-tracker/utility-alerts", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      
+      // Role-based access control
+      if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const alerts = await storage.getUtilityBillAlerts(organizationId, propertyId);
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching utility alerts:", error);
+      res.status(500).json({ message: "Failed to fetch utility alerts" });
+    }
+  });
+
+  // Property Info Summary Route
+  app.get("/api/maintenance-tracker/property-info", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId) : undefined;
+      
+      if (!propertyId) {
+        return res.status(400).json({ message: "Property ID is required" });
+      }
+      
+      // Role-based access control
+      if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const propertyInfo = await storage.getPropertyInfoSummary(organizationId, propertyId);
+      res.json(propertyInfo);
+    } catch (error) {
+      console.error("Error fetching property info:", error);
+      res.status(500).json({ message: "Failed to fetch property info" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

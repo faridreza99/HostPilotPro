@@ -22732,6 +22732,648 @@ Plant Care:
       lastCalculated: new Date(),
     };
   }
+
+  // ===== MAINTENANCE, UTILITIES & RENOVATION TRACKER MOCK IMPLEMENTATIONS =====
+
+  // Maintenance Issues Methods
+  async getMaintenanceIssues(organizationId: string, propertyId?: number): Promise<any[]> {
+    const mockIssues = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: propertyId || 1,
+        issueTitle: "AC Unit Not Cooling Properly",
+        issueDescription: "Master bedroom AC unit is not cooling effectively. Room temperature remains at 28°C despite setting to 22°C.",
+        issueType: "AC",
+        urgencyLevel: "Urgent",
+        currentStatus: "open",
+        reportedBy: "demo-owner",
+        reportedByName: "Jacky Testuser",
+        assignedTo: "demo-staff",
+        assignedToName: "Anna Housekeeper",
+        assignedToType: "staff",
+        estimatedCost: "8500.00",
+        actualCost: null,
+        currency: "THB",
+        dueDateEstimate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+        startedAt: null,
+        completedAt: null,
+        receipts: [],
+        resolutionPhotos: [],
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: propertyId || 1,
+        issueTitle: "Pool Pump Making Loud Noise",
+        issueDescription: "Pool pump has been making unusual grinding noise for the past week. Filtration seems affected.",
+        issueType: "Pool",
+        urgencyLevel: "Normal",
+        currentStatus: "in_progress",
+        reportedBy: "demo-staff",
+        reportedByName: "Anna Housekeeper",
+        assignedTo: "demo-staff-2",
+        assignedToName: "Tom Maintenance",
+        assignedToType: "staff",
+        estimatedCost: "5000.00",
+        actualCost: null,
+        currency: "THB",
+        dueDateEstimate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+        startedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+        completedAt: null,
+        receipts: [],
+        resolutionPhotos: [],
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: propertyId || 1,
+        issueTitle: "Garden Irrigation System Leak",
+        issueDescription: "Water leak detected in the garden irrigation system near the entrance. Water pooling observed.",
+        issueType: "Garden",
+        urgencyLevel: "Normal",
+        currentStatus: "resolved",
+        reportedBy: "demo-portfolio-manager",
+        reportedByName: "Dean Testmanager",
+        assignedTo: "demo-staff-2",
+        assignedToName: "Tom Maintenance",
+        assignedToType: "staff",
+        resolvedBy: "demo-staff-2",
+        resolvedByName: "Tom Maintenance",
+        resolutionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        resolutionNotes: "Replaced damaged irrigation pipe section. Tested system thoroughly.",
+        estimatedCost: "2500.00",
+        actualCost: "2800.00",
+        currency: "THB",
+        dueDateEstimate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        startedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        receipts: ["receipt_irrigation_parts_001.pdf"],
+        resolutionPhotos: ["irrigation_repair_before.jpg", "irrigation_repair_after.jpg"],
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+        updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      }
+    ];
+
+    if (propertyId) {
+      return mockIssues.filter(issue => issue.propertyId === propertyId);
+    }
+
+    return mockIssues;
+  }
+
+  async createMaintenanceIssue(issueData: any): Promise<any> {
+    const newIssue = {
+      id: Date.now(), // Simple ID generation for mock
+      ...issueData,
+      currentStatus: "open",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    return newIssue;
+  }
+
+  // Property Service History Methods
+  async getPropertyServiceHistory(organizationId: string, propertyId?: number): Promise<any[]> {
+    const mockServiceHistory = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: propertyId || 1,
+        serviceType: "ac_service",
+        serviceName: "Annual AC Maintenance & Cleaning",
+        serviceDescription: "Complete AC system maintenance including coil cleaning, filter replacement, and refrigerant check.",
+        serviceDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 90 days ago
+        serviceProvider: "Cool Air Solutions Co., Ltd.",
+        providerContact: "+66 2 123 4567",
+        serviceCategory: "routine_maintenance",
+        serviceNotes: "All units serviced successfully. Recommended next service in 6 months.",
+        attachments: ["ac_service_report_001.pdf", "before_after_photos.zip"],
+        serviceCost: "12500.00",
+        currency: "THB",
+        qualityRating: 5,
+        followUpRequired: false,
+        nextServiceDue: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
+        serviceWarranty: "3 months",
+        createdBy: "demo-portfolio-manager",
+        createdByName: "Dean Testmanager",
+        createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: propertyId || 1,
+        serviceType: "pest_control",
+        serviceName: "Quarterly Pest Control Treatment",
+        serviceDescription: "Comprehensive pest control treatment covering indoor and outdoor areas.",
+        serviceDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), // 45 days ago
+        serviceProvider: "Samui Pest Control Services",
+        providerContact: "+66 77 987 6543",
+        serviceCategory: "routine_maintenance",
+        serviceNotes: "Applied eco-friendly treatment. No pest activity observed during inspection.",
+        attachments: ["pest_control_certificate.pdf"],
+        serviceCost: "3500.00",
+        currency: "THB",
+        qualityRating: 4,
+        followUpRequired: false,
+        nextServiceDue: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), // 45 days from now
+        serviceWarranty: "30 days",
+        createdBy: "demo-staff",
+        createdByName: "Anna Housekeeper",
+        createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: propertyId || 1,
+        serviceType: "pool_inspection",
+        serviceName: "Pool System Deep Inspection & Chemical Balance",
+        serviceDescription: "Complete pool system inspection including pump, filtration, and chemical balance optimization.",
+        serviceDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+        serviceProvider: "Tropical Pool Maintenance",
+        providerContact: "+66 77 555 1234",
+        serviceCategory: "routine_maintenance",
+        serviceNotes: "Pool system functioning well. Minor pump adjustment made. Chemical levels balanced.",
+        attachments: ["pool_inspection_report.pdf", "chemical_test_results.jpg"],
+        serviceCost: "4500.00",
+        currency: "THB",
+        qualityRating: 5,
+        followUpRequired: false,
+        nextServiceDue: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days from now
+        serviceWarranty: "14 days",
+        createdBy: "demo-portfolio-manager",
+        createdByName: "Dean Testmanager",
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 4,
+        organizationId,
+        propertyId: propertyId || 1,
+        serviceType: "deep_clean",
+        serviceName: "Post-Guest Deep Cleaning & Steam Treatment",
+        serviceDescription: "Comprehensive deep cleaning including steam cleaning of carpets, upholstery, and mattresses.",
+        serviceDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
+        serviceProvider: "Samui Premium Cleaning",
+        providerContact: "+66 77 333 2222",
+        serviceCategory: "routine_maintenance",
+        serviceNotes: "Complete deep clean performed. All fabrics steam treated. Property ready for next guests.",
+        attachments: ["cleaning_checklist.pdf", "before_after_photos.zip"],
+        serviceCost: "6500.00",
+        currency: "THB",
+        qualityRating: 5,
+        followUpRequired: false,
+        nextServiceDue: new Date(Date.now() + 75 * 24 * 60 * 60 * 1000), // 75 days from now
+        serviceWarranty: "7 days",
+        createdBy: "demo-staff",
+        createdByName: "Anna Housekeeper",
+        createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      }
+    ];
+
+    if (propertyId) {
+      return mockServiceHistory.filter(service => service.propertyId === propertyId);
+    }
+
+    return mockServiceHistory;
+  }
+
+  async createPropertyServiceHistory(serviceData: any): Promise<any> {
+    const newService = {
+      id: Date.now(), // Simple ID generation for mock
+      ...serviceData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    return newService;
+  }
+
+  // AI Task Suggestions Methods
+  async getMaintenanceTaskSuggestions(organizationId: string, propertyId?: number): Promise<any[]> {
+    const mockSuggestions = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: propertyId || 1,
+        suggestionType: "recurring_service",
+        taskType: "AC",
+        suggestionTitle: "AC Service Due Soon",
+        suggestionDescription: "Next AC service due in 30 days based on last service date. Regular maintenance helps maintain efficiency and prevents breakdowns.",
+        aiConfidence: "92.5",
+        basedOnData: "historical_pattern",
+        lastServiceDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        daysSinceLastService: 90,
+        recommendedInterval: 120,
+        priorityLevel: "medium",
+        suggestedDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        estimatedCost: "12500.00",
+        currency: "THB",
+        suggestionStatus: "pending",
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: propertyId || 1,
+        suggestionType: "overdue_maintenance",
+        taskType: "Pest Control",
+        suggestionTitle: "Pest Control Overdue",
+        suggestionDescription: "No pest control service in last 120 days. Recommended quarterly treatment to prevent infestations.",
+        aiConfidence: "88.0",
+        basedOnData: "industry_standard",
+        lastServiceDate: new Date(Date.now() - 130 * 24 * 60 * 60 * 1000),
+        daysSinceLastService: 130,
+        recommendedInterval: 90,
+        priorityLevel: "high",
+        suggestedDueDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // Already overdue
+        estimatedCost: "3500.00",
+        currency: "THB",
+        suggestionStatus: "pending",
+        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: propertyId || 1,
+        suggestionType: "predictive_alert",
+        taskType: "Pool",
+        suggestionTitle: "Pool Equipment Maintenance Recommended",
+        suggestionDescription: "Based on usage patterns and last inspection, pool equipment maintenance recommended within 2 weeks.",
+        aiConfidence: "76.5",
+        basedOnData: "historical_pattern",
+        lastServiceDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+        daysSinceLastService: 60,
+        recommendedInterval: 75,
+        priorityLevel: "low",
+        suggestedDueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        estimatedCost: "4500.00",
+        currency: "THB",
+        suggestionStatus: "pending",
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      }
+    ];
+
+    if (propertyId) {
+      return mockSuggestions.filter(suggestion => suggestion.propertyId === propertyId);
+    }
+
+    return mockSuggestions;
+  }
+
+  async approveSuggestion(suggestionId: number): Promise<any> {
+    return {
+      success: true,
+      message: "Task created from suggestion",
+      taskId: Date.now(), // Mock task ID
+      approvedAt: new Date(),
+    };
+  }
+
+  async dismissSuggestion(suggestionId: number, reason: string): Promise<any> {
+    return {
+      success: true,
+      message: "Suggestion dismissed",
+      dismissedAt: new Date(),
+      reason,
+    };
+  }
+
+  // Property Utilities Methods
+  async getPropertyUtilities(organizationId: string, propertyId?: number): Promise<any[]> {
+    const mockUtilities = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityType: "electricity",
+        customUtilityName: null,
+        provider: "Provincial Electricity Authority (PEA)",
+        accountNumber: "1234567890123",
+        billingCycle: "monthly",
+        averageBillAmount: "4500.00",
+        currency: "THB",
+        expectedBillDate: 17,
+        alertDaysAfter: 4,
+        autoRemindersEnabled: true,
+        providerContact: "+66 2 590 1234",
+        onlinePortal: "https://www.pea.co.th",
+        loginCredentials: "encrypted_login_data",
+        isActive: true,
+        notes: "Main electricity supply for entire property",
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityType: "water",
+        customUtilityName: null,
+        provider: "Samui Waterworks",
+        accountNumber: "SW-987654321",
+        billingCycle: "monthly",
+        averageBillAmount: "1200.00",
+        currency: "THB",
+        expectedBillDate: 22,
+        alertDaysAfter: 4,
+        autoRemindersEnabled: true,
+        providerContact: "+66 77 421 0088",
+        onlinePortal: "https://www.samuiwater.co.th",
+        loginCredentials: "encrypted_login_data",
+        isActive: true,
+        notes: "Municipal water supply",
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityType: "internet",
+        customUtilityName: null,
+        provider: "True Internet",
+        accountNumber: "TRUE-555888999",
+        billingCycle: "monthly",
+        averageBillAmount: "1990.00",
+        currency: "THB",
+        expectedBillDate: 5,
+        alertDaysAfter: 4,
+        autoRemindersEnabled: true,
+        providerContact: "+66 2 888 8888",
+        onlinePortal: "https://www.trueonline.com",
+        loginCredentials: "encrypted_login_data",
+        isActive: true,
+        notes: "Fiber optic internet 1000/500 Mbps package",
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: 4,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityType: "pest_control",
+        customUtilityName: null,
+        provider: "Samui Pest Control Services",
+        accountNumber: "SPC-2024-001",
+        billingCycle: "quarterly",
+        averageBillAmount: "3500.00",
+        currency: "THB",
+        expectedBillDate: 15,
+        alertDaysAfter: 7,
+        autoRemindersEnabled: true,
+        providerContact: "+66 77 987 6543",
+        onlinePortal: "",
+        loginCredentials: null,
+        isActive: true,
+        notes: "Eco-friendly pest control service contract",
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      }
+    ];
+
+    if (propertyId) {
+      return mockUtilities.filter(utility => utility.propertyId === propertyId);
+    }
+
+    return mockUtilities;
+  }
+
+  async createPropertyUtility(utilityData: any): Promise<any> {
+    const newUtility = {
+      id: Date.now(), // Simple ID generation for mock
+      ...utilityData,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    return newUtility;
+  }
+
+  // Utility Bill History Methods
+  async getUtilityBillHistory(organizationId: string, propertyId?: number, utilityId?: number): Promise<any[]> {
+    const mockBills = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityId: 1, // Electricity
+        billingMonth: "2024-12",
+        billAmount: "4890.50",
+        currency: "THB",
+        billDueDate: new Date("2024-12-31"),
+        billReceivedDate: new Date("2024-12-17"),
+        paymentStatus: "paid",
+        paidDate: new Date("2024-12-20"),
+        paidBy: "demo-portfolio-manager",
+        paidByName: "Dean Testmanager",
+        receiptUrl: "electricity_bill_dec_2024.pdf",
+        paymentReceiptUrl: "payment_receipt_electricity_dec.pdf",
+        notes: "Higher usage due to guests during holiday season",
+        alertSent: false,
+        alertSentDate: null,
+        alertSentTo: [],
+        createdAt: new Date("2024-12-17"),
+        updatedAt: new Date("2024-12-20"),
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityId: 1, // Electricity
+        billingMonth: "2024-11",
+        billAmount: "4125.00",
+        currency: "THB",
+        billDueDate: new Date("2024-11-30"),
+        billReceivedDate: new Date("2024-11-17"),
+        paymentStatus: "paid",
+        paidDate: new Date("2024-11-18"),
+        paidBy: "demo-staff",
+        paidByName: "Anna Housekeeper",
+        receiptUrl: "electricity_bill_nov_2024.pdf",
+        paymentReceiptUrl: "payment_receipt_electricity_nov.pdf",
+        notes: "Normal usage month",
+        alertSent: false,
+        alertSentDate: null,
+        alertSentTo: [],
+        createdAt: new Date("2024-11-17"),
+        updatedAt: new Date("2024-11-18"),
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityId: 2, // Water
+        billingMonth: "2024-12",
+        billAmount: "1350.00",
+        currency: "THB",
+        billDueDate: new Date("2025-01-15"),
+        billReceivedDate: new Date("2024-12-22"),
+        paymentStatus: "pending",
+        paidDate: null,
+        paidBy: null,
+        paidByName: null,
+        receiptUrl: "water_bill_dec_2024.pdf",
+        paymentReceiptUrl: null,
+        notes: "Bill just received, payment pending",
+        alertSent: false,
+        alertSentDate: null,
+        alertSentTo: [],
+        createdAt: new Date("2024-12-22"),
+        updatedAt: new Date("2024-12-22"),
+      },
+      {
+        id: 4,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityId: 3, // Internet
+        billingMonth: "2024-12",
+        billAmount: "1990.00",
+        currency: "THB",
+        billDueDate: new Date("2025-01-05"),
+        billReceivedDate: new Date("2024-12-05"),
+        paymentStatus: "paid",
+        paidDate: new Date("2024-12-05"),
+        paidBy: "demo-portfolio-manager",
+        paidByName: "Dean Testmanager",
+        receiptUrl: "internet_bill_dec_2024.pdf",
+        paymentReceiptUrl: "payment_receipt_internet_dec.pdf",
+        notes: "Auto-paid via bank transfer",
+        alertSent: false,
+        alertSentDate: null,
+        alertSentTo: [],
+        createdAt: new Date("2024-12-05"),
+        updatedAt: new Date("2024-12-05"),
+      }
+    ];
+
+    let filteredBills = mockBills;
+
+    if (propertyId) {
+      filteredBills = filteredBills.filter(bill => bill.propertyId === propertyId);
+    }
+
+    if (utilityId) {
+      filteredBills = filteredBills.filter(bill => bill.utilityId === utilityId);
+    }
+
+    return filteredBills;
+  }
+
+  async createUtilityBill(billData: any): Promise<any> {
+    const newBill = {
+      id: Date.now(), // Simple ID generation for mock
+      ...billData,
+      alertSent: false,
+      alertSentDate: null,
+      alertSentTo: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    return newBill;
+  }
+
+  // Utility Bill Alerts Methods
+  async getUtilityBillAlerts(organizationId: string, propertyId?: number): Promise<any[]> {
+    const mockAlerts = [
+      {
+        id: 1,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityId: 2, // Water utility
+        alertType: "missing_receipt",
+        alertTitle: "Water Bill Overdue - Receipt Not Uploaded",
+        alertMessage: "Water bill for December 2024 is overdue by 2 days. Expected receipt by 26th Dec, but not yet uploaded.",
+        alertSeverity: "warning",
+        sentTo: ["demo-portfolio-manager", "demo-admin"],
+        sentToRoles: ["admin", "portfolio-manager"],
+        alertStatus: "active",
+        acknowledgedBy: null,
+        acknowledgedAt: null,
+        resolvedBy: null,
+        resolvedAt: null,
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      },
+      {
+        id: 2,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityId: 1, // Electricity utility
+        alertType: "payment_reminder",
+        alertTitle: "Electricity Bill Payment Due Soon",
+        alertMessage: "Electricity bill for January 2025 is due in 3 days (Jan 31st). Amount: ฿4,890.50",
+        alertSeverity: "info",
+        sentTo: ["demo-portfolio-manager", "demo-staff"],
+        sentToRoles: ["portfolio-manager", "staff"],
+        alertStatus: "active",
+        acknowledgedBy: null,
+        acknowledgedAt: null,
+        resolvedBy: null,
+        resolvedAt: null,
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      },
+      {
+        id: 3,
+        organizationId,
+        propertyId: propertyId || 1,
+        utilityId: 4, // Pest control utility
+        alertType: "overdue_bill",
+        alertTitle: "Pest Control Service Payment Overdue",
+        alertMessage: "Quarterly pest control payment is overdue by 5 days. Please process payment immediately.",
+        alertSeverity: "urgent",
+        sentTo: ["demo-admin", "demo-portfolio-manager"],
+        sentToRoles: ["admin", "portfolio-manager"],
+        alertStatus: "acknowledged",
+        acknowledgedBy: "demo-portfolio-manager",
+        acknowledgedAt: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
+        resolvedBy: null,
+        resolvedAt: null,
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      }
+    ];
+
+    if (propertyId) {
+      return mockAlerts.filter(alert => alert.propertyId === propertyId);
+    }
+
+    return mockAlerts;
+  }
+
+  // Property Info Summary Methods
+  async getPropertyInfoSummary(organizationId: string, propertyId: number): Promise<any> {
+    return {
+      id: 1,
+      organizationId,
+      propertyId,
+      totalUtilities: 4,
+      utilitiesWithUnpaidBills: 1,
+      utilitiesWithOverdueBills: 1,
+      totalMonthlyUtilityCost: "9530.00",
+      openMaintenanceIssues: 2,
+      urgentMaintenanceIssues: 1,
+      totalMaintenanceCostThisYear: "28500.00",
+      lastMaintenanceDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      lastServiceDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      lastUtilityBillDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      activeSuggestions: 3,
+      urgentSuggestions: 1,
+      lastUpdated: new Date(),
+      cacheVersion: 1,
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -91,6 +91,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
           { label: "Maintenance System", icon: Wrench, href: "/maintenance-task-system" },
+          { label: "Utilities & Maintenance", icon: Settings, href: "/maintenance-utilities-renovation-tracker", badge: "New" },
           { label: "Task Attachments", icon: FileText, href: "/task-attachments-notes" },
           { label: "Document Center", icon: FolderOpen, href: "/document-center" },
           { label: "Property Access", icon: Key, href: "/property-access" },

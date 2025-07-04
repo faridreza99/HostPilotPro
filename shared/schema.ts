@@ -8674,3 +8674,314 @@ export type InsertDailyPropertyOperations = z.infer<typeof insertDailyPropertyOp
 // ===== ENHANCED FINANCIAL CONTROLS TYPE EXPORTS =====
 // Note: Using existing invoice tables with enhanced functionality for comprehensive financial controls
 
+// ===== MAINTENANCE, UTILITIES & RENOVATION TRACKER =====
+
+// Maintenance Log & Backlog
+export const maintenanceIssues = pgTable("maintenance_issues", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Issue Details
+  issueTitle: varchar("issue_title").notNull(),
+  issueDescription: text("issue_description").notNull(),
+  issueType: varchar("issue_type").notNull(), // AC, Electrical, Plumbing, Pool, Garden, General
+  urgencyLevel: varchar("urgency_level").notNull(), // Low, Normal, Urgent
+  currentStatus: varchar("current_status").default("open"), // open, in_progress, resolved, closed
+  
+  // Assignment & Tracking
+  reportedBy: varchar("reported_by").references(() => users.id).notNull(),
+  reportedByName: varchar("reported_by_name").notNull(),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  assignedToName: varchar("assigned_to_name"),
+  assignedToType: varchar("assigned_to_type"), // staff, contractor, external
+  
+  // Resolution Details
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolvedByName: varchar("resolved_by_name"),
+  resolutionDate: timestamp("resolution_date"),
+  resolutionNotes: text("resolution_notes"),
+  resolutionPhotos: text("resolution_photos").array(),
+  
+  // Financial
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  receipts: text("receipts").array(), // Array of receipt file URLs
+  currency: varchar("currency").default("THB"),
+  
+  // Tracking
+  dueDateEstimate: timestamp("due_date_estimate"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Renovation & Service Timeline
+export const propertyServiceHistory = pgTable("property_service_history", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Service Details
+  serviceType: varchar("service_type").notNull(), // renovation, ac_service, pest_control, deep_clean, pool_inspection, septic_service, landscaping
+  serviceName: varchar("service_name").notNull(),
+  serviceDescription: text("service_description"),
+  serviceDate: date("service_date").notNull(),
+  
+  // Provider Information
+  serviceProvider: varchar("service_provider"),
+  providerContact: varchar("provider_contact"),
+  serviceCategory: varchar("service_category").notNull(), // major_renovation, routine_maintenance, emergency_repair
+  
+  // Documentation
+  serviceNotes: text("service_notes"),
+  attachments: text("attachments").array(), // Photos, documents, receipts
+  serviceCost: decimal("service_cost", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  
+  // Quality & Follow-up
+  qualityRating: integer("quality_rating"), // 1-5 stars
+  followUpRequired: boolean("follow_up_required").default(false),
+  nextServiceDue: date("next_service_due"),
+  serviceWarranty: varchar("service_warranty"), // warranty period
+  
+  // Tracking
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdByName: varchar("created_by_name").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI-Driven Future Task Suggestions
+export const maintenanceTaskSuggestions = pgTable("maintenance_task_suggestions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Suggestion Details
+  suggestionType: varchar("suggestion_type").notNull(), // recurring_service, overdue_maintenance, predictive_alert
+  taskType: varchar("task_type").notNull(), // AC, Electrical, Plumbing, Pool, Pest Control, etc.
+  suggestionTitle: varchar("suggestion_title").notNull(),
+  suggestionDescription: text("suggestion_description").notNull(),
+  
+  // AI Analysis
+  aiConfidence: decimal("ai_confidence", { precision: 5, scale: 2 }), // 0-100%
+  basedOnData: varchar("based_on_data").notNull(), // historical_pattern, days_since_last, industry_standard
+  lastServiceDate: date("last_service_date"),
+  daysSinceLastService: integer("days_since_last_service"),
+  recommendedInterval: integer("recommended_interval"), // days
+  
+  // Priority & Timing
+  priorityLevel: varchar("priority_level").notNull(), // low, medium, high, urgent
+  suggestedDueDate: date("suggested_due_date"),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  
+  // Status & Actions
+  suggestionStatus: varchar("suggestion_status").default("pending"), // pending, approved, dismissed, task_created
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  dismissedBy: varchar("dismissed_by").references(() => users.id),
+  dismissedAt: timestamp("dismissed_at"),
+  dismissalReason: text("dismissal_reason"),
+  taskCreatedId: integer("task_created_id"), // Reference to created task
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Utilities Tracking & Bill Alerts
+export const propertyUtilities = pgTable("property_utilities", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Utility Details
+  utilityType: varchar("utility_type").notNull(), // electricity, water, internet, pest_control, gas, hoa_fee, custom
+  customUtilityName: varchar("custom_utility_name"), // For custom utilities
+  provider: varchar("provider").notNull(),
+  accountNumber: varchar("account_number").notNull(),
+  
+  // Billing Information
+  billingCycle: varchar("billing_cycle").notNull(), // monthly, quarterly, annually
+  averageBillAmount: decimal("average_bill_amount", { precision: 10, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  
+  // Alert Settings
+  expectedBillDate: integer("expected_bill_date"), // Day of month (e.g., 17 for 17th)
+  alertDaysAfter: integer("alert_days_after").default(4), // Alert if no bill after X days
+  autoRemindersEnabled: boolean("auto_reminders_enabled").default(true),
+  
+  // Contact & Access
+  providerContact: varchar("provider_contact"),
+  onlinePortal: varchar("online_portal"),
+  loginCredentials: text("login_credentials"), // Encrypted
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Utility Bill History
+export const utilityBillHistory = pgTable("utility_bill_history", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  utilityId: integer("utility_id").references(() => propertyUtilities.id).notNull(),
+  
+  // Bill Details
+  billingMonth: varchar("billing_month").notNull(), // YYYY-MM format
+  billAmount: decimal("bill_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").default("THB"),
+  billDueDate: date("bill_due_date"),
+  billReceivedDate: date("bill_received_date"),
+  
+  // Payment Status
+  paymentStatus: varchar("payment_status").default("pending"), // pending, paid, overdue, disputed
+  paidDate: date("paid_date"),
+  paidBy: varchar("paid_by").references(() => users.id),
+  paidByName: varchar("paid_by_name"),
+  
+  // Documentation
+  receiptUrl: varchar("receipt_url"), // Uploaded bill/receipt
+  paymentReceiptUrl: varchar("payment_receipt_url"),
+  notes: text("notes"),
+  
+  // Alerts
+  alertSent: boolean("alert_sent").default(false),
+  alertSentDate: timestamp("alert_sent_date"),
+  alertSentTo: text("alert_sent_to").array(), // Array of user IDs
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Utility Bill Alerts Log
+export const utilityBillAlerts = pgTable("utility_bill_alerts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  utilityId: integer("utility_id").references(() => propertyUtilities.id).notNull(),
+  
+  // Alert Details
+  alertType: varchar("alert_type").notNull(), // overdue_bill, missing_receipt, payment_reminder
+  alertTitle: varchar("alert_title").notNull(),
+  alertMessage: text("alert_message").notNull(),
+  alertSeverity: varchar("alert_severity").notNull(), // info, warning, urgent
+  
+  // Recipients
+  sentTo: text("sent_to").array(), // Array of user IDs
+  sentToRoles: text("sent_to_roles").array(), // Array of roles (admin, pm, owner)
+  
+  // Status
+  alertStatus: varchar("alert_status").default("active"), // active, acknowledged, resolved
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolvedAt: timestamp("resolved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Property Info Sidebar Cache
+export const propertyInfoSummary = pgTable("property_info_summary", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Utility Status Summary
+  totalUtilities: integer("total_utilities").default(0),
+  utilitiesWithUnpaidBills: integer("utilities_with_unpaid_bills").default(0),
+  utilitiesWithOverdueBills: integer("utilities_with_overdue_bills").default(0),
+  totalMonthlyUtilityCost: decimal("total_monthly_utility_cost", { precision: 10, scale: 2 }),
+  
+  // Maintenance Summary
+  openMaintenanceIssues: integer("open_maintenance_issues").default(0),
+  urgentMaintenanceIssues: integer("urgent_maintenance_issues").default(0),
+  totalMaintenanceCostThisYear: decimal("total_maintenance_cost_this_year", { precision: 10, scale: 2 }),
+  
+  // Recent Activity
+  lastMaintenanceDate: date("last_maintenance_date"),
+  lastServiceDate: date("last_service_date"),
+  lastUtilityBillDate: date("last_utility_bill_date"),
+  
+  // AI Suggestions
+  activeSuggestions: integer("active_suggestions").default(0),
+  urgentSuggestions: integer("urgent_suggestions").default(0),
+  
+  // Cache Control
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  cacheVersion: integer("cache_version").default(1),
+});
+
+// ===== MAINTENANCE TRACKER INSERT SCHEMAS =====
+
+export const insertMaintenanceIssueSchema = createInsertSchema(maintenanceIssues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyServiceHistorySchema = createInsertSchema(propertyServiceHistory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMaintenanceTaskSuggestionSchema = createInsertSchema(maintenanceTaskSuggestions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyUtilitySchema = createInsertSchema(propertyUtilities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUtilityBillHistorySchema = createInsertSchema(utilityBillHistory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUtilityBillAlertSchema = createInsertSchema(utilityBillAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPropertyInfoSummarySchema = createInsertSchema(propertyInfoSummary).omit({
+  id: true,
+  lastUpdated: true,
+});
+
+// ===== MAINTENANCE TRACKER TYPE DEFINITIONS =====
+
+export type MaintenanceIssue = typeof maintenanceIssues.$inferSelect;
+export type InsertMaintenanceIssue = z.infer<typeof insertMaintenanceIssueSchema>;
+
+export type PropertyServiceHistory = typeof propertyServiceHistory.$inferSelect;
+export type InsertPropertyServiceHistory = z.infer<typeof insertPropertyServiceHistorySchema>;
+
+export type MaintenanceTaskSuggestion = typeof maintenanceTaskSuggestions.$inferSelect;
+export type InsertMaintenanceTaskSuggestion = z.infer<typeof insertMaintenanceTaskSuggestionSchema>;
+
+export type PropertyUtility = typeof propertyUtilities.$inferSelect;
+export type InsertPropertyUtility = z.infer<typeof insertPropertyUtilitySchema>;
+
+export type UtilityBillHistory = typeof utilityBillHistory.$inferSelect;
+export type InsertUtilityBillHistory = z.infer<typeof insertUtilityBillHistorySchema>;
+
+export type UtilityBillAlert = typeof utilityBillAlerts.$inferSelect;
+export type InsertUtilityBillAlert = z.infer<typeof insertUtilityBillAlertSchema>;
+
+export type PropertyInfoSummary = typeof propertyInfoSummary.$inferSelect;
+export type InsertPropertyInfoSummary = z.infer<typeof insertPropertyInfoSummarySchema>;
+
