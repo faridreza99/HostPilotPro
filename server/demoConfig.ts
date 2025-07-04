@@ -111,11 +111,12 @@ export const DEMO_SERVICES = [
 export const DEMO_ELECTRICITY = {
   reservationId: DEMO_RESERVATIONS.demoOne,
   checkIn: {
-    checkInReading: 20450,
-    checkInPhoto: "https://example.com/demo-meter-image.jpg",
+    checkInReading: 1000,
+    checkInPhoto: "https://example.com/uploads/demo-meter-photo.jpg",
     checkInMethod: "ocr_automatic",
-    checkInDate: "2025-01-03",
-    checkInTime: "15:00"
+    checkInDate: "2025-07-01",
+    checkInTime: "15:00",
+    recordedBy: "Host Thura"
   },
   checkOut: {
     checkOutReading: null, // Will be set at checkout
@@ -151,8 +152,7 @@ export const DEMO_DEPOSIT = {
   discountReason: null,
   receivedBy: "Host (Jane)",
   receivedDate: "2025-07-01",
-  notes: "Guest paid cash deposit at check-in",
-  notes: "Cash deposit of 8,000 THB received and held until checkout completion and final inspection."
+  notes: "Guest paid cash deposit at check-in"
 } as const;
 
 // Helper function to bind all demo data to reservation
@@ -360,3 +360,57 @@ const scheduledServices = [
 
 // Apply scheduled services to dashboards
 injectScheduledServices(scheduledServices);
+
+// Function to log check-in electricity data for reservation as requested
+export function logCheckInElectricityData(checkInMeterData: any) {
+  console.log(`⚡ Check-in electricity data logged for reservation: ${checkInMeterData.reservationId}`);
+  console.log(`🏠 Property: ${checkInMeterData.property}`);
+  console.log(`📅 Check-in Date: ${checkInMeterData.checkInDate}`);
+  console.log(`📊 Meter Start Reading: ${checkInMeterData.meterStartReading} ${checkInMeterData.unit}`);
+  console.log(`💰 Price: ${checkInMeterData.kwPrice} THB per kWh`);
+  console.log(`📸 Visual Proof: ${checkInMeterData.visualProofUrl}`);
+  console.log(`👤 Recorded by: ${checkInMeterData.recordedBy}`);
+  console.log(`💵 Deposit: ${checkInMeterData.depositPaid.amount} ${checkInMeterData.depositPaid.currency} (${checkInMeterData.depositPaid.method})`);
+  console.log(`🔌 Billing Type: ${checkInMeterData.electricityBillingType}`);
+  console.log(`📝 Notes: ${checkInMeterData.notes}`);
+  
+  return {
+    reservationId: checkInMeterData.reservationId,
+    propertyName: checkInMeterData.property,
+    checkInDate: checkInMeterData.checkInDate,
+    startReading: checkInMeterData.meterStartReading,
+    unit: checkInMeterData.unit,
+    pricePerUnit: checkInMeterData.kwPrice,
+    currency: "THB",
+    meterPhotoUrl: checkInMeterData.visualProofUrl,
+    recordedBy: checkInMeterData.recordedBy,
+    depositAmount: checkInMeterData.depositPaid.amount,
+    depositCurrency: checkInMeterData.depositPaid.currency,
+    depositMethod: checkInMeterData.depositPaid.method,
+    billingType: checkInMeterData.electricityBillingType,
+    setupNotes: checkInMeterData.notes,
+    status: "recorded"
+  };
+}
+
+// Simulate electricity meter reading on check-in for Demo1234
+const checkInMeterData = {
+  reservationId: "Demo1234",
+  property: "Villa Aruna",
+  checkInDate: "2025-07-01",
+  meterStartReading: 1000,
+  unit: "kWh",
+  kwPrice: 7,
+  visualProofUrl: "https://example.com/uploads/demo-meter-photo.jpg",
+  recordedBy: "Host Thura",
+  depositPaid: {
+    amount: 8000,
+    currency: "THB",
+    method: "Cash"
+  },
+  electricityBillingType: "Paid by Guest",
+  notes: "Standard setup for electricity tracking. Photo of meter taken at 1000 kWh."
+};
+
+// Log into guest profile + dashboard
+logCheckInElectricityData(checkInMeterData);
