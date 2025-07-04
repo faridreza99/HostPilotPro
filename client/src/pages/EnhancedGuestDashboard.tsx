@@ -34,6 +34,7 @@ import {
   Info,
   Heart,
   MessageCircle,
+  MessageSquare,
   Shield,
   Gift,
   Coffee,
@@ -44,6 +45,7 @@ import {
   ChevronRight,
   ExternalLink,
   LogOut,
+  CreditCard,
 } from "lucide-react";
 
 // Filter options for service timeline
@@ -149,6 +151,38 @@ export default function EnhancedGuestDashboard() {
     retry: 2,
   });
 
+  // Fetch extended modules data
+  const { data: bookingOverview, isLoading: loadingBookingOverview } = useQuery({
+    queryKey: ["/api/guest-dashboard/booking-overview", guestBooking?.id],
+    enabled: !!guestBooking?.id,
+    retry: 2,
+  });
+
+  const { data: servicesOrdered = [], isLoading: loadingServicesOrdered } = useQuery({
+    queryKey: ["/api/guest-dashboard/services-ordered", guestBooking?.id],
+    enabled: !!guestBooking?.id,
+    retry: 2,
+  });
+
+  const { data: electricityBilling, isLoading: loadingElectricityBilling } = useQuery({
+    queryKey: ["/api/guest-dashboard/electricity-billing", guestBooking?.id],
+    enabled: !!guestBooking?.id,
+    retry: 2,
+  });
+
+  const { data: depositOverview, isLoading: loadingDepositOverview } = useQuery({
+    queryKey: ["/api/guest-dashboard/deposit-overview", guestBooking?.id],
+    enabled: !!guestBooking?.id,
+    retry: 2,
+  });
+
+  // Helper functions
+  const formatStayDuration = () => {
+    if (!guestBooking) return "N/A";
+    const days = differenceInDays(new Date(guestBooking.checkOutDate), new Date(guestBooking.checkInDate));
+    return `${days} night${days > 1 ? 's' : ''}`;
+  };
+
   // Filter service timeline based on selected filter
   const filteredTimeline = serviceTimeline.filter((service) => {
     const serviceDate = new Date(service.scheduledDate);
@@ -199,6 +233,8 @@ export default function EnhancedGuestDashboard() {
     }
   };
 
+
+
   const getRecommendationIcon = (type: string) => {
     switch (type) {
       case "restaurant": return <Utensils className="h-5 w-5 text-orange-600" />;
@@ -210,13 +246,7 @@ export default function EnhancedGuestDashboard() {
     }
   };
 
-  const formatStayDuration = () => {
-    if (!guestBooking) return "";
-    const checkIn = new Date(guestBooking.checkInDate);
-    const checkOut = new Date(guestBooking.checkOutDate);
-    const nights = differenceInDays(checkOut, checkIn);
-    return `${nights} night${nights !== 1 ? 's' : ''}`;
-  };
+
 
   const getWifiCode = () => {
     return guestBooking?.wifiCode || 
@@ -314,25 +344,387 @@ export default function EnhancedGuestDashboard() {
         </Card>
 
         {/* Main Dashboard Tabs */}
-        <Tabs defaultValue="hostaway-info" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="hostaway-info" className="flex items-center gap-2">
-              <Info className="h-4 w-4" />
+        <Tabs defaultValue="booking-overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-8 text-xs">
+            <TabsTrigger value="booking-overview" className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              Booking
+            </TabsTrigger>
+            <TabsTrigger value="services-ordered" className="flex items-center gap-1">
+              <Coffee className="h-3 w-3" />
+              Services
+            </TabsTrigger>
+            <TabsTrigger value="electricity-billing" className="flex items-center gap-1">
+              <Thermometer className="h-3 w-3" />
+              Electricity
+            </TabsTrigger>
+            <TabsTrigger value="deposit-overview" className="flex items-center gap-1">
+              <CheckCircle className="h-3 w-3" />
+              Deposit
+            </TabsTrigger>
+            <TabsTrigger value="hostaway-info" className="flex items-center gap-1">
+              <Info className="h-3 w-3" />
               Property Info
             </TabsTrigger>
-            <TabsTrigger value="ai-recommendations" className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
+            <TabsTrigger value="ai-recommendations" className="flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
               AI Recommendations
             </TabsTrigger>
-            <TabsTrigger value="service-timeline" className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
+            <TabsTrigger value="service-timeline" className="flex items-center gap-1">
+              <CalendarDays className="h-3 w-3" />
               Service Timeline
             </TabsTrigger>
-            <TabsTrigger value="amenities" className="flex items-center gap-2">
-              <Gift className="h-4 w-4" />
+            <TabsTrigger value="amenities" className="flex items-center gap-1">
+              <Gift className="h-3 w-3" />
               Amenities & Codes
             </TabsTrigger>
           </TabsList>
+
+          {/* Booking Overview Tab */}
+          <TabsContent value="booking-overview" className="space-y-6">
+            {loadingBookingOverview ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="animate-pulse space-y-3">
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                        <div className="h-3 bg-gray-200 rounded"></div>
+                        <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Stay Details */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-blue-600" />
+                      Stay Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Check-in:</span>
+                      <span className="text-sm font-medium">{format(new Date(guestBooking.checkInDate), "MMM d, yyyy")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Check-out:</span>
+                      <span className="text-sm font-medium">{format(new Date(guestBooking.checkOutDate), "MMM d, yyyy")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Duration:</span>
+                      <span className="text-sm font-medium">{formatStayDuration()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Guests:</span>
+                      <span className="text-sm font-medium">{guestBooking.numberOfGuests}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Payment Breakdown */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-green-600" />
+                      Payment Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Total Amount:</span>
+                      <span className="text-sm font-medium">{guestBooking.currency} {guestBooking.totalAmount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Deposit Paid:</span>
+                      <span className="text-sm font-medium">{guestBooking.currency} {guestBooking.depositPaid}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Platform:</span>
+                      <span className="text-sm font-medium">{guestBooking.platform || "Direct Booking"}</span>
+                    </div>
+                    <Badge variant={guestBooking.bookingStatus === "confirmed" ? "default" : "secondary"}>
+                      {guestBooking.bookingStatus}
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                {/* Special Requests */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-purple-600" />
+                      Special Requests
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {guestBooking.specialRequests ? (
+                      <p className="text-sm">{guestBooking.specialRequests}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No special requests</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Services Ordered Tab */}
+          <TabsContent value="services-ordered" className="space-y-6">
+            {loadingServicesOrdered ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="animate-pulse space-y-3">
+                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                        <div className="h-3 bg-gray-200 rounded"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : servicesOrdered.length > 0 ? (
+              <div className="space-y-4">
+                {servicesOrdered.map((service: any) => (
+                  <Card key={service.id}>
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-2">
+                          <h3 className="font-semibold flex items-center gap-2">
+                            <Coffee className="h-4 w-4 text-orange-600" />
+                            {service.serviceName}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(service.serviceDate), "MMM d, yyyy")} at {service.serviceTime}
+                          </p>
+                          <Badge variant={service.serviceCategory === "massage" ? "default" : "secondary"}>
+                            {service.serviceCategory}
+                          </Badge>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{service.currency} {service.totalCost}</p>
+                          <Badge variant={service.status === "confirmed" ? "default" : "secondary"}>
+                            {service.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      {service.guestNotes && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                          <p className="text-sm">{service.guestNotes}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Coffee className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Services Ordered</h3>
+                  <p className="text-muted-foreground">You haven't ordered any additional services yet.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Electricity Billing Tab */}
+          <TabsContent value="electricity-billing" className="space-y-6">
+            {loadingElectricityBilling ? (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                    <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : electricityBilling?.hasData ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Check-in Reading */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Thermometer className="h-5 w-5 text-blue-600" />
+                      Check-in Reading
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Reading:</span>
+                      <span className="text-sm font-medium">{electricityBilling.checkIn?.checkInReading} kWh</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Method:</span>
+                      <Badge variant="secondary">{electricityBilling.checkIn?.checkInMethod}</Badge>
+                    </div>
+                    {electricityBilling.checkIn?.checkInPhoto && (
+                      <img 
+                        src={electricityBilling.checkIn.checkInPhoto} 
+                        alt="Check-in meter reading"
+                        className="w-full h-32 object-cover rounded-md"
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Check-out Reading & Billing */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Thermometer className="h-5 w-5 text-red-600" />
+                      Check-out & Billing
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {electricityBilling.checkOut ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Final Reading:</span>
+                          <span className="text-sm font-medium">{electricityBilling.checkOut.checkOutReading} kWh</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Usage:</span>
+                          <span className="text-sm font-medium">{electricityBilling.checkOut.electricityUsed} kWh</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Rate:</span>
+                          <span className="text-sm font-medium">฿{electricityBilling.checkOut.ratePerKwh}/kWh</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Total Charge:</span>
+                          <span className="text-sm font-bold">฿{electricityBilling.checkOut.totalCharge}</span>
+                        </div>
+                        <Badge variant={electricityBilling.checkOut.paymentStatus === "paid" ? "default" : "secondary"}>
+                          {electricityBilling.checkOut.paymentStatus}
+                        </Badge>
+                        {electricityBilling.checkOut?.checkOutPhoto && (
+                          <img 
+                            src={electricityBilling.checkOut.checkOutPhoto} 
+                            alt="Check-out meter reading"
+                            className="w-full h-32 object-cover rounded-md"
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Check-out reading will be taken during departure.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Thermometer className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Electricity Data</h3>
+                  <p className="text-muted-foreground">Electricity meter readings will be recorded during check-in.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Deposit Overview Tab */}
+          <TabsContent value="deposit-overview" className="space-y-6">
+            {loadingDepositOverview ? (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                    <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : depositOverview ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Deposit Paid */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      Deposit Paid
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Amount:</span>
+                      <span className="text-sm font-medium">{depositOverview.depositCurrency} {depositOverview.depositAmount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Type:</span>
+                      <Badge variant={depositOverview.depositType === "cash" ? "secondary" : "default"}>
+                        {depositOverview.depositType}
+                      </Badge>
+                    </div>
+                    {depositOverview.depositReceiptPhoto && (
+                      <img 
+                        src={depositOverview.depositReceiptPhoto} 
+                        alt="Deposit receipt"
+                        className="w-full h-32 object-cover rounded-md"
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Deposit Status & Refund */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                      Refund Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {depositOverview.refundStatus ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Refund Amount:</span>
+                          <span className="text-sm font-medium">{depositOverview.refundCurrency} {depositOverview.refundAmount}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Method:</span>
+                          <span className="text-sm font-medium">{depositOverview.refundMethod}</span>
+                        </div>
+                        {depositOverview.discountAmount && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Discount:</span>
+                            <span className="text-sm font-medium">-{depositOverview.refundCurrency} {depositOverview.discountAmount}</span>
+                          </div>
+                        )}
+                        <Badge variant={depositOverview.refundStatus === "completed" ? "default" : "secondary"}>
+                          {depositOverview.refundStatus}
+                        </Badge>
+                        {depositOverview.refundReceiptPhoto && (
+                          <img 
+                            src={depositOverview.refundReceiptPhoto} 
+                            alt="Refund receipt"
+                            className="w-full h-32 object-cover rounded-md"
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Deposit refund will be processed during check-out.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Deposit Information</h3>
+                  <p className="text-muted-foreground">Deposit information will be available after check-in.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
           {/* Property Info Tab */}
           <TabsContent value="hostaway-info" className="space-y-6">

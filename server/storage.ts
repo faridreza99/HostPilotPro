@@ -796,6 +796,12 @@ export interface IStorage {
   }>;
   createTaskFromFeedback(feedbackId: number, ruleId: number, assignedTo?: string): Promise<Task>;
 
+  // Guest Dashboard Extended Modules operations
+  getGuestBookingOverview(organizationId: string, guestId: string): Promise<any>;
+  getGuestServicesOrdered(organizationId: string, bookingId: number): Promise<any[]>;
+  getGuestElectricityBilling(organizationId: string, bookingId: number): Promise<any>;
+  getGuestDepositOverview(organizationId: string, bookingId: number): Promise<any>;
+
   // Guest Add-On Service Booking Platform operations
   getGuestAddonServices(organizationId: string, filters?: { category?: string; isActive?: boolean }): Promise<GuestAddonService[]>;
   getGuestAddonServiceById(id: number): Promise<GuestAddonService | undefined>;
@@ -4314,6 +4320,112 @@ export class DatabaseStorage implements IStorage {
     });
     
     return task;
+  }
+
+  // Guest Dashboard Extended Modules operations
+  async getGuestBookingOverview(organizationId: string, guestId: string): Promise<any> {
+    // Mock data for demo purposes
+    return {
+      id: 1,
+      guestName: "Sarah Johnson",
+      guestEmail: "sarah.johnson@example.com",
+      guestPhone: "+1-555-0123",
+      numberOfGuests: 2,
+      checkInDate: "2024-07-01T15:00:00Z",
+      checkOutDate: "2024-07-08T11:00:00Z",
+      bookingStatus: "confirmed",
+      totalAmount: 2800.00,
+      currency: "USD",
+      depositPaid: 500.00,
+      depositStatus: "paid",
+      specialRequests: "Late check-in requested, vegetarian welcome basket",
+      platform: "Airbnb",
+      propertyName: "Villa Samui Breeze",
+      propertyAddress: "123 Coconut Grove, Koh Samui, Thailand"
+    };
+  }
+
+  async getGuestServicesOrdered(organizationId: string, bookingId: number): Promise<any[]> {
+    // Mock data for demo purposes
+    return [
+      {
+        id: 1,
+        serviceName: "Thai Traditional Massage (2 hours)",
+        serviceCategory: "massage",
+        serviceDate: "2024-07-03",
+        serviceTime: "15:00",
+        totalCost: 1500.00,
+        currency: "THB",
+        status: "confirmed",
+        paymentStatus: "paid",
+        bookingDate: "2024-07-01T10:00:00Z",
+        guestNotes: "Please provide in-room service. Prefer female therapist."
+      },
+      {
+        id: 2,
+        serviceName: "Private Chef for Dinner",
+        serviceCategory: "catering",
+        serviceDate: "2024-07-05",
+        serviceTime: "18:00",
+        totalCost: 3500.00,
+        currency: "THB",
+        status: "pending",
+        paymentStatus: "pending",
+        bookingDate: "2024-07-02T14:30:00Z",
+        guestNotes: "Vegetarian menu, serves 2 people"
+      },
+      {
+        id: 3,
+        serviceName: "Airport Transfer (Round Trip)",
+        serviceCategory: "transport",
+        serviceDate: "2024-07-01",
+        serviceTime: "13:00",
+        totalCost: 1200.00,
+        currency: "THB",
+        status: "completed",
+        paymentStatus: "paid",
+        bookingDate: "2024-06-28T09:15:00Z",
+        guestNotes: "Flight arrives at 14:30 from Bangkok"
+      }
+    ];
+  }
+
+  async getGuestElectricityBilling(organizationId: string, bookingId: number): Promise<any> {
+    // Mock data for demo purposes
+    return {
+      checkIn: {
+        checkInReading: 45234,
+        checkInPhoto: "https://via.placeholder.com/300x200?text=Check-in+Meter+45234",
+        checkInMethod: "ocr_automatic"
+      },
+      checkOut: {
+        checkOutReading: 45367,
+        checkOutPhoto: "https://via.placeholder.com/300x200?text=Check-out+Meter+45367",
+        checkOutMethod: "manual_entry",
+        electricityUsed: 133,
+        ratePerKwh: 7.0,
+        totalCharge: 931.0,
+        paymentStatus: "paid"
+      },
+      hasData: true
+    };
+  }
+
+  async getGuestDepositOverview(organizationId: string, bookingId: number): Promise<any> {
+    // Mock data for demo purposes
+    return {
+      depositType: "cash",
+      depositAmount: 500.00,
+      depositCurrency: "USD",
+      depositReceiptPhoto: "https://via.placeholder.com/300x200?text=Deposit+Receipt+$500",
+      refundAmount: 470.00,
+      refundCurrency: "USD",
+      refundMethod: "cash",
+      refundStatus: "completed",
+      refundReceiptPhoto: "https://via.placeholder.com/300x200?text=Refund+Receipt+$470",
+      discountAmount: 30.00,
+      discountReason: "Minor damage to towel"
+    };
   }
 
   // Guest Add-On Service Booking Platform operations

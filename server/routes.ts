@@ -2485,6 +2485,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Guest Dashboard Extended Modules
+  
+  // Booking Overview
+  app.get("/api/guest-dashboard/booking-overview/:guestId", async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const guestId = req.params.guestId;
+      
+      const bookingOverview = await storage.getGuestBookingOverview(organizationId, guestId);
+      res.json(bookingOverview);
+    } catch (error) {
+      console.error("Error fetching guest booking overview:", error);
+      res.status(500).json({ message: "Failed to fetch booking overview" });
+    }
+  });
+
+  // Services Ordered
+  app.get("/api/guest-dashboard/services-ordered/:bookingId", async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const bookingId = parseInt(req.params.bookingId);
+      
+      const servicesOrdered = await storage.getGuestServicesOrdered(organizationId, bookingId);
+      res.json(servicesOrdered);
+    } catch (error) {
+      console.error("Error fetching guest services ordered:", error);
+      res.status(500).json({ message: "Failed to fetch services ordered" });
+    }
+  });
+
+  // Electricity Billing
+  app.get("/api/guest-dashboard/electricity-billing/:bookingId", async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const bookingId = parseInt(req.params.bookingId);
+      
+      const electricityBilling = await storage.getGuestElectricityBilling(organizationId, bookingId);
+      res.json(electricityBilling);
+    } catch (error) {
+      console.error("Error fetching guest electricity billing:", error);
+      res.status(500).json({ message: "Failed to fetch electricity billing" });
+    }
+  });
+
+  // Deposit Overview
+  app.get("/api/guest-dashboard/deposit-overview/:bookingId", async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const bookingId = parseInt(req.params.bookingId);
+      
+      const depositOverview = await storage.getGuestDepositOverview(organizationId, bookingId);
+      res.json(depositOverview);
+    } catch (error) {
+      console.error("Error fetching guest deposit overview:", error);
+      res.status(500).json({ message: "Failed to fetch deposit overview" });
+    }
+  });
+
   // Guest Dashboard - Service Timeline
   app.get("/api/guest-dashboard/service-timeline/:propertyId", async (req, res) => {
     try {
