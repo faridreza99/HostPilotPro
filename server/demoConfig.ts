@@ -2,108 +2,108 @@
 // All demo data across the platform must reference these reservation IDs
 
 export const DEMO_RESERVATIONS = {
-  demoOne: "Demo1234",  // John & Sarah Smith at Villa Samui Breeze
+  demoOne: "Demo1234",  // Liam Andersen at Villa Aruna
   demoTwo: "Demo1235"   // Future demo reservation
 } as const;
 
 export const DEMO_GUESTS = {
-  johnSarah: {
+  liamAndersen: {
     reservationId: DEMO_RESERVATIONS.demoOne,
-    guestName: "John & Sarah Smith",
-    guestEmail: "john.smith@example.com",
-    guestPhone: "+1-555-0123",
-    numberOfGuests: 2,
-    villa: "Villa Samui Breeze",
-    villaId: 1,
-    checkInDate: "2025-01-03",
-    checkOutDate: "2025-01-10",
-    stayDuration: 7, // nights
+    guestName: "Liam Andersen",
+    guestEmail: "liam.andersen@email.com",
+    guestPhone: "+47-555-0198",
+    numberOfGuests: 1,
+    villa: "Villa Aruna",
+    villaId: 2,
+    checkInDate: "2025-07-05",
+    checkOutDate: "2025-07-10",
+    stayDuration: 5, // nights
     depositAmount: 8000,
     depositCurrency: "THB",
-    electricityStartReading: 10500,
+    electricityStartReading: 1000,
     electricityRate: 7, // THB per kWh
   }
 } as const;
 
 export const DEMO_PROPERTY_DETAILS = {
-  villaSamuiBreeze: {
-    id: 1,
-    name: "Villa Samui Breeze",
-    address: "123 Beach Road, Chaweng, Koh Samui, Thailand 84320",
-    imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800",
-    bedrooms: 4,
-    bathrooms: 3,
-    maxGuests: 8,
-    wifiCode: "SamuiBreeze2025",
+  villaAruna: {
+    id: 2,
+    name: "Villa Aruna",
+    address: "456 Hillside View, Lamai, Koh Samui, Thailand 84310",
+    imageUrl: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800",
+    bedrooms: 3,
+    bathrooms: 2,
+    maxGuests: 6,
+    wifiCode: "ArunaVilla2025",
     checkInTime: "15:00",
     checkOutTime: "11:00",
-    emergencyContact: "Manager Khun Som: +66-77-123-4567",
+    emergencyContact: "Manager Khun Ploy: +66-77-345-6789",
     houseRules: [
       "No smoking inside the villa",
       "Pool hours: 6:00 AM - 10:00 PM", 
       "Quiet hours: 10:00 PM - 8:00 AM",
-      "Maximum 8 guests allowed",
+      "Maximum 6 guests allowed",
       "No parties or events without prior approval"
     ],
     amenities: [
       { name: "Private Pool", type: "recreation", wifiCode: null },
-      { name: "WiFi", type: "connectivity", wifiCode: "SamuiBreeze2025" },
+      { name: "WiFi", type: "connectivity", wifiCode: "ArunaVilla2025" },
       { name: "Air Conditioning", type: "comfort", wifiCode: null },
-      { name: "Beach Access", type: "location", wifiCode: null },
-      { name: "Chef Kitchen", type: "dining", wifiCode: null }
+      { name: "Mountain View", type: "location", wifiCode: null },
+      { name: "Full Kitchen", type: "dining", wifiCode: null }
     ]
   }
 } as const;
 
-// Demo service timeline - all dates within stay period (Jan 3-10, 2025)
+// Demo service timeline - all dates within stay period (July 5-10, 2025)
 export const DEMO_SERVICES = [
   {
     id: 1,
     reservationId: DEMO_RESERVATIONS.demoOne,
     serviceType: "pool",
     serviceName: "Pool Cleaning",
-    scheduledDate: "2025-01-08",
+    scheduledDate: "2025-07-09",
     scheduledTime: "15:00",
     estimatedDuration: "1 hour",
-    serviceProvider: "Moo",
+    serviceProvider: "Pool Team",
     status: "scheduled",
-    notes: "Regular pool cleaning and maintenance"
+    notes: "Regular pool cleaning and maintenance for Villa Aruna"
   },
   {
     id: 2,
     reservationId: DEMO_RESERVATIONS.demoOne,
     serviceType: "cleaning", 
     serviceName: "Mid-Stay Cleaning",
-    scheduledDate: "2025-01-09",
+    scheduledDate: "2025-07-10",
     scheduledTime: "10:00",
     estimatedDuration: "2 hours",
-    serviceProvider: "Nok",
+    serviceProvider: "Housekeeping Team",
     status: "scheduled",
-    notes: "Mid-stay villa cleaning service"
+    notes: "Checkout cleaning service for Villa Aruna"
   },
   {
     id: 3,
     reservationId: DEMO_RESERVATIONS.demoOne,
     serviceType: "catering",
     serviceName: "Chef Dinner Service",
-    scheduledDate: "2025-01-08",
+    scheduledDate: "2025-07-09",
     scheduledTime: "20:00", 
     estimatedDuration: "3 hours",
-    serviceProvider: "Phyo",
+    serviceProvider: "Chef Phyo",
     status: "confirmed",
-    notes: "Private chef dinner service for 2 guests"
+    notes: "Private chef dinner service for 1 guest"
   },
   {
     id: 4,
     reservationId: DEMO_RESERVATIONS.demoOne,
     serviceType: "garden",
     serviceName: "Garden Maintenance",
-    scheduledDate: "2025-01-11",
+    scheduledDate: "2025-07-12",
     scheduledTime: "14:00",
     estimatedDuration: "1.5 hours",
-    serviceProvider: "Kla",
+    serviceProvider: "Garden Team",
     status: "scheduled", 
-    notes: "Garden maintenance and landscaping"
+    notes: "Post-checkout garden maintenance for Villa Aruna"
   }
 ] as const;
 
@@ -112,29 +112,29 @@ export const DEMO_ELECTRICITY = {
   reservationId: DEMO_RESERVATIONS.demoOne,
   checkIn: {
     checkInReading: 1000,
-    checkInPhoto: "https://example.com/uploads/demo-meter-photo.jpg",
+    checkInPhoto: "https://example.com/uploads/villa-aruna-meter-checkin.jpg",
     checkInMethod: "ocr_automatic",
-    checkInDate: "2025-07-01",
+    checkInDate: "2025-07-05",
     checkInTime: "15:00",
-    recordedBy: "Host Thura"
+    recordedBy: "Host Manager"
   },
   checkOut: {
     checkOutReading: 1100,
-    checkOutPhoto: "https://example.com/uploads/demo-meter-checkout.jpg",
+    checkOutPhoto: "https://example.com/uploads/villa-aruna-meter-checkout.jpg",
     checkOutMethod: "manual_entry",
-    checkOutDate: "2025-07-05",
+    checkOutDate: "2025-07-10",
     checkOutTime: "11:00",
     electricityUsed: 100, // 1100 - 1000 = 100 kWh
     ratePerKwh: 7.0,
     totalCharge: 700, // 100 kWh x 7 THB = 700 THB
     paymentStatus: "deducted_from_deposit",
     billingStatus: "Charged to guest via deposit deduction",
-    recordedBy: "Host Thura"
+    recordedBy: "Host Manager"
   },
   included: false,
   chargedTo: "guest",
   hasData: true,
-  notes: "Reading taken during check-in by host on Jan 3, 2025"
+  notes: "Reading taken during check-in at Villa Aruna on July 5, 2025"
 } as const;
 
 // Demo deposit information
@@ -152,11 +152,11 @@ export const DEMO_DEPOSIT = {
   electricityDeduction: 700.00,
   discountAmount: 0.00,
   discountReason: null,
-  receivedBy: "Host (Jane)",
-  receivedDate: "2025-07-01",
-  refundedBy: "Host Thura",
-  refundDate: "2025-07-05",
-  notes: "Guest paid cash deposit at check-in. 700 THB deducted for electricity usage (100 kWh × 7 THB/kWh)."
+  receivedBy: "Host Manager",
+  receivedDate: "2025-07-05",
+  refundedBy: "Host Manager",
+  refundDate: "2025-07-10",
+  notes: "Guest paid cash deposit at check-in at Villa Aruna. 700 THB deducted for electricity usage (100 kWh × 7 THB/kWh)."
 } as const;
 
 // Helper function to bind all demo data to reservation
@@ -168,8 +168,8 @@ export function bindDemoDataToReservation(reservationId: string) {
   
   return {
     reservationId,
-    guest: DEMO_GUESTS.johnSarah,
-    property: DEMO_PROPERTY_DETAILS.villaSamuiBreeze,
+    guest: DEMO_GUESTS.liamAndersen,
+    property: DEMO_PROPERTY_DETAILS.villaAruna,
     services: DEMO_SERVICES,
     electricity: DEMO_ELECTRICITY,
     deposit: DEMO_DEPOSIT

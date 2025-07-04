@@ -2954,8 +2954,8 @@ export class DatabaseStorage implements IStorage {
   // Guest Booking Operations - Using Centralized Demo Configuration
   async getCurrentGuestBooking(organizationId: string, guestId: string): Promise<any> {
     const { DEMO_GUESTS, DEMO_PROPERTY_DETAILS } = await import("./demoConfig");
-    const guest = DEMO_GUESTS.johnSarah;
-    const property = DEMO_PROPERTY_DETAILS.villaSamuiBreeze;
+    const guest = DEMO_GUESTS.liamAndersen;
+    const property = DEMO_PROPERTY_DETAILS.villaAruna;
     
     return {
       id: 1,
@@ -3008,7 +3008,7 @@ export class DatabaseStorage implements IStorage {
   async getPropertyAmenities(organizationId: string, propertyId: number): Promise<any[]> {
     // Using centralized demo configuration with reservation ID Demo1234
     const { DEMO_PROPERTY_DETAILS } = await import("./demoConfig");
-    const property = DEMO_PROPERTY_DETAILS.villaSamuiBreeze;
+    const property = DEMO_PROPERTY_DETAILS.villaAruna;
     
     return property.amenities.map((amenity, index) => ({
       id: index + 1,
