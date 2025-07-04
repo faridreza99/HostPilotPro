@@ -6109,6 +6109,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== LOCAL & EMERGENCY CONTACTS ROUTES =====
+
+  // Get property local contacts
+  app.get("/api/property-local-contacts/:propertyId", async (req, res) => {
+    try {
+      const { propertyId } = req.params;
+      const { category } = req.query;
+
+      let contacts;
+      if (category) {
+        contacts = await storage.getPropertyLocalContactsByCategory(parseInt(propertyId), category as string);
+      } else {
+        contacts = await storage.getPropertyLocalContacts(parseInt(propertyId));
+      }
+
+      res.json(contacts);
+    } catch (error) {
+      console.error("Error fetching property local contacts:", error);
+      res.status(500).json({ message: "Failed to fetch property local contacts" });
+    }
+  });
+
+  // Get single property local contact
+  app.get("/api/property-local-contacts/contact/:contactId", async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      const contact = await storage.getPropertyLocalContact(parseInt(contactId));
+      
+      if (!contact) {
+        return res.status(404).json({ message: "Contact not found" });
+      }
+
+      res.json(contact);
+    } catch (error) {
+      console.error("Error fetching property local contact:", error);
+      res.status(500).json({ message: "Failed to fetch property local contact" });
+    }
+  });
+
+  // Create property local contact (Admin/Manager only)
+  app.post("/api/property-local-contacts", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.user;
+
+      if (!["admin", "portfolio-manager"].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const contactData = {
+        ...req.body,
+        organizationId: req.body.organizationId || "default-org",
+        createdBy: req.user.id,
+      };
+
+      const contact = await storage.createPropertyLocalContact(contactData);
+      res.status(201).json(contact);
+    } catch (error) {
+      console.error("Error creating property local contact:", error);
+      res.status(500).json({ message: "Failed to create property local contact" });
+    }
+  });
+
+  // Update property local contact (Admin/Manager only)
+  app.patch("/api/property-local-contacts/:contactId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.user;
+
+      if (!["admin", "portfolio-manager"].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const { contactId } = req.params;
+      const contact = await storage.updatePropertyLocalContact(parseInt(contactId), req.body);
+      
+      if (!contact) {
+        return res.status(404).json({ message: "Contact not found" });
+      }
+
+      res.json(contact);
+    } catch (error) {
+      console.error("Error updating property local contact:", error);
+      res.status(500).json({ message: "Failed to update property local contact" });
+    }
+  });
+
+  // Delete property local contact (Admin/Manager only)
+  app.delete("/api/property-local-contacts/:contactId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.user;
+
+      if (!["admin", "portfolio-manager"].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const { contactId } = req.params;
+      const success = await storage.deletePropertyLocalContact(parseInt(contactId));
+      
+      if (!success) {
+        return res.status(404).json({ message: "Contact not found" });
+      }
+
+      res.json({ message: "Contact deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting property local contact:", error);
+      res.status(500).json({ message: "Failed to delete property local contact" });
+    }
+  });
+
+  // Reorder property local contacts (Admin/Manager only)
+  app.post("/api/property-local-contacts/reorder", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.user;
+
+      if (!["admin", "portfolio-manager"].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const { contactIds, displayOrders } = req.body;
+      const success = await storage.reorderPropertyLocalContacts(contactIds, displayOrders);
+      
+      res.json({ success });
+    } catch (error) {
+      console.error("Error reordering property local contacts:", error);
+      res.status(500).json({ message: "Failed to reorder property local contacts" });
+    }
+  });
+
+  // Contact Template Zone routes (Admin/Manager only)
+  app.get("/api/contact-template-zones", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role, organizationId } = req.user;
+
+      if (!["admin", "portfolio-manager"].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const templates = await storage.getContactTemplateZones(organizationId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching contact template zones:", error);
+      res.status(500).json({ message: "Failed to fetch contact template zones" });
+    }
+  });
+
+  // Apply contact template to property (Admin/Manager only)
+  app.post("/api/contact-template-zones/:templateId/apply", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { role } = req.user;
+
+      if (!["admin", "portfolio-manager"].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const { templateId } = req.params;
+      const { propertyId } = req.body;
+
+      const contacts = await storage.applyContactTemplate(propertyId, parseInt(templateId), req.user.id);
+      res.json(contacts);
+    } catch (error) {
+      console.error("Error applying contact template:", error);
+      res.status(500).json({ message: "Failed to apply contact template" });
+    }
+  });
+
   // Get pending notifications for staff
   app.get("/api/guest-portal/notifications", isDemoAuthenticated, async (req: any, res) => {
     try {

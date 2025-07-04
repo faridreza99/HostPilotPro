@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { format, isToday, isThisWeek, differenceInDays } from "date-fns";
 import UnifiedTopBar from "@/components/UnifiedTopBar";
+import LocalEmergencyContacts from "@/components/LocalEmergencyContacts";
 import {
   Home,
   MapPin,
@@ -851,6 +852,9 @@ export default function EnhancedGuestDashboard() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Local & Emergency Contacts */}
+            <LocalEmergencyContacts propertyId={guestBooking.propertyId} />
           </TabsContent>
 
           {/* AI Recommendations Tab */}

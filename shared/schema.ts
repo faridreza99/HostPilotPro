@@ -8011,6 +8011,49 @@ export const emergencyTaskBonuses = pgTable("emergency_task_bonuses", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Local & Emergency Contacts for Guest Dashboard
+export const propertyLocalContacts = pgTable("property_local_contacts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  category: varchar("category").notNull(), // emergency_health, on_site_staff, transportation, wellness_spa, culinary_services, tours_experiences, convenience_delivery
+  contactName: varchar("contact_name").notNull(),
+  contactType: varchar("contact_type").notNull(), // hospital, police, host, housekeeper, taxi, spa_therapist, chef, tour_operator, delivery_app
+  phoneNumber: varchar("phone_number"),
+  whatsappNumber: varchar("whatsapp_number"),
+  email: varchar("email"),
+  address: text("address"),
+  googleMapsLink: text("google_maps_link"),
+  websiteUrl: text("website_url"),
+  bookingUrl: text("booking_url"),
+  menuUrl: text("menu_url"),
+  qrCodeUrl: text("qr_code_url"),
+  appStoreLink: text("app_store_link"),
+  playStoreLink: text("play_store_link"),
+  servicesOffered: text("services_offered"), // JSON string or comma-separated
+  specialNotes: text("special_notes"),
+  availabilityHours: varchar("availability_hours"),
+  requiresManagerConfirmation: boolean("requires_manager_confirmation").default(false),
+  isActive: boolean("is_active").default(true),
+  displayOrder: integer("display_order").default(0),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Contact Templates for quick setup by zone
+export const contactTemplateZones = pgTable("contact_template_zones", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  zoneName: varchar("zone_name").notNull(), // "North Samui", "Bangkok condos", etc.
+  templateName: varchar("template_name").notNull(),
+  isDefault: boolean("is_default").default(false),
+  contactsData: text("contacts_data").notNull(), // JSON string of default contacts
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Monthly Payroll
 export const monthlyPayroll = pgTable("monthly_payroll", {
   id: serial("id").primaryKey(),
@@ -11233,3 +11276,24 @@ export type InsertOwnerOnboardingDocument = z.infer<typeof insertOwnerOnboarding
 
 export type OwnerServiceSelection = typeof ownerServiceSelections.$inferSelect;
 export type InsertOwnerServiceSelection = z.infer<typeof insertOwnerServiceSelectionSchema>;
+
+// ===== LOCAL & EMERGENCY CONTACTS TYPE DEFINITIONS =====
+
+// Create insert schemas for the new tables
+export const insertPropertyLocalContactSchema = createInsertSchema(propertyLocalContacts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertContactTemplateZoneSchema = createInsertSchema(contactTemplateZones).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type PropertyLocalContact = typeof propertyLocalContacts.$inferSelect;
+export type InsertPropertyLocalContact = z.infer<typeof insertPropertyLocalContactSchema>;
+
+export type ContactTemplateZone = typeof contactTemplateZones.$inferSelect;
+export type InsertContactTemplateZone = z.infer<typeof insertContactTemplateZoneSchema>;

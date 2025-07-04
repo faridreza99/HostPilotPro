@@ -1916,6 +1916,23 @@ export interface IStorage {
   unlockPreArrivalAccess(reservationId: string, checkInDate: Date): Promise<boolean>;
   generateServiceRequestFromMessage(messageId: number, intent: string, category: string): Promise<GuestServiceRequest | undefined>;
   createTaskFromServiceRequest(serviceRequestId: number): Promise<Task | undefined>;
+  
+  // Local & Emergency Contacts operations
+  getPropertyLocalContacts(propertyId: number): Promise<PropertyLocalContact[]>;
+  getPropertyLocalContactsByCategory(propertyId: number, category: string): Promise<PropertyLocalContact[]>;
+  getPropertyLocalContact(id: number): Promise<PropertyLocalContact | undefined>;
+  createPropertyLocalContact(contact: InsertPropertyLocalContact): Promise<PropertyLocalContact>;
+  updatePropertyLocalContact(id: number, contact: Partial<InsertPropertyLocalContact>): Promise<PropertyLocalContact | undefined>;
+  deletePropertyLocalContact(id: number): Promise<boolean>;
+  reorderPropertyLocalContacts(contactIds: number[], displayOrders: number[]): Promise<boolean>;
+  
+  // Contact Template Zone operations
+  getContactTemplateZones(organizationId: string): Promise<ContactTemplateZone[]>;
+  getContactTemplateZone(id: number): Promise<ContactTemplateZone | undefined>;
+  createContactTemplateZone(template: InsertContactTemplateZone): Promise<ContactTemplateZone>;
+  updateContactTemplateZone(id: number, template: Partial<InsertContactTemplateZone>): Promise<ContactTemplateZone | undefined>;
+  deleteContactTemplateZone(id: number): Promise<boolean>;
+  applyContactTemplate(propertyId: number, templateId: number, createdBy: string): Promise<PropertyLocalContact[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -29780,6 +29797,383 @@ Plant Care:
     ];
 
     return pendingRequests;
+  }
+
+  // ===== LOCAL & EMERGENCY CONTACTS IMPLEMENTATION =====
+
+  async getPropertyLocalContacts(propertyId: number): Promise<PropertyLocalContact[]> {
+    // Demo data for Villa Aruna
+    if (propertyId === 1) {
+      return [
+        // Emergency & Health
+        {
+          id: 1,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "emergency_health",
+          contactName: "Samui International Hospital",
+          contactType: "hospital",
+          phoneNumber: "+66 77 230 781",
+          whatsappNumber: "+66 81 234 5678",
+          email: "emergency@samuihospital.com",
+          address: "90/2 Moo 2, Chaweng Beach Road, Koh Samui",
+          googleMapsLink: "https://maps.google.com/?q=Samui+International+Hospital",
+          websiteUrl: "https://www.samuihospital.com",
+          servicesOffered: "24/7 Emergency, English-speaking doctors, Dental, Pharmacy",
+          specialNotes: "Best equipped hospital on the island with international standards",
+          availabilityHours: "24/7",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 1,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 2,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "emergency_health",
+          contactName: "Tourist Police Samui",
+          contactType: "police",
+          phoneNumber: "+66 77 421 281",
+          whatsappNumber: "+66 89 123 4567",
+          email: "tourist.police.samui@police.go.th",
+          address: "Chaweng Beach Road, Koh Samui",
+          googleMapsLink: "https://maps.google.com/?q=Tourist+Police+Samui",
+          servicesOffered: "Tourist assistance, Emergency response, Translation services",
+          specialNotes: "English-speaking officers available 24/7 for tourist emergencies",
+          availabilityHours: "24/7",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 2,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        // On-Site & Assigned Staff
+        {
+          id: 3,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "on_site_staff",
+          contactName: "Jane Thompson (Host Manager)",
+          contactType: "host",
+          phoneNumber: "+66 81 555 0123",
+          whatsappNumber: "+66 81 555 0123",
+          email: "jane@hostpilotpro.com",
+          servicesOffered: "Check-in assistance, Property orientation, Emergency contact",
+          specialNotes: "Available 24/7 for urgent matters. Primary contact for all guest needs.",
+          availabilityHours: "24/7 (emergency), 8:00 AM - 10:00 PM (general)",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 3,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 4,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "on_site_staff",
+          contactName: "Niran (Housekeeper)",
+          contactType: "housekeeper",
+          phoneNumber: "+66 89 234 5678",
+          whatsappNumber: "+66 89 234 5678",
+          servicesOffered: "Daily cleaning, Laundry service, Amenity restocking",
+          specialNotes: "Speaks basic English. Available for additional cleaning requests.",
+          availabilityHours: "8:00 AM - 4:00 PM",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 4,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        // Transportation
+        {
+          id: 5,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "transportation",
+          contactName: "Siam Discoveries Transport",
+          contactType: "taxi",
+          phoneNumber: "+66 77 413 675",
+          whatsappNumber: "+66 81 345 6789",
+          email: "bookings@siamdiscoveries.com",
+          websiteUrl: "https://www.siamdiscoveries.com",
+          bookingUrl: "https://www.siamdiscoveries.com/book-transport",
+          servicesOffered: "Airport transfers, Island tours, Private car service, Speedboat trips",
+          specialNotes: "Preferred transport partner. Mention Villa Aruna for 10% discount.",
+          availabilityHours: "6:00 AM - 11:00 PM",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 5,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 6,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "transportation",
+          contactName: "Samui Car Rental",
+          contactType: "car_rental",
+          phoneNumber: "+66 77 422 345",
+          whatsappNumber: "+66 82 456 7890",
+          email: "rent@samuicarrental.com",
+          websiteUrl: "https://www.samuicarrental.com",
+          servicesOffered: "Car rental, Motorbike rental, Delivery to villa",
+          specialNotes: "Free delivery and pickup within 5km radius. Valid international license required.",
+          availabilityHours: "8:00 AM - 8:00 PM",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 6,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        // Wellness & In-Villa Spa
+        {
+          id: 7,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "wellness_spa",
+          contactName: "Aruna Spa Therapists",
+          contactType: "spa_therapist",
+          phoneNumber: "+66 89 567 8901",
+          whatsappNumber: "+66 89 567 8901",
+          servicesOffered: "Thai massage, Oil massage, Foot massage, Manicure, Pedicure, Facial treatments",
+          specialNotes: "Advance booking recommended. All therapists are certified and speak basic English.",
+          availabilityHours: "9:00 AM - 9:00 PM",
+          requiresManagerConfirmation: true,
+          isActive: true,
+          displayOrder: 7,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        // Culinary Services
+        {
+          id: 8,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "culinary_services",
+          contactName: "Chef Phyo (Private Chef)",
+          contactType: "chef",
+          phoneNumber: "+66 81 678 9012",
+          whatsappNumber: "+66 81 678 9012",
+          email: "chef.phyo@arunacatering.com",
+          servicesOffered: "Breakfast service, Thai cooking, International cuisine, BBQ setup, Romantic dinners",
+          specialNotes: "Contact your host to confirm availability. 24-hour advance notice required.",
+          availabilityHours: "7:00 AM - 10:00 PM",
+          requiresManagerConfirmation: true,
+          isActive: true,
+          displayOrder: 8,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        // Tours & Experiences
+        {
+          id: 9,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "tours_experiences",
+          contactName: "Siam Discoveries Tours",
+          contactType: "tour_operator",
+          phoneNumber: "+66 77 413 675",
+          whatsappNumber: "+66 81 345 6789",
+          email: "tours@siamdiscoveries.com",
+          websiteUrl: "https://www.siamdiscoveries.com/tours",
+          menuUrl: "https://www.siamdiscoveries.com/samui-tour-menu",
+          qrCodeUrl: "https://www.siamdiscoveries.com/qr/samui-tours",
+          servicesOffered: "Island hopping, Snorkeling tours, Temple visits, Elephant sanctuary, Cooking classes",
+          specialNotes: "Exclusive guest rates available. Mention Villa Aruna booking reference.",
+          availabilityHours: "8:00 AM - 6:00 PM",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 9,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        // Convenience & Delivery
+        {
+          id: 10,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "convenience_delivery",
+          contactName: "Grab Thailand",
+          contactType: "delivery_app",
+          phoneNumber: "+66 2 016 0300",
+          appStoreLink: "https://apps.apple.com/app/grab-app/id647268330",
+          playStoreLink: "https://play.google.com/store/apps/details?id=com.grabtaxi.passenger",
+          servicesOffered: "Food delivery, Grocery delivery, Taxi service, Pharmacy delivery",
+          specialNotes: "Most reliable delivery app in Thailand. Download and set Villa Aruna address.",
+          availabilityHours: "24/7",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 10,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 11,
+          organizationId: "default-org",
+          propertyId: 1,
+          category: "convenience_delivery",
+          contactName: "7-Eleven Delivery",
+          contactType: "delivery_app",
+          phoneNumber: "+66 2 677 7777",
+          appStoreLink: "https://apps.apple.com/app/7-eleven-th/id514262377",
+          playStoreLink: "https://play.google.com/store/apps/details?id=asuk.com.android.app",
+          servicesOffered: "Snacks, Drinks, Personal care items, Basic groceries",
+          specialNotes: "Fast delivery within 30 minutes. No minimum order required.",
+          availabilityHours: "24/7",
+          requiresManagerConfirmation: false,
+          isActive: true,
+          displayOrder: 11,
+          createdBy: "admin",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+    }
+
+    return [];
+  }
+
+  async getPropertyLocalContactsByCategory(propertyId: number, category: string): Promise<PropertyLocalContact[]> {
+    const allContacts = await this.getPropertyLocalContacts(propertyId);
+    return allContacts.filter(contact => contact.category === category);
+  }
+
+  async getPropertyLocalContact(id: number): Promise<PropertyLocalContact | undefined> {
+    const contacts = await this.getPropertyLocalContacts(1); // Demo for Villa Aruna
+    return contacts.find(contact => contact.id === id);
+  }
+
+  async createPropertyLocalContact(contact: InsertPropertyLocalContact): Promise<PropertyLocalContact> {
+    // For demo purposes, return a new contact with generated ID
+    const newContact: PropertyLocalContact = {
+      id: Date.now(),
+      ...contact,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return newContact;
+  }
+
+  async updatePropertyLocalContact(id: number, contact: Partial<InsertPropertyLocalContact>): Promise<PropertyLocalContact | undefined> {
+    const existingContact = await this.getPropertyLocalContact(id);
+    if (!existingContact) return undefined;
+
+    const updatedContact: PropertyLocalContact = {
+      ...existingContact,
+      ...contact,
+      updatedAt: new Date(),
+    };
+    return updatedContact;
+  }
+
+  async deletePropertyLocalContact(id: number): Promise<boolean> {
+    const contact = await this.getPropertyLocalContact(id);
+    return !!contact;
+  }
+
+  async reorderPropertyLocalContacts(contactIds: number[], displayOrders: number[]): Promise<boolean> {
+    // For demo purposes, assume reordering is successful
+    return true;
+  }
+
+  async getContactTemplateZones(organizationId: string): Promise<ContactTemplateZone[]> {
+    // Demo template zones
+    return [
+      {
+        id: 1,
+        organizationId,
+        zoneName: "Koh Samui",
+        templateName: "Samui Standard Contacts",
+        isDefault: true,
+        contactsData: JSON.stringify({
+          description: "Standard contact template for Koh Samui properties",
+          categories: [
+            "emergency_health",
+            "on_site_staff", 
+            "transportation",
+            "wellness_spa",
+            "culinary_services",
+            "tours_experiences",
+            "convenience_delivery"
+          ]
+        }),
+        createdBy: "admin",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: 2,
+        organizationId,
+        zoneName: "Bangkok",
+        templateName: "Bangkok City Contacts",
+        isDefault: false,
+        contactsData: JSON.stringify({
+          description: "Contact template for Bangkok urban properties",
+          categories: [
+            "emergency_health",
+            "transportation",
+            "convenience_delivery"
+          ]
+        }),
+        createdBy: "admin",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+  }
+
+  async getContactTemplateZone(id: number): Promise<ContactTemplateZone | undefined> {
+    const templates = await this.getContactTemplateZones("default-org");
+    return templates.find(template => template.id === id);
+  }
+
+  async createContactTemplateZone(template: InsertContactTemplateZone): Promise<ContactTemplateZone> {
+    const newTemplate: ContactTemplateZone = {
+      id: Date.now(),
+      ...template,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return newTemplate;
+  }
+
+  async updateContactTemplateZone(id: number, template: Partial<InsertContactTemplateZone>): Promise<ContactTemplateZone | undefined> {
+    const existingTemplate = await this.getContactTemplateZone(id);
+    if (!existingTemplate) return undefined;
+
+    const updatedTemplate: ContactTemplateZone = {
+      ...existingTemplate,
+      ...template,
+      updatedAt: new Date(),
+    };
+    return updatedTemplate;
+  }
+
+  async deleteContactTemplateZone(id: number): Promise<boolean> {
+    const template = await this.getContactTemplateZone(id);
+    return !!template;
+  }
+
+  async applyContactTemplate(propertyId: number, templateId: number, createdBy: string): Promise<PropertyLocalContact[]> {
+    const template = await this.getContactTemplateZone(templateId);
+    if (!template) return [];
+
+    // For demo purposes, return the default contacts for the property
+    return this.getPropertyLocalContacts(propertyId);
   }
 }
 
