@@ -583,3 +583,137 @@ const villaArunaHistory = {
 
 // Inject simulated data
 loadVillaMaintenanceAndUtilities(villaArunaHistory);
+
+// Function to setup utility notifications and alerts
+export function setupUtilityNotifications(config: any) {
+  console.log(`🔔 Setting up utility notifications for property: ${config.propertyId}`);
+  console.log(`📋 Reference reservation: ${config.reservationRef}`);
+  
+  config.utilities.forEach((utility: any, index: number) => {
+    console.log(`   ${index + 1}. ${utility.type} (${utility.provider})`);
+    console.log(`      📅 Due Day: ${utility.dueDayOfMonth} of each month`);
+    console.log(`      ⏰ Alert Trigger: ${utility.alertTriggerDays} days after due`);
+    console.log(`      👥 Notify Roles: ${utility.notifyRoles.join(", ")}`);
+    console.log(`      📤 Owner Upload: ${utility.ownerCanUpload ? "Enabled" : "Disabled"}`);
+    console.log(`      🤖 AI Bill Reading: ${utility.aiAutoReadBillAmount ? "Enabled" : "Disabled"}`);
+  });
+  
+  return {
+    propertyId: config.propertyId,
+    alertsConfigured: config.utilities.length,
+    status: "active"
+  };
+}
+
+// Function to setup guest departure survey
+export function setupGuestSurvey(config: any) {
+  console.log(`📝 Setting up guest survey for booking: ${config.bookingId}`);
+  console.log(`👤 Guest: ${config.guestName}`);
+  console.log(`🏠 Property: ${config.villa}`);
+  console.log(`📊 Dashboard Display: ${config.showOnDashboard ? "Enabled" : "Disabled"}`);
+  
+  console.log(`📋 Survey Categories (${config.categories.length}):`);
+  config.categories.forEach((category: string, index: number) => {
+    console.log(`   ${index + 1}. ${category}`);
+  });
+  
+  console.log(`⚠️ Internal Note: ${config.internalUseNote}`);
+  console.log(`📧 Send Reminder: ${config.sendReminder ? "Yes" : "No"}`);
+  console.log(`🎯 Feedback Target: ${config.feedbackTarget.join(", ")}`);
+  
+  return {
+    bookingId: config.bookingId,
+    categoriesCount: config.categories.length,
+    targetRoles: config.feedbackTarget,
+    status: "configured"
+  };
+}
+
+// Function to enable property timeline tracking
+export function enableTimelineTracking(config: any) {
+  console.log(`📈 Enabling timeline tracking for property: ${config.propertyId}`);
+  console.log(`👥 Visible to Roles: ${config.showToRoles.join(", ")}`);
+  console.log(`📊 Dashboard Display: ${config.showOnPropertyDashboard ? "Enabled" : "Disabled"}`);
+  
+  console.log(`📋 Tracked Modules (${config.modules.length}):`);
+  config.modules.forEach((module: string, index: number) => {
+    console.log(`   ${index + 1}. ${module}`);
+  });
+  
+  return {
+    propertyId: config.propertyId,
+    modulesTracked: config.modules.length,
+    visibleRoles: config.showToRoles,
+    status: "enabled"
+  };
+}
+
+// AI Alerts & Owner Utility Confirmation Flow for Demo Property
+setupUtilityNotifications({
+  propertyId: "villa-aruna",
+  reservationRef: "Demo1234",
+  utilities: [
+    {
+      type: "Electricity",
+      provider: "PEA",
+      dueDayOfMonth: 17,
+      alertTriggerDays: 3, // Alert admin/manager on day 20 if no bill uploaded
+      notifyRoles: ["Admin", "PortfolioManager"],
+      ownerCanUpload: true,
+      aiAutoReadBillAmount: true
+    },
+    {
+      type: "Water",
+      provider: "Local Waterworks",
+      dueDayOfMonth: 14,
+      alertTriggerDays: 2,
+      notifyRoles: ["Admin"],
+      ownerCanUpload: true,
+      aiAutoReadBillAmount: true
+    },
+    {
+      type: "Internet",
+      provider: "AIS",
+      dueDayOfMonth: 5,
+      alertTriggerDays: 2,
+      notifyRoles: ["Admin", "Owner"],
+      ownerCanUpload: true,
+      aiAutoReadBillAmount: false
+    }
+  ]
+});
+
+// Guest Departure Survey Trigger (Demo1234)
+setupGuestSurvey({
+  bookingId: "Demo1234",
+  guestName: "John Doe",
+  villa: "Villa Aruna",
+  showOnDashboard: true,
+  categories: [
+    "Check-In Process",
+    "Cleanliness",
+    "Property Condition",
+    "Team Friendliness",
+    "Location Satisfaction",
+    "Service Accuracy",
+    "Suggestions / Complaints"
+  ],
+  internalUseNote:
+    "If score < 4 stars on any topic, trigger guest-relations follow-up before Airbnb review prompt.",
+  sendReminder: true,
+  feedbackTarget: ["Owner", "Manager", "Admin"]
+});
+
+// Property Timeline Logging Module (for Villa Aruna)
+enableTimelineTracking({
+  propertyId: "villa-aruna",
+  showToRoles: ["Admin", "PortfolioManager", "Owner"],
+  showOnPropertyDashboard: true,
+  modules: [
+    "Maintenance History",
+    "Utility Payment Log",
+    "Guest Check-In/Out Log",
+    "Extra Services Timeline",
+    "Deposit & Compensation Notes"
+  ]
+});
