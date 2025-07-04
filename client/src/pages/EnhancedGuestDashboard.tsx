@@ -536,6 +536,7 @@ export default function EnhancedGuestDashboard() {
 
           {/* Electricity Billing Tab */}
           <TabsContent value="electricity-billing" className="space-y-6">
+            {console.log("ElectricityBilling data:", electricityBilling)}
             {loadingElectricityBilling ? (
               <Card>
                 <CardContent className="p-6">
@@ -546,7 +547,7 @@ export default function EnhancedGuestDashboard() {
                   </div>
                 </CardContent>
               </Card>
-            ) : electricityBilling?.hasData ? (
+            ) : electricityBilling && electricityBilling.hasData ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Check-in Reading */}
                 <Card>

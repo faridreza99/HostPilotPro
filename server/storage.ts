@@ -3177,7 +3177,7 @@ export class DatabaseStorage implements IStorage {
 
   // Service Timeline Operations
   async getGuestServiceTimeline(organizationId: string, propertyId: number): Promise<any[]> {
-    // Updated service timeline matching demo specifications
+    // Updated service timeline matching demo specifications with dates within stay period
     return [
       {
         id: 1,
@@ -3216,7 +3216,7 @@ export class DatabaseStorage implements IStorage {
         id: 4,
         serviceType: "garden",
         serviceName: "Garden Service",
-        scheduledDate: "2025-01-11T14:00:00Z",
+        scheduledDate: "2025-01-09T14:00:00Z",
         estimatedTime: "1.5 hours",
         serviceProvider: "Nye",
         status: "scheduled",
