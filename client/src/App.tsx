@@ -80,6 +80,10 @@ import PropertyDocumentUpload from "@/pages/PropertyDocumentUpload";
 import OwnerPropertySettings from "@/pages/OwnerPropertySettings";
 import OwnerMaintenanceModule from "@/pages/OwnerMaintenanceModule";
 import OwnerTaskHistory from "@/pages/OwnerTaskHistory";
+import PropertyOnboardingSteps from "@/pages/PropertyOnboardingSteps";
+import PropertyDocumentCenter from "@/pages/PropertyDocumentCenter";
+import PropertySettingsModule from "@/pages/PropertySettingsModule";
+import PropertyTaskHistoryTimeline from "@/pages/PropertyTaskHistoryTimeline";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -196,6 +200,10 @@ function Router() {
         <Route path="/owner/property-settings" component={OwnerPropertySettings} />
         <Route path="/owner/maintenance" component={OwnerMaintenanceModule} />
         <Route path="/owner/task-history" component={OwnerTaskHistory} />
+        <Route path="/property-onboarding-steps" component={PropertyOnboardingSteps} />
+        <Route path="/property-document-center" component={PropertyDocumentCenter} />
+        <Route path="/property-settings-module" component={PropertySettingsModule} />
+        <Route path="/property-task-history-timeline" component={PropertyTaskHistoryTimeline} />
         <Route path="/pm/dashboard" component={PortfolioManagerDashboard} />
         <Route path="/admin/finance-reset" component={FinanceResetControl} />
         <Route path="/admin/utility-customization" component={UtilityCustomization} />
