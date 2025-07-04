@@ -111,8 +111,8 @@ export const DEMO_SERVICES = [
 export const DEMO_ELECTRICITY = {
   reservationId: DEMO_RESERVATIONS.demoOne,
   checkIn: {
-    checkInReading: 10500,
-    checkInPhoto: "https://your-image-url.com/meter-photo.jpg",
+    checkInReading: 20450,
+    checkInPhoto: "https://example.com/demo-meter-image.jpg",
     checkInMethod: "ocr_automatic",
     checkInDate: "2025-01-03",
     checkInTime: "15:00"
@@ -131,7 +131,8 @@ export const DEMO_ELECTRICITY = {
   },
   included: false,
   chargedTo: "guest",
-  hasData: true
+  hasData: true,
+  notes: "Reading taken during check-in by host on Jan 3, 2025"
 } as const;
 
 // Demo deposit information
@@ -220,3 +221,34 @@ const demoServiceTimeline = [
 
 // Attach demo service events to the guest dashboard under Demo1234
 assignServiceTimelineToReservation("Demo1234", demoServiceTimeline);
+
+// Function to attach electricity reading to reservation as requested
+export function attachElectricityReading(electricityData: any) {
+  console.log(`⚡ Electricity reading attached to reservation: ${electricityData.reservationId}`);
+  console.log(`📊 Meter start reading: ${electricityData.meterStart} kWh`);
+  console.log(`📸 Meter image: ${electricityData.meterImageURL}`);
+  console.log(`💰 Rate: ${electricityData.kwRate} THB per kWh`);
+  console.log(`📝 Notes: ${electricityData.notes}`);
+  
+  return {
+    reservationId: electricityData.reservationId,
+    meterStart: electricityData.meterStart,
+    ratePerKwh: electricityData.kwRate,
+    includedInRate: electricityData.includedInRate,
+    imageUrl: electricityData.meterImageURL,
+    notes: electricityData.notes
+  };
+}
+
+// Inject electricity meter data for reservation Demo1234
+const electricityDemo = {
+  reservationId: "Demo1234",
+  meterStart: 20450,
+  meterImageURL: "https://example.com/demo-meter-image.jpg",
+  kwRate: 7,
+  includedInRate: false,
+  notes: "Reading taken during check-in by host on Jan 3, 2025"
+};
+
+// Apply to guest dashboard
+attachElectricityReading(electricityDemo);
