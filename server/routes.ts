@@ -17244,6 +17244,474 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== PROPERTY UTILITIES & MAINTENANCE ENHANCED API ENDPOINTS =====
+
+  // Property utility accounts enhanced endpoints
+  app.get("/api/property-utilities-enhanced", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId } = req.query;
+      
+      const accounts = await storage.getPropertyUtilityAccountsEnhanced(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching enhanced utility accounts:", error);
+      res.status(500).json({ message: "Failed to fetch enhanced utility accounts" });
+    }
+  });
+
+  app.post("/api/property-utilities-enhanced", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { username } = req.user as { username: string };
+      
+      const accountData = {
+        ...req.body,
+        organizationId,
+        createdBy: username,
+        updatedBy: username
+      };
+      
+      const account = await storage.createPropertyUtilityAccountEnhanced(accountData);
+      res.json(account);
+    } catch (error) {
+      console.error("Error creating enhanced utility account:", error);
+      res.status(500).json({ message: "Failed to create enhanced utility account" });
+    }
+  });
+
+  app.put("/api/property-utilities-enhanced/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      
+      const updateData = {
+        ...req.body,
+        updatedBy: username
+      };
+      
+      const account = await storage.updatePropertyUtilityAccountEnhanced(accountId, updateData);
+      res.json(account);
+    } catch (error) {
+      console.error("Error updating enhanced utility account:", error);
+      res.status(500).json({ message: "Failed to update enhanced utility account" });
+    }
+  });
+
+  app.delete("/api/property-utilities-enhanced/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.id);
+      const success = await storage.deletePropertyUtilityAccountEnhanced(accountId);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting enhanced utility account:", error);
+      res.status(500).json({ message: "Failed to delete enhanced utility account" });
+    }
+  });
+
+  // Utility bill logs enhanced endpoints
+  app.get("/api/utility-bills-enhanced", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId, billingMonth, paymentStatus } = req.query;
+      
+      const bills = await storage.getUtilityBillLogsEnhanced(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined,
+        {
+          billingMonth: billingMonth as string,
+          paymentStatus: paymentStatus as string
+        }
+      );
+      
+      res.json(bills);
+    } catch (error) {
+      console.error("Error fetching enhanced utility bills:", error);
+      res.status(500).json({ message: "Failed to fetch enhanced utility bills" });
+    }
+  });
+
+  app.post("/api/utility-bills-enhanced", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { username } = req.user as { username: string };
+      
+      const billData = {
+        ...req.body,
+        organizationId,
+        createdBy: username,
+        updatedBy: username
+      };
+      
+      const bill = await storage.createUtilityBillLogEnhanced(billData);
+      res.json(bill);
+    } catch (error) {
+      console.error("Error creating enhanced utility bill:", error);
+      res.status(500).json({ message: "Failed to create enhanced utility bill" });
+    }
+  });
+
+  app.put("/api/utility-bills-enhanced/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const billId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      
+      const updateData = {
+        ...req.body,
+        updatedBy: username
+      };
+      
+      const bill = await storage.updateUtilityBillLogEnhanced(billId, updateData);
+      res.json(bill);
+    } catch (error) {
+      console.error("Error updating enhanced utility bill:", error);
+      res.status(500).json({ message: "Failed to update enhanced utility bill" });
+    }
+  });
+
+  app.put("/api/utility-bills-enhanced/:id/upload-scan", isDemoAuthenticated, async (req, res) => {
+    try {
+      const billId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      const { scanUrl, filename } = req.body;
+      
+      const bill = await storage.uploadBillScan(billId, scanUrl, filename, username);
+      res.json(bill);
+    } catch (error) {
+      console.error("Error uploading bill scan:", error);
+      res.status(500).json({ message: "Failed to upload bill scan" });
+    }
+  });
+
+  app.put("/api/utility-bills-enhanced/:id/mark-paid", isDemoAuthenticated, async (req, res) => {
+    try {
+      const billId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      const { paidAmount, paidDate, paymentMethod } = req.body;
+      
+      const bill = await storage.markBillPaid(billId, paidAmount, paidDate, paymentMethod, username);
+      res.json(bill);
+    } catch (error) {
+      console.error("Error marking bill as paid:", error);
+      res.status(500).json({ message: "Failed to mark bill as paid" });
+    }
+  });
+
+  // Utility AI reminders endpoints
+  app.get("/api/utility-ai-reminders", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId, status } = req.query;
+      
+      const reminders = await storage.getUtilityAiReminders(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined,
+        status as string
+      );
+      
+      res.json(reminders);
+    } catch (error) {
+      console.error("Error fetching utility AI reminders:", error);
+      res.status(500).json({ message: "Failed to fetch utility AI reminders" });
+    }
+  });
+
+  app.post("/api/utility-ai-reminders", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { username } = req.user as { username: string };
+      
+      const reminderData = {
+        ...req.body,
+        organizationId,
+        createdBy: username
+      };
+      
+      const reminder = await storage.createUtilityAiReminder(reminderData);
+      res.json(reminder);
+    } catch (error) {
+      console.error("Error creating utility AI reminder:", error);
+      res.status(500).json({ message: "Failed to create utility AI reminder" });
+    }
+  });
+
+  app.put("/api/utility-ai-reminders/:id/acknowledge", isDemoAuthenticated, async (req, res) => {
+    try {
+      const reminderId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      
+      const reminder = await storage.acknowledgeUtilityReminder(reminderId, username);
+      res.json(reminder);
+    } catch (error) {
+      console.error("Error acknowledging utility reminder:", error);
+      res.status(500).json({ message: "Failed to acknowledge utility reminder" });
+    }
+  });
+
+  app.put("/api/utility-ai-reminders/:id/resolve", isDemoAuthenticated, async (req, res) => {
+    try {
+      const reminderId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      
+      const reminder = await storage.resolveUtilityReminder(reminderId, username);
+      res.json(reminder);
+    } catch (error) {
+      console.error("Error resolving utility reminder:", error);
+      res.status(500).json({ message: "Failed to resolve utility reminder" });
+    }
+  });
+
+  // Property maintenance history endpoints
+  app.get("/api/property-maintenance-history", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId, serviceType, fromDate, toDate } = req.query;
+      
+      const filters: any = {};
+      if (serviceType) filters.serviceType = serviceType as string;
+      if (fromDate) filters.fromDate = new Date(fromDate as string);
+      if (toDate) filters.toDate = new Date(toDate as string);
+      
+      const history = await storage.getPropertyMaintenanceHistory(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined,
+        filters
+      );
+      
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching maintenance history:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance history" });
+    }
+  });
+
+  app.post("/api/property-maintenance-history", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { username } = req.user as { username: string };
+      
+      const recordData = {
+        ...req.body,
+        organizationId,
+        createdBy: username,
+        updatedBy: username
+      };
+      
+      const record = await storage.createPropertyMaintenanceHistory(recordData);
+      res.json(record);
+    } catch (error) {
+      console.error("Error creating maintenance history record:", error);
+      res.status(500).json({ message: "Failed to create maintenance history record" });
+    }
+  });
+
+  // Maintenance service intervals endpoints
+  app.get("/api/maintenance-service-intervals", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId } = req.query;
+      
+      const intervals = await storage.getMaintenanceServiceIntervals(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      
+      res.json(intervals);
+    } catch (error) {
+      console.error("Error fetching maintenance service intervals:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance service intervals" });
+    }
+  });
+
+  app.post("/api/maintenance-service-intervals", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { username } = req.user as { username: string };
+      
+      const intervalData = {
+        ...req.body,
+        organizationId,
+        createdBy: username,
+        updatedBy: username
+      };
+      
+      const interval = await storage.createMaintenanceServiceInterval(intervalData);
+      res.json(interval);
+    } catch (error) {
+      console.error("Error creating maintenance service interval:", error);
+      res.status(500).json({ message: "Failed to create maintenance service interval" });
+    }
+  });
+
+  // Maintenance AI suggestions endpoints
+  app.get("/api/maintenance-ai-suggestions", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId, status } = req.query;
+      
+      const suggestions = await storage.getMaintenanceAiSuggestions(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined,
+        status as string
+      );
+      
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error fetching maintenance AI suggestions:", error);
+      res.status(500).json({ message: "Failed to fetch maintenance AI suggestions" });
+    }
+  });
+
+  app.post("/api/maintenance-ai-suggestions", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { username } = req.user as { username: string };
+      
+      const suggestionData = {
+        ...req.body,
+        organizationId,
+        createdBy: username
+      };
+      
+      const suggestion = await storage.createMaintenanceAiSuggestion(suggestionData);
+      res.json(suggestion);
+    } catch (error) {
+      console.error("Error creating maintenance AI suggestion:", error);
+      res.status(500).json({ message: "Failed to create maintenance AI suggestion" });
+    }
+  });
+
+  app.put("/api/maintenance-ai-suggestions/:id/review", isDemoAuthenticated, async (req, res) => {
+    try {
+      const suggestionId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      const { action, notes } = req.body;
+      
+      const suggestion = await storage.reviewMaintenanceSuggestion(suggestionId, username, action, notes);
+      res.json(suggestion);
+    } catch (error) {
+      console.error("Error reviewing maintenance suggestion:", error);
+      res.status(500).json({ message: "Failed to review maintenance suggestion" });
+    }
+  });
+
+  // Property alerts endpoints
+  app.get("/api/property-alerts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId, alertType, status } = req.query;
+      
+      const alerts = await storage.getPropertyAlerts(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined,
+        alertType as string,
+        status as string
+      );
+      
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching property alerts:", error);
+      res.status(500).json({ message: "Failed to fetch property alerts" });
+    }
+  });
+
+  app.post("/api/property-alerts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { username } = req.user as { username: string };
+      
+      const alertData = {
+        ...req.body,
+        organizationId,
+        createdBy: username
+      };
+      
+      const alert = await storage.createPropertyAlert(alertData);
+      res.json(alert);
+    } catch (error) {
+      console.error("Error creating property alert:", error);
+      res.status(500).json({ message: "Failed to create property alert" });
+    }
+  });
+
+  app.put("/api/property-alerts/:id/acknowledge", isDemoAuthenticated, async (req, res) => {
+    try {
+      const alertId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      
+      const alert = await storage.acknowledgePropertyAlert(alertId, username);
+      res.json(alert);
+    } catch (error) {
+      console.error("Error acknowledging property alert:", error);
+      res.status(500).json({ message: "Failed to acknowledge property alert" });
+    }
+  });
+
+  app.put("/api/property-alerts/:id/resolve", isDemoAuthenticated, async (req, res) => {
+    try {
+      const alertId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      
+      const alert = await storage.resolvePropertyAlert(alertId, username);
+      res.json(alert);
+    } catch (error) {
+      console.error("Error resolving property alert:", error);
+      res.status(500).json({ message: "Failed to resolve property alert" });
+    }
+  });
+
+  app.put("/api/property-alerts/:id/dismiss", isDemoAuthenticated, async (req, res) => {
+    try {
+      const alertId = parseInt(req.params.id);
+      const { username } = req.user as { username: string };
+      
+      const alert = await storage.dismissPropertyAlert(alertId, username);
+      res.json(alert);
+    } catch (error) {
+      console.error("Error dismissing property alert:", error);
+      res.status(500).json({ message: "Failed to dismiss property alert" });
+    }
+  });
+
+  // Analytics and automation endpoints
+  app.post("/api/utility-reminders/generate", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId } = req.body;
+      
+      const reminders = await storage.generateUtilityReminders(
+        organizationId,
+        propertyId ? parseInt(propertyId) : undefined
+      );
+      
+      res.json(reminders);
+    } catch (error) {
+      console.error("Error generating utility reminders:", error);
+      res.status(500).json({ message: "Failed to generate utility reminders" });
+    }
+  });
+
+  app.post("/api/maintenance-suggestions/generate", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = "demo-org";
+      const { propertyId } = req.body;
+      
+      const suggestions = await storage.generateMaintenanceSuggestions(
+        organizationId,
+        propertyId ? parseInt(propertyId) : undefined
+      );
+      
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error generating maintenance suggestions:", error);
+      res.status(500).json({ message: "Failed to generate maintenance suggestions" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

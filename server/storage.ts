@@ -48,6 +48,14 @@ import {
   guestAddonServiceRequests,
   guestPropertyLocalInfo,
   guestMaintenanceReports,
+  // Property Utilities & Maintenance Enhanced
+  propertyUtilityAccountsEnhanced,
+  utilityBillLogsEnhanced,
+  utilityAiReminders,
+  propertyMaintenanceHistory,
+  maintenanceServiceIntervals,
+  maintenanceAiSuggestions,
+  propertyAlerts,
   recurringServices,
   recurringServiceBills,
   billReminders,
@@ -275,6 +283,21 @@ import {
   type InsertPropertyUtilitySettings,
   type PropertyCustomExpenses,
   type InsertPropertyCustomExpenses,
+  // Property Utilities & Maintenance Enhanced types
+  type PropertyUtilityAccountEnhanced,
+  type InsertPropertyUtilityAccountEnhanced,
+  type UtilityBillLogEnhanced,
+  type InsertUtilityBillLogEnhanced,
+  type UtilityAiReminder,
+  type InsertUtilityAiReminder,
+  type PropertyMaintenanceHistory,
+  type InsertPropertyMaintenanceHistory,
+  type MaintenanceServiceInterval,
+  type InsertMaintenanceServiceInterval,
+  type MaintenanceAiSuggestion,
+  type InsertMaintenanceAiSuggestion,
+  type PropertyAlert,
+  type InsertPropertyAlert,
   type GuestAddonService,
   type InsertGuestAddonService,
   type GuestAddonBooking,
@@ -1057,6 +1080,67 @@ export interface IStorage {
   // Owner-specific methods for dashboard
   getOwnerMaintenanceSuggestions(organizationId: string, ownerId: string): Promise<MaintenanceSuggestion[]>;
   getPendingOwnerApprovals(organizationId: string, ownerId: string): Promise<MaintenanceSuggestion[]>;
+
+  // ===== PROPERTY UTILITIES & MAINTENANCE ENHANCED =====
+
+  // Property utility accounts enhanced operations
+  getPropertyUtilityAccountsEnhanced(organizationId: string, propertyId?: number): Promise<PropertyUtilityAccountEnhanced[]>;
+  getPropertyUtilityAccountEnhanced(id: number): Promise<PropertyUtilityAccountEnhanced | undefined>;
+  createPropertyUtilityAccountEnhanced(account: InsertPropertyUtilityAccountEnhanced): Promise<PropertyUtilityAccountEnhanced>;
+  updatePropertyUtilityAccountEnhanced(id: number, account: Partial<InsertPropertyUtilityAccountEnhanced>): Promise<PropertyUtilityAccountEnhanced | undefined>;
+  deletePropertyUtilityAccountEnhanced(id: number): Promise<boolean>;
+
+  // Utility bill logs enhanced operations
+  getUtilityBillLogsEnhanced(organizationId: string, propertyId?: number, filters?: { billingMonth?: string; paymentStatus?: string }): Promise<UtilityBillLogEnhanced[]>;
+  getUtilityBillLogEnhanced(id: number): Promise<UtilityBillLogEnhanced | undefined>;
+  createUtilityBillLogEnhanced(bill: InsertUtilityBillLogEnhanced): Promise<UtilityBillLogEnhanced>;
+  updateUtilityBillLogEnhanced(id: number, bill: Partial<InsertUtilityBillLogEnhanced>): Promise<UtilityBillLogEnhanced | undefined>;
+  uploadBillScan(id: number, scanUrl: string, filename: string, uploadedBy: string): Promise<UtilityBillLogEnhanced | undefined>;
+  markBillPaid(id: number, paidAmount: number, paidDate: string, paymentMethod: string, processedBy: string): Promise<UtilityBillLogEnhanced | undefined>;
+  deleteUtilityBillLogEnhanced(id: number): Promise<boolean>;
+
+  // Utility AI reminders operations
+  getUtilityAiReminders(organizationId: string, propertyId?: number, status?: string): Promise<UtilityAiReminder[]>;
+  getUtilityAiReminder(id: number): Promise<UtilityAiReminder | undefined>;
+  createUtilityAiReminder(reminder: InsertUtilityAiReminder): Promise<UtilityAiReminder>;
+  acknowledgeUtilityReminder(id: number, acknowledgedBy: string): Promise<UtilityAiReminder | undefined>;
+  resolveUtilityReminder(id: number, resolvedBy: string): Promise<UtilityAiReminder | undefined>;
+
+  // Property maintenance history operations
+  getPropertyMaintenanceHistory(organizationId: string, propertyId?: number, filters?: { serviceType?: string; fromDate?: Date; toDate?: Date }): Promise<PropertyMaintenanceHistory[]>;
+  getPropertyMaintenanceHistoryRecord(id: number): Promise<PropertyMaintenanceHistory | undefined>;
+  createPropertyMaintenanceHistory(record: InsertPropertyMaintenanceHistory): Promise<PropertyMaintenanceHistory>;
+  updatePropertyMaintenanceHistory(id: number, record: Partial<InsertPropertyMaintenanceHistory>): Promise<PropertyMaintenanceHistory | undefined>;
+  approveMaintenanceRecord(id: number, approvedBy: string): Promise<PropertyMaintenanceHistory | undefined>;
+  deletePropertyMaintenanceHistory(id: number): Promise<boolean>;
+
+  // Maintenance service intervals operations
+  getMaintenanceServiceIntervals(organizationId: string, propertyId?: number): Promise<MaintenanceServiceInterval[]>;
+  getMaintenanceServiceInterval(id: number): Promise<MaintenanceServiceInterval | undefined>;
+  createMaintenanceServiceInterval(interval: InsertMaintenanceServiceInterval): Promise<MaintenanceServiceInterval>;
+  updateMaintenanceServiceInterval(id: number, interval: Partial<InsertMaintenanceServiceInterval>): Promise<MaintenanceServiceInterval | undefined>;
+  deleteMaintenanceServiceInterval(id: number): Promise<boolean>;
+
+  // Maintenance AI suggestions operations
+  getMaintenanceAiSuggestions(organizationId: string, propertyId?: number, status?: string): Promise<MaintenanceAiSuggestion[]>;
+  getMaintenanceAiSuggestion(id: number): Promise<MaintenanceAiSuggestion | undefined>;
+  createMaintenanceAiSuggestion(suggestion: InsertMaintenanceAiSuggestion): Promise<MaintenanceAiSuggestion>;
+  updateMaintenanceAiSuggestion(id: number, suggestion: Partial<InsertMaintenanceAiSuggestion>): Promise<MaintenanceAiSuggestion | undefined>;
+  reviewMaintenanceSuggestion(id: number, reviewedBy: string, action: string, notes?: string): Promise<MaintenanceAiSuggestion | undefined>;
+
+  // Property alerts operations
+  getPropertyAlerts(organizationId: string, propertyId?: number, alertType?: string, status?: string): Promise<PropertyAlert[]>;
+  getPropertyAlert(id: number): Promise<PropertyAlert | undefined>;
+  createPropertyAlert(alert: InsertPropertyAlert): Promise<PropertyAlert>;
+  acknowledgePropertyAlert(id: number, acknowledgedBy: string): Promise<PropertyAlert | undefined>;
+  resolvePropertyAlert(id: number, resolvedBy: string): Promise<PropertyAlert | undefined>;
+  dismissPropertyAlert(id: number, dismissedBy: string): Promise<PropertyAlert | undefined>;
+
+  // Analytics and automated processing
+  generateUtilityReminders(organizationId: string, propertyId?: number): Promise<UtilityAiReminder[]>;
+  generateMaintenanceSuggestions(organizationId: string, propertyId?: number): Promise<MaintenanceAiSuggestion[]>;
+  processOverdueUtilities(organizationId: string): Promise<PropertyAlert[]>;
+  checkMaintenanceDueDates(organizationId: string): Promise<PropertyAlert[]>;
 
   // ===== MULTI-CURRENCY FINANCE + QUICKBOOKS INTEGRATION =====
 
@@ -21003,6 +21087,470 @@ Plant Care:
       paymentStatusBreakdown,
       departmentTaskBreakdown,
     };
+  }
+
+  // ===== PROPERTY UTILITIES & MAINTENANCE ENHANCED IMPLEMENTATION =====
+
+  // Property utility accounts enhanced operations
+  async getPropertyUtilityAccountsEnhanced(organizationId: string, propertyId?: number): Promise<PropertyUtilityAccountEnhanced[]> {
+    let query = db
+      .select()
+      .from(propertyUtilityAccountsEnhanced)
+      .where(eq(propertyUtilityAccountsEnhanced.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(propertyUtilityAccountsEnhanced.propertyId, propertyId));
+    }
+
+    return query.orderBy(desc(propertyUtilityAccountsEnhanced.createdAt));
+  }
+
+  async getPropertyUtilityAccountEnhanced(id: number): Promise<PropertyUtilityAccountEnhanced | undefined> {
+    const [account] = await db
+      .select()
+      .from(propertyUtilityAccountsEnhanced)
+      .where(eq(propertyUtilityAccountsEnhanced.id, id));
+    return account;
+  }
+
+  async createPropertyUtilityAccountEnhanced(account: InsertPropertyUtilityAccountEnhanced): Promise<PropertyUtilityAccountEnhanced> {
+    const [newAccount] = await db
+      .insert(propertyUtilityAccountsEnhanced)
+      .values(account)
+      .returning();
+    return newAccount;
+  }
+
+  async updatePropertyUtilityAccountEnhanced(id: number, account: Partial<InsertPropertyUtilityAccountEnhanced>): Promise<PropertyUtilityAccountEnhanced | undefined> {
+    const [updated] = await db
+      .update(propertyUtilityAccountsEnhanced)
+      .set({ ...account, updatedAt: new Date() })
+      .where(eq(propertyUtilityAccountsEnhanced.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyUtilityAccountEnhanced(id: number): Promise<boolean> {
+    const result = await db
+      .delete(propertyUtilityAccountsEnhanced)
+      .where(eq(propertyUtilityAccountsEnhanced.id, id));
+    return result.rowCount! > 0;
+  }
+
+  // Utility bill logs enhanced operations
+  async getUtilityBillLogsEnhanced(organizationId: string, propertyId?: number, filters?: { billingMonth?: string; paymentStatus?: string }): Promise<UtilityBillLogEnhanced[]> {
+    let query = db
+      .select()
+      .from(utilityBillLogsEnhanced)
+      .where(eq(utilityBillLogsEnhanced.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(utilityBillLogsEnhanced.propertyId, propertyId));
+    }
+    if (filters?.billingMonth) {
+      query = query.where(eq(utilityBillLogsEnhanced.billingMonth, filters.billingMonth));
+    }
+    if (filters?.paymentStatus) {
+      query = query.where(eq(utilityBillLogsEnhanced.paymentStatus, filters.paymentStatus));
+    }
+
+    return query.orderBy(desc(utilityBillLogsEnhanced.createdAt));
+  }
+
+  async getUtilityBillLogEnhanced(id: number): Promise<UtilityBillLogEnhanced | undefined> {
+    const [bill] = await db
+      .select()
+      .from(utilityBillLogsEnhanced)
+      .where(eq(utilityBillLogsEnhanced.id, id));
+    return bill;
+  }
+
+  async createUtilityBillLogEnhanced(bill: InsertUtilityBillLogEnhanced): Promise<UtilityBillLogEnhanced> {
+    const [newBill] = await db
+      .insert(utilityBillLogsEnhanced)
+      .values(bill)
+      .returning();
+    return newBill;
+  }
+
+  async updateUtilityBillLogEnhanced(id: number, bill: Partial<InsertUtilityBillLogEnhanced>): Promise<UtilityBillLogEnhanced | undefined> {
+    const [updated] = await db
+      .update(utilityBillLogsEnhanced)
+      .set({ ...bill, updatedAt: new Date() })
+      .where(eq(utilityBillLogsEnhanced.id, id))
+      .returning();
+    return updated;
+  }
+
+  async uploadBillScan(id: number, scanUrl: string, filename: string, uploadedBy: string): Promise<UtilityBillLogEnhanced | undefined> {
+    const [updated] = await db
+      .update(utilityBillLogsEnhanced)
+      .set({
+        billScanUrl: scanUrl,
+        billScanFilename: filename,
+        uploadedBy: uploadedBy,
+        uploadedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(utilityBillLogsEnhanced.id, id))
+      .returning();
+    return updated;
+  }
+
+  async markBillPaid(id: number, paidAmount: number, paidDate: string, paymentMethod: string, processedBy: string): Promise<UtilityBillLogEnhanced | undefined> {
+    const [updated] = await db
+      .update(utilityBillLogsEnhanced)
+      .set({
+        paymentStatus: 'paid',
+        paidAmount: paidAmount.toString(),
+        paidDate: paidDate,
+        paymentMethod: paymentMethod,
+        processedBy: processedBy,
+        processedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(utilityBillLogsEnhanced.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteUtilityBillLogEnhanced(id: number): Promise<boolean> {
+    const result = await db
+      .delete(utilityBillLogsEnhanced)
+      .where(eq(utilityBillLogsEnhanced.id, id));
+    return result.rowCount! > 0;
+  }
+
+  // Utility AI reminders operations
+  async getUtilityAiReminders(organizationId: string, propertyId?: number, status?: string): Promise<UtilityAiReminder[]> {
+    let query = db
+      .select()
+      .from(utilityAiReminders)
+      .where(eq(utilityAiReminders.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(utilityAiReminders.propertyId, propertyId));
+    }
+    if (status) {
+      query = query.where(eq(utilityAiReminders.status, status));
+    }
+
+    return query.orderBy(desc(utilityAiReminders.createdAt));
+  }
+
+  async getUtilityAiReminder(id: number): Promise<UtilityAiReminder | undefined> {
+    const [reminder] = await db
+      .select()
+      .from(utilityAiReminders)
+      .where(eq(utilityAiReminders.id, id));
+    return reminder;
+  }
+
+  async createUtilityAiReminder(reminder: InsertUtilityAiReminder): Promise<UtilityAiReminder> {
+    const [newReminder] = await db
+      .insert(utilityAiReminders)
+      .values(reminder)
+      .returning();
+    return newReminder;
+  }
+
+  async acknowledgeUtilityReminder(id: number, acknowledgedBy: string): Promise<UtilityAiReminder | undefined> {
+    const [updated] = await db
+      .update(utilityAiReminders)
+      .set({
+        status: 'acknowledged',
+        acknowledgedBy: acknowledgedBy,
+        acknowledgedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(utilityAiReminders.id, id))
+      .returning();
+    return updated;
+  }
+
+  async resolveUtilityReminder(id: number, resolvedBy: string): Promise<UtilityAiReminder | undefined> {
+    const [updated] = await db
+      .update(utilityAiReminders)
+      .set({
+        status: 'resolved',
+        resolvedBy: resolvedBy,
+        resolvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(utilityAiReminders.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Property maintenance history operations
+  async getPropertyMaintenanceHistory(organizationId: string, propertyId?: number, filters?: { serviceType?: string; fromDate?: Date; toDate?: Date }): Promise<PropertyMaintenanceHistory[]> {
+    let query = db
+      .select()
+      .from(propertyMaintenanceHistory)
+      .where(eq(propertyMaintenanceHistory.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(propertyMaintenanceHistory.propertyId, propertyId));
+    }
+    if (filters?.serviceType) {
+      query = query.where(eq(propertyMaintenanceHistory.serviceType, filters.serviceType));
+    }
+    if (filters?.fromDate) {
+      query = query.where(gte(propertyMaintenanceHistory.serviceDate, filters.fromDate.toISOString().split('T')[0]));
+    }
+    if (filters?.toDate) {
+      query = query.where(lte(propertyMaintenanceHistory.serviceDate, filters.toDate.toISOString().split('T')[0]));
+    }
+
+    return query.orderBy(desc(propertyMaintenanceHistory.serviceDate));
+  }
+
+  async getPropertyMaintenanceHistoryRecord(id: number): Promise<PropertyMaintenanceHistory | undefined> {
+    const [record] = await db
+      .select()
+      .from(propertyMaintenanceHistory)
+      .where(eq(propertyMaintenanceHistory.id, id));
+    return record;
+  }
+
+  async createPropertyMaintenanceHistory(record: InsertPropertyMaintenanceHistory): Promise<PropertyMaintenanceHistory> {
+    const [newRecord] = await db
+      .insert(propertyMaintenanceHistory)
+      .values(record)
+      .returning();
+    return newRecord;
+  }
+
+  async updatePropertyMaintenanceHistory(id: number, record: Partial<InsertPropertyMaintenanceHistory>): Promise<PropertyMaintenanceHistory | undefined> {
+    const [updated] = await db
+      .update(propertyMaintenanceHistory)
+      .set({ ...record, updatedAt: new Date() })
+      .where(eq(propertyMaintenanceHistory.id, id))
+      .returning();
+    return updated;
+  }
+
+  async approveMaintenanceRecord(id: number, approvedBy: string): Promise<PropertyMaintenanceHistory | undefined> {
+    const [updated] = await db
+      .update(propertyMaintenanceHistory)
+      .set({
+        approvedBy: approvedBy,
+        approvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(propertyMaintenanceHistory.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyMaintenanceHistory(id: number): Promise<boolean> {
+    const result = await db
+      .delete(propertyMaintenanceHistory)
+      .where(eq(propertyMaintenanceHistory.id, id));
+    return result.rowCount! > 0;
+  }
+
+  // Maintenance service intervals operations
+  async getMaintenanceServiceIntervals(organizationId: string, propertyId?: number): Promise<MaintenanceServiceInterval[]> {
+    let query = db
+      .select()
+      .from(maintenanceServiceIntervals)
+      .where(eq(maintenanceServiceIntervals.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(maintenanceServiceIntervals.propertyId, propertyId));
+    }
+
+    return query.where(eq(maintenanceServiceIntervals.isActive, true))
+                .orderBy(maintenanceServiceIntervals.serviceType);
+  }
+
+  async getMaintenanceServiceInterval(id: number): Promise<MaintenanceServiceInterval | undefined> {
+    const [interval] = await db
+      .select()
+      .from(maintenanceServiceIntervals)
+      .where(eq(maintenanceServiceIntervals.id, id));
+    return interval;
+  }
+
+  async createMaintenanceServiceInterval(interval: InsertMaintenanceServiceInterval): Promise<MaintenanceServiceInterval> {
+    const [newInterval] = await db
+      .insert(maintenanceServiceIntervals)
+      .values(interval)
+      .returning();
+    return newInterval;
+  }
+
+  async updateMaintenanceServiceInterval(id: number, interval: Partial<InsertMaintenanceServiceInterval>): Promise<MaintenanceServiceInterval | undefined> {
+    const [updated] = await db
+      .update(maintenanceServiceIntervals)
+      .set({ ...interval, updatedAt: new Date() })
+      .where(eq(maintenanceServiceIntervals.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMaintenanceServiceInterval(id: number): Promise<boolean> {
+    const result = await db
+      .delete(maintenanceServiceIntervals)
+      .where(eq(maintenanceServiceIntervals.id, id));
+    return result.rowCount! > 0;
+  }
+
+  // Maintenance AI suggestions operations
+  async getMaintenanceAiSuggestions(organizationId: string, propertyId?: number, status?: string): Promise<MaintenanceAiSuggestion[]> {
+    let query = db
+      .select()
+      .from(maintenanceAiSuggestions)
+      .where(eq(maintenanceAiSuggestions.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(maintenanceAiSuggestions.propertyId, propertyId));
+    }
+    if (status) {
+      query = query.where(eq(maintenanceAiSuggestions.status, status));
+    }
+
+    return query.orderBy(desc(maintenanceAiSuggestions.createdAt));
+  }
+
+  async getMaintenanceAiSuggestion(id: number): Promise<MaintenanceAiSuggestion | undefined> {
+    const [suggestion] = await db
+      .select()
+      .from(maintenanceAiSuggestions)
+      .where(eq(maintenanceAiSuggestions.id, id));
+    return suggestion;
+  }
+
+  async createMaintenanceAiSuggestion(suggestion: InsertMaintenanceAiSuggestion): Promise<MaintenanceAiSuggestion> {
+    const [newSuggestion] = await db
+      .insert(maintenanceAiSuggestions)
+      .values(suggestion)
+      .returning();
+    return newSuggestion;
+  }
+
+  async updateMaintenanceAiSuggestion(id: number, suggestion: Partial<InsertMaintenanceAiSuggestion>): Promise<MaintenanceAiSuggestion | undefined> {
+    const [updated] = await db
+      .update(maintenanceAiSuggestions)
+      .set({ ...suggestion, updatedAt: new Date() })
+      .where(eq(maintenanceAiSuggestions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async reviewMaintenanceSuggestion(id: number, reviewedBy: string, action: string, notes?: string): Promise<MaintenanceAiSuggestion | undefined> {
+    const [updated] = await db
+      .update(maintenanceAiSuggestions)
+      .set({
+        status: action === 'accept' ? 'accepted' : 'rejected',
+        reviewedBy: reviewedBy,
+        reviewedAt: new Date(),
+        reviewNotes: notes,
+        updatedAt: new Date()
+      })
+      .where(eq(maintenanceAiSuggestions.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Property alerts operations
+  async getPropertyAlerts(organizationId: string, propertyId?: number, alertType?: string, status?: string): Promise<PropertyAlert[]> {
+    let query = db
+      .select()
+      .from(propertyAlerts)
+      .where(eq(propertyAlerts.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(propertyAlerts.propertyId, propertyId));
+    }
+    if (alertType) {
+      query = query.where(eq(propertyAlerts.alertType, alertType));
+    }
+    if (status) {
+      query = query.where(eq(propertyAlerts.status, status));
+    }
+
+    return query.orderBy(desc(propertyAlerts.createdAt));
+  }
+
+  async getPropertyAlert(id: number): Promise<PropertyAlert | undefined> {
+    const [alert] = await db
+      .select()
+      .from(propertyAlerts)
+      .where(eq(propertyAlerts.id, id));
+    return alert;
+  }
+
+  async createPropertyAlert(alert: InsertPropertyAlert): Promise<PropertyAlert> {
+    const [newAlert] = await db
+      .insert(propertyAlerts)
+      .values(alert)
+      .returning();
+    return newAlert;
+  }
+
+  async acknowledgePropertyAlert(id: number, acknowledgedBy: string): Promise<PropertyAlert | undefined> {
+    const [updated] = await db
+      .update(propertyAlerts)
+      .set({
+        status: 'acknowledged',
+        acknowledgedBy: acknowledgedBy,
+        acknowledgedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(propertyAlerts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async resolvePropertyAlert(id: number, resolvedBy: string): Promise<PropertyAlert | undefined> {
+    const [updated] = await db
+      .update(propertyAlerts)
+      .set({
+        status: 'resolved',
+        resolvedBy: resolvedBy,
+        resolvedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(propertyAlerts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async dismissPropertyAlert(id: number, dismissedBy: string): Promise<PropertyAlert | undefined> {
+    const [updated] = await db
+      .update(propertyAlerts)
+      .set({
+        status: 'dismissed',
+        dismissedBy: dismissedBy,
+        dismissedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(propertyAlerts.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Analytics and automated processing methods - Mock implementations for demo
+  async generateUtilityReminders(organizationId: string, propertyId?: number): Promise<UtilityAiReminder[]> {
+    // Mock implementation - would analyze billing patterns and create AI reminders
+    return [];
+  }
+
+  async generateMaintenanceSuggestions(organizationId: string, propertyId?: number): Promise<MaintenanceAiSuggestion[]> {
+    // Mock implementation - would analyze maintenance history and create AI suggestions
+    return [];
+  }
+
+  async processOverdueUtilities(organizationId: string): Promise<PropertyAlert[]> {
+    // Mock implementation - would find overdue bills and create alerts
+    return [];
+  }
+
+  async checkMaintenanceDueDates(organizationId: string): Promise<PropertyAlert[]> {
+    // Mock implementation - would check service intervals and create alerts
+    return [];
   }
 }
 

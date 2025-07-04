@@ -45,6 +45,7 @@ import UtilityCustomization from "@/pages/UtilityCustomization";
 import InvoiceGenerator from "@/pages/InvoiceGenerator";
 import UtilityTracker from "@/pages/UtilityTracker";
 import EnhancedUtilityTracker from "@/pages/EnhancedUtilityTracker";
+import PropertyUtilitiesMaintenanceTracker from "@/pages/PropertyUtilitiesMaintenanceTracker";
 import AgentCommissionDashboard from "@/pages/AgentCommissionDashboard";
 import LoyaltyGuestTracker from "@/pages/LoyaltyGuestTracker";
 import LiveBookingCalendar from "@/pages/LiveBookingCalendar";
@@ -170,6 +171,7 @@ function Router() {
         <Route path="/invoice-generator" component={InvoiceGenerator} />
         <Route path="/utility-tracker" component={EnhancedUtilityTracker} />
         <Route path="/utility-tracking" component={UtilityTracking} />
+        <Route path="/property-utilities-maintenance" component={PropertyUtilitiesMaintenanceTracker} />
         <Route path="/ai-feedback" component={AiFeedbackMonitor} />
         <Route path="/guest-portal-messaging" component={GuestPortalMessaging} />
         <Route path="/guest-communication-center" component={GuestCommunicationCenter} />

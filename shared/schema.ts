@@ -1587,6 +1587,281 @@ export const smartRequestConfig = pgTable("smart_request_config", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ===== PROPERTY UTILITIES & MAINTENANCE CYCLE TRACKING =====
+
+// Enhanced Property Utility Accounts with comprehensive tracking
+export const propertyUtilityAccountsEnhanced = pgTable("property_utility_accounts_enhanced", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }).notNull(),
+  
+  // Utility details
+  utilityType: varchar("utility_type").notNull(), // electricity, water, internet, pest_control, gas, hoa_fee, other
+  customUtilityName: varchar("custom_utility_name"), // For "other" type
+  providerName: varchar("provider_name").notNull(), // PEA, CAT, AIS, True, 3BB, etc.
+  accountNumber: varchar("account_number").notNull(),
+  contractHolder: varchar("contract_holder"), // Owner name or company
+  
+  // Billing schedule
+  paymentFrequency: varchar("payment_frequency").notNull().default("monthly"), // monthly, quarterly, yearly
+  defaultDueDate: integer("default_due_date").notNull(), // Day of month (1-31)
+  monthlyCostEstimate: decimal("monthly_cost_estimate", { precision: 10, scale: 2 }),
+  
+  // Contact and account info
+  customerServicePhone: varchar("customer_service_phone"),
+  onlinePortalUrl: varchar("online_portal_url"),
+  loginCredentialsNotes: text("login_credentials_notes"), // Encrypted storage notes
+  emergencyContactPhone: varchar("emergency_contact_phone"),
+  
+  // AI reminder settings
+  autoRemindersEnabled: boolean("auto_reminders_enabled").default(true),
+  reminderDaysAfterDue: integer("reminder_days_after_due").default(3),
+  predictiveRemindersEnabled: boolean("predictive_reminders_enabled").default(true),
+  
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Enhanced Bill Log System with OCR support
+export const utilityBillLogsEnhanced = pgTable("utility_bill_logs_enhanced", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  utilityAccountId: integer("utility_account_id").references(() => propertyUtilityAccountsEnhanced.id),
+  
+  // Bill details
+  billingMonth: varchar("billing_month").notNull(), // YYYY-MM format
+  billNumber: varchar("bill_number"),
+  billAmount: decimal("bill_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  dueDate: date("due_date").notNull(),
+  billingPeriodStart: date("billing_period_start"),
+  billingPeriodEnd: date("billing_period_end"),
+  
+  // Usage tracking (for utilities with meter readings)
+  currentReading: varchar("current_reading"),
+  previousReading: varchar("previous_reading"),
+  unitsUsed: decimal("units_used", { precision: 10, scale: 2 }),
+  ratePerUnit: decimal("rate_per_unit", { precision: 10, scale: 4 }),
+  
+  // File uploads and OCR
+  billScanUrl: varchar("bill_scan_url"), // Scanned bill image/PDF
+  billScanFilename: varchar("bill_scan_filename"),
+  ocrExtractedText: text("ocr_extracted_text"), // OCR extracted text
+  ocrConfidence: decimal("ocr_confidence", { precision: 3, scale: 2 }), // 0.00-1.00
+  
+  paymentReceiptUrl: varchar("payment_receipt_url"), // Payment receipt
+  paymentReceiptFilename: varchar("payment_receipt_filename"),
+  
+  // Payment tracking
+  paymentStatus: varchar("payment_status").notNull().default("pending"), // pending, paid, overdue
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }),
+  paidDate: date("paid_date"),
+  paymentMethod: varchar("payment_method"), // bank_transfer, online, cash, auto_debit
+  paymentReference: varchar("payment_reference"),
+  
+  // Manual override and status
+  manualOverride: boolean("manual_override").default(false),
+  manualOverrideReason: text("manual_override_reason"),
+  statusResetBy: varchar("status_reset_by").references(() => users.id),
+  statusResetAt: timestamp("status_reset_at"),
+  
+  // Uploads and processing
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  uploadedAt: timestamp("uploaded_at"),
+  processedBy: varchar("processed_by").references(() => users.id),
+  processedAt: timestamp("processed_at"),
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI Reminder System for utilities
+export const utilityAiReminders = pgTable("utility_ai_reminders", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  utilityAccountId: integer("utility_account_id").references(() => propertyUtilityAccountsEnhanced.id),
+  
+  // Reminder details
+  reminderType: varchar("reminder_type").notNull(), // predictive, overdue, missing_receipt
+  expectedBillDate: date("expected_bill_date"), // AI-predicted bill arrival date
+  daysPastPattern: integer("days_past_pattern"), // Days past usual bill arrival pattern
+  severity: varchar("severity").notNull().default("medium"), // low, medium, high, critical
+  
+  // AI analysis
+  aiAnalysis: text("ai_analysis"), // AI reasoning for the reminder
+  confidenceScore: decimal("confidence_score", { precision: 3, scale: 2 }), // 0.00-1.00
+  basedOnHistory: boolean("based_on_history").default(true),
+  
+  // Status and delivery
+  status: varchar("status").notNull().default("pending"), // pending, sent, acknowledged, resolved
+  sentTo: varchar("sent_to").references(() => users.id), // Admin or PM
+  sentAt: timestamp("sent_at"),
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolvedAt: timestamp("resolved_at"),
+  
+  // Message content
+  reminderMessage: text("reminder_message").notNull(),
+  actionRequired: text("action_required"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property Maintenance History System
+export const propertyMaintenanceHistory = pgTable("property_maintenance_history", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }).notNull(),
+  
+  // Service details
+  serviceType: varchar("service_type").notNull(), // renovation, ac_clean, septic_pump, pool_deep_clean, garden_overhaul, pest_control, roof_inspection, custom
+  customServiceName: varchar("custom_service_name"), // For custom service types
+  serviceProvider: varchar("service_provider"), // Company or technician name
+  serviceProviderContact: varchar("service_provider_contact"),
+  
+  // Service execution
+  serviceDate: date("service_date").notNull(),
+  serviceCost: decimal("service_cost", { precision: 10, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  invoiceNumber: varchar("invoice_number"),
+  receiptUrl: varchar("receipt_url"),
+  
+  // Service details and results
+  workDescription: text("work_description").notNull(),
+  issuesFound: text("issues_found"),
+  warrantyPeriod: varchar("warranty_period"), // "6 months", "1 year", etc.
+  warrantyExpiryDate: date("warranty_expiry_date"),
+  
+  // Photo documentation
+  beforePhotos: text("before_photos").array(),
+  afterPhotos: text("after_photos").array(),
+  
+  // Quality tracking
+  qualityRating: integer("quality_rating"), // 1-5 stars
+  qualityNotes: text("quality_notes"),
+  recommendForFuture: boolean("recommend_for_future").default(true),
+  
+  // Manual entry vs system generated
+  entryType: varchar("entry_type").notNull().default("manual"), // manual, auto_generated
+  loggedBy: varchar("logged_by").references(() => users.id).notNull(),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Maintenance Service Intervals Configuration
+export const maintenanceServiceIntervals = pgTable("maintenance_service_intervals", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id), // null = global default
+  serviceType: varchar("service_type").notNull(),
+  
+  // Interval configuration
+  intervalMonths: integer("interval_months").notNull(), // Service interval in months
+  warningDaysBefore: integer("warning_days_before").default(7), // Warn X days before due
+  criticalDaysAfter: integer("critical_days_after").default(7), // Critical X days after due
+  
+  // Seasonal preferences
+  preferredMonths: text("preferred_months").array(), // ["03", "04", "10", "11"] for seasonal services
+  avoidMonths: text("avoid_months").array(), // Months to avoid
+  
+  // Cost estimates
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  costCurrency: varchar("cost_currency", { length: 3 }).default("THB"),
+  
+  // AI suggestions
+  aiSuggestionsEnabled: boolean("ai_suggestions_enabled").default(true),
+  autoCreateTasks: boolean("auto_create_tasks").default(false),
+  
+  isActive: boolean("is_active").default(true),
+  setBy: varchar("set_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// AI-Generated Maintenance Suggestions
+export const maintenanceAiSuggestions = pgTable("maintenance_ai_suggestions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Suggestion details
+  serviceType: varchar("service_type").notNull(),
+  suggestedDate: date("suggested_date").notNull(),
+  urgencyLevel: varchar("urgency_level").notNull().default("medium"), // low, medium, high, critical
+  
+  // AI analysis
+  aiReasoning: text("ai_reasoning").notNull(), // Why this service is suggested
+  basedOnHistory: boolean("based_on_history").default(true),
+  daysPastDue: integer("days_past_due"), // If already overdue
+  confidenceScore: decimal("confidence_score", { precision: 3, scale: 2 }), // 0.00-1.00
+  
+  // Cost estimation
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  costCurrency: varchar("cost_currency", { length: 3 }).default("THB"),
+  
+  // Status tracking
+  status: varchar("status").notNull().default("pending"), // pending, accepted, rejected, scheduled, completed
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  
+  // Task creation
+  taskCreated: boolean("task_created").default(false),
+  relatedTaskId: integer("related_task_id"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Alert Dashboard for missing bills and overdue maintenance
+export const propertyAlerts = pgTable("property_alerts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Alert details
+  alertType: varchar("alert_type").notNull(), // missing_utility_bill, overdue_maintenance, missing_receipt
+  alertCategory: varchar("alert_category").notNull(), // utility, maintenance, financial
+  severity: varchar("severity").notNull().default("medium"), // low, medium, high, critical
+  
+  // Content
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  actionRequired: text("action_required"),
+  
+  // Related entities
+  relatedUtilityAccountId: integer("related_utility_account_id").references(() => propertyUtilityAccountsEnhanced.id),
+  relatedBillLogId: integer("related_bill_log_id").references(() => utilityBillLogsEnhanced.id),
+  relatedMaintenanceId: integer("related_maintenance_id").references(() => propertyMaintenanceHistory.id),
+  
+  // Status tracking
+  status: varchar("status").notNull().default("active"), // active, acknowledged, resolved, dismissed
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolvedAt: timestamp("resolved_at"),
+  dismissedBy: varchar("dismissed_by").references(() => users.id),
+  dismissedAt: timestamp("dismissed_at"),
+  
+  // Auto-resolution
+  autoResolvable: boolean("auto_resolvable").default(false),
+  autoResolvedAt: timestamp("auto_resolved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 
 
 // Organization schemas
@@ -2164,6 +2439,73 @@ export const insertOwnerStatementExportSchema = createInsertSchema(ownerStatemen
 // Type exports for Owner Statement Exports
 export type OwnerStatementExport = typeof ownerStatementExports.$inferSelect;
 export type InsertOwnerStatementExport = z.infer<typeof insertOwnerStatementExportSchema>;
+
+// ===== PROPERTY UTILITIES & MAINTENANCE SCHEMAS =====
+
+// Insert schemas for utility and maintenance tables
+export const insertPropertyUtilityAccountEnhancedSchema = createInsertSchema(propertyUtilityAccountsEnhanced).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUtilityBillLogEnhancedSchema = createInsertSchema(utilityBillLogsEnhanced).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUtilityAiReminderSchema = createInsertSchema(utilityAiReminders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyMaintenanceHistorySchema = createInsertSchema(propertyMaintenanceHistory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMaintenanceServiceIntervalSchema = createInsertSchema(maintenanceServiceIntervals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMaintenanceAiSuggestionSchema = createInsertSchema(maintenanceAiSuggestions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyAlertSchema = createInsertSchema(propertyAlerts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports for utility and maintenance
+export type PropertyUtilityAccountEnhanced = typeof propertyUtilityAccountsEnhanced.$inferSelect;
+export type InsertPropertyUtilityAccountEnhanced = z.infer<typeof insertPropertyUtilityAccountEnhancedSchema>;
+
+export type UtilityBillLogEnhanced = typeof utilityBillLogsEnhanced.$inferSelect;
+export type InsertUtilityBillLogEnhanced = z.infer<typeof insertUtilityBillLogEnhancedSchema>;
+
+export type UtilityAiReminder = typeof utilityAiReminders.$inferSelect;
+export type InsertUtilityAiReminder = z.infer<typeof insertUtilityAiReminderSchema>;
+
+export type PropertyMaintenanceHistory = typeof propertyMaintenanceHistory.$inferSelect;
+export type InsertPropertyMaintenanceHistory = z.infer<typeof insertPropertyMaintenanceHistorySchema>;
+
+export type MaintenanceServiceInterval = typeof maintenanceServiceIntervals.$inferSelect;
+export type InsertMaintenanceServiceInterval = z.infer<typeof insertMaintenanceServiceIntervalSchema>;
+
+export type MaintenanceAiSuggestion = typeof maintenanceAiSuggestions.$inferSelect;
+export type InsertMaintenanceAiSuggestion = z.infer<typeof insertMaintenanceAiSuggestionSchema>;
+
+export type PropertyAlert = typeof propertyAlerts.$inferSelect;
+export type InsertPropertyAlert = z.infer<typeof insertPropertyAlertSchema>;
 
 // ===== DOCUMENT CENTER SYSTEM =====
 
