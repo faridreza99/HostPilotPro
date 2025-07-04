@@ -85,6 +85,7 @@ import PropertyDocumentCenter from "@/pages/PropertyDocumentCenter";
 import PropertySettingsModule from "@/pages/PropertySettingsModule";
 import PropertyTaskHistoryTimeline from "@/pages/PropertyTaskHistoryTimeline";
 import VillaArunaDemoWorkflow from "@/pages/VillaArunaDemoWorkflow";
+import EnhancedFinancialControls from "@/pages/EnhancedFinancialControls";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -173,6 +174,7 @@ function Router() {
         <Route path="/finances" component={Finances} />
         <Route path="/payouts" component={Payouts} />
         <Route path="/financial-toolkit" component={FinancialToolkit} />
+        <Route path="/enhanced-financial-controls" component={EnhancedFinancialControls} />
         <Route path="/invoice-generator" component={InvoiceGenerator} />
         <Route path="/utility-tracker" component={EnhancedUtilityTracker} />
         <Route path="/utility-tracking" component={UtilityTracking} />

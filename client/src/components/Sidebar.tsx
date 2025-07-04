@@ -111,6 +111,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
       {
         title: "Financial",
         items: [
+          { label: "Enhanced Financial Controls", icon: Shield, href: "/enhanced-financial-controls" },
           { label: "Financial Toolkit", icon: DollarSign, href: "/financial-toolkit" },
           { label: "Invoice Generator", icon: FileText, href: "/invoice-generator" },
           { label: "Booking Income Rules", icon: BarChart3, href: "/booking-income-rules" },
@@ -145,6 +146,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
       {
         title: "Financial",
         items: [
+          { label: "Enhanced Financial Controls", icon: Shield, href: "/enhanced-financial-controls" },
           { label: "Invoices", icon: FileText, href: "/invoice-generator" },
           { label: "Booking Income", icon: BarChart3, href: "/booking-income-rules" },
           { label: "Finance Engine", icon: Database, href: "/finance-engine" },

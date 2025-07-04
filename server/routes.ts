@@ -17716,6 +17716,309 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== ENHANCED FINANCIAL CONTROLS API ENDPOINTS =====
+
+  // Owner Balance Dashboard Routes
+  app.get("/api/enhanced-financial-controls/owner-balances", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const { ownerId, propertyId } = req.query;
+      
+      // Role-based access control
+      if (user?.role === 'owner') {
+        const balances = await storage.getEnhancedOwnerBalances(organizationId, user.id);
+        res.json(balances);
+      } else if (user?.role === 'admin' || user?.role === 'portfolio-manager') {
+        const balances = await storage.getEnhancedOwnerBalances(
+          organizationId, 
+          ownerId as string, 
+          propertyId ? parseInt(propertyId as string) : undefined
+        );
+        res.json(balances);
+      } else {
+        res.status(403).json({ message: "Access denied: Insufficient permissions" });
+      }
+    } catch (error) {
+      console.error("Error fetching owner balances:", error);
+      res.status(500).json({ message: "Failed to fetch owner balances" });
+    }
+  });
+
+  app.get("/api/enhanced-financial-controls/owner-summary/:ownerId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const ownerId = req.params.ownerId;
+      
+      // Access control: owners can only view their own data
+      if (user?.role === 'owner' && user.id !== ownerId) {
+        return res.status(403).json({ message: "Access denied: Can only view own financial data" });
+      }
+      
+      if (!['admin', 'portfolio-manager', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Insufficient permissions" });
+      }
+      
+      const summary = await storage.getOwnerFinancialSummary(organizationId, ownerId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching owner financial summary:", error);
+      res.status(500).json({ message: "Failed to fetch owner financial summary" });
+    }
+  });
+
+  // Owner Payout Request Routes
+  app.get("/api/enhanced-financial-controls/payout-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const { ownerId, status, startDate, endDate } = req.query;
+      
+      // Role-based filtering
+      const requestOwnerId = user?.role === 'owner' ? user.id : (ownerId as string);
+      
+      if (!['admin', 'portfolio-manager', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Insufficient permissions" });
+      }
+      
+      const requests = await storage.getOwnerPayoutRequests(organizationId, requestOwnerId, {
+        status: status as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      });
+      
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching payout requests:", error);
+      res.status(500).json({ message: "Failed to fetch payout requests" });
+    }
+  });
+
+  app.post("/api/enhanced-financial-controls/payout-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      if (user?.role !== 'owner') {
+        return res.status(403).json({ message: "Access denied: Only owners can request payouts" });
+      }
+      
+      const requestData = {
+        ...req.body,
+        organizationId,
+        ownerId: user.id,
+        requestedBy: user.id,
+        requestedAt: new Date(),
+        requestStatus: 'pending',
+      };
+      
+      const newRequest = await storage.createOwnerPayoutRequest(requestData);
+      res.json(newRequest);
+    } catch (error) {
+      console.error("Error creating payout request:", error);
+      res.status(500).json({ message: "Failed to create payout request" });
+    }
+  });
+
+  // Enhanced Invoice Tool Routes
+  app.get("/api/enhanced-financial-controls/invoice-templates", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Only admin/PM can access invoice templates" });
+      }
+      
+      const templates = await storage.getInvoiceTemplates(organizationId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching invoice templates:", error);
+      res.status(500).json({ message: "Failed to fetch invoice templates" });
+    }
+  });
+
+  app.get("/api/enhanced-financial-controls/invoices", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const { status, senderType, recipientType, propertyId } = req.query;
+      
+      if (!['admin', 'portfolio-manager', 'owner'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Insufficient permissions" });
+      }
+      
+      const invoices = await storage.getEnhancedInvoices(organizationId, {
+        status: status as string,
+        senderType: senderType as string,
+        recipientType: recipientType as string,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+      });
+      
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching invoices:", error);
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  // Portfolio Manager Earnings Routes
+  app.get("/api/enhanced-financial-controls/pm-earnings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const { pmId, earningsMonth, propertyId, payoutStatus } = req.query;
+      
+      // Role-based filtering
+      const requestPmId = user?.role === 'portfolio-manager' ? user.id : (pmId as string);
+      
+      if (!['admin', 'portfolio-manager'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Insufficient permissions" });
+      }
+      
+      const earnings = await storage.getPortfolioManagerEarnings(organizationId, requestPmId, {
+        earningsMonth: earningsMonth as string,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        payoutStatus: payoutStatus as string,
+      });
+      
+      res.json(earnings);
+    } catch (error) {
+      console.error("Error fetching PM earnings:", error);
+      res.status(500).json({ message: "Failed to fetch PM earnings" });
+    }
+  });
+
+  app.get("/api/enhanced-financial-controls/pm-summary/:pmId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const pmId = req.params.pmId;
+      
+      // Access control: PMs can only view their own data
+      if (user?.role === 'portfolio-manager' && user.id !== pmId) {
+        return res.status(403).json({ message: "Access denied: Can only view own earnings data" });
+      }
+      
+      if (!['admin', 'portfolio-manager'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Insufficient permissions" });
+      }
+      
+      const summary = await storage.getPortfolioManagerSummary(organizationId, pmId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching PM summary:", error);
+      res.status(500).json({ message: "Failed to fetch PM summary" });
+    }
+  });
+
+  // Staff Salary & Advance Request Routes
+  app.get("/api/enhanced-financial-controls/staff-advance-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const { staffId, requestStatus, urgencyLevel } = req.query;
+      
+      // Role-based filtering
+      const requestStaffId = user?.role === 'staff' ? user.id : (staffId as string);
+      
+      if (!['admin', 'portfolio-manager', 'staff'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Insufficient permissions" });
+      }
+      
+      const requests = await storage.getStaffAdvanceRequests(organizationId, requestStaffId, {
+        requestStatus: requestStatus as string,
+        urgencyLevel: urgencyLevel as string,
+      });
+      
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching staff advance requests:", error);
+      res.status(500).json({ message: "Failed to fetch staff advance requests" });
+    }
+  });
+
+  app.post("/api/enhanced-financial-controls/staff-advance-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      if (user?.role !== 'staff') {
+        return res.status(403).json({ message: "Access denied: Only staff can request advances" });
+      }
+      
+      const requestData = {
+        ...req.body,
+        organizationId,
+        staffId: user.id,
+        requestedBy: user.id,
+        requestedAt: new Date(),
+        requestStatus: 'pending',
+      };
+      
+      const newRequest = await storage.createStaffAdvanceRequest(requestData);
+      res.json(newRequest);
+    } catch (error) {
+      console.error("Error creating staff advance request:", error);
+      res.status(500).json({ message: "Failed to create staff advance request" });
+    }
+  });
+
+  // Balance Reset Control Routes (Admin Only)
+  app.get("/api/enhanced-financial-controls/users-for-balance-reset", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied: Only admin can access balance reset controls" });
+      }
+      
+      const users = await storage.getUsersForBalanceReset(organizationId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users for balance reset:", error);
+      res.status(500).json({ message: "Failed to fetch users for balance reset" });
+    }
+  });
+
+  app.post("/api/enhanced-financial-controls/reset-user-balance", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      const { userId, reason } = req.body;
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied: Only admin can reset user balances" });
+      }
+      
+      const result = await storage.resetUserBalance(organizationId, userId, user.id, reason);
+      res.json(result);
+    } catch (error) {
+      console.error("Error resetting user balance:", error);
+      res.status(500).json({ message: "Failed to reset user balance" });
+    }
+  });
+
+  // Financial Controls Dashboard Route
+  app.get("/api/enhanced-financial-controls/dashboard", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org";
+      const user = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(user?.role)) {
+        return res.status(403).json({ message: "Access denied: Only admin/PM can access financial controls dashboard" });
+      }
+      
+      const dashboard = await storage.getFinancialControlsDashboard(organizationId);
+      res.json(dashboard);
+    } catch (error) {
+      console.error("Error fetching financial controls dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch financial controls dashboard" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

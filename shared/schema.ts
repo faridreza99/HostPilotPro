@@ -7197,6 +7197,9 @@ export const aiSmartSuggestions = pgTable("ai_smart_suggestions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ===== ENHANCED FINANCIAL CONTROLS SYSTEM =====
+// Note: Enhanced versions of existing invoice and portfolio manager tables for comprehensive financial controls
+
 // ===== STAFF SALARY, OVERTIME & EMERGENCY TRACKER =====
 
 // Staff Salary Settings
@@ -8667,4 +8670,7 @@ export type DailyStaffAssignments = typeof dailyStaffAssignments.$inferSelect;
 export type InsertDailyStaffAssignments = z.infer<typeof insertDailyStaffAssignmentsSchema>;
 export type DailyPropertyOperations = typeof dailyPropertyOperations.$inferSelect;
 export type InsertDailyPropertyOperations = z.infer<typeof insertDailyPropertyOperationsSchema>;
+
+// ===== ENHANCED FINANCIAL CONTROLS TYPE EXPORTS =====
+// Note: Using existing invoice tables with enhanced functionality for comprehensive financial controls
 

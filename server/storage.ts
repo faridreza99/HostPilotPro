@@ -1081,6 +1081,121 @@ export interface IStorage {
   getOwnerMaintenanceSuggestions(organizationId: string, ownerId: string): Promise<MaintenanceSuggestion[]>;
   getPendingOwnerApprovals(organizationId: string, ownerId: string): Promise<MaintenanceSuggestion[]>;
 
+  // ===== ENHANCED FINANCIAL CONTROLS SYSTEM =====
+
+  // Owner Balance Dashboard Methods
+  getEnhancedOwnerBalances(organizationId: string, ownerId?: string, propertyId?: number): Promise<any[]>;
+  getOwnerFinancialSummary(organizationId: string, ownerId: string): Promise<{
+    currentBalance: number;
+    pendingPayouts: number;
+    totalEarnings: number;
+    totalExpenses: number;
+    thisMonthEarnings: number;
+    thisMonthExpenses: number;
+    netBalance: number;
+    lastPayoutDate: Date | null;
+    properties: Array<{
+      propertyId: number;
+      propertyName: string;
+      balance: number;
+      earnings: number;
+      expenses: number;
+    }>;
+  }>;
+
+  // Owner Payout Request Workflow Methods
+  getOwnerPayoutRequests(organizationId: string, ownerId?: string, filters?: { status?: string; startDate?: string; endDate?: string }): Promise<OwnerPayoutRequest[]>;
+  createOwnerPayoutRequest(request: InsertOwnerPayoutRequest): Promise<OwnerPayoutRequest>;
+  approveOwnerPayoutRequest(id: number, approvedBy: string, approvalNotes?: string): Promise<OwnerPayoutRequest | undefined>;
+  rejectOwnerPayoutRequest(id: number, rejectedBy: string, rejectionReason: string): Promise<OwnerPayoutRequest | undefined>;
+  uploadPaymentReceipt(id: number, receiptUrl: string, uploadedBy: string): Promise<OwnerPayoutRequest | undefined>;
+  confirmPayoutReceived(id: number, confirmedBy: string): Promise<OwnerPayoutRequest | undefined>;
+
+  // Enhanced Invoice Tool Methods
+  getInvoiceTemplates(organizationId: string): Promise<InvoiceTemplate[]>;
+  createInvoiceTemplate(template: InsertInvoiceTemplate): Promise<InvoiceTemplate>;
+  updateInvoiceTemplate(id: number, template: Partial<InsertInvoiceTemplate>): Promise<InvoiceTemplate | undefined>;
+  
+  getEnhancedInvoices(organizationId: string, filters?: { status?: string; senderType?: string; recipientType?: string; propertyId?: number }): Promise<any[]>;
+  createEnhancedInvoice(invoice: any): Promise<any>;
+  updateEnhancedInvoice(id: number, invoice: any): Promise<any>;
+  generateInvoiceNumber(organizationId: string): Promise<string>;
+  
+  getInvoiceLineItems(invoiceId: number): Promise<any[]>;
+  createInvoiceLineItem(lineItem: any): Promise<any>;
+  deleteInvoiceLineItem(id: number): Promise<boolean>;
+
+  // Portfolio Manager Earnings Methods
+  getPortfolioManagerEarnings(organizationId: string, pmId?: string, filters?: { earningsMonth?: string; propertyId?: number; payoutStatus?: string }): Promise<any[]>;
+  createPortfolioManagerEarning(earning: any): Promise<any>;
+  updatePortfolioManagerEarning(id: number, earning: any): Promise<any>;
+  requestPortfolioManagerPayout(id: number): Promise<any>;
+  approvePortfolioManagerPayout(id: number, approvedBy: string): Promise<any>;
+  
+  getPortfolioManagerSummary(organizationId: string, pmId: string): Promise<{
+    totalEarnings: number;
+    pendingPayouts: number;
+    thisMonthEarnings: number;
+    propertiesManaged: number;
+    totalCommission: number;
+    averageCommissionRate: number;
+  }>;
+
+  // Staff Salary & Advance Request Methods
+  getStaffSalarySettings(organizationId: string, staffId?: string): Promise<any[]>;
+  createStaffSalarySettings(settings: any): Promise<any>;
+  updateStaffSalarySettings(id: number, settings: any): Promise<any>;
+  
+  getStaffAdvanceRequests(organizationId: string, staffId?: string, filters?: { requestStatus?: string; urgencyLevel?: string }): Promise<StaffAdvanceRequest[]>;
+  createStaffAdvanceRequest(request: InsertStaffAdvanceRequest): Promise<StaffAdvanceRequest>;
+  approveStaffAdvanceRequest(id: number, approvedBy: string, approvalNotes?: string): Promise<StaffAdvanceRequest | undefined>;
+  rejectStaffAdvanceRequest(id: number, rejectedBy: string, rejectionReason: string): Promise<StaffAdvanceRequest | undefined>;
+  payStaffAdvanceRequest(id: number, paidBy: string, paymentMethod: string, paymentReference?: string): Promise<StaffAdvanceRequest | undefined>;
+  
+  getStaffMonthlySalary(organizationId: string, staffId: string, month: string): Promise<{
+    baseSalary: number;
+    overtimeHours: number;
+    overtimePay: number;
+    advanceDeductions: number;
+    bonuses: number;
+    netPay: number;
+    paymentStatus: string;
+  }>;
+
+  // Balance Reset Control Methods (Admin Only)
+  getUsersForBalanceReset(organizationId: string): Promise<Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+    currentBalance: number;
+    pendingPayouts: number;
+  }>>;
+  getUserBalanceSummary(organizationId: string, userId: string): Promise<{
+    currentBalance: number;
+    pendingPayouts: number;
+    totalEarnings: number;
+    totalExpenses: number;
+    commissions: number;
+  }>;
+  resetUserBalance(organizationId: string, userId: string, adminUserId: string, reason: string): Promise<{
+    success: boolean;
+    previousBalance: number;
+    resetAmount: number;
+  }>;
+  getBalanceResetAuditLog(organizationId: string, userId?: string): Promise<BalanceResetAudit[]>;
+
+  // Cross-Module Analytics & Reporting
+  getFinancialControlsDashboard(organizationId: string): Promise<{
+    totalOwnerBalances: number;
+    pendingPayouts: number;
+    monthlyInvoiceCount: number;
+    portfolioManagerEarnings: number;
+    staffAdvanceRequests: number;
+    systemHealth: string;
+  }>;
+
   // ===== PROPERTY UTILITIES & MAINTENANCE ENHANCED =====
 
   // Property utility accounts enhanced operations
@@ -21551,6 +21666,1071 @@ Plant Care:
   async checkMaintenanceDueDates(organizationId: string): Promise<PropertyAlert[]> {
     // Mock implementation - would check service intervals and create alerts
     return [];
+  }
+
+  // ===== ENHANCED FINANCIAL CONTROLS SYSTEM IMPLEMENTATION =====
+
+  // Owner Balance Dashboard Methods
+  async getEnhancedOwnerBalances(organizationId: string, ownerId?: string, propertyId?: number): Promise<any[]> {
+    let query = db
+      .select({
+        id: ownerBalances.id,
+        ownerId: ownerBalances.ownerId,
+        ownerName: users.firstName,
+        currentBalance: ownerBalances.currentBalance,
+        totalEarnings: ownerBalances.totalEarnings,
+        totalExpenses: ownerBalances.totalExpenses,
+        pendingPayouts: ownerBalances.totalPayoutsRequested,
+        thisMonthEarnings: ownerBalances.thisMonthEarnings,
+        thisMonthExpenses: ownerBalances.thisMonthExpenses,
+        lastCalculated: ownerBalances.lastCalculated,
+      })
+      .from(ownerBalances)
+      .leftJoin(users, eq(ownerBalances.ownerId, users.id))
+      .where(eq(ownerBalances.organizationId, organizationId));
+
+    if (ownerId) {
+      query = query.where(eq(ownerBalances.ownerId, ownerId));
+    }
+
+    return await query.orderBy(desc(ownerBalances.lastCalculated));
+  }
+
+  async getOwnerFinancialSummary(organizationId: string, ownerId: string): Promise<{
+    currentBalance: number;
+    pendingPayouts: number;
+    totalEarnings: number;
+    totalExpenses: number;
+    thisMonthEarnings: number;
+    thisMonthExpenses: number;
+    netBalance: number;
+    lastPayoutDate: Date | null;
+    properties: Array<{
+      propertyId: number;
+      propertyName: string;
+      balance: number;
+      earnings: number;
+      expenses: number;
+    }>;
+  }> {
+    // Get owner's overall balance
+    const [ownerBalance] = await db
+      .select()
+      .from(ownerBalances)
+      .where(and(
+        eq(ownerBalances.organizationId, organizationId),
+        eq(ownerBalances.ownerId, ownerId)
+      ));
+
+    // Get pending payouts
+    const pendingPayouts = await db
+      .select({ amount: sum(ownerPayoutRequests.requestedAmount) })
+      .from(ownerPayoutRequests)
+      .where(and(
+        eq(ownerPayoutRequests.organizationId, organizationId),
+        eq(ownerPayoutRequests.ownerId, ownerId),
+        eq(ownerPayoutRequests.requestStatus, 'pending')
+      ));
+
+    // Get last payout date
+    const [lastPayout] = await db
+      .select({ paidAt: ownerPayoutRequests.paidAt })
+      .from(ownerPayoutRequests)
+      .where(and(
+        eq(ownerPayoutRequests.organizationId, organizationId),
+        eq(ownerPayoutRequests.ownerId, ownerId),
+        eq(ownerPayoutRequests.requestStatus, 'confirmed')
+      ))
+      .orderBy(desc(ownerPayoutRequests.paidAt))
+      .limit(1);
+
+    // Get property-specific balances
+    const propertyBalances = await db
+      .select({
+        propertyId: properties.id,
+        propertyName: properties.name,
+        earnings: sql<number>`COALESCE(SUM(CASE WHEN ${finances.type} = 'income' THEN ${finances.amount} ELSE 0 END), 0)`,
+        expenses: sql<number>`COALESCE(SUM(CASE WHEN ${finances.type} = 'expense' THEN ${finances.amount} ELSE 0 END), 0)`,
+      })
+      .from(properties)
+      .leftJoin(finances, eq(finances.propertyId, properties.id))
+      .where(and(
+        eq(properties.organizationId, organizationId),
+        eq(properties.ownerId, ownerId)
+      ))
+      .groupBy(properties.id, properties.name);
+
+    const properties = propertyBalances.map(p => ({
+      propertyId: p.propertyId,
+      propertyName: p.propertyName,
+      balance: p.earnings - p.expenses,
+      earnings: p.earnings,
+      expenses: p.expenses,
+    }));
+
+    return {
+      currentBalance: parseFloat(ownerBalance?.currentBalance || '0'),
+      pendingPayouts: parseFloat(pendingPayouts[0]?.amount || '0'),
+      totalEarnings: parseFloat(ownerBalance?.totalEarnings || '0'),
+      totalExpenses: parseFloat(ownerBalance?.totalExpenses || '0'),
+      thisMonthEarnings: parseFloat(ownerBalance?.thisMonthEarnings || '0'),
+      thisMonthExpenses: parseFloat(ownerBalance?.thisMonthExpenses || '0'),
+      netBalance: parseFloat(ownerBalance?.currentBalance || '0') - parseFloat(pendingPayouts[0]?.amount || '0'),
+      lastPayoutDate: lastPayout?.paidAt || null,
+      properties,
+    };
+  }
+
+  // Owner Payout Request Workflow Methods
+  async getOwnerPayoutRequests(organizationId: string, ownerId?: string, filters?: { status?: string; startDate?: string; endDate?: string }): Promise<OwnerPayoutRequest[]> {
+    let query = db
+      .select()
+      .from(ownerPayoutRequests)
+      .where(eq(ownerPayoutRequests.organizationId, organizationId));
+
+    if (ownerId) {
+      query = query.where(eq(ownerPayoutRequests.ownerId, ownerId));
+    }
+    if (filters?.status) {
+      query = query.where(eq(ownerPayoutRequests.requestStatus, filters.status));
+    }
+    if (filters?.startDate) {
+      query = query.where(gte(ownerPayoutRequests.requestedAt, new Date(filters.startDate)));
+    }
+    if (filters?.endDate) {
+      query = query.where(lte(ownerPayoutRequests.requestedAt, new Date(filters.endDate)));
+    }
+
+    return await query.orderBy(desc(ownerPayoutRequests.requestedAt));
+  }
+
+  async createOwnerPayoutRequest(request: InsertOwnerPayoutRequest): Promise<OwnerPayoutRequest> {
+    const [newRequest] = await db
+      .insert(ownerPayoutRequests)
+      .values(request)
+      .returning();
+    return newRequest;
+  }
+
+  async approveOwnerPayoutRequest(id: number, approvedBy: string, approvalNotes?: string): Promise<OwnerPayoutRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(ownerPayoutRequests)
+      .set({
+        requestStatus: 'approved',
+        approvedBy,
+        approvedAt: new Date(),
+        approvalNotes,
+      })
+      .where(eq(ownerPayoutRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async rejectOwnerPayoutRequest(id: number, rejectedBy: string, rejectionReason: string): Promise<OwnerPayoutRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(ownerPayoutRequests)
+      .set({
+        requestStatus: 'rejected',
+        approvedBy: rejectedBy,
+        approvedAt: new Date(),
+        approvalNotes: rejectionReason,
+      })
+      .where(eq(ownerPayoutRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async uploadPaymentReceipt(id: number, receiptUrl: string, uploadedBy: string): Promise<OwnerPayoutRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(ownerPayoutRequests)
+      .set({
+        requestStatus: 'payment_uploaded',
+        paymentSlipUrl: receiptUrl,
+        uploadedBy,
+        paymentUploadedAt: new Date(),
+      })
+      .where(eq(ownerPayoutRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async confirmPayoutReceived(id: number, confirmedBy: string): Promise<OwnerPayoutRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(ownerPayoutRequests)
+      .set({
+        requestStatus: 'confirmed',
+        confirmedBy,
+        confirmedAt: new Date(),
+        completedAt: new Date(),
+      })
+      .where(eq(ownerPayoutRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  // Enhanced Invoice Tool Methods
+  async getInvoiceTemplates(organizationId: string): Promise<InvoiceTemplate[]> {
+    return await db
+      .select()
+      .from(invoiceTemplates)
+      .where(eq(invoiceTemplates.organizationId, organizationId))
+      .orderBy(desc(invoiceTemplates.createdAt));
+  }
+
+  async createInvoiceTemplate(template: InsertInvoiceTemplate): Promise<InvoiceTemplate> {
+    const [newTemplate] = await db
+      .insert(invoiceTemplates)
+      .values(template)
+      .returning();
+    return newTemplate;
+  }
+
+  async updateInvoiceTemplate(id: number, template: Partial<InsertInvoiceTemplate>): Promise<InvoiceTemplate | undefined> {
+    const [updatedTemplate] = await db
+      .update(invoiceTemplates)
+      .set({ ...template, updatedAt: new Date() })
+      .where(eq(invoiceTemplates.id, id))
+      .returning();
+    return updatedTemplate;
+  }
+
+  async getEnhancedInvoices(organizationId: string, filters?: { status?: string; senderType?: string; recipientType?: string; propertyId?: number }): Promise<any[]> {
+    return await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.organizationId, organizationId))
+      .orderBy(desc(invoices.createdAt));
+  }
+
+  async createEnhancedInvoice(invoice: any): Promise<any> {
+    const [newInvoice] = await db
+      .insert(invoices)
+      .values(invoice)
+      .returning();
+    return newInvoice;
+  }
+
+  async updateEnhancedInvoice(id: number, invoice: any): Promise<any> {
+    const [updatedInvoice] = await db
+      .update(invoices)
+      .set({ ...invoice, updatedAt: new Date() })
+      .where(eq(invoices.id, id))
+      .returning();
+    return updatedInvoice;
+  }
+
+  async generateInvoiceNumber(organizationId: string): Promise<string> {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    
+    // Get count of invoices this month
+    const invoiceCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(invoices)
+      .where(and(
+        eq(invoices.organizationId, organizationId),
+        sql`EXTRACT(YEAR FROM ${invoices.createdAt}) = ${year}`,
+        sql`EXTRACT(MONTH FROM ${invoices.createdAt}) = ${parseInt(month)}`
+      ));
+    
+    const nextNumber = (invoiceCount[0]?.count || 0) + 1;
+    return `INV-${year}${month}-${String(nextNumber).padStart(4, '0')}`;
+  }
+
+  async getInvoiceLineItems(invoiceId: number): Promise<any[]> {
+    return await db
+      .select()
+      .from(invoiceLineItems)
+      .where(eq(invoiceLineItems.invoiceId, invoiceId))
+      .orderBy(invoiceLineItems.id);
+  }
+
+  async createInvoiceLineItem(lineItem: any): Promise<any> {
+    const [newLineItem] = await db
+      .insert(invoiceLineItems)
+      .values(lineItem)
+      .returning();
+    return newLineItem;
+  }
+
+  async deleteInvoiceLineItem(id: number): Promise<boolean> {
+    const result = await db
+      .delete(invoiceLineItems)
+      .where(eq(invoiceLineItems.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Portfolio Manager Earnings Methods
+  async getPortfolioManagerEarnings(organizationId: string, pmId?: string, filters?: { earningsMonth?: string; propertyId?: number; payoutStatus?: string }): Promise<any[]> {
+    return await db
+      .select()
+      .from(commissionEarnings)
+      .where(eq(commissionEarnings.organizationId, organizationId))
+      .orderBy(desc(commissionEarnings.createdAt));
+  }
+
+  async createPortfolioManagerEarning(earning: any): Promise<any> {
+    const [newEarning] = await db
+      .insert(commissionEarnings)
+      .values(earning)
+      .returning();
+    return newEarning;
+  }
+
+  async updatePortfolioManagerEarning(id: number, earning: any): Promise<any> {
+    const [updatedEarning] = await db
+      .update(commissionEarnings)
+      .set({ ...earning, updatedAt: new Date() })
+      .where(eq(commissionEarnings.id, id))
+      .returning();
+    return updatedEarning;
+  }
+
+  async requestPortfolioManagerPayout(id: number): Promise<any> {
+    const [updatedEarning] = await db
+      .update(commissionEarnings)
+      .set({ 
+        payoutStatus: 'requested',
+        payoutRequestedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(commissionEarnings.id, id))
+      .returning();
+    return updatedEarning;
+  }
+
+  async approvePortfolioManagerPayout(id: number, approvedBy: string): Promise<any> {
+    const [updatedEarning] = await db
+      .update(commissionEarnings)
+      .set({ 
+        payoutStatus: 'approved',
+        payoutApprovedBy: approvedBy,
+        payoutApprovedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(commissionEarnings.id, id))
+      .returning();
+    return updatedEarning;
+  }
+
+  async getPortfolioManagerSummary(organizationId: string, pmId: string): Promise<{
+    totalEarnings: number;
+    pendingPayouts: number;
+    thisMonthEarnings: number;
+    propertiesManaged: number;
+    totalCommission: number;
+    averageCommissionRate: number;
+  }> {
+    // Get PM earnings summary
+    const earnings = await db
+      .select({
+        totalEarnings: sql<number>`COALESCE(SUM(${commissionEarnings.commissionAmount}), 0)`,
+        pendingPayouts: sql<number>`COALESCE(SUM(CASE WHEN ${commissionEarnings.payoutStatus} = 'pending' THEN ${commissionEarnings.commissionAmount} ELSE 0 END), 0)`,
+        thisMonthEarnings: sql<number>`COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM ${commissionEarnings.createdAt}) = EXTRACT(MONTH FROM CURRENT_DATE) THEN ${commissionEarnings.commissionAmount} ELSE 0 END), 0)`,
+      })
+      .from(commissionEarnings)
+      .where(and(
+        eq(commissionEarnings.organizationId, organizationId),
+        eq(commissionEarnings.portfolioManagerId, pmId)
+      ));
+
+    // Get properties managed count
+    const propertiesCount = await db
+      .select({ count: sql<number>`count(distinct ${properties.id})` })
+      .from(properties)
+      .where(and(
+        eq(properties.organizationId, organizationId),
+        eq(properties.managedBy, pmId)
+      ));
+
+    return {
+      totalEarnings: earnings[0]?.totalEarnings || 0,
+      pendingPayouts: earnings[0]?.pendingPayouts || 0,
+      thisMonthEarnings: earnings[0]?.thisMonthEarnings || 0,
+      propertiesManaged: propertiesCount[0]?.count || 0,
+      totalCommission: earnings[0]?.totalEarnings || 0,
+      averageCommissionRate: 5.0, // Default 5% commission rate
+    };
+  }
+
+  // Staff Salary & Advance Request Methods
+  async getStaffSalarySettings(organizationId: string, staffId?: string): Promise<any[]> {
+    let query = db
+      .select()
+      .from(staffSalaries)
+      .where(eq(staffSalaries.organizationId, organizationId));
+
+    if (staffId) {
+      query = query.where(eq(staffSalaries.staffId, staffId));
+    }
+
+    return await query.orderBy(desc(staffSalaries.createdAt));
+  }
+
+  async createStaffSalarySettings(settings: any): Promise<any> {
+    const [newSettings] = await db
+      .insert(staffSalaries)
+      .values(settings)
+      .returning();
+    return newSettings;
+  }
+
+  async updateStaffSalarySettings(id: number, settings: any): Promise<any> {
+    const [updatedSettings] = await db
+      .update(staffSalaries)
+      .set({ ...settings, updatedAt: new Date() })
+      .where(eq(staffSalaries.id, id))
+      .returning();
+    return updatedSettings;
+  }
+
+  async getStaffAdvanceRequests(organizationId: string, staffId?: string, filters?: { requestStatus?: string; urgencyLevel?: string }): Promise<StaffAdvanceRequest[]> {
+    let query = db
+      .select()
+      .from(staffAdvanceRequests)
+      .where(eq(staffAdvanceRequests.organizationId, organizationId));
+
+    if (staffId) {
+      query = query.where(eq(staffAdvanceRequests.staffId, staffId));
+    }
+    if (filters?.requestStatus) {
+      query = query.where(eq(staffAdvanceRequests.requestStatus, filters.requestStatus));
+    }
+    if (filters?.urgencyLevel) {
+      query = query.where(eq(staffAdvanceRequests.urgencyLevel, filters.urgencyLevel));
+    }
+
+    return await query.orderBy(desc(staffAdvanceRequests.requestedAt));
+  }
+
+  async createStaffAdvanceRequest(request: InsertStaffAdvanceRequest): Promise<StaffAdvanceRequest> {
+    const [newRequest] = await db
+      .insert(staffAdvanceRequests)
+      .values(request)
+      .returning();
+    return newRequest;
+  }
+
+  async approveStaffAdvanceRequest(id: number, approvedBy: string, approvalNotes?: string): Promise<StaffAdvanceRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(staffAdvanceRequests)
+      .set({
+        requestStatus: 'approved',
+        approvedBy,
+        approvedAt: new Date(),
+        approvalNotes,
+      })
+      .where(eq(staffAdvanceRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async rejectStaffAdvanceRequest(id: number, rejectedBy: string, rejectionReason: string): Promise<StaffAdvanceRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(staffAdvanceRequests)
+      .set({
+        requestStatus: 'rejected',
+        approvedBy: rejectedBy,
+        approvedAt: new Date(),
+        rejectionReason,
+      })
+      .where(eq(staffAdvanceRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async payStaffAdvanceRequest(id: number, paidBy: string, paymentMethod: string, paymentReference?: string): Promise<StaffAdvanceRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(staffAdvanceRequests)
+      .set({
+        requestStatus: 'paid',
+        paidBy,
+        paidAt: new Date(),
+        paymentMethod,
+        paymentReference,
+      })
+      .where(eq(staffAdvanceRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async getStaffMonthlySalary(organizationId: string, staffId: string, month: string): Promise<{
+    baseSalary: number;
+    overtimeHours: number;
+    overtimePay: number;
+    advanceDeductions: number;
+    bonuses: number;
+    netPay: number;
+    paymentStatus: string;
+  }> {
+    // Get staff salary settings
+    const [staffSalary] = await db
+      .select()
+      .from(staffSalaries)
+      .where(and(
+        eq(staffSalaries.organizationId, organizationId),
+        eq(staffSalaries.staffId, staffId)
+      ));
+
+    // Get advance deductions for the month
+    const advanceDeductions = await db
+      .select({ totalDeducted: sum(staffAdvanceRequests.monthlyDeductionAmount) })
+      .from(staffAdvanceRequests)
+      .where(and(
+        eq(staffAdvanceRequests.organizationId, organizationId),
+        eq(staffAdvanceRequests.staffId, staffId),
+        eq(staffAdvanceRequests.deductionStartMonth, month)
+      ));
+
+    const baseSalary = parseFloat(staffSalary?.baseSalary || '0');
+    const deductions = parseFloat(advanceDeductions[0]?.totalDeducted || '0');
+
+    return {
+      baseSalary,
+      overtimeHours: 0,
+      overtimePay: 0,
+      advanceDeductions: deductions,
+      bonuses: 0,
+      netPay: baseSalary - deductions,
+      paymentStatus: 'pending',
+    };
+  }
+
+  // Balance Reset Control Methods (Admin Only)
+  async getUsersForBalanceReset(organizationId: string): Promise<Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+    currentBalance: number;
+    pendingPayouts: number;
+  }>> {
+    const users = await db
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        role: users.role,
+      })
+      .from(users)
+      .where(and(
+        eq(users.organizationId, organizationId),
+        inArray(users.role, ['owner', 'portfolio-manager', 'retail-agent', 'referral-agent'])
+      ));
+
+    // Calculate balances for each user
+    const usersWithBalances = await Promise.all(
+      users.map(async (user) => {
+        const balance = await this.getUserBalanceSummary(organizationId, user.id);
+        return {
+          ...user,
+          currentBalance: balance.currentBalance,
+          pendingPayouts: balance.pendingPayouts,
+        };
+      })
+    );
+
+    return usersWithBalances;
+  }
+
+  async getUserBalanceSummary(organizationId: string, userId: string): Promise<{
+    currentBalance: number;
+    pendingPayouts: number;
+    totalEarnings: number;
+    totalExpenses: number;
+    commissions: number;
+  }> {
+    // Get owner balance if exists
+    const [ownerBalance] = await db
+      .select()
+      .from(ownerBalances)
+      .where(and(
+        eq(ownerBalances.organizationId, organizationId),
+        eq(ownerBalances.ownerId, userId)
+      ));
+
+    // Get pending payouts
+    const pendingPayouts = await db
+      .select({ amount: sum(ownerPayoutRequests.requestedAmount) })
+      .from(ownerPayoutRequests)
+      .where(and(
+        eq(ownerPayoutRequests.organizationId, organizationId),
+        eq(ownerPayoutRequests.ownerId, userId),
+        eq(ownerPayoutRequests.requestStatus, 'pending')
+      ));
+
+    // Get commission earnings
+    const commissions = await db
+      .select({ amount: sum(commissionEarnings.commissionAmount) })
+      .from(commissionEarnings)
+      .where(and(
+        eq(commissionEarnings.organizationId, organizationId),
+        eq(commissionEarnings.portfolioManagerId, userId)
+      ));
+
+    return {
+      currentBalance: parseFloat(ownerBalance?.currentBalance || '0'),
+      pendingPayouts: parseFloat(pendingPayouts[0]?.amount || '0'),
+      totalEarnings: parseFloat(ownerBalance?.totalEarnings || '0'),
+      totalExpenses: parseFloat(ownerBalance?.totalExpenses || '0'),
+      commissions: parseFloat(commissions[0]?.amount || '0'),
+    };
+  }
+
+  async resetUserBalance(organizationId: string, userId: string, adminUserId: string, reason: string): Promise<{
+    success: boolean;
+    previousBalance: number;
+    resetAmount: number;
+  }> {
+    const balanceSummary = await this.getUserBalanceSummary(organizationId, userId);
+    const previousBalance = balanceSummary.currentBalance;
+
+    // Reset owner balance if exists
+    await db
+      .update(ownerBalances)
+      .set({
+        currentBalance: '0.00',
+        totalEarnings: '0.00',
+        totalExpenses: '0.00',
+        totalPayoutsRequested: '0.00',
+        totalPayoutsPaid: '0.00',
+        thisMonthEarnings: '0.00',
+        thisMonthExpenses: '0.00',
+        thisMonthNet: '0.00',
+        lastCalculated: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(ownerBalances.organizationId, organizationId),
+        eq(ownerBalances.ownerId, userId)
+      ));
+
+    // Log the balance reset
+    await db.insert(balanceResetAudit).values({
+      organizationId,
+      userId,
+      adminUserId,
+      resetReason: reason,
+      previousBalance: previousBalance.toString(),
+      resetAmount: previousBalance.toString(),
+      resetDate: new Date(),
+    });
+
+    return {
+      success: true,
+      previousBalance,
+      resetAmount: previousBalance,
+    };
+  }
+
+  async getBalanceResetAuditLog(organizationId: string, userId?: string): Promise<BalanceResetAudit[]> {
+    let query = db
+      .select()
+      .from(balanceResetAudit)
+      .where(eq(balanceResetAudit.organizationId, organizationId));
+
+    if (userId) {
+      query = query.where(eq(balanceResetAudit.userId, userId));
+    }
+
+    return await query.orderBy(desc(balanceResetAudit.createdAt));
+  }
+
+  // Cross-Module Analytics & Reporting
+  async getFinancialControlsDashboard(organizationId: string): Promise<{
+    totalOwnerBalances: number;
+    pendingPayouts: number;
+    monthlyInvoiceCount: number;
+    portfolioManagerEarnings: number;
+    staffAdvanceRequests: number;
+    systemHealth: string;
+  }> {
+    // Get total owner balances
+    const totalBalances = await db
+      .select({ total: sum(ownerBalances.currentBalance) })
+      .from(ownerBalances)
+      .where(eq(ownerBalances.organizationId, organizationId));
+
+    // Get pending payouts
+    const pendingPayouts = await db
+      .select({ total: sum(ownerPayoutRequests.requestedAmount) })
+      .from(ownerPayoutRequests)
+      .where(and(
+        eq(ownerPayoutRequests.organizationId, organizationId),
+        eq(ownerPayoutRequests.requestStatus, 'pending')
+      ));
+
+    // Get monthly invoice count
+    const monthlyInvoices = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(invoices)
+      .where(and(
+        eq(invoices.organizationId, organizationId),
+        sql`EXTRACT(MONTH FROM ${invoices.createdAt}) = EXTRACT(MONTH FROM CURRENT_DATE)`
+      ));
+
+    // Get PM earnings
+    const pmEarnings = await db
+      .select({ total: sum(commissionEarnings.commissionAmount) })
+      .from(commissionEarnings)
+      .where(eq(commissionEarnings.organizationId, organizationId));
+
+    // Get staff advance requests
+    const staffRequests = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(staffAdvanceRequests)
+      .where(and(
+        eq(staffAdvanceRequests.organizationId, organizationId),
+        eq(staffAdvanceRequests.requestStatus, 'pending')
+      ));
+
+    return {
+      totalOwnerBalances: parseFloat(totalBalances[0]?.total || '0'),
+      pendingPayouts: parseFloat(pendingPayouts[0]?.total || '0'),
+      monthlyInvoiceCount: monthlyInvoices[0]?.count || 0,
+      portfolioManagerEarnings: parseFloat(pmEarnings[0]?.total || '0'),
+      staffAdvanceRequests: staffRequests[0]?.count || 0,
+      systemHealth: 'operational',
+    };
+  }
+
+  // ===== ENHANCED FINANCIAL CONTROLS MOCK IMPLEMENTATIONS =====
+
+  // Owner Balance Dashboard Methods
+  async getEnhancedOwnerBalances(organizationId: string, ownerId?: string, propertyId?: number): Promise<any[]> {
+    // Mock implementation with realistic data
+    const mockOwnerBalances = [
+      {
+        id: 1,
+        ownerId: "demo-owner",
+        ownerName: "Jacky Testuser",
+        currentBalance: "45750.00",
+        thisMonthEarnings: "12350.00",
+        pendingPayouts: "8500.00",
+        propertyCount: 2,
+        lastCalculated: new Date(),
+        lastPayoutDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
+      },
+      {
+        id: 2,
+        ownerId: "demo-owner-2",
+        ownerName: "Sarah Johnson",
+        currentBalance: "32100.00",
+        thisMonthEarnings: "9840.00",
+        pendingPayouts: "5200.00",
+        propertyCount: 1,
+        lastCalculated: new Date(),
+        lastPayoutDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
+      },
+      {
+        id: 3,
+        ownerId: "demo-owner-3",
+        ownerName: "Michael Chen",
+        currentBalance: "67890.00",
+        thisMonthEarnings: "18500.00",
+        pendingPayouts: "12000.00",
+        propertyCount: 3,
+        lastCalculated: new Date(),
+        lastPayoutDate: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000), // 22 days ago
+      }
+    ];
+
+    if (ownerId) {
+      return mockOwnerBalances.filter(balance => balance.ownerId === ownerId);
+    }
+
+    return mockOwnerBalances;
+  }
+
+  async getOwnerFinancialSummary(organizationId: string, ownerId: string): Promise<any> {
+    return {
+      totalEarnings: 125430.50,
+      totalExpenses: 23650.75,
+      netBalance: 101779.75,
+      pendingPayouts: 8500.00,
+      thisMonthIncome: 12350.00,
+      thisMonthExpenses: 3200.00,
+      propertiesOwned: 2,
+      averageMonthlyIncome: 10452.54,
+      lastPayoutAmount: 15000.00,
+      lastPayoutDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+    };
+  }
+
+  // Owner Payout Request Methods
+  async getOwnerPayoutRequests(organizationId: string, ownerId?: string, filters?: any): Promise<any[]> {
+    const mockPayoutRequests = [
+      {
+        id: 1,
+        organizationId,
+        ownerId: "demo-owner",
+        ownerName: "Jacky Testuser",
+        requestedAmount: "15000.00",
+        requestStatus: "pending",
+        paymentMethod: "Bank Transfer",
+        requestedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        requestedBy: "demo-owner",
+        description: "Monthly payout request",
+        currency: "THB"
+      },
+      {
+        id: 2,
+        organizationId,
+        ownerId: "demo-owner",
+        ownerName: "Jacky Testuser",
+        requestedAmount: "8500.00",
+        requestStatus: "approved",
+        paymentMethod: "Bank Transfer",
+        requestedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+        approvedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
+        requestedBy: "demo-owner",
+        description: "Emergency payout request",
+        currency: "THB"
+      },
+      {
+        id: 3,
+        organizationId,
+        ownerId: "demo-owner-2",
+        ownerName: "Sarah Johnson",
+        requestedAmount: "12000.00",
+        requestStatus: "payment_uploaded",
+        paymentMethod: "Wire Transfer",
+        requestedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        approvedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+        requestedBy: "demo-owner-2",
+        description: "Quarterly payout request",
+        currency: "THB"
+      }
+    ];
+
+    let filteredRequests = mockPayoutRequests;
+
+    if (ownerId) {
+      filteredRequests = filteredRequests.filter(req => req.ownerId === ownerId);
+    }
+
+    if (filters?.status && filters.status !== 'all') {
+      filteredRequests = filteredRequests.filter(req => req.requestStatus === filters.status);
+    }
+
+    return filteredRequests;
+  }
+
+  async createOwnerPayoutRequest(requestData: any): Promise<any> {
+    const newRequest = {
+      id: Date.now(), // Simple ID generation for mock
+      ...requestData,
+      createdAt: new Date(),
+    };
+    
+    return newRequest;
+  }
+
+  // Enhanced Invoice Tool Methods
+  async getInvoiceTemplates(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        templateName: "Monthly Management Fee",
+        templateType: "management_fee",
+        defaultTaxRate: "7.00",
+        isActive: true,
+        createdAt: new Date(),
+      },
+      {
+        id: 2,
+        organizationId,
+        templateName: "Owner Commission Invoice",
+        templateType: "owner_commission",
+        defaultTaxRate: "7.00",
+        isActive: true,
+        createdAt: new Date(),
+      }
+    ];
+  }
+
+  async getEnhancedInvoices(organizationId: string, filters?: any): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        invoiceNumber: "INV-2024-001",
+        invoiceType: "management_fee",
+        totalAmount: "12500.00",
+        invoiceStatus: "paid",
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        senderType: "management",
+        recipientType: "owner"
+      }
+    ];
+  }
+
+  // Portfolio Manager Earnings Methods
+  async getPortfolioManagerEarnings(organizationId: string, pmId?: string, filters?: any): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        portfolioManagerId: "demo-portfolio-manager",
+        pmName: "Dean Testmanager",
+        earningsMonth: "2024-12",
+        totalEarnings: "45200.00",
+        propertyCount: 5,
+        commissionRate: "15.00",
+        payoutStatus: "pending",
+        earningsDate: new Date(),
+      }
+    ];
+  }
+
+  async getPortfolioManagerSummary(organizationId: string, pmId: string): Promise<any> {
+    return {
+      totalEarnings: 542500.00,
+      propertiesManaged: 5,
+      pendingPayouts: 45200.00,
+      thisMonthEarnings: 45200.00,
+      averageMonthlyEarnings: 38750.00,
+      totalCommissions: 542500.00,
+      lastPayoutDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+    };
+  }
+
+  // Staff Salary & Advance Request Methods
+  async getStaffAdvanceRequests(organizationId: string, staffId?: string, filters?: any): Promise<any[]> {
+    const mockAdvanceRequests = [
+      {
+        id: 1,
+        organizationId,
+        staffId: "demo-staff",
+        staffName: "Anna Housekeeper",
+        requestedAmount: "5000.00",
+        requestStatus: "pending",
+        urgencyLevel: "normal",
+        requestReason: "Emergency medical expenses",
+        requestedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+        requestedBy: "demo-staff",
+        expectedDeductionMonths: 3,
+      },
+      {
+        id: 2,
+        organizationId,
+        staffId: "demo-staff-2",
+        staffName: "Tom Maintenance",
+        requestedAmount: "3000.00",
+        requestStatus: "approved",
+        urgencyLevel: "low",
+        requestReason: "Home renovation",
+        requestedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        approvedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+        requestedBy: "demo-staff-2",
+        expectedDeductionMonths: 2,
+      }
+    ];
+
+    let filteredRequests = mockAdvanceRequests;
+
+    if (staffId) {
+      filteredRequests = filteredRequests.filter(req => req.staffId === staffId);
+    }
+
+    if (filters?.requestStatus) {
+      filteredRequests = filteredRequests.filter(req => req.requestStatus === filters.requestStatus);
+    }
+
+    if (filters?.urgencyLevel) {
+      filteredRequests = filteredRequests.filter(req => req.urgencyLevel === filters.urgencyLevel);
+    }
+
+    return filteredRequests;
+  }
+
+  async createStaffAdvanceRequest(requestData: any): Promise<any> {
+    const newRequest = {
+      id: Date.now(), // Simple ID generation for mock
+      ...requestData,
+      createdAt: new Date(),
+    };
+    
+    return newRequest;
+  }
+
+  // Balance Reset Control Methods (Admin Only)
+  async getUsersForBalanceReset(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: "demo-owner",
+        firstName: "Jacky",
+        lastName: "Testuser",
+        email: "jacky@example.com",
+        role: "owner",
+        currentBalance: 45750.00,
+        pendingPayouts: 8500.00,
+      },
+      {
+        id: "demo-portfolio-manager",
+        firstName: "Dean",
+        lastName: "Testmanager", 
+        email: "dean@example.com",
+        role: "portfolio-manager",
+        currentBalance: 45200.00,
+        pendingPayouts: 45200.00,
+      },
+      {
+        id: "demo-staff",
+        firstName: "Anna",
+        lastName: "Housekeeper",
+        email: "anna@example.com",
+        role: "staff",
+        currentBalance: -2500.00, // Negative due to advance
+        pendingPayouts: 0,
+      },
+      {
+        id: "demo-retail-agent",
+        firstName: "Mike",
+        lastName: "Booking",
+        email: "mike@example.com",
+        role: "retail-agent",
+        currentBalance: 15200.00,
+        pendingPayouts: 5000.00,
+      }
+    ];
+  }
+
+  async resetUserBalance(organizationId: string, userId: string, adminId: string, reason: string): Promise<any> {
+    // Mock implementation - in real system, this would:
+    // 1. Reset the user's balance to 0
+    // 2. Log the action in audit trail
+    // 3. Notify relevant parties
+    
+    return {
+      success: true,
+      message: `Balance reset completed for user ${userId}`,
+      resetBy: adminId,
+      resetReason: reason,
+      resetAt: new Date(),
+      previousBalance: 45750.00, // Mock previous balance
+      newBalance: 0,
+    };
+  }
+
+  // Financial Controls Dashboard Method
+  async getFinancialControlsDashboard(organizationId: string): Promise<any> {
+    return {
+      totalOwnerBalances: 145740.00,
+      pendingPayouts: 25700.00,
+      monthlyInvoiceCount: 42,
+      portfolioManagerEarnings: 45200.00,
+      staffAdvanceRequests: 2,
+      systemHealth: "Operational",
+      totalUsers: 15,
+      activeProperties: 8,
+      pendingApprovals: 5,
+      lastCalculated: new Date(),
+    };
   }
 }
 
