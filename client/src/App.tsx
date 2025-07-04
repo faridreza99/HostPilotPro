@@ -94,6 +94,7 @@ import SmartInventoryDashboard from "@/pages/SmartInventoryDashboard";
 import ServiceMarketplaceDashboard from "@/pages/ServiceMarketplaceDashboard";
 import OwnerOnboardingSystem from "@/pages/OwnerOnboardingSystem";
 import EnhancedGuestDashboard from "@/pages/EnhancedGuestDashboard";
+import GuestCheckoutSurvey from "@/pages/GuestCheckoutSurvey";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -201,6 +202,7 @@ function Router() {
         <Route path="/guest-portal-ai-feedback" component={GuestPortalAiFeedbackDashboard} />
         <Route path="/guest-addon-services" component={GuestAddonServices} />
         <Route path="/enhanced-guest-dashboard" component={EnhancedGuestDashboard} />
+        <Route path="/guest-checkout-survey" component={GuestCheckoutSurvey} />
         <Route path="/recurring-services" component={RecurringServicesBilling} />
         <Route path="/referral-agent" component={ReferralAgentDashboard} />
         <Route path="/retail-booking" component={RetailAgentBooking} />

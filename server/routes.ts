@@ -15487,6 +15487,216 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== GUEST CHECKOUT SURVEY API ROUTES =====
+
+  // Get guest checkout surveys
+  app.get("/api/guest-checkout-surveys", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const { guestId, propertyId, surveyType, startDate, endDate } = req.query;
+      
+      const filters: any = {};
+      if (guestId) filters.guestId = guestId as string;
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (surveyType) filters.surveyType = surveyType as string;
+      if (startDate && endDate) {
+        filters.dateRange = {
+          start: new Date(startDate as string),
+          end: new Date(endDate as string)
+        };
+      }
+      
+      const surveys = await storage.getGuestCheckoutSurveys(organizationId, filters);
+      res.json(surveys);
+    } catch (error) {
+      console.error("Error fetching guest checkout surveys:", error);
+      res.status(500).json({ message: "Failed to fetch surveys" });
+    }
+  });
+
+  // Get guest checkout survey by ID
+  app.get("/api/guest-checkout-surveys/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const survey = await storage.getGuestCheckoutSurvey(parseInt(req.params.id));
+      if (!survey) {
+        return res.status(404).json({ message: "Survey not found" });
+      }
+      res.json(survey);
+    } catch (error) {
+      console.error("Error fetching guest checkout survey:", error);
+      res.status(500).json({ message: "Failed to fetch survey" });
+    }
+  });
+
+  // Create new guest checkout survey (public route for guests)
+  app.post("/api/guest-checkout-surveys", async (req, res) => {
+    try {
+      const surveyData = {
+        ...req.body,
+        organizationId: req.body.organizationId || "default",
+      };
+
+      // Validate required fields
+      if (!surveyData.guestId) {
+        return res.status(400).json({ message: "Guest ID is required" });
+      }
+
+      const survey = await storage.createGuestCheckoutSurvey(surveyData);
+      res.status(201).json(survey);
+    } catch (error) {
+      console.error("Error creating guest checkout survey:", error);
+      res.status(500).json({ message: "Failed to create survey" });
+    }
+  });
+
+  // Update guest checkout survey (admin only)
+  app.put("/api/guest-checkout-surveys/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const updated = await storage.updateGuestCheckoutSurvey(parseInt(req.params.id), req.body);
+      if (!updated) {
+        return res.status(404).json({ message: "Survey not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating guest checkout survey:", error);
+      res.status(500).json({ message: "Failed to update survey" });
+    }
+  });
+
+  // Review guest survey (admin/PM only)
+  app.post("/api/guest-checkout-surveys/:id/review", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { adminNotes } = req.body;
+      const updated = await storage.reviewGuestSurvey(
+        parseInt(req.params.id),
+        req.user.id,
+        adminNotes
+      );
+      if (!updated) {
+        return res.status(404).json({ message: "Survey not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error reviewing guest survey:", error);
+      res.status(500).json({ message: "Failed to review survey" });
+    }
+  });
+
+  // Get survey settings
+  app.get("/api/survey-settings", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const { propertyId } = req.query;
+      
+      const settings = await storage.getSurveySettings(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching survey settings:", error);
+      res.status(500).json({ message: "Failed to fetch survey settings" });
+    }
+  });
+
+  // Create or update survey settings
+  app.post("/api/survey-settings", isDemoAuthenticated, async (req, res) => {
+    try {
+      const settingsData = {
+        ...req.body,
+        organizationId: req.user.organizationId,
+      };
+      
+      const settings = await storage.createSurveySettings(settingsData);
+      res.status(201).json(settings);
+    } catch (error) {
+      console.error("Error creating survey settings:", error);
+      res.status(500).json({ message: "Failed to create survey settings" });
+    }
+  });
+
+  // Get survey alerts
+  app.get("/api/survey-alerts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const { severity, resolved, alertType } = req.query;
+      
+      const filters: any = {};
+      if (severity) filters.severity = severity as string;
+      if (resolved !== undefined) filters.resolved = resolved === 'true';
+      if (alertType) filters.alertType = alertType as string;
+      
+      const alerts = await storage.getSurveyAlerts(organizationId, filters);
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching survey alerts:", error);
+      res.status(500).json({ message: "Failed to fetch survey alerts" });
+    }
+  });
+
+  // Resolve survey alert
+  app.post("/api/survey-alerts/:id/resolve", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { resolutionNotes } = req.body;
+      const updated = await storage.resolveSurveyAlert(
+        parseInt(req.params.id),
+        req.user.id,
+        resolutionNotes
+      );
+      if (!updated) {
+        return res.status(404).json({ message: "Alert not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error resolving survey alert:", error);
+      res.status(500).json({ message: "Failed to resolve alert" });
+    }
+  });
+
+  // Get survey analytics
+  app.get("/api/survey-analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const { propertyId, period } = req.query;
+      
+      const analytics = await storage.getSurveyAnalytics(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined,
+        period as string
+      );
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching survey analytics:", error);
+      res.status(500).json({ message: "Failed to fetch survey analytics" });
+    }
+  });
+
+  // Generate survey analytics (admin only)
+  app.post("/api/survey-analytics/generate", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const { propertyId } = req.body;
+      
+      await storage.generateSurveyAnalytics(organizationId, propertyId);
+      res.json({ message: "Analytics generated successfully" });
+    } catch (error) {
+      console.error("Error generating survey analytics:", error);
+      res.status(500).json({ message: "Failed to generate analytics" });
+    }
+  });
+
+  // Get demo survey data (for testing)
+  app.get("/api/guest-checkout-surveys/demo", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user.organizationId;
+      const demoData = await storage.getGuestSurveyDemoData(organizationId);
+      res.json(demoData);
+    } catch (error) {
+      console.error("Error fetching demo survey data:", error);
+      res.status(500).json({ message: "Failed to fetch demo data" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

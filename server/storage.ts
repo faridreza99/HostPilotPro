@@ -26541,6 +26541,381 @@ Plant Care:
       })),
     };
   }
+  // ===== GUEST CHECKOUT SURVEY OPERATIONS =====
+
+  // Survey operations
+  async getGuestCheckoutSurveys(organizationId: string, filters?: { 
+    guestId?: string; 
+    propertyId?: number; 
+    surveyType?: string; 
+    dateRange?: { start: Date; end: Date } 
+  }): Promise<GuestCheckoutSurvey[]> {
+    const conditions = [eq(guestCheckoutSurveys.organizationId, organizationId)];
+    
+    if (filters?.guestId) {
+      conditions.push(eq(guestCheckoutSurveys.guestId, filters.guestId));
+    }
+    if (filters?.propertyId) {
+      conditions.push(eq(guestCheckoutSurveys.propertyId, filters.propertyId));
+    }
+    if (filters?.surveyType) {
+      conditions.push(eq(guestCheckoutSurveys.surveyType, filters.surveyType));
+    }
+    if (filters?.dateRange) {
+      conditions.push(
+        and(
+          gte(guestCheckoutSurveys.submittedAt, filters.dateRange.start),
+          lte(guestCheckoutSurveys.submittedAt, filters.dateRange.end)
+        )
+      );
+    }
+
+    return await db.select().from(guestCheckoutSurveys)
+      .where(and(...conditions))
+      .orderBy(desc(guestCheckoutSurveys.submittedAt));
+  }
+
+  async getGuestCheckoutSurvey(id: number): Promise<GuestCheckoutSurvey | undefined> {
+    const [survey] = await db.select().from(guestCheckoutSurveys)
+      .where(eq(guestCheckoutSurveys.id, id));
+    return survey;
+  }
+
+  async createGuestCheckoutSurvey(survey: InsertGuestCheckoutSurvey): Promise<GuestCheckoutSurvey> {
+    // Calculate average rating from all provided ratings
+    const ratings = [
+      survey.ratingCheckIn,
+      survey.ratingCleanliness,
+      survey.ratingProperty,
+      survey.ratingLocation,
+      survey.ratingTeam,
+      survey.ratingCommunication,
+      survey.ratingOverall
+    ].filter(rating => rating !== null && rating !== undefined) as number[];
+    
+    const averageRating = ratings.length > 0 
+      ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length 
+      : 0;
+
+    // Simulate AI sentiment analysis (in production, this would call OpenAI API)
+    let sentimentScore = 0;
+    let sentimentCategory = 'neutral';
+    let flaggedForReview = false;
+
+    if (survey.improvementSuggestions || survey.additionalComments) {
+      const textContent = `${survey.improvementSuggestions || ''} ${survey.additionalComments || ''}`.toLowerCase();
+      
+      // Simple sentiment analysis simulation
+      const positiveWords = ['great', 'excellent', 'amazing', 'wonderful', 'perfect', 'love', 'fantastic'];
+      const negativeWords = ['bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'disgusting', 'dirty'];
+      
+      const positiveCount = positiveWords.reduce((count, word) => 
+        count + (textContent.includes(word) ? 1 : 0), 0);
+      const negativeCount = negativeWords.reduce((count, word) => 
+        count + (textContent.includes(word) ? 1 : 0), 0);
+      
+      sentimentScore = (positiveCount - negativeCount) / Math.max(positiveCount + negativeCount, 1);
+      
+      if (sentimentScore > 0.3) {
+        sentimentCategory = 'positive';
+      } else if (sentimentScore < -0.3) {
+        sentimentCategory = 'negative';
+      }
+    }
+
+    // Flag for review if average rating < 4.5 or negative sentiment
+    if (averageRating < 4.5 || sentimentCategory === 'negative') {
+      flaggedForReview = true;
+    }
+
+    const surveyWithAnalysis = {
+      ...survey,
+      averageRating,
+      sentimentScore,
+      sentimentCategory,
+      flaggedForReview
+    };
+
+    const [newSurvey] = await db.insert(guestCheckoutSurveys)
+      .values(surveyWithAnalysis)
+      .returning();
+
+    // Create alert if flagged for review
+    if (flaggedForReview) {
+      await this.createSurveyAlert({
+        organizationId: survey.organizationId,
+        surveyId: newSurvey.id,
+        alertType: averageRating < 3.0 ? 'low_rating' : 'negative_feedback',
+        severity: averageRating < 3.0 ? 'high' : 'medium',
+        recipientRoles: ['admin', 'portfolio-manager'],
+        alertMessage: `Guest survey flagged for review - Average rating: ${averageRating.toFixed(1)}/5, Sentiment: ${sentimentCategory}`,
+        actionRequired: true
+      });
+    }
+
+    return newSurvey;
+  }
+
+  async updateGuestCheckoutSurvey(id: number, survey: Partial<InsertGuestCheckoutSurvey>): Promise<GuestCheckoutSurvey | undefined> {
+    const [updated] = await db.update(guestCheckoutSurveys)
+      .set({ ...survey, updatedAt: new Date() })
+      .where(eq(guestCheckoutSurveys.id, id))
+      .returning();
+    return updated;
+  }
+
+  async reviewGuestSurvey(id: number, reviewedBy: string, adminNotes?: string): Promise<GuestCheckoutSurvey | undefined> {
+    const [updated] = await db.update(guestCheckoutSurveys)
+      .set({
+        reviewedBy,
+        reviewedAt: new Date(),
+        adminNotes,
+        updatedAt: new Date()
+      })
+      .where(eq(guestCheckoutSurveys.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Survey settings operations
+  async getSurveySettings(organizationId: string, propertyId?: number): Promise<SurveySettings | undefined> {
+    const conditions = [eq(surveySettings.organizationId, organizationId)];
+    
+    if (propertyId) {
+      conditions.push(eq(surveySettings.propertyId, propertyId));
+    }
+
+    const [settings] = await db.select().from(surveySettings)
+      .where(and(...conditions))
+      .orderBy(desc(surveySettings.createdAt))
+      .limit(1);
+    
+    return settings;
+  }
+
+  async createSurveySettings(settings: InsertSurveySettings): Promise<SurveySettings> {
+    const [newSettings] = await db.insert(surveySettings)
+      .values(settings)
+      .returning();
+    return newSettings;
+  }
+
+  async updateSurveySettings(id: number, settings: Partial<InsertSurveySettings>): Promise<SurveySettings | undefined> {
+    const [updated] = await db.update(surveySettings)
+      .set({ ...settings, updatedAt: new Date() })
+      .where(eq(surveySettings.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Survey alerts operations
+  async getSurveyAlerts(organizationId: string, filters?: { 
+    severity?: string; 
+    resolved?: boolean;
+    alertType?: string;
+  }): Promise<SurveyAlert[]> {
+    const conditions = [eq(surveyAlerts.organizationId, organizationId)];
+    
+    if (filters?.severity) {
+      conditions.push(eq(surveyAlerts.severity, filters.severity));
+    }
+    if (filters?.alertType) {
+      conditions.push(eq(surveyAlerts.alertType, filters.alertType));
+    }
+    if (filters?.resolved !== undefined) {
+      if (filters.resolved) {
+        conditions.push(isNotNull(surveyAlerts.resolvedAt));
+      } else {
+        conditions.push(isNull(surveyAlerts.resolvedAt));
+      }
+    }
+
+    return await db.select().from(surveyAlerts)
+      .where(and(...conditions))
+      .orderBy(desc(surveyAlerts.createdAt));
+  }
+
+  async createSurveyAlert(alert: InsertSurveyAlert): Promise<SurveyAlert> {
+    const [newAlert] = await db.insert(surveyAlerts)
+      .values(alert)
+      .returning();
+    return newAlert;
+  }
+
+  async resolveSurveyAlert(id: number, resolvedBy: string, resolutionNotes?: string): Promise<SurveyAlert | undefined> {
+    const [updated] = await db.update(surveyAlerts)
+      .set({
+        resolvedBy,
+        resolvedAt: new Date(),
+        resolutionNotes,
+        updatedAt: new Date()
+      })
+      .where(eq(surveyAlerts.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Survey analytics operations
+  async getSurveyAnalytics(organizationId: string, propertyId?: number, period?: string): Promise<SurveyAnalytics[]> {
+    const conditions = [eq(surveyAnalytics.organizationId, organizationId)];
+    
+    if (propertyId) {
+      conditions.push(eq(surveyAnalytics.propertyId, propertyId));
+    }
+    if (period) {
+      conditions.push(eq(surveyAnalytics.period, period));
+    }
+
+    return await db.select().from(surveyAnalytics)
+      .where(and(...conditions))
+      .orderBy(desc(surveyAnalytics.periodStart));
+  }
+
+  async generateSurveyAnalytics(organizationId: string, propertyId?: number): Promise<void> {
+    // This would typically be called by a cron job to generate analytics
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Get surveys for the current month
+    const surveys = await this.getGuestCheckoutSurveys(organizationId, {
+      propertyId,
+      dateRange: { start: startOfMonth, end: endOfMonth }
+    });
+
+    if (surveys.length === 0) return;
+
+    // Calculate analytics
+    const totalSurveys = surveys.length;
+    const completedSurveys = surveys.filter(s => s.averageRating !== null).length;
+    const completionRate = totalSurveys > 0 ? completedSurveys / totalSurveys : 0;
+
+    const ratings = surveys.filter(s => s.averageRating !== null);
+    const avgOverall = ratings.reduce((sum, s) => sum + (s.ratingOverall || 0), 0) / ratings.length || 0;
+    const avgCheckIn = ratings.reduce((sum, s) => sum + (s.ratingCheckIn || 0), 0) / ratings.length || 0;
+    const avgCleanliness = ratings.reduce((sum, s) => sum + (s.ratingCleanliness || 0), 0) / ratings.length || 0;
+    const avgProperty = ratings.reduce((sum, s) => sum + (s.ratingProperty || 0), 0) / ratings.length || 0;
+    const avgLocation = ratings.reduce((sum, s) => sum + (s.ratingLocation || 0), 0) / ratings.length || 0;
+    const avgTeam = ratings.reduce((sum, s) => sum + (s.ratingTeam || 0), 0) / ratings.length || 0;
+    const avgCommunication = ratings.reduce((sum, s) => sum + (s.ratingCommunication || 0), 0) / ratings.length || 0;
+
+    const positiveFeedback = surveys.filter(s => s.sentimentCategory === 'positive').length;
+    const neutralFeedback = surveys.filter(s => s.sentimentCategory === 'neutral').length;
+    const negativeFeedback = surveys.filter(s => s.sentimentCategory === 'negative').length;
+
+    const analyticsData: InsertSurveyAnalytics = {
+      organizationId,
+      propertyId: propertyId || null,
+      period: 'monthly',
+      periodStart: startOfMonth.toISOString().split('T')[0],
+      periodEnd: endOfMonth.toISOString().split('T')[0],
+      totalSurveys,
+      completedSurveys,
+      completionRate,
+      averageOverallRating: avgOverall,
+      averageCheckInRating: avgCheckIn,
+      averageCleanlinessRating: avgCleanliness,
+      averagePropertyRating: avgProperty,
+      averageLocationRating: avgLocation,
+      averageTeamRating: avgTeam,
+      averageCommunicationRating: avgCommunication,
+      positiveFeedbackCount: positiveFeedback,
+      neutralFeedbackCount: neutralFeedback,
+      negativeFeedbackCount: negativeFeedback,
+      publicReviewsGenerated: surveys.filter(s => s.averageRating && s.averageRating >= 4.5 && s.sentimentCategory === 'positive').length,
+      internalFlagsCreated: surveys.filter(s => s.flaggedForReview).length,
+      incentivesOffered: surveys.filter(s => s.incentiveOffered).length,
+      incentivesRedeemed: surveys.filter(s => s.incentiveRedeemed).length
+    };
+
+    await db.insert(surveyAnalytics).values(analyticsData);
+  }
+
+  // Demo survey data for testing
+  async getGuestSurveyDemoData(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        guestId: "guest_demo_001",
+        guestName: "Sarah Johnson",
+        propertyId: 1,
+        propertyName: "Villa Samui Breeze",
+        bookingId: 101,
+        surveyType: "checkout",
+        ratingCheckIn: 5,
+        ratingCleanliness: 4,
+        ratingProperty: 5,
+        ratingLocation: 5,
+        ratingTeam: 5,
+        ratingCommunication: 4,
+        ratingOverall: 5,
+        averageRating: 4.7,
+        improvementSuggestions: "The WiFi could be a bit faster, but overall everything was perfect!",
+        wouldRecommend: "Absolutely! This place exceeded our expectations. The pool area is stunning and the location is perfect for exploring Koh Samui.",
+        additionalComments: "Thank you for an amazing stay. We'll definitely be back!",
+        sentimentScore: 0.8,
+        sentimentCategory: "positive",
+        flaggedForReview: false,
+        submittedAt: "2025-01-02T14:30:00Z",
+        incentiveOffered: "10% discount on next stay",
+        incentiveRedeemed: false
+      },
+      {
+        id: 2,
+        guestId: "guest_demo_002",
+        guestName: "Michael Chen",
+        propertyId: 1,
+        propertyName: "Villa Samui Breeze",
+        bookingId: 102,
+        surveyType: "checkout",
+        ratingCheckIn: 3,
+        ratingCleanliness: 2,
+        ratingProperty: 3,
+        ratingLocation: 4,
+        ratingTeam: 3,
+        ratingCommunication: 2,
+        ratingOverall: 3,
+        averageRating: 2.9,
+        improvementSuggestions: "The bathroom needs better cleaning. We found hair in the shower and the towels smelled musty.",
+        wouldRecommend: "The location is good but the cleanliness standards need improvement. Also, the check-in process was confusing.",
+        additionalComments: "We were disappointed with the condition of the villa upon arrival.",
+        sentimentScore: -0.6,
+        sentimentCategory: "negative",
+        flaggedForReview: true,
+        submittedAt: "2025-01-01T16:45:00Z",
+        reviewedBy: "admin",
+        reviewedAt: "2025-01-02T09:00:00Z",
+        adminNotes: "Cleaning team has been notified. Following up with housekeeping supervisor."
+      },
+      {
+        id: 3,
+        guestId: "guest_demo_003",
+        guestName: "Emma Thompson",
+        propertyId: 2,
+        propertyName: "Villa Aruna Harmony",
+        bookingId: 103,
+        surveyType: "post_checkin",
+        ratingCheckIn: 5,
+        ratingCleanliness: 5,
+        ratingProperty: 4,
+        ratingLocation: 5,
+        ratingTeam: 5,
+        ratingCommunication: 5,
+        ratingOverall: 5,
+        averageRating: 4.9,
+        improvementSuggestions: "Maybe add some local restaurant recommendations in the welcome pack.",
+        wouldRecommend: "This villa is absolutely beautiful! The staff went above and beyond to make our stay special.",
+        additionalComments: "The welcome cocktails were a lovely touch. Thank you for the personalized service!",
+        sentimentScore: 0.9,
+        sentimentCategory: "positive",
+        flaggedForReview: false,
+        submittedAt: "2024-12-30T11:20:00Z",
+        incentiveOffered: "Complimentary late checkout",
+        incentiveRedeemed: true,
+        incentiveRedeemedAt: "2024-12-31T12:00:00Z"
+      }
+    ];
+  }
 }
 
 export const storage = new DatabaseStorage();

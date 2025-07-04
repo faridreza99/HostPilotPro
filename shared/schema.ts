@@ -10,10 +10,12 @@ import {
   decimal,
   boolean,
   date,
+  real,
+  json,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { relations } from "drizzle-orm";
+import { relations, gte, lte, and, isNotNull, isNull } from "drizzle-orm";
 
 // ===== MULTI-TENANT ARCHITECTURE =====
 // Organizations table for multi-tenant support
@@ -7687,6 +7689,183 @@ export type InsertGuestServiceTimeline = z.infer<typeof insertGuestServiceTimeli
 
 export type PropertyAmenity = typeof propertyAmenities.$inferSelect;
 export type InsertPropertyAmenity = z.infer<typeof insertPropertyAmenitySchema>;
+
+// ===== GUEST CHECKOUT SURVEY TABLES =====
+
+// Guest checkout surveys
+export const guestCheckoutSurveys = pgTable("guest_checkout_surveys", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull().default("default"),
+  guestId: varchar("guest_id").notNull(),
+  bookingId: integer("booking_id"),
+  propertyId: integer("property_id"),
+  surveyType: varchar("survey_type").notNull().default("checkout"), // checkout, post_checkin, feedback
+  
+  // Rating questions (1-5 stars)
+  ratingCheckIn: integer("rating_check_in"),
+  ratingCleanliness: integer("rating_cleanliness"),
+  ratingProperty: integer("rating_property"),
+  ratingLocation: integer("rating_location"),
+  ratingTeam: integer("rating_team"),
+  ratingCommunication: integer("rating_communication"),
+  ratingOverall: integer("rating_overall"),
+  
+  // Text feedback
+  improvementSuggestions: text("improvement_suggestions"),
+  wouldRecommend: text("would_recommend"),
+  additionalComments: text("additional_comments"),
+  
+  // AI analysis
+  sentimentScore: real("sentiment_score"), // -1 to 1
+  sentimentCategory: varchar("sentiment_category"), // positive, neutral, negative
+  averageRating: real("average_rating"),
+  flaggedForReview: boolean("flagged_for_review").default(false),
+  
+  // Status and metadata
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  reviewedBy: varchar("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at"),
+  adminNotes: text("admin_notes"),
+  
+  // Incentive tracking
+  incentiveOffered: varchar("incentive_offered"),
+  incentiveRedeemed: boolean("incentive_redeemed").default(false),
+  incentiveRedeemedAt: timestamp("incentive_redeemed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Survey response templates and settings
+export const surveySettings = pgTable("survey_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull().default("default"),
+  propertyId: integer("property_id"),
+  
+  // Survey triggers
+  enablePreCheckout: boolean("enable_pre_checkout").default(true),
+  enablePostCheckin: boolean("enable_post_checkin").default(false),
+  enablePermanentFeedback: boolean("enable_permanent_feedback").default(true),
+  
+  // Timing settings
+  preCheckoutDays: integer("pre_checkout_days").default(1),
+  postCheckinDays: integer("post_checkin_days").default(1),
+  
+  // Review platform links
+  airbnbReviewLink: varchar("airbnb_review_link"),
+  bookingReviewLink: varchar("booking_review_link"),
+  googleReviewLink: varchar("google_review_link"),
+  
+  // Sentiment thresholds
+  positiveThreshold: real("positive_threshold").default(4.5),
+  negativeThreshold: real("negative_threshold").default(3.0),
+  
+  // Incentive settings
+  incentiveType: varchar("incentive_type"), // coupon, early_checkin, late_checkout, discount
+  incentiveValue: varchar("incentive_value"),
+  incentiveDescription: text("incentive_description"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Survey alerts and notifications
+export const surveyAlerts = pgTable("survey_alerts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull().default("default"),
+  surveyId: integer("survey_id").references(() => guestCheckoutSurveys.id),
+  
+  alertType: varchar("alert_type").notNull(), // negative_feedback, low_rating, flagged_review
+  severity: varchar("severity").notNull().default("medium"), // low, medium, high, critical
+  
+  recipientRoles: json("recipient_roles").$type<string[]>().default([]), // admin, portfolio-manager, staff
+  notificationSent: boolean("notification_sent").default(false),
+  notificationSentAt: timestamp("notification_sent_at"),
+  
+  alertMessage: text("alert_message"),
+  actionRequired: boolean("action_required").default(false),
+  resolvedBy: varchar("resolved_by"),
+  resolvedAt: timestamp("resolved_at"),
+  resolutionNotes: text("resolution_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Survey analytics and reporting
+export const surveyAnalytics = pgTable("survey_analytics", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull().default("default"),
+  propertyId: integer("property_id"),
+  
+  period: varchar("period").notNull(), // daily, weekly, monthly, yearly
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  
+  totalSurveys: integer("total_surveys").default(0),
+  completedSurveys: integer("completed_surveys").default(0),
+  completionRate: real("completion_rate").default(0),
+  
+  averageOverallRating: real("average_overall_rating").default(0),
+  averageCheckInRating: real("average_check_in_rating").default(0),
+  averageCleanlinessRating: real("average_cleanliness_rating").default(0),
+  averagePropertyRating: real("average_property_rating").default(0),
+  averageLocationRating: real("average_location_rating").default(0),
+  averageTeamRating: real("average_team_rating").default(0),
+  averageCommunicationRating: real("average_communication_rating").default(0),
+  
+  positiveFeedbackCount: integer("positive_feedback_count").default(0),
+  neutralFeedbackCount: integer("neutral_feedback_count").default(0),
+  negativeFeedbackCount: integer("negative_feedback_count").default(0),
+  
+  publicReviewsGenerated: integer("public_reviews_generated").default(0),
+  internalFlagsCreated: integer("internal_flags_created").default(0),
+  incentivesOffered: integer("incentives_offered").default(0),
+  incentivesRedeemed: integer("incentives_redeemed").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ===== GUEST CHECKOUT SURVEY ZOD SCHEMAS =====
+
+export const insertGuestCheckoutSurveySchema = createInsertSchema(guestCheckoutSurveys).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSurveySettingsSchema = createInsertSchema(surveySettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSurveyAlertSchema = createInsertSchema(surveyAlerts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSurveyAnalyticsSchema = createInsertSchema(surveyAnalytics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// ===== GUEST CHECKOUT SURVEY TYPE DEFINITIONS =====
+
+export type GuestCheckoutSurvey = typeof guestCheckoutSurveys.$inferSelect;
+export type InsertGuestCheckoutSurvey = z.infer<typeof insertGuestCheckoutSurveySchema>;
+
+export type SurveySettings = typeof surveySettings.$inferSelect;
+export type InsertSurveySettings = z.infer<typeof insertSurveySettingsSchema>;
+
+export type SurveyAlert = typeof surveyAlerts.$inferSelect;
+export type InsertSurveyAlert = z.infer<typeof insertSurveyAlertSchema>;
+
+export type SurveyAnalytics = typeof surveyAnalytics.$inferSelect;
+export type InsertSurveyAnalytics = z.infer<typeof insertSurveyAnalyticsSchema>;
 
 // ===== PLATFORM ROUTING TYPES =====
 
