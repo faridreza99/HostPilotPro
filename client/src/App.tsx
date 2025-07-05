@@ -120,6 +120,7 @@ import BookingRevenueTransparency from "@/pages/BookingRevenueTransparency";
 import WaterUtilityEmergencyTruckRefillLog from "@/pages/WaterUtilityEmergencyTruckRefillLog";
 import PropertyGoalsInvestmentPlans from "@/pages/PropertyGoalsInvestmentPlans";
 import WaterUtilityEmergencyTracker from "@/pages/WaterUtilityEmergencyTracker";
+import OtaRevenueNetPayoutCalculation from "@/pages/OtaRevenueNetPayoutCalculation";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -207,6 +208,7 @@ function Router() {
         <Route path="/ai-notifications-reminders" component={AiNotificationsReminders} />
         <Route path="/property-goals-investment-plans" component={PropertyGoalsInvestmentPlans} />
         <Route path="/water-utility-emergency-tracker" component={WaterUtilityEmergencyTracker} />
+        <Route path="/ota-revenue-net-payout-calculation" component={OtaRevenueNetPayoutCalculation} />
         <Route path="/owner-onboarding-system" component={OwnerOnboardingSystem} />
         <Route path="/owner-onboarding-utility-settings" component={OwnerOnboardingUtilitySettings} />
         <Route path="/task-attachments-notes" component={TaskAttachmentsNotes} />

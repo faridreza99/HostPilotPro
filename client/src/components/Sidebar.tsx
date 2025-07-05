@@ -49,7 +49,8 @@ import {
   Eye,
   Brain,
   Droplets,
-  Target
+  Target,
+  Calculator
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Enhanced Financial Controls", icon: Shield, href: "/enhanced-financial-controls" },
           { label: "Booking Revenue Transparency", icon: BarChart3, href: "/booking-revenue-transparency", badge: "New" },
+          { label: "OTA Revenue & Net Payout", icon: BarChart3, href: "/ota-revenue-net-payout-calculation", badge: "New" },
           { label: "Financial Toolkit", icon: DollarSign, href: "/financial-toolkit" },
           { label: "Invoice Generator", icon: FileText, href: "/invoice-generator" },
           { label: "Booking Income Rules", icon: BarChart3, href: "/booking-income-rules" },
@@ -187,6 +189,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Enhanced Financial Controls", icon: Shield, href: "/enhanced-financial-controls" },
           { label: "Booking Revenue Transparency", icon: BarChart3, href: "/booking-revenue-transparency", badge: "New" },
+          { label: "OTA Revenue & Net Payout", icon: BarChart3, href: "/ota-revenue-net-payout-calculation", badge: "New" },
           { label: "Invoices", icon: FileText, href: "/invoice-generator" },
           { label: "Booking Income", icon: BarChart3, href: "/booking-income-rules" },
           { label: "Finance Engine", icon: Database, href: "/finance-engine" },
