@@ -2552,6 +2552,177 @@ export type WaterDeliveryAlert = typeof waterDeliveryAlerts.$inferSelect;
 export type InsertWaterUpgradeSuggestion = z.infer<typeof insertWaterUpgradeSuggestionSchema>;
 export type WaterUpgradeSuggestion = typeof waterUpgradeSuggestions.$inferSelect;
 
+// ===== BOOKING REVENUE & PAYOUT TRACKING =====
+// Comprehensive OTA booking revenue tracking with commission transparency
+export const bookingRevenue = pgTable("booking_revenue", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Reservation Details
+  reservationCode: varchar("reservation_code").notNull(),
+  guestName: varchar("guest_name").notNull(),
+  guestEmail: varchar("guest_email"),
+  checkInDate: date("check_in_date").notNull(),
+  checkOutDate: date("check_out_date").notNull(),
+  numberOfNights: integer("number_of_nights").notNull(),
+  numberOfGuests: integer("number_of_guests").notNull(),
+  
+  // OTA Platform Information
+  otaName: varchar("ota_name").notNull(), // Airbnb, Booking.com, VRBO, Direct, etc.
+  bookingType: varchar("booking_type").notNull().default("OTA"), // OTA, Direct
+  
+  // Financial Details (Core OTA Commission Logic)
+  guestBookingPrice: decimal("guest_booking_price", { precision: 10, scale: 2 }).notNull(), // Total paid by guest
+  otaPlatformFee: decimal("ota_platform_fee", { precision: 10, scale: 2 }).notNull(), // OTA commission
+  finalPayoutAmount: decimal("final_payout_amount", { precision: 10, scale: 2 }).notNull(), // Net received from OTA
+  currency: varchar("currency").notNull().default("THB"),
+  
+  // Payment & Status
+  paymentStatus: varchar("payment_status").notNull().default("pending"), // pending, paid, cancelled
+  payoutDate: date("payout_date"),
+  
+  // Commission Settings
+  isCommissionable: boolean("is_commissionable").default(true),
+  managementCommissionRate: decimal("management_commission_rate", { precision: 5, scale: 2 }).default("15.00"),
+  
+  // Integration Fields
+  hostAwayReservationId: varchar("hostaway_reservation_id"),
+  externalReservationId: varchar("external_reservation_id"),
+  
+  // Metadata
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Booking Revenue Commission Calculations
+export const bookingRevenueCommissions = pgTable("booking_revenue_commissions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  bookingRevenueId: integer("booking_revenue_id").references(() => bookingRevenue.id).notNull(),
+  
+  // Commission Breakdown (All calculated from finalPayoutAmount only)
+  managementCommissionAmount: decimal("management_commission_amount", { precision: 10, scale: 2 }).notNull(),
+  portfolioManagerCommissionAmount: decimal("portfolio_manager_commission_amount", { precision: 10, scale: 2 }).default("0.00"),
+  referralAgentCommissionAmount: decimal("referral_agent_commission_amount", { precision: 10, scale: 2 }).default("0.00"),
+  ownerNetAmount: decimal("owner_net_amount", { precision: 10, scale: 2 }).notNull(),
+  
+  // Commission Recipients
+  portfolioManagerId: varchar("portfolio_manager_id").references(() => users.id),
+  referralAgentId: varchar("referral_agent_id").references(() => users.id),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  
+  // Calculation Details
+  calculationDate: timestamp("calculation_date").defaultNow(),
+  calculatedBy: varchar("calculated_by").notNull(),
+  isFinalized: boolean("is_finalized").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// OTA Platform Settings (for commission rate management)
+export const otaPlatformSettings = pgTable("ota_platform_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  otaName: varchar("ota_name").notNull(),
+  isActive: boolean("is_active").default(true),
+  
+  // Commission Configuration
+  expectedCommissionRate: decimal("expected_commission_rate", { precision: 5, scale: 2 }).notNull(), // Expected OTA commission %
+  minimumPayoutThreshold: decimal("minimum_payout_threshold", { precision: 10, scale: 2 }).default("0.00"),
+  
+  // API Integration
+  apiConnectionStatus: varchar("api_connection_status").default("disconnected"), // connected, disconnected, error
+  lastSyncDate: timestamp("last_sync_date"),
+  autoSyncEnabled: boolean("auto_sync_enabled").default(false),
+  
+  // Settings
+  defaultCurrency: varchar("default_currency").default("THB"),
+  payoutFrequency: varchar("payout_frequency").default("monthly"), // daily, weekly, monthly
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Booking Revenue Relations
+export const bookingRevenueRelations = relations(bookingRevenue, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [bookingRevenue.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [bookingRevenue.propertyId],
+    references: [properties.id],
+  }),
+  commissions: many(bookingRevenueCommissions),
+}));
+
+export const bookingRevenueCommissionsRelations = relations(bookingRevenueCommissions, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [bookingRevenueCommissions.organizationId],
+    references: [organizations.id],
+  }),
+  bookingRevenue: one(bookingRevenue, {
+    fields: [bookingRevenueCommissions.bookingRevenueId],
+    references: [bookingRevenue.id],
+  }),
+  portfolioManager: one(users, {
+    fields: [bookingRevenueCommissions.portfolioManagerId],
+    references: [users.id],
+  }),
+  referralAgent: one(users, {
+    fields: [bookingRevenueCommissions.referralAgentId],
+    references: [users.id],
+  }),
+  owner: one(users, {
+    fields: [bookingRevenueCommissions.ownerId],
+    references: [users.id],
+  }),
+}));
+
+export const otaPlatformSettingsRelations = relations(otaPlatformSettings, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [otaPlatformSettings.organizationId],
+    references: [organizations.id],
+  }),
+  property: one(properties, {
+    fields: [otaPlatformSettings.propertyId],
+    references: [properties.id],
+  }),
+}));
+
+// Insert Schemas
+export const insertBookingRevenueSchema = createInsertSchema(bookingRevenue).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBookingRevenueCommissionsSchema = createInsertSchema(bookingRevenueCommissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOtaPlatformSettingsSchema = createInsertSchema(otaPlatformSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types
+export type InsertBookingRevenue = z.infer<typeof insertBookingRevenueSchema>;
+export type BookingRevenue = typeof bookingRevenue.$inferSelect;
+export type InsertBookingRevenueCommissions = z.infer<typeof insertBookingRevenueCommissionsSchema>;
+export type BookingRevenueCommissions = typeof bookingRevenueCommissions.$inferSelect;
+export type InsertOtaPlatformSettings = z.infer<typeof insertOtaPlatformSettingsSchema>;
+export type OtaPlatformSettings = typeof otaPlatformSettings.$inferSelect;
+
 export type InsertOwnerPayout = z.infer<typeof insertOwnerPayoutSchema>;
 export type OwnerPayout = typeof ownerPayouts.$inferSelect;
 

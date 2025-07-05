@@ -1,842 +1,1152 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import {
-  Download,
-  Edit,
-  AlertTriangle,
-  DollarSign,
-  TrendingUp,
-  Eye,
-  Filter,
-  Calendar,
-  Building,
-  Users,
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { 
+  DollarSign, 
+  TrendingUp, 
+  AlertCircle, 
+  Calendar, 
+  MapPin, 
+  Users, 
+  Building, 
   CreditCard,
-  Percent,
+  PiggyBank,
+  Eye,
+  EyeOff,
+  Filter,
+  Download,
+  Plus,
+  Edit,
+  Trash2,
   CheckCircle,
   XCircle,
-  Search,
-  Info,
+  Clock,
+  Banknote,
+  Target
 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
 
-// Form schema for manual revenue override
-const revenueOverrideSchema = z.object({
-  guestTotalPrice: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "Must be a valid positive number",
-  }),
-  otaCommissionPercentage: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100, {
-    message: "Must be between 0 and 100",
-  }),
-  stripeFees: z.string().optional(),
-  overrideReason: z.string().min(10, "Please explain why manual entry is needed"),
+// Zod schemas for form validation
+const bookingRevenueFormSchema = z.object({
+  propertyId: z.number(),
+  guestBookingPrice: z.number().min(0),
+  otaPlatformFee: z.number().min(0),
+  finalPayout: z.number().min(0),
+  reservationCode: z.string().min(1),
+  guestName: z.string().min(1),
+  guestEmail: z.string().email().optional(),
+  checkInDate: z.string(),
+  checkOutDate: z.string(),
+  bookingType: z.enum(["direct", "ota"]),
+  otaName: z.string().optional(),
+  paymentStatus: z.enum(["pending", "processing", "completed", "failed"]),
+  currency: z.string().default("USD"),
+  commissionRate: z.number().min(0).max(1),
+  notes: z.string().optional(),
 });
 
-type RevenueOverrideForm = z.infer<typeof revenueOverrideSchema>;
+type BookingRevenueForm = z.infer<typeof bookingRevenueFormSchema>;
 
-interface BookingRevenueData {
+// Types for data display
+interface BookingRevenue {
   id: number;
-  bookingReference: string;
-  hostawayId?: string;
-  guestName: string;
+  propertyId: number;
   propertyName: string;
-  checkIn: string;
-  checkOut: string;
-  bookingPlatform: string;
-  status: string;
-  guestTotalPrice?: number;
-  otaCommissionAmount?: number;
-  otaCommissionPercentage?: number;
-  platformPayout?: number;
-  stripeFees?: number;
-  netHostPayout?: number;
-  manualOverride: boolean;
-  overrideReason?: string;
-  revenueVerified: boolean;
+  guestBookingPrice: number;
+  otaPlatformFee: number;
+  finalPayout: number;
+  reservationCode: string;
+  guestName: string;
+  guestEmail?: string;
+  checkInDate: string;
+  checkOutDate: string;
+  bookingType: "direct" | "ota";
+  otaName?: string;
+  paymentStatus: "pending" | "processing" | "completed" | "failed";
   currency: string;
+  commissionRate: number;
+  notes?: string;
   createdAt: string;
+  updatedAt: string;
+  isVerified: boolean;
+}
+
+interface BookingCommission {
+  id: number;
+  bookingId: number;
+  userType: string;
+  userId: string;
+  userName: string;
+  commissionAmount: number;
+  commissionRate: number;
+  status: "pending" | "approved" | "paid";
+  calculatedAt: string;
 }
 
 interface RevenueAnalytics {
   totalBookings: number;
   totalGuestPayments: number;
-  totalOtaCommissions: number;
-  totalNetPayouts: number;
-  averageOtaCommission: number;
-  platformBreakdown: {
-    platform: string;
-    bookings: number;
-    guestTotal: number;
-    netPayout: number;
-    commissionRate: number;
-  }[];
-  monthlyTrend: {
+  totalOtaFees: number;
+  totalActualPayouts: number;
+  averageOtaCommissionRate: number;
+  monthlyTrends: Array<{
     month: string;
-    bookings: number;
-    netRevenue: number;
-  }[];
+    guestPayments: number;
+    actualPayouts: number;
+    otaFees: number;
+  }>;
+  platformBreakdown: Array<{
+    platform: string;
+    bookingCount: number;
+    totalGuestPayments: number;
+    totalPayouts: number;
+    averageCommissionRate: number;
+  }>;
+}
+
+interface OtaPlatformSetting {
+  id: number;
+  propertyId?: number;
+  propertyName?: string;
+  otaName: string;
+  defaultCommissionRate: number;
+  isActive: boolean;
+  currency: string;
+  notes?: string;
 }
 
 export default function BookingRevenueTransparency() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [dateRange, setDateRange] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [editingBooking, setEditingBooking] = useState<BookingRevenueData | null>(null);
-
-  // Fetch booking revenue data
-  const { data: bookings = [], isLoading: loadingBookings } = useQuery({
-    queryKey: ["/api/revenue/bookings", selectedPlatform, selectedStatus, dateRange, searchTerm],
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showPlatformSettingsDialog, setShowPlatformSettingsDialog] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<BookingRevenue | null>(null);
+  const [showDetailedView, setShowDetailedView] = useState(false);
+  const [filters, setFilters] = useState({
+    propertyId: "",
+    otaName: "",
+    bookingType: "",
+    paymentStatus: "",
+    startDate: "",
+    endDate: "",
   });
 
-  // Fetch analytics data
-  const { data: analytics, isLoading: loadingAnalytics } = useQuery({
-    queryKey: ["/api/revenue/analytics", selectedPlatform, dateRange],
+  // Queries
+  const { data: bookingRevenues = [], isLoading: loadingRevenues } = useQuery({
+    queryKey: ["/api/booking-revenue", filters],
+    enabled: true,
   });
 
-  // Update booking revenue mutation
-  const updateRevenueMutation = useMutation({
-    mutationFn: async (data: { bookingId: number } & RevenueOverrideForm) => {
-      await apiRequest("POST", `/api/revenue/bookings/${data.bookingId}/override`, data);
+  const { data: analytics, isLoading: loadingAnalytics } = useQuery<RevenueAnalytics>({
+    queryKey: ["/api/booking-revenue/analytics"],
+    enabled: true,
+  });
+
+  const { data: otaSettings = [], isLoading: loadingOtaSettings } = useQuery<OtaPlatformSetting[]>({
+    queryKey: ["/api/ota-platform-settings"],
+    enabled: true,
+  });
+
+  const { data: properties = [] } = useQuery({
+    queryKey: ["/api/properties"],
+    enabled: true,
+  });
+
+  // Form setup
+  const form = useForm<BookingRevenueForm>({
+    resolver: zodResolver(bookingRevenueFormSchema),
+    defaultValues: {
+      propertyId: 0,
+      guestBookingPrice: 0,
+      otaPlatformFee: 0,
+      finalPayout: 0,
+      reservationCode: "",
+      guestName: "",
+      guestEmail: "",
+      checkInDate: "",
+      checkOutDate: "",
+      bookingType: "direct",
+      otaName: "",
+      paymentStatus: "pending",
+      currency: "USD",
+      commissionRate: 0.15,
+      notes: "",
+    },
+  });
+
+  // Mutations
+  const createBookingRevenueMutation = useMutation({
+    mutationFn: async (data: BookingRevenueForm) => {
+      return apiRequest("POST", "/api/booking-revenue", data);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/booking-revenue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/booking-revenue/analytics"] });
+      setShowCreateDialog(false);
+      form.reset();
       toast({
-        title: "Revenue Updated",
-        description: "Booking revenue has been updated successfully.",
+        title: "Success",
+        description: "Booking revenue record created successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/revenue/bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/revenue/analytics"] });
-      setEditingBooking(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update revenue",
+        title: "Error",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  // Export CSV mutation
-  const exportMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("GET", "/api/revenue/export", {}, {
-        platform: selectedPlatform,
-        status: selectedStatus,
-        dateRange,
-        search: searchTerm,
-      });
-      return response;
+  const calculateCommissionsMutation = useMutation({
+    mutationFn: async (bookingId: number) => {
+      return apiRequest("POST", `/api/booking-revenue/${bookingId}/calculate-commissions`);
     },
-    onSuccess: (data: any) => {
-      // Create and download CSV file
-      const blob = new Blob([data.csv], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = url;
-      a.download = `booking-revenue-${format(new Date(), "yyyy-MM-dd")}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/booking-revenue"] });
       toast({
-        title: "Export Complete",
-        description: "Revenue data has been exported to CSV.",
+        title: "Success",
+        description: "Commissions calculated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
 
-  // Form for revenue override
-  const form = useForm<RevenueOverrideForm>({
-    resolver: zodResolver(revenueOverrideSchema),
-    defaultValues: {
-      guestTotalPrice: "",
-      otaCommissionPercentage: "",
-      stripeFees: "",
-      overrideReason: "",
-    },
-  });
-
-  // Filter bookings based on selected filters
-  const filteredBookings = useMemo(() => {
-    return bookings.filter((booking: BookingRevenueData) => {
-      const matchesPlatform = selectedPlatform === "all" || booking.bookingPlatform === selectedPlatform;
-      const matchesStatus = selectedStatus === "all" || booking.status === selectedStatus;
-      const matchesSearch = !searchTerm || 
-        booking.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.bookingReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.hostawayId?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      return matchesPlatform && matchesStatus && matchesSearch;
-    });
-  }, [bookings, selectedPlatform, selectedStatus, searchTerm]);
-
-  const handleRevenueOverride = (data: RevenueOverrideForm) => {
-    if (!editingBooking) return;
-    
-    updateRevenueMutation.mutate({
-      bookingId: editingBooking.id,
-      ...data,
-    });
-  };
-
-  const formatCurrency = (amount: number | undefined, currency: string = "AUD") => {
-    if (!amount) return "N/A";
-    return new Intl.NumberFormat("en-AU", {
+  // Helper functions
+  const formatCurrency = (amount: number, currency: string = "USD") => {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency,
+      currency: currency,
     }).format(amount);
   };
 
-  const getPlatformBadge = (platform: string) => {
-    const variants: Record<string, string> = {
-      airbnb: "bg-red-100 text-red-800",
-      vrbo: "bg-blue-100 text-blue-800",
-      booking_com: "bg-purple-100 text-purple-800",
-      direct: "bg-green-100 text-green-800",
-    };
-    
-    return (
-      <Badge className={variants[platform] || "bg-gray-100 text-gray-800"}>
-        {platform.replace("_", ".").toUpperCase()}
-      </Badge>
-    );
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case "completed": return "bg-green-100 text-green-800";
+      case "processing": return "bg-blue-100 text-blue-800";
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "failed": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      confirmed: "bg-blue-100 text-blue-800",
-      "checked-in": "bg-yellow-100 text-yellow-800",
-      "checked-out": "bg-green-100 text-green-800",
-      cancelled: "bg-red-100 text-red-800",
-    };
-    
-    return (
-      <Badge className={variants[status] || "bg-gray-100 text-gray-800"}>
-        {status.replace("-", " ").toUpperCase()}
-      </Badge>
-    );
+  const getBookingTypeColor = (type: string) => {
+    switch (type) {
+      case "direct": return "bg-green-100 text-green-800";
+      case "ota": return "bg-blue-100 text-blue-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
+
+  const onSubmit = (data: BookingRevenueForm) => {
+    createBookingRevenueMutation.mutate(data);
+  };
+
+  const handleCalculateCommissions = (bookingId: number) => {
+    calculateCommissionsMutation.mutate(bookingId);
+  };
+
+  if (loadingRevenues && loadingAnalytics) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Warning Banner */}
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Booking Revenue & Payout Tracking</h1>
+          <p className="text-muted-foreground mt-2">
+            Comprehensive OTA commission transparency and revenue management
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowCreateDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Booking Revenue
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowPlatformSettingsDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Target className="h-4 w-4" />
+            Platform Settings
+          </Button>
+        </div>
+      </div>
+
+      {/* Critical Revenue Warning Banner */}
       <Alert className="border-orange-200 bg-orange-50">
-        <AlertTriangle className="h-4 w-4 text-orange-600" />
+        <AlertCircle className="h-4 w-4 text-orange-600" />
         <AlertDescription className="text-orange-800">
-          <strong>Revenue Calculation Notice:</strong> All internal calculations (fees, commissions, splits) are based on <strong>net received payout</strong> only. 
-          OTA commissions are not part of your earnings and are shown for transparency only.
+          <strong>Revenue Calculation Notice:</strong> All internal calculations (fees, commissions, splits) are based on net received payout amounts only. 
+          OTA platform commissions are deducted before revenue distribution and are not part of your earnings.
         </AlertDescription>
       </Alert>
 
-      {/* Header with Export */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Booking Revenue Transparency</h1>
-          <p className="text-gray-600 mt-1">
-            Complete breakdown of guest payments vs actual payouts received
-          </p>
-        </div>
-        <Button 
-          onClick={() => exportMutation.mutate()}
-          disabled={exportMutation.isPending}
-          className="flex items-center gap-2"
-        >
-          <Download className="h-4 w-4" />
-          Export CSV
-        </Button>
-      </div>
+      {/* Analytics Overview Cards */}
+      {analytics && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{analytics.totalBookings}</div>
+              <p className="text-xs text-muted-foreground">Active reservations</p>
+            </CardContent>
+          </Card>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Guest Total Payments</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(analytics.totalGuestPayments)}</div>
+              <p className="text-xs text-muted-foreground">Total charged to guests</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">OTA Commission Fees</CardTitle>
+              <Banknote className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{formatCurrency(analytics.totalOtaFees)}</div>
+              <p className="text-xs text-muted-foreground">Deducted by OTA platforms</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Actual Payouts Received</CardTitle>
+              <PiggyBank className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{formatCurrency(analytics.totalActualPayouts)}</div>
+              <p className="text-xs text-muted-foreground">Net revenue for distribution</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" className="flex items-center gap-1">
-            <TrendingUp className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="bookings" className="flex items-center gap-1">
-            <Building className="h-4 w-4" />
-            Booking Details
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-1">
-            <DollarSign className="h-4 w-4" />
-            Platform Analytics
-          </TabsTrigger>
-          <TabsTrigger value="verification" className="flex items-center gap-1">
-            <CheckCircle className="h-4 w-4" />
-            Revenue Verification
-          </TabsTrigger>
+          <TabsTrigger value="overview">Revenue Overview</TabsTrigger>
+          <TabsTrigger value="bookings">Booking Records</TabsTrigger>
+          <TabsTrigger value="commissions">Commission Tracking</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics & Reports</TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
+        {/* Revenue Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Platform Breakdown */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Platform Revenue Breakdown
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analytics?.totalBookings || 0}</div>
-                <p className="text-xs text-muted-foreground">All platforms</p>
+                {analytics?.platformBreakdown.map((platform) => (
+                  <div key={platform.platform} className="mb-4 p-3 border rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-medium">{platform.platform}</span>
+                      <Badge variant="outline">{platform.bookingCount} bookings</Badge>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Guest Payments:</span>
+                        <span>{formatCurrency(platform.totalGuestPayments)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Actual Payouts:</span>
+                        <span className="text-green-600 font-medium">{formatCurrency(platform.totalPayouts)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Avg Commission:</span>
+                        <span className="text-red-600">{(platform.averageCommissionRate * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
 
+            {/* Monthly Trends Chart Placeholder */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Guest Payments</CardTitle>
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Monthly Revenue Trends
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(analytics?.totalGuestPayments)}
+                <div className="space-y-4">
+                  {analytics?.monthlyTrends.map((month) => (
+                    <div key={month.month} className="border-b pb-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">{month.month}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">Guest Payments</div>
+                          <div className="font-medium">{formatCurrency(month.guestPayments)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">OTA Fees</div>
+                          <div className="text-red-600">{formatCurrency(month.otaFees)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Net Payouts</div>
+                          <div className="text-green-600 font-medium">{formatCurrency(month.actualPayouts)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-muted-foreground">Total paid by guests</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">OTA Commissions</CardTitle>
-                <Percent className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  -{formatCurrency(analytics?.totalOtaCommissions)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Avg {analytics?.averageOtaCommission?.toFixed(1)}%
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Payouts</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(analytics?.totalNetPayouts)}
-                </div>
-                <p className="text-xs text-muted-foreground">Actual revenue received</p>
               </CardContent>
             </Card>
           </div>
-
-          {/* Platform Breakdown */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Revenue Breakdown</CardTitle>
-              <CardDescription>
-                Compare gross guest payments vs net payouts by platform
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Platform</TableHead>
-                    <TableHead className="text-right">Bookings</TableHead>
-                    <TableHead className="text-right">Guest Total</TableHead>
-                    <TableHead className="text-right">Commission Rate</TableHead>
-                    <TableHead className="text-right">Net Payout</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {analytics?.platformBreakdown?.map((platform) => (
-                    <TableRow key={platform.platform}>
-                      <TableCell>{getPlatformBadge(platform.platform)}</TableCell>
-                      <TableCell className="text-right">{platform.bookings}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(platform.guestTotal)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {platform.commissionRate?.toFixed(1)}%
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(platform.netPayout)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
         </TabsContent>
 
-        {/* Booking Details Tab */}
+        {/* Booking Records Tab */}
         <TabsContent value="bookings" className="space-y-4">
           {/* Filters */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filter & Search
+                <Filter className="h-4 w-4" />
+                Filter Booking Records
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Search</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Guest name, booking ref..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Platform</label>
-                  <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div>
+                  <Label htmlFor="propertyFilter">Property</Label>
+                  <Select value={filters.propertyId} onValueChange={(value) => setFilters({...filters, propertyId: value})}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="All Properties" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Platforms</SelectItem>
-                      <SelectItem value="airbnb">Airbnb</SelectItem>
-                      <SelectItem value="vrbo">VRBO</SelectItem>
-                      <SelectItem value="booking_com">Booking.com</SelectItem>
+                      <SelectItem value="">All Properties</SelectItem>
+                      {properties.map((property: any) => (
+                        <SelectItem key={property.id} value={property.id.toString()}>
+                          {property.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="otaFilter">OTA Platform</Label>
+                  <Select value={filters.otaName} onValueChange={(value) => setFilters({...filters, otaName: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Platforms" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Platforms</SelectItem>
+                      <SelectItem value="Airbnb">Airbnb</SelectItem>
+                      <SelectItem value="VRBO">VRBO</SelectItem>
+                      <SelectItem value="Booking.com">Booking.com</SelectItem>
+                      <SelectItem value="Direct">Direct Booking</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="typeFilter">Booking Type</Label>
+                  <Select value={filters.bookingType} onValueChange={(value) => setFilters({...filters, bookingType: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Types</SelectItem>
                       <SelectItem value="direct">Direct</SelectItem>
+                      <SelectItem value="ota">OTA</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Status</label>
-                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <div>
+                  <Label htmlFor="statusFilter">Payment Status</Label>
+                  <Select value={filters.paymentStatus} onValueChange={(value) => setFilters({...filters, paymentStatus: value})}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                      <SelectItem value="checked-in">Checked In</SelectItem>
-                      <SelectItem value="checked-out">Checked Out</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date Range</label>
-                  <Select value={dateRange} onValueChange={setDateRange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Time</SelectItem>
-                      <SelectItem value="this_month">This Month</SelectItem>
-                      <SelectItem value="last_month">Last Month</SelectItem>
-                      <SelectItem value="this_quarter">This Quarter</SelectItem>
-                      <SelectItem value="this_year">This Year</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div>
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+                  />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Bookings Table */}
+          {/* Booking Records List */}
+          <div className="space-y-4">
+            {bookingRevenues.map((booking: BookingRevenue) => (
+              <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold">{booking.reservationCode}</h3>
+                        <Badge className={getBookingTypeColor(booking.bookingType)}>
+                          {booking.bookingType === "ota" ? booking.otaName : "Direct"}
+                        </Badge>
+                        <Badge className={getPaymentStatusColor(booking.paymentStatus)}>
+                          {booking.paymentStatus}
+                        </Badge>
+                        {booking.isVerified && (
+                          <Badge className="bg-blue-100 text-blue-800">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Verified
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          {booking.guestName}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {booking.propertyName}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {new Date(booking.checkInDate).toLocaleDateString()} - {new Date(booking.checkOutDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedBooking(booking);
+                          setShowDetailedView(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCalculateCommissions(booking.id)}
+                        disabled={calculateCommissionsMutation.isPending}
+                      >
+                        <DollarSign className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Revenue Breakdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Guest Total Payment</div>
+                      <div className="text-lg font-semibold">{formatCurrency(booking.guestBookingPrice, booking.currency)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">OTA Platform Fee</div>
+                      <div className="text-lg font-semibold text-red-600">
+                        -{formatCurrency(booking.otaPlatformFee, booking.currency)}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Actual Payout Received</div>
+                      <div className="text-lg font-semibold text-green-600">
+                        {formatCurrency(booking.finalPayout, booking.currency)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {booking.bookingType === "ota" && (
+                    <Alert className="mt-4 border-blue-200 bg-blue-50">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        <strong>OTA Commission Notice:</strong> This booking was sold for {formatCurrency(booking.guestBookingPrice, booking.currency)} 
+                        but actual payout is {formatCurrency(booking.finalPayout, booking.currency)}. 
+                        The difference of {formatCurrency(booking.otaPlatformFee, booking.currency)} is the {booking.otaName} platform commission.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Commission Tracking Tab */}
+        <TabsContent value="commissions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Revenue Breakdown by Booking</CardTitle>
-              <CardDescription>
-                Detailed view of guest payments, OTA commissions, and net payouts
-              </CardDescription>
+              <CardTitle>Commission Distribution</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                All commission calculations are based on net payout amounts received after OTA deductions
+              </p>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Guest / Booking</TableHead>
-                    <TableHead>Platform</TableHead>
-                    <TableHead>Dates</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Guest Paid</TableHead>
-                    <TableHead className="text-right">OTA Commission</TableHead>
-                    <TableHead className="text-right">Net Payout</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loadingBookings ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
-                        Loading bookings...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredBookings.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
-                        No bookings found matching your filters.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredBookings.map((booking: BookingRevenueData) => (
-                      <TableRow key={booking.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{booking.guestName}</div>
-                            <div className="text-sm text-gray-500">
-                              {booking.bookingReference}
-                              {booking.hostawayId && (
-                                <span className="ml-2 text-xs bg-gray-100 px-1 rounded">
-                                  {booking.hostawayId}
-                                </span>
-                              )}
-                            </div>
-                            {booking.manualOverride && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <Edit className="h-3 w-3 text-orange-500" />
-                                <span className="text-xs text-orange-600">Manual Override</span>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{getPlatformBadge(booking.bookingPlatform)}</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{format(new Date(booking.checkIn), "MMM dd")}</div>
-                            <div className="text-gray-500">
-                              {format(new Date(booking.checkOut), "MMM dd, yyyy")}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="text-sm">
-                            {formatCurrency(booking.guestTotalPrice, booking.currency)}
-                            {!booking.guestTotalPrice && (
-                              <span className="text-gray-400">N/A</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="text-sm text-red-600">
-                            -{formatCurrency(booking.otaCommissionAmount, booking.currency)}
-                            {booking.otaCommissionPercentage && (
-                              <div className="text-xs text-gray-500">
-                                ({booking.otaCommissionPercentage}%)
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          <div className="text-sm text-green-600">
-                            {formatCurrency(booking.netHostPayout || booking.platformPayout, booking.currency)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            {booking.revenueVerified ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-gray-400" />
-                            )}
-                            {(user?.role === "admin" || user?.role === "portfolio-manager") && (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setEditingBooking(booking);
-                                      form.reset({
-                                        guestTotalPrice: booking.guestTotalPrice?.toString() || "",
-                                        otaCommissionPercentage: booking.otaCommissionPercentage?.toString() || "",
-                                        stripeFees: booking.stripeFees?.toString() || "",
-                                        overrideReason: booking.overrideReason || "",
-                                      });
-                                    }}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                  <DialogHeader>
-                                    <DialogTitle>Update Revenue Data</DialogTitle>
-                                    <DialogDescription>
-                                      Manually enter revenue information for {booking.guestName}
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <Form {...form}>
-                                    <form onSubmit={form.handleSubmit(handleRevenueOverride)} className="space-y-4">
-                                      <FormField
-                                        control={form.control}
-                                        name="guestTotalPrice"
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel>Guest Total Price ({booking.currency})</FormLabel>
-                                            <FormControl>
-                                              <Input placeholder="1000.00" {...field} />
-                                            </FormControl>
-                                            <FormDescription>
-                                              Total amount guest paid to the platform
-                                            </FormDescription>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                      <FormField
-                                        control={form.control}
-                                        name="otaCommissionPercentage"
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel>OTA Commission Rate (%)</FormLabel>
-                                            <FormControl>
-                                              <Input placeholder="15.0" {...field} />
-                                            </FormControl>
-                                            <FormDescription>
-                                              Commission percentage charged by the platform
-                                            </FormDescription>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                      <FormField
-                                        control={form.control}
-                                        name="stripeFees"
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel>Payment Processing Fees (Optional)</FormLabel>
-                                            <FormControl>
-                                              <Input placeholder="25.00" {...field} />
-                                            </FormControl>
-                                            <FormDescription>
-                                              Stripe or other payment processing fees
-                                            </FormDescription>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                      <FormField
-                                        control={form.control}
-                                        name="overrideReason"
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormLabel>Reason for Manual Entry</FormLabel>
-                                            <FormControl>
-                                              <Textarea 
-                                                placeholder="Explain why manual entry is needed..."
-                                                {...field} 
-                                              />
-                                            </FormControl>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                      <DialogFooter>
-                                        <Button
-                                          type="submit"
-                                          disabled={updateRevenueMutation.isPending}
-                                        >
-                                          Update Revenue
-                                        </Button>
-                                      </DialogFooter>
-                                    </form>
-                                  </Form>
-                                </DialogContent>
-                              </Dialog>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <div className="text-center py-8">
+                <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Commission tracking details will be displayed here</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Select a booking to calculate and view commission breakdowns
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Analytics Tab */}
         <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Monthly Trend Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Revenue Trend</CardTitle>
-                <CardDescription>Net payout trends over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loadingAnalytics ? (
-                  <div className="h-64 flex items-center justify-center">
-                    Loading analytics...
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {analytics?.monthlyTrend?.map((month) => (
-                      <div key={month.month} className="flex items-center justify-between p-3 border rounded">
-                        <div>
-                          <div className="font-medium">{month.month}</div>
-                          <div className="text-sm text-gray-500">{month.bookings} bookings</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">{formatCurrency(month.netRevenue)}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Revenue Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue Insights</CardTitle>
-                <CardDescription>Key performance indicators</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded">
-                    <Info className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <div className="font-medium text-blue-900">Commission Impact</div>
-                      <div className="text-sm text-blue-700">
-                        OTA commissions reduce gross revenue by{" "}
-                        {analytics?.averageOtaCommission?.toFixed(1)}% on average
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                    <div>
-                      <div className="font-medium text-green-900">Net Revenue</div>
-                      <div className="text-sm text-green-700">
-                        {formatCurrency(analytics?.totalNetPayouts)} received from{" "}
-                        {formatCurrency(analytics?.totalGuestPayments)} guest payments
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 bg-orange-50 rounded">
-                    <AlertTriangle className="h-5 w-5 text-orange-600" />
-                    <div>
-                      <div className="font-medium text-orange-900">Remember</div>
-                      <div className="text-sm text-orange-700">
-                        All internal calculations use net payout amounts only
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Verification Tab */}
-        <TabsContent value="verification" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Revenue Verification Status</CardTitle>
-              <CardDescription>
-                Track which bookings have been verified against bank statements or payment processors
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Revenue Analytics & Insights
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4 border rounded">
-                    <div className="text-2xl font-bold text-green-600">
-                      {bookings.filter((b: BookingRevenueData) => b.revenueVerified).length}
+              {analytics && (
+                <div className="space-y-6">
+                  {/* Key Metrics */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold">{(analytics.averageOtaCommissionRate * 100).toFixed(1)}%</div>
+                      <div className="text-sm text-muted-foreground">Average OTA Commission Rate</div>
                     </div>
-                    <div className="text-sm text-gray-600">Verified</div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold">
+                        {((analytics.totalActualPayouts / analytics.totalGuestPayments) * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-muted-foreground">Net Revenue Retention Rate</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold">
+                        {formatCurrency((analytics.totalOtaFees / analytics.totalBookings))}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Average OTA Fee per Booking</div>
+                    </div>
                   </div>
-                  <div className="text-center p-4 border rounded">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {bookings.filter((b: BookingRevenueData) => !b.revenueVerified).length}
-                    </div>
-                    <div className="text-sm text-gray-600">Pending Verification</div>
-                  </div>
-                  <div className="text-center p-4 border rounded">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {bookings.filter((b: BookingRevenueData) => b.manualOverride).length}
-                    </div>
-                    <div className="text-sm text-gray-600">Manual Override</div>
+
+                  {/* Export Options */}
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      Export Revenue Report
+                    </Button>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      Export Commission Report
+                    </Button>
                   </div>
                 </div>
-
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    Revenue verification helps ensure accuracy of financial reports. 
-                    Mark bookings as verified after confirming against bank statements or payment processor data.
-                  </AlertDescription>
-                </Alert>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create Booking Revenue Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New Booking Revenue Record</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="propertyId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Property</FormLabel>
+                      <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select property" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {properties.map((property: any) => (
+                            <SelectItem key={property.id} value={property.id.toString()}>
+                              {property.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="reservationCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Reservation Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter reservation code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="guestName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Guest Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter guest name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="guestEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Guest Email (Optional)</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Enter guest email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="checkInDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Check-in Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="checkOutDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Check-out Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bookingType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Booking Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select booking type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="direct">Direct Booking</SelectItem>
+                          <SelectItem value="ota">OTA Platform</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {form.watch("bookingType") === "ota" && (
+                  <FormField
+                    control={form.control}
+                    name="otaName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>OTA Platform</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select OTA platform" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Airbnb">Airbnb</SelectItem>
+                            <SelectItem value="VRBO">VRBO</SelectItem>
+                            <SelectItem value="Booking.com">Booking.com</SelectItem>
+                            <SelectItem value="Expedia">Expedia</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="guestBookingPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Guest Total Payment</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="0.00" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="otaPlatformFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>OTA Platform Fee</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="0.00" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="finalPayout"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Final Payout Received</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="0.00" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="THB">THB</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="paymentStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="processing">Processing</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="failed">Failed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="commissionRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Commission Rate</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          min="0" 
+                          max="1" 
+                          placeholder="0.15" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Additional notes..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createBookingRevenueMutation.isPending}>
+                  {createBookingRevenueMutation.isPending ? "Creating..." : "Create Booking Revenue"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detailed Booking View Dialog */}
+      {selectedBooking && (
+        <Dialog open={showDetailedView} onOpenChange={setShowDetailedView}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Booking Revenue Details - {selectedBooking.reservationCode}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              {/* Guest & Property Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Guest Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Name:</span>
+                      <span className="font-medium">{selectedBooking.guestName}</span>
+                    </div>
+                    {selectedBooking.guestEmail && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Email:</span>
+                        <span className="font-medium">{selectedBooking.guestEmail}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Check-in:</span>
+                      <span className="font-medium">{new Date(selectedBooking.checkInDate).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Check-out:</span>
+                      <span className="font-medium">{new Date(selectedBooking.checkOutDate).toLocaleDateString()}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Booking Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Property:</span>
+                      <span className="font-medium">{selectedBooking.propertyName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Platform:</span>
+                      <Badge className={getBookingTypeColor(selectedBooking.bookingType)}>
+                        {selectedBooking.bookingType === "ota" ? selectedBooking.otaName : "Direct"}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge className={getPaymentStatusColor(selectedBooking.paymentStatus)}>
+                        {selectedBooking.paymentStatus}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Currency:</span>
+                      <span className="font-medium">{selectedBooking.currency}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Financial Breakdown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Financial Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-sm text-muted-foreground mb-1">Guest Total Payment</div>
+                      <div className="text-2xl font-bold">
+                        {formatCurrency(selectedBooking.guestBookingPrice, selectedBooking.currency)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Amount charged to guest</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-sm text-muted-foreground mb-1">OTA Platform Fee</div>
+                      <div className="text-2xl font-bold text-red-600">
+                        -{formatCurrency(selectedBooking.otaPlatformFee, selectedBooking.currency)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {((selectedBooking.otaPlatformFee / selectedBooking.guestBookingPrice) * 100).toFixed(1)}% commission
+                      </div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-sm text-muted-foreground mb-1">Final Payout Received</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {formatCurrency(selectedBooking.finalPayout, selectedBooking.currency)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">Net revenue for distribution</div>
+                    </div>
+                  </div>
+
+                  {selectedBooking.bookingType === "ota" && (
+                    <Alert className="mt-4 border-orange-200 bg-orange-50">
+                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                      <AlertDescription className="text-orange-800">
+                        <strong>Commission Calculation Notice:</strong> All internal calculations (management fees, commissions, owner splits) 
+                        will be based on the final payout amount of {formatCurrency(selectedBooking.finalPayout, selectedBooking.currency)} only. 
+                        The {formatCurrency(selectedBooking.otaPlatformFee, selectedBooking.currency)} {selectedBooking.otaName} commission 
+                        is not part of distributable revenue.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {selectedBooking.notes && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="text-sm font-medium mb-1">Notes:</div>
+                      <div className="text-sm text-muted-foreground">{selectedBooking.notes}</div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowDetailedView(false)}>
+                  Close
+                </Button>
+                <Button onClick={() => handleCalculateCommissions(selectedBooking.id)}>
+                  Calculate Commissions
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

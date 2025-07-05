@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
 import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
-import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema } from "@shared/schema";
+import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema, insertBookingRevenueSchema, insertOtaPlatformSettingsSchema, insertBookingRevenueCommissionSchema } from "@shared/schema";
+import { BookingRevenueStorage } from "./bookingRevenueStorage";
 import { z } from "zod";
 import { CrossSyncedTaskVisibilityStorage } from "./crossSyncedTaskVisibility";
 import { seedThailandUtilityProviders } from "./seedThailandUtilityProviders";
@@ -25275,6 +25276,116 @@ async function processGuestIssueForAI(issueReport: any) {
     } catch (error) {
       console.error("Error verifying booking revenue:", error);
       res.status(500).json({ message: "Failed to verify booking revenue" });
+    }
+  });
+
+  // ===== BOOKING REVENUE & PAYOUT TRACKING API ENDPOINTS =====
+
+  // Middleware for booking revenue role checks
+  const requireBookingRevenueAccess = (req: any, res: any, next: any) => {
+    const { role } = req.user;
+    if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+      return res.status(403).json({ message: "Access denied: Insufficient permissions for booking revenue access" });
+    }
+    next();
+  };
+
+  // Get all booking revenues with filtering
+  app.get("/api/booking-revenue", isDemoAuthenticated, requireBookingRevenueAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, otaName, bookingType, paymentStatus, startDate, endDate } = req.query;
+      
+      const bookingRevenueStorage = new BookingRevenueStorage(organizationId);
+      
+      const bookingRevenues = await bookingRevenueStorage.getDemoBookingRevenues();
+      res.json(bookingRevenues);
+    } catch (error) {
+      console.error("Error fetching booking revenues:", error);
+      res.status(500).json({ message: "Failed to fetch booking revenues" });
+    }
+  });
+
+  // Get booking revenue analytics
+  app.get("/api/booking-revenue/analytics", isDemoAuthenticated, requireBookingRevenueAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, startDate, endDate } = req.query;
+      
+      const bookingRevenueStorage = new BookingRevenueStorage(organizationId);
+      
+      const analytics = await bookingRevenueStorage.getDemoRevenueAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching booking revenue analytics:", error);
+      res.status(500).json({ message: "Failed to fetch booking revenue analytics" });
+    }
+  });
+
+  // Get single booking revenue
+  app.get("/api/booking-revenue/:id", isDemoAuthenticated, requireBookingRevenueAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const bookingId = parseInt(req.params.id);
+      
+      const bookingRevenueStorage = new BookingRevenueStorage(organizationId);
+      const booking = await bookingRevenueStorage.getBookingRevenue(bookingId);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking revenue not found" });
+      }
+      
+      res.json(booking);
+    } catch (error) {
+      console.error("Error fetching booking revenue:", error);
+      res.status(500).json({ message: "Failed to fetch booking revenue" });
+    }
+  });
+
+  // Create new booking revenue
+  app.post("/api/booking-revenue", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const bookingRevenueStorage = new BookingRevenueStorage(organizationId);
+      
+      // Validate input using Zod schema
+      const validatedData = insertBookingRevenueSchema.parse({
+        ...req.body,
+        createdBy: req.user.id,
+      });
+
+      const booking = await bookingRevenueStorage.createBookingRevenue(validatedData);
+      
+      // Calculate commissions automatically
+      await bookingRevenueStorage.calculateAndCreateCommissions(booking.id, req.user.id);
+      
+      res.status(201).json(booking);
+    } catch (error) {
+      console.error("Error creating booking revenue:", error);
+      res.status(500).json({ message: "Failed to create booking revenue" });
+    }
+  });
+
+  // OTA Platform Settings endpoints
+  app.get("/api/ota-platform-settings", isDemoAuthenticated, requireBookingRevenueAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId } = req.query;
+      
+      const bookingRevenueStorage = new BookingRevenueStorage(organizationId);
+      const settings = await bookingRevenueStorage.getOtaPlatformSettings(
+        propertyId ? parseInt(propertyId) : undefined
+      );
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching OTA platform settings:", error);
+      res.status(500).json({ message: "Failed to fetch OTA platform settings" });
     }
   });
 
