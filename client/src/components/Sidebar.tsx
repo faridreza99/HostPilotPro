@@ -48,7 +48,8 @@ import {
   Phone,
   Eye,
   Brain,
-  Droplets
+  Droplets,
+  Target
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -120,6 +121,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Smart Inventory", icon: Package, href: "/smart-inventory-dashboard", badge: "New" },
           { label: "Service Marketplace", icon: Star, href: "/service-marketplace-dashboard", badge: "New" },
           { label: "AI Notifications & Reminders", icon: Brain, href: "/ai-notifications-reminders", badge: "New" },
+          { label: "Property Goals & Investment Plans", icon: Target, href: "/property-goals-investment-plans", badge: "New" },
         ]
       },
       {

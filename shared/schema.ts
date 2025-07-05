@@ -2552,6 +2552,81 @@ export type WaterDeliveryAlert = typeof waterDeliveryAlerts.$inferSelect;
 export type InsertWaterUpgradeSuggestion = z.infer<typeof insertWaterUpgradeSuggestionSchema>;
 export type WaterUpgradeSuggestion = typeof waterUpgradeSuggestions.$inferSelect;
 
+// ===== PROPERTY GOALS & INVESTMENT PLANS =====
+// Property improvement goals and investment planning
+export const propertyGoals = pgTable("property_goals", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Goal Details
+  goalTitle: varchar("goal_title").notNull(),
+  goalDescription: text("goal_description"),
+  upgradeType: varchar("upgrade_type").notNull(), // Furniture, Electronics, Decor, Maintenance, etc.
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").notNull().default("THB"),
+  priority: varchar("priority").notNull().default("medium"), // low, medium, high, critical
+  
+  // Trigger Conditions
+  triggerType: varchar("trigger_type").notNull(), // date, revenue, occupancy, custom
+  targetDate: date("target_date"),
+  revenueTarget: decimal("revenue_target", { precision: 10, scale: 2 }),
+  occupancyTarget: decimal("occupancy_target", { precision: 5, scale: 2 }),
+  occupancyDuration: integer("occupancy_duration"), // months
+  customTrigger: text("custom_trigger"),
+  
+  // Status & Progress
+  status: varchar("status").notNull().default("not_started"), // not_started, in_progress, completed, cancelled
+  completionDate: date("completion_date"),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  
+  // Permissions & Approval
+  proposedBy: varchar("proposed_by").notNull(),
+  approvedBy: varchar("approved_by"),
+  approvedDate: date("approved_date"),
+  requiresApproval: boolean("requires_approval").default(false),
+  
+  // Metadata
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Property Goal Attachments
+export const propertyGoalAttachments = pgTable("property_goal_attachments", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  goalId: integer("goal_id").references(() => propertyGoals.id).notNull(),
+  
+  // File Details
+  fileName: varchar("file_name").notNull(),
+  fileType: varchar("file_type").notNull(), // pdf, image, link, document
+  fileUrl: varchar("file_url").notNull(),
+  fileSize: integer("file_size"),
+  description: varchar("description"),
+  
+  // Metadata
+  uploadedBy: varchar("uploaded_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Property Goal Progress Tracking
+export const propertyGoalProgress = pgTable("property_goal_progress", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  goalId: integer("goal_id").references(() => propertyGoals.id).notNull(),
+  
+  // Progress Details
+  progressDate: date("progress_date").notNull(),
+  progressPercentage: decimal("progress_percentage", { precision: 5, scale: 2 }).notNull(),
+  milestoneDescription: text("milestone_description"),
+  notes: text("notes"),
+  
+  // Metadata
+  recordedBy: varchar("recorded_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ===== BOOKING REVENUE & PAYOUT TRACKING =====
 // Comprehensive OTA booking revenue tracking with commission transparency
 export const bookingRevenue = pgTable("booking_revenue", {
@@ -2887,31 +2962,7 @@ export const agentBookingRequests = pgTable("agent_booking_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Goals & Improvement Plan Module Tables
-export const propertyGoals = pgTable("property_goals", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
-  
-  // Revenue Target
-  revenueTargetType: varchar("revenue_target_type").notNull().default("monthly"), // monthly, quarterly, yearly
-  revenueTargetAmount: decimal("revenue_target_amount", { precision: 12, scale: 2 }).notNull(),
-  currency: varchar("currency", { length: 3 }).default("THB"),
-  currentRevenue: decimal("current_revenue", { precision: 12, scale: 2 }).default("0"),
-  
-  // Reward/Condition
-  rewardCondition: text("reward_condition"), // e.g., "If revenue > 1M THB, buy new outdoor sofa"
-  
-  // Status and tracking
-  isActive: boolean("is_active").default(true),
-  targetPeriodStart: date("target_period_start"),
-  targetPeriodEnd: date("target_period_end"),
-  
-  // Timestamps
-  createdBy: varchar("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+// Goals & Improvement Plan Module Tables - using the comprehensive schema defined earlier
 
 export const propertyPlannedUpgrades = pgTable("property_planned_upgrades", {
   id: serial("id").primaryKey(),
@@ -12601,6 +12652,16 @@ export type InsertAiReminderSetting = z.infer<typeof insertAiReminderSettingSche
 
 export type AiNotificationHistory = typeof aiNotificationHistory.$inferSelect;
 export type InsertAiNotificationHistory = z.infer<typeof insertAiNotificationHistorySchema>;
+
+// Property Goals & Investment Plans - Type Exports
+export type PropertyGoals = typeof propertyGoals.$inferSelect;
+export type InsertPropertyGoals = z.infer<typeof insertPropertyGoalSchema>;
+
+export type PropertyGoalAttachment = typeof propertyGoalAttachments.$inferSelect;
+export type InsertPropertyGoalAttachment = z.infer<typeof insertPropertyGoalAttachmentSchema>;
+
+export type PropertyGoalProgress = typeof propertyGoalProgress.$inferSelect;
+export type InsertPropertyGoalProgress = z.infer<typeof insertPropertyGoalProgressSchema>;
 
 // Additional type exports
 export type PMPayoutRequest = typeof pmPayoutRequests.$inferSelect;

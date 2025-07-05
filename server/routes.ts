@@ -25371,6 +25371,225 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== PROPERTY GOALS & INVESTMENT PLANS ROUTES =====
+  
+  // Require Property Management access (Admin, Portfolio Manager, Staff can view)
+  const requirePropertyGoalsAccess = (req: any, res: any, next: any) => {
+    const { role } = req.user;
+    if (!['admin', 'portfolio-manager', 'staff', 'owner'].includes(role)) {
+      return res.status(403).json({ message: "Property management access required" });
+    }
+    next();
+  };
+
+  // Require Property Goals management access (Admin, Portfolio Manager can manage)
+  const requirePropertyGoalsManagement = (req: any, res: any, next: any) => {
+    const { role } = req.user;
+    if (!['admin', 'portfolio-manager'].includes(role)) {
+      return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+    }
+    next();
+  };
+
+  // Get property goals
+  app.get("/api/property-goals", isDemoAuthenticated, requirePropertyGoalsAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, status, priority, upgradeType, triggerType } = req.query;
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (status) filters.status = status as string;
+      if (priority) filters.priority = priority as string;
+      if (upgradeType) filters.upgradeType = upgradeType as string;
+      if (triggerType) filters.triggerType = triggerType as string;
+      
+      const goals = await propertyGoalsStorage.getDemoPropertyGoals();
+      res.json(goals);
+    } catch (error) {
+      console.error("Error fetching property goals:", error);
+      res.status(500).json({ message: "Failed to fetch property goals" });
+    }
+  });
+
+  // Get property goals analytics
+  app.get("/api/property-goals/analytics", isDemoAuthenticated, requirePropertyGoalsAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId } = req.query;
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const analytics = await propertyGoalsStorage.getDemoGoalsAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching property goals analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // Get single property goal
+  app.get("/api/property-goals/:id", isDemoAuthenticated, requirePropertyGoalsAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const goalId = parseInt(req.params.id);
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const goal = await propertyGoalsStorage.getPropertyGoal(goalId);
+      if (!goal) {
+        return res.status(404).json({ message: "Property goal not found" });
+      }
+      
+      res.json(goal);
+    } catch (error) {
+      console.error("Error fetching property goal:", error);
+      res.status(500).json({ message: "Failed to fetch property goal" });
+    }
+  });
+
+  // Create new property goal
+  app.post("/api/property-goals", isDemoAuthenticated, requirePropertyGoalsManagement, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      // Set approval requirement based on role
+      const goalData = {
+        ...req.body,
+        proposedBy: req.user.id,
+        requiresApproval: req.user.role === 'owner',
+        approvedBy: req.user.role === 'admin' ? req.user.id : null,
+        approvedDate: req.user.role === 'admin' ? new Date().toISOString().split('T')[0] : null,
+      };
+
+      const goal = await propertyGoalsStorage.createPropertyGoal(goalData);
+      res.status(201).json(goal);
+    } catch (error) {
+      console.error("Error creating property goal:", error);
+      res.status(500).json({ message: "Failed to create property goal" });
+    }
+  });
+
+  // Update property goal
+  app.put("/api/property-goals/:id", isDemoAuthenticated, requirePropertyGoalsManagement, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const goalId = parseInt(req.params.id);
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const goal = await propertyGoalsStorage.updatePropertyGoal(goalId, req.body);
+      if (!goal) {
+        return res.status(404).json({ message: "Property goal not found" });
+      }
+      
+      res.json(goal);
+    } catch (error) {
+      console.error("Error updating property goal:", error);
+      res.status(500).json({ message: "Failed to update property goal" });
+    }
+  });
+
+  // Delete property goal
+  app.delete("/api/property-goals/:id", isDemoAuthenticated, requirePropertyGoalsManagement, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const goalId = parseInt(req.params.id);
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const deleted = await propertyGoalsStorage.deletePropertyGoal(goalId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Property goal not found" });
+      }
+      
+      res.json({ message: "Property goal deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting property goal:", error);
+      res.status(500).json({ message: "Failed to delete property goal" });
+    }
+  });
+
+  // Get goal attachments
+  app.get("/api/property-goals/:id/attachments", isDemoAuthenticated, requirePropertyGoalsAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const goalId = parseInt(req.params.id);
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const attachments = await propertyGoalsStorage.getDemoGoalAttachments(goalId);
+      res.json(attachments);
+    } catch (error) {
+      console.error("Error fetching goal attachments:", error);
+      res.status(500).json({ message: "Failed to fetch attachments" });
+    }
+  });
+
+  // Add goal attachment
+  app.post("/api/property-goals/:id/attachments", isDemoAuthenticated, requirePropertyGoalsAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const goalId = parseInt(req.params.id);
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const attachmentData = {
+        ...req.body,
+        goalId,
+        uploadedBy: req.user.id,
+      };
+
+      const attachment = await propertyGoalsStorage.createGoalAttachment(attachmentData);
+      res.status(201).json(attachment);
+    } catch (error) {
+      console.error("Error adding goal attachment:", error);
+      res.status(500).json({ message: "Failed to add attachment" });
+    }
+  });
+
+  // Get goal progress
+  app.get("/api/property-goals/:id/progress", isDemoAuthenticated, requirePropertyGoalsAccess, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const goalId = parseInt(req.params.id);
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const progress = await propertyGoalsStorage.getDemoGoalProgress(goalId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching goal progress:", error);
+      res.status(500).json({ message: "Failed to fetch progress" });
+    }
+  });
+
+  // Add goal progress
+  app.post("/api/property-goals/:id/progress", isDemoAuthenticated, requirePropertyGoalsManagement, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const goalId = parseInt(req.params.id);
+      
+      const propertyGoalsStorage = new (await import("./propertyGoalsStorage")).PropertyGoalsStorage(organizationId);
+      
+      const progressData = {
+        ...req.body,
+        goalId,
+        recordedBy: req.user.id,
+      };
+
+      const progress = await propertyGoalsStorage.createGoalProgress(progressData);
+      res.status(201).json(progress);
+    } catch (error) {
+      console.error("Error adding goal progress:", error);
+      res.status(500).json({ message: "Failed to add progress" });
+    }
+  });
+
   // OTA Platform Settings endpoints
   app.get("/api/ota-platform-settings", isDemoAuthenticated, requireBookingRevenueAccess, async (req: any, res) => {
     try {
