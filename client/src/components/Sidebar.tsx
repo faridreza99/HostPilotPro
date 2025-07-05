@@ -490,7 +490,7 @@ export default function Sidebar({ className }: SidebarProps) {
       </div>
 
       {/* Navigation Menu */}
-      <ScrollArea className="flex-1 px-2">
+      <ScrollArea className="flex-1 min-h-0 px-2" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         <div className="py-4 space-y-6">
           {menuSections.map((section, sectionIndex) => (
             <div key={sectionIndex}>
@@ -549,7 +549,7 @@ export default function Sidebar({ className }: SidebarProps) {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className={cn("hidden lg:flex lg:w-80 lg:flex-col lg:fixed lg:inset-y-0 bg-background border-r", className)}>
+      <div className={cn("hidden lg:flex lg:w-80 lg:flex-col lg:fixed lg:inset-y-0 bg-background border-r overflow-hidden", className)}>
         <SidebarContent />
       </div>
 

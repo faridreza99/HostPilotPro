@@ -152,11 +152,19 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
         {/* Right side items */}
         <div className="flex items-center gap-2">
           
-          {/* Search button (desktop) */}
+          {/* Search functionality - implement actual search */}
           <Button
             variant="ghost"
             size="sm"
             className="hidden md:flex h-8 w-8 p-0"
+            onClick={() => {
+              // Quick search implementation
+              const searchTerm = prompt("Search properties, bookings, or guests:");
+              if (searchTerm) {
+                console.log("Searching for:", searchTerm);
+                // TODO: Implement actual search functionality
+              }
+            }}
           >
             <Search className="h-4 w-4" />
           </Button>
@@ -164,20 +172,22 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
           {/* Notifications */}
           <NotificationDropdown />
 
-          {/* Help */}
+          {/* Help - Link to help page */}
           <Button
             variant="ghost"
             size="sm"
             className="hidden sm:flex h-8 w-8 p-0"
+            onClick={() => window.location.href = "/help"}
           >
             <HelpCircle className="h-4 w-4" />
           </Button>
 
-          {/* Settings */}
+          {/* Settings - Link to settings page */}
           <Button
             variant="ghost"
             size="sm"
             className="hidden sm:flex h-8 w-8 p-0"
+            onClick={() => window.location.href = "/settings"}
           >
             <Settings className="h-4 w-4" />
           </Button>
