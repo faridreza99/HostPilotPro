@@ -575,8 +575,8 @@ export default function Sidebar({ className }: SidebarProps) {
 
       {/* Navigation Menu with Collapsible Sections */}
       <div className="flex-1 overflow-hidden px-2">
-        <ScrollArea className="h-full overflow-y-auto">
-          <div className="py-4 space-y-2" style={{ minHeight: 'calc(100vh - 200px)' }}>
+        <ScrollArea className="h-full" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div className="py-4 space-y-2">
           {menuSections.map((section, sectionIndex) => (
             <Collapsible
               key={sectionIndex}
@@ -653,7 +653,7 @@ export default function Sidebar({ className }: SidebarProps) {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className={cn("hidden lg:flex lg:w-80 lg:flex-col lg:fixed lg:inset-y-0 bg-background border-r overflow-hidden", className)}>
+      <div className={cn("hidden lg:flex lg:w-80 lg:flex-col lg:fixed lg:inset-y-0 bg-background border-r", className)} style={{ maxHeight: '100vh', overflow: 'hidden' }}>
         <SidebarContent />
       </div>
 
@@ -665,14 +665,14 @@ export default function Sidebar({ className }: SidebarProps) {
               <Menu className="h-4 w-4" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-80 p-0 flex flex-col">
-            <SheetHeader className="p-4 border-b">
+          <SheetContent side="left" className="w-80 p-0 flex flex-col" style={{ maxHeight: '100vh' }}>
+            <SheetHeader className="p-4 border-b flex-shrink-0">
               <SheetTitle className="flex items-center gap-2">
                 <RoleIcon className="h-5 w-5" />
                 Navigation
               </SheetTitle>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)' }}>
               <SidebarContent />
             </div>
           </SheetContent>
