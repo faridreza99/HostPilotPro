@@ -12,6 +12,7 @@ import { CrossSyncedTaskVisibilityStorage } from "./crossSyncedTaskVisibility";
 import { seedThailandUtilityProviders } from "./seedThailandUtilityProviders";
 import { seedVillaSamuiDemo } from "./seedVillaSamuiDemo";
 import { userManagementStorage } from "./userManagementStorage";
+import { userPermissionsStorage } from "./userPermissionsStorage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup demo authentication (for development/testing)
@@ -27280,6 +27281,240 @@ async function processGuestIssueForAI(issueReport: any) {
     } catch (error) {
       console.error("Error fetching OTA revenue reports:", error);
       res.status(500).json({ message: "Failed to fetch OTA revenue reports" });
+    }
+  });
+
+  // ===== USER PERMISSION CONTROL PANEL API ROUTES =====
+
+  // Get all users with permissions (admin/PM only)
+  app.get("/api/user-permissions/users", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const users = await userPermissionsStorage.getAllUsersWithPermissions(organizationId);
+      
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users with permissions:", error);
+      res.status(500).json({ message: "Failed to fetch users with permissions" });
+    }
+  });
+
+  // Update user permissions (admin/PM only)
+  app.patch("/api/user-permissions/users/:userId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const userId = req.params.userId;
+      const { permissions } = req.body;
+
+      if (!permissions || !Array.isArray(permissions)) {
+        return res.status(400).json({ message: "Valid permissions array is required" });
+      }
+
+      await userPermissionsStorage.updateUserPermissions(
+        organizationId,
+        userId,
+        permissions,
+        user.id
+      );
+
+      res.json({ message: "User permissions updated successfully" });
+    } catch (error) {
+      console.error("Error updating user permissions:", error);
+      res.status(500).json({ message: "Failed to update user permissions" });
+    }
+  });
+
+  // Get permission presets (admin/PM only)
+  app.get("/api/user-permissions/presets", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { targetRole } = req.query;
+      
+      const presets = await userPermissionsStorage.getPermissionPresets(
+        organizationId,
+        targetRole as string
+      );
+      
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching permission presets:", error);
+      res.status(500).json({ message: "Failed to fetch permission presets" });
+    }
+  });
+
+  // Create permission preset (admin only)
+  app.post("/api/user-permissions/presets", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const { presetName, targetRole, permissions } = req.body;
+
+      if (!presetName || !targetRole || !permissions) {
+        return res.status(400).json({ message: "Preset name, target role, and permissions are required" });
+      }
+
+      const preset = await userPermissionsStorage.createPermissionPreset({
+        organizationId,
+        presetName,
+        targetRole,
+        permissions,
+        createdBy: user.id
+      });
+
+      res.status(201).json(preset);
+    } catch (error) {
+      console.error("Error creating permission preset:", error);
+      res.status(500).json({ message: "Failed to create permission preset" });
+    }
+  });
+
+  // Apply permission preset to user (admin/PM only)
+  app.post("/api/user-permissions/users/:userId/apply-preset", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const userId = req.params.userId;
+      const { presetId } = req.body;
+
+      if (!presetId) {
+        return res.status(400).json({ message: "Preset ID is required" });
+      }
+
+      await userPermissionsStorage.applyPermissionPreset(
+        organizationId,
+        userId,
+        presetId,
+        user.id
+      );
+
+      res.json({ message: "Permission preset applied successfully" });
+    } catch (error) {
+      console.error("Error applying permission preset:", error);
+      res.status(500).json({ message: "Failed to apply permission preset" });
+    }
+  });
+
+  // Clone user permissions (admin/PM only)
+  app.post("/api/user-permissions/users/:toUserId/clone-from/:fromUserId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const fromUserId = req.params.fromUserId;
+      const toUserId = req.params.toUserId;
+
+      await userPermissionsStorage.cloneUserPermissions(
+        organizationId,
+        fromUserId,
+        toUserId,
+        user.id
+      );
+
+      res.json({ message: "User permissions cloned successfully" });
+    } catch (error) {
+      console.error("Error cloning user permissions:", error);
+      res.status(500).json({ message: "Failed to clone user permissions" });
+    }
+  });
+
+  // Toggle user demo mode (admin only)
+  app.patch("/api/user-permissions/users/:userId/demo-mode", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const userId = req.params.userId;
+      const { demoMode } = req.body;
+
+      if (typeof demoMode !== 'boolean') {
+        return res.status(400).json({ message: "Demo mode must be a boolean value" });
+      }
+
+      await userPermissionsStorage.toggleUserDemoMode(organizationId, userId, demoMode);
+
+      res.json({ message: `Demo mode ${demoMode ? 'enabled' : 'disabled'} for user` });
+    } catch (error) {
+      console.error("Error toggling demo mode:", error);
+      res.status(500).json({ message: "Failed to toggle demo mode" });
+    }
+  });
+
+  // Update user status (admin/PM only)
+  app.patch("/api/user-permissions/users/:userId/status", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user || (user.role !== 'admin' && user.role !== 'portfolio-manager')) {
+        return res.status(403).json({ message: "Admin or Portfolio Manager access required" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const userId = req.params.userId;
+      const { isActive } = req.body;
+
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ message: "isActive must be a boolean value" });
+      }
+
+      await userPermissionsStorage.updateUserStatus(organizationId, userId, isActive);
+
+      res.json({ message: `User ${isActive ? 'activated' : 'suspended'} successfully` });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
+  // Get user's effective permissions (for sidebar filtering)
+  app.get("/api/user-permissions/effective/:userId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const organizationId = user.organizationId || "default-org";
+      const userId = req.params.userId;
+
+      // Users can only get their own permissions unless they're admin/PM
+      if (userId !== user.id && user.role !== 'admin' && user.role !== 'portfolio-manager') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const permissions = await userPermissionsStorage.getUserEffectivePermissions(organizationId, userId);
+      
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching effective permissions:", error);
+      res.status(500).json({ message: "Failed to fetch effective permissions" });
     }
   });
 

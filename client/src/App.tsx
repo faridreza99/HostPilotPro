@@ -128,6 +128,7 @@ import SmartPricingPerformanceToolkit from "@/pages/SmartPricingPerformanceToolk
 import OwnerTargetUpgradeTracker from "@/pages/OwnerTargetUpgradeTracker";
 import WaterUtilityEnhanced from "@/pages/WaterUtilityEnhanced";
 import OtaPayoutLogicSmartRevenue from "@/pages/OtaPayoutLogicSmartRevenue";
+import UserPermissionControlPanel from "@/pages/UserPermissionControlPanel";
 import EnhancedAdminDashboard from "@/pages/EnhancedAdminDashboard";
 import FixedGuestCheckInTracker from "@/pages/FixedGuestCheckInTracker";
 import UserAccessManager from "@/pages/UserAccessManager";
@@ -329,6 +330,7 @@ function Router() {
         <Route path="/water-utility-enhanced" component={WaterUtilityEnhanced} />
         <Route path="/ota-payout-logic-smart-revenue" component={OtaPayoutLogicSmartRevenue} />
         <ProtectedRoute path="/property-visibility-control" component={PropertyVisibilityControl} allowedRoles={['admin']} />
+        <Route path="/user-permission-control-panel" component={UserPermissionControlPanel} />
         <Route component={NotFound} />
         </Switch>
       </Layout>

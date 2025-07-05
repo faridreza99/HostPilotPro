@@ -250,6 +250,44 @@ export const rolePermissions = pgTable("role_permissions", {
   index("IDX_role_perm_role").on(table.roleId),
 ]);
 
+// User-specific permission overrides
+export const userPermissionOverrides = pgTable("user_permission_overrides", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => userManagement.id).notNull(),
+  moduleCategory: varchar("module_category").notNull(), // financials, maintenance, bookings, documents, addons
+  moduleName: varchar("module_name").notNull(), // specific module name
+  permission: varchar("permission").notNull(), // none, view, edit
+  isOverride: boolean("is_override").default(true), // true if overriding default role permission
+  grantedBy: varchar("granted_by").references(() => userManagement.id),
+  reason: text("reason"), // Why this override was granted
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_perm_override_org").on(table.organizationId),
+  index("IDX_perm_override_user").on(table.userId),
+  index("IDX_perm_override_module").on(table.moduleCategory, table.moduleName),
+]);
+
+// Permission presets/templates for quick role assignment
+export const permissionPresets = pgTable("permission_presets", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  presetName: varchar("preset_name").notNull(),
+  description: text("description"),
+  targetRole: varchar("target_role").notNull(), // which role this preset is for
+  permissions: jsonb("permissions").notNull(), // Complete permissions structure
+  isDefault: boolean("is_default").default(false), // Whether this is the default for the role
+  createdBy: varchar("created_by").references(() => userManagement.id),
+  usageCount: integer("usage_count").default(0), // How many times it's been applied
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_perm_preset_org").on(table.organizationId),
+  index("IDX_perm_preset_role").on(table.targetRole),
+]);
+
 // User permissions for granular access control
 export const userPermissions = pgTable("user_permissions", {
   id: serial("id").primaryKey(),
@@ -3002,6 +3040,33 @@ export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganizationApiKey = z.infer<typeof insertOrganizationApiKeySchema>;
 export type OrganizationApiKey = typeof organizationApiKeys.$inferSelect;
+
+// Permission system schemas
+export const insertUserPermissionOverrideSchema = createInsertSchema(userPermissionOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPermissionPresetSchema = createInsertSchema(permissionPresets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Permission system types
+export type InsertUserPermissionOverride = z.infer<typeof insertUserPermissionOverrideSchema>;
+export type UserPermissionOverride = typeof userPermissionOverrides.$inferSelect;
+export type InsertPermissionPreset = z.infer<typeof insertPermissionPresetSchema>;
+export type PermissionPreset = typeof permissionPresets.$inferSelect;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type RolePermission = typeof rolePermissions.$inferSelect;
 
 // Types - Core entities
 export type UpsertUser = z.infer<typeof insertUserSchema>;
