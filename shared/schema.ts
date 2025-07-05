@@ -2481,6 +2481,106 @@ export const agentBookingRequests = pgTable("agent_booking_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Goals & Improvement Plan Module Tables
+export const propertyGoals = pgTable("property_goals", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Revenue Target
+  revenueTargetType: varchar("revenue_target_type").notNull().default("monthly"), // monthly, quarterly, yearly
+  revenueTargetAmount: decimal("revenue_target_amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  currentRevenue: decimal("current_revenue", { precision: 12, scale: 2 }).default("0"),
+  
+  // Reward/Condition
+  rewardCondition: text("reward_condition"), // e.g., "If revenue > 1M THB, buy new outdoor sofa"
+  
+  // Status and tracking
+  isActive: boolean("is_active").default(true),
+  targetPeriodStart: date("target_period_start"),
+  targetPeriodEnd: date("target_period_end"),
+  
+  // Timestamps
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const propertyPlannedUpgrades = pgTable("property_planned_upgrades", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Upgrade Details
+  upgradeType: varchar("upgrade_type").notNull(), // furniture, appliance, renovation, decor, safety
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  suggestedBudget: decimal("suggested_budget", { precision: 10, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("THB"),
+  targetDate: date("target_date"),
+  priorityLevel: varchar("priority_level").notNull().default("medium"), // low, medium, high
+  
+  // Files and attachments
+  attachmentUrl: varchar("attachment_url"), // Image/file attachment
+  attachmentFilename: varchar("attachment_filename"),
+  
+  // Conditional trigger
+  hasConditionTrigger: boolean("has_condition_trigger").default(false),
+  conditionAmount: decimal("condition_amount", { precision: 12, scale: 2 }),
+  conditionDescription: text("condition_description"), // e.g., "Only if revenue > X THB"
+  
+  // Status tracking
+  status: varchar("status").notNull().default("pending"), // pending, approved, in_progress, completed, cancelled
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  completedBy: varchar("completed_by").references(() => users.id),
+  completedAt: timestamp("completed_at"),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  
+  // Notes
+  notes: text("notes"),
+  
+  // Timestamps
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const propertyGoalsNotes = pgTable("property_goals_notes", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Note content
+  noteText: text("note_text").notNull(),
+  noteType: varchar("note_type").default("general"), // general, milestone, concern, suggestion
+  
+  // Permissions
+  isOwnerVisible: boolean("is_owner_visible").default(true),
+  isStaffVisible: boolean("is_staff_visible").default(false),
+  
+  // Timestamps and authorship
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const propertyGoalsComments = pgTable("property_goals_comments", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  relatedNoteId: integer("related_note_id").references(() => propertyGoalsNotes.id),
+  
+  // Comment content
+  commentText: text("comment_text").notNull(),
+  
+  // Timestamps and authorship
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations for new agent tables
 export const propertyMarketingMediaRelations = relations(propertyMarketingMedia, ({ one }) => ({
   property: one(properties, {
@@ -12046,6 +12146,44 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     chatWall: false,
   },
 } as const;
+
+// Goals & Improvement Plan Module - Insert Schemas
+export const insertPropertyGoalSchema = createInsertSchema(propertyGoals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyPlannedUpgradeSchema = createInsertSchema(propertyPlannedUpgrades).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyGoalsNoteSchema = createInsertSchema(propertyGoalsNotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyGoalsCommentSchema = createInsertSchema(propertyGoalsComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Goals & Improvement Plan Module - Type Exports
+export type PropertyGoal = typeof propertyGoals.$inferSelect;
+export type InsertPropertyGoal = z.infer<typeof insertPropertyGoalSchema>;
+
+export type PropertyPlannedUpgrade = typeof propertyPlannedUpgrades.$inferSelect;
+export type InsertPropertyPlannedUpgrade = z.infer<typeof insertPropertyPlannedUpgradeSchema>;
+
+export type PropertyGoalsNote = typeof propertyGoalsNotes.$inferSelect;
+export type InsertPropertyGoalsNote = z.infer<typeof insertPropertyGoalsNoteSchema>;
+
+export type PropertyGoalsComment = typeof propertyGoalsComments.$inferSelect;
+export type InsertPropertyGoalsComment = z.infer<typeof insertPropertyGoalsCommentSchema>;
 
 // Additional type exports
 export type PMPayoutRequest = typeof pmPayoutRequests.$inferSelect;
