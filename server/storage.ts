@@ -276,6 +276,17 @@ import {
   type InsertMaintenanceCostAnalytics,
   type TechnicianPerformance,
   type InsertTechnicianPerformance,
+  
+  // Cross-synced Task Visibility tables
+  guestServiceRequests,
+  guestConfirmedServices,
+  bookingLinkedTasks,
+  type GuestServiceRequest,
+  type InsertGuestServiceRequest,
+  type GuestConfirmedService,
+  type InsertGuestConfirmedService,
+  type BookingLinkedTask,
+  type InsertBookingLinkedTask,
   type DocumentExpirationAlert,
   type InsertDocumentExpirationAlert,
   type DocumentExportHistory,

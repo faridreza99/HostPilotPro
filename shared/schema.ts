@@ -88,6 +88,171 @@ export const users = pgTable("users", {
   index("IDX_user_email_org").on(table.email, table.organizationId),
 ]);
 
+// ===== USER MANAGEMENT SYSTEM =====
+
+// User roles and sub-roles
+export const userRoles = pgTable("user_roles", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  primaryRole: varchar("primary_role").notNull(), // admin, portfolio-manager, owner, staff, retail-agent, referral-agent, freelancer
+  subRole: varchar("sub_role"), // For staff: housekeeping, host, supervisor, gardener, handyman, pool, pest; For freelancer: electrician, contractor, plumber, pest, chef, spa, nanny, maid
+  isActive: boolean("is_active").default(true),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_user_role_org").on(table.organizationId),
+  index("IDX_user_role_user").on(table.userId),
+]);
+
+// User permissions for granular access control
+export const userPermissions = pgTable("user_permissions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  moduleAccess: jsonb("module_access").notNull(), // JSON object with permission flags
+  // Module access includes: bookingsView, financialReports, taskAccess, guestChat, 
+  // utilitiesView, propertyEditor, documentsModule, calendarAccess, salaryVisibility,
+  // photoSubmission, maintenanceLogs, fileUpload, notifications, reservationNotes, chatWall
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+}, (table) => [
+  index("IDX_user_perm_org").on(table.organizationId),
+  index("IDX_user_perm_user").on(table.userId),
+]);
+
+// Property assignments for users
+export const userPropertyAssignments = pgTable("user_property_assignments", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  assignmentType: varchar("assignment_type").notNull(), // permanent, temporary, project-based
+  startDate: date("start_date"),
+  endDate: date("end_date"), // NULL for permanent assignments
+  assignedBy: varchar("assigned_by").references(() => users.id),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+}, (table) => [
+  index("IDX_user_prop_org").on(table.organizationId),
+  index("IDX_user_prop_user").on(table.userId),
+  index("IDX_user_prop_property").on(table.propertyId),
+]);
+
+// Freelancer availability calendar
+export const freelancerAvailability = pgTable("freelancer_availability", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  freelancerId: varchar("freelancer_id").references(() => users.id).notNull(),
+  availableDate: date("available_date").notNull(),
+  timeSlots: jsonb("time_slots").notNull(), // Array of available time slots
+  isAvailable: boolean("is_available").default(true),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_freelancer_avail_org").on(table.organizationId),
+  index("IDX_freelancer_avail_user").on(table.freelancerId),
+  index("IDX_freelancer_avail_date").on(table.availableDate),
+]);
+
+// Freelancer task requests
+export const freelancerTaskRequests = pgTable("freelancer_task_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  freelancerId: varchar("freelancer_id").references(() => users.id).notNull(),
+  requestedBy: varchar("requested_by").references(() => users.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  taskTitle: varchar("task_title").notNull(),
+  taskDescription: text("task_description"),
+  serviceCategory: varchar("service_category").notNull(), // electrician, plumber, chef, etc.
+  proposedDate: date("proposed_date").notNull(),
+  proposedTimeStart: varchar("proposed_time_start").notNull(), // HH:MM format
+  proposedTimeEnd: varchar("proposed_time_end").notNull(),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  status: varchar("status").default("pending"), // pending, confirmed, declined, counter_proposed, completed
+  freelancerResponse: text("freelancer_response"),
+  counterProposedDate: date("counter_proposed_date"),
+  counterProposedTimeStart: varchar("counter_proposed_time_start"),
+  counterProposedTimeEnd: varchar("counter_proposed_time_end"),
+  confirmedDate: date("confirmed_date"),
+  confirmedTimeStart: varchar("confirmed_time_start"),
+  confirmedTimeEnd: varchar("confirmed_time_end"),
+  completedAt: timestamp("completed_at"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_freelancer_req_org").on(table.organizationId),
+  index("IDX_freelancer_req_freelancer").on(table.freelancerId),
+  index("IDX_freelancer_req_requester").on(table.requestedBy),
+  index("IDX_freelancer_req_status").on(table.status),
+]);
+
+// User activity audit log
+export const userActivityAudit = pgTable("user_activity_audit", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  action: varchar("action").notNull(), // login, logout, role_change, permission_update, property_assignment
+  details: jsonb("details"), // Additional details about the action
+  oldValue: text("old_value"), // For tracking changes
+  newValue: text("new_value"),
+  performedBy: varchar("performed_by").references(() => users.id), // Who made the change
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  timestamp: timestamp("timestamp").defaultNow(),
+}, (table) => [
+  index("IDX_audit_org").on(table.organizationId),
+  index("IDX_audit_user").on(table.userId),
+  index("IDX_audit_action").on(table.action),
+  index("IDX_audit_timestamp").on(table.timestamp),
+]);
+
+// User invitations for freelancers and new users
+export const userInvitations = pgTable("user_invitations", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  email: varchar("email").notNull(),
+  inviteCode: varchar("invite_code").notNull().unique(),
+  roleAssignment: varchar("role_assignment").notNull(), // The role they'll get when they accept
+  subRoleAssignment: varchar("sub_role_assignment"), // Sub-role for staff/freelancer
+  propertyAssignments: jsonb("property_assignments"), // Array of property IDs to assign
+  modulePermissions: jsonb("module_permissions"), // Permissions they'll get
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  invitedBy: varchar("invited_by").references(() => users.id).notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  acceptedByUserId: varchar("accepted_by_user_id").references(() => users.id),
+  status: varchar("status").default("pending"), // pending, accepted, expired, revoked
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_invite_org").on(table.organizationId),
+  index("IDX_invite_email").on(table.email),
+  index("IDX_invite_code").on(table.inviteCode),
+  index("IDX_invite_status").on(table.status),
+]);
+
+// User performance tracking
+export const userPerformanceMetrics = pgTable("user_performance_metrics", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  periodMonth: integer("period_month").notNull(), // 1-12
+  periodYear: integer("period_year").notNull(),
+  tasksCompleted: integer("tasks_completed").default(0),
+  tasksOnTime: integer("tasks_on_time").default(0),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }), // Out of 5.00
+  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }),
+  responseTimeHours: decimal("response_time_hours", { precision: 5, scale: 2 }),
+  clientSatisfactionScore: decimal("client_satisfaction_score", { precision: 3, scale: 2 }),
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+}, (table) => [
+  index("IDX_perf_org").on(table.organizationId),
+  index("IDX_perf_user").on(table.userId),
+  index("IDX_perf_period").on(table.periodYear, table.periodMonth),
+]);
+
 export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
@@ -395,6 +560,111 @@ export const bookings = pgTable("bookings", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Guest Service Requests linked to bookings
+export const guestServiceRequests = pgTable("guest_service_requests", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  reservationId: varchar("reservation_id").notNull(), // e.g., Demo1234
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Request Details
+  requestType: varchar("request_type").notNull(), // extra_bed, baby_cot, early_checkin, late_checkout, massage, chef, cleaning, amenities
+  serviceName: varchar("service_name").notNull(),
+  description: text("description"),
+  requestedDate: date("requested_date"),
+  requestedTime: varchar("requested_time"),
+  
+  // Billing and Assignment
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  finalCost: decimal("final_cost", { precision: 10, scale: 2 }),
+  billingAssignment: varchar("billing_assignment").default("guest"), // guest, owner, company, complimentary
+  
+  // Status and Processing
+  status: varchar("status").default("requested"), // requested, approved, scheduled, in_progress, completed, cancelled
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  completedAt: timestamp("completed_at"),
+  
+  // Task Integration
+  createdTaskId: integer("created_task_id").references(() => tasks.id),
+  assignedDepartment: varchar("assigned_department"), // housekeeping, spa, kitchen, host
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  
+  // Guest Communication
+  guestNotes: text("guest_notes"),
+  staffNotes: text("staff_notes"),
+  isVisible: boolean("is_visible").default(true), // Visible to guest
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_guest_service_booking").on(table.bookingId),
+  index("IDX_guest_service_reservation").on(table.reservationId),
+  index("IDX_guest_service_property").on(table.propertyId),
+]);
+
+// Confirmed Services & Requests visible to guests
+export const guestConfirmedServices = pgTable("guest_confirmed_services", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id).notNull(),
+  reservationId: varchar("reservation_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Service Information
+  serviceType: varchar("service_type").notNull(), // request, addon_service, property_service
+  serviceName: varchar("service_name").notNull(),
+  serviceDescription: text("service_description"),
+  
+  // Scheduling
+  scheduledDate: date("scheduled_date"),
+  scheduledTime: varchar("scheduled_time"),
+  duration: integer("duration"), // in minutes
+  
+  // Visibility and Status
+  isActive: boolean("is_active").default(true),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  
+  // Integration
+  linkedTaskId: integer("linked_task_id").references(() => tasks.id),
+  linkedServiceRequestId: integer("linked_service_request_id").references(() => guestServiceRequests.id),
+  linkedAddonBookingId: integer("linked_addon_booking_id").references(() => addonBookings.id),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_confirmed_service_booking").on(table.bookingId),
+  index("IDX_confirmed_service_reservation").on(table.reservationId),
+  index("IDX_confirmed_service_date").on(table.scheduledDate),
+]);
+
+// Enhanced Tasks with Booking Integration
+export const bookingLinkedTasks = pgTable("booking_linked_tasks", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  reservationId: varchar("reservation_id"), // e.g., Demo1234
+  
+  // Task-Booking Relationship
+  taskCategory: varchar("task_category").notNull(), // pre_arrival, checkin, during_stay, checkout, post_departure
+  isGuestVisible: boolean("is_guest_visible").default(false),
+  guestDescription: text("guest_description"), // Guest-friendly description
+  
+  // Service Request Integration
+  serviceRequestId: integer("service_request_id").references(() => guestServiceRequests.id),
+  isServiceGenerated: boolean("is_service_generated").default(false), // Created from guest request
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_booking_task_booking").on(table.bookingId),
+  index("IDX_booking_task_reservation").on(table.reservationId),
+  index("IDX_booking_task_category").on(table.taskCategory),
+]);
 
 export const finances = pgTable("finances", {
   id: serial("id").primaryKey(),
@@ -2594,6 +2864,37 @@ export const insertMaintenanceAiSuggestionSchema = createInsertSchema(maintenanc
   createdAt: true,
   updatedAt: true,
 });
+
+// ===== CROSS-SYNCED TASK VISIBILITY SCHEMAS =====
+
+// Insert schemas for cross-synced task visibility
+export const insertGuestServiceRequestSchema = createInsertSchema(guestServiceRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGuestConfirmedServiceSchema = createInsertSchema(guestConfirmedServices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBookingLinkedTaskSchema = createInsertSchema(bookingLinkedTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports for cross-synced task visibility
+export type GuestServiceRequest = typeof guestServiceRequests.$inferSelect;
+export type InsertGuestServiceRequest = z.infer<typeof insertGuestServiceRequestSchema>;
+
+export type GuestConfirmedService = typeof guestConfirmedServices.$inferSelect;
+export type InsertGuestConfirmedService = z.infer<typeof insertGuestConfirmedServiceSchema>;
+
+export type BookingLinkedTask = typeof bookingLinkedTasks.$inferSelect;
+export type InsertBookingLinkedTask = z.infer<typeof insertBookingLinkedTaskSchema>;
 
 export const insertPropertyAlertSchema = createInsertSchema(propertyAlerts).omit({
   id: true,
@@ -11297,3 +11598,226 @@ export type InsertPropertyLocalContact = z.infer<typeof insertPropertyLocalConta
 
 export type ContactTemplateZone = typeof contactTemplateZones.$inferSelect;
 export type InsertContactTemplateZone = z.infer<typeof insertContactTemplateZoneSchema>;
+
+// ===== USER MANAGEMENT TYPE DEFINITIONS =====
+
+// User roles and sub-roles schemas
+export const insertUserRoleSchema = createInsertSchema(userRoles).omit({
+  id: true,
+  assignedAt: true,
+  updatedAt: true,
+});
+
+export const insertUserPermissionSchema = createInsertSchema(userPermissions).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const insertUserPropertyAssignmentSchema = createInsertSchema(userPropertyAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export const insertFreelancerAvailabilitySchema = createInsertSchema(freelancerAvailability).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const insertFreelancerTaskRequestSchema = createInsertSchema(freelancerTaskRequests).omit({
+  id: true,
+  requestedAt: true,
+  respondedAt: true,
+  updatedAt: true,
+});
+
+export const insertUserActivityAuditSchema = createInsertSchema(userActivityAudit).omit({
+  id: true,
+  timestamp: true,
+});
+
+export const insertUserInvitationSchema = createInsertSchema(userInvitations).omit({
+  id: true,
+  inviteCode: true,
+  acceptedAt: true,
+  acceptedByUserId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserPerformanceMetricsSchema = createInsertSchema(userPerformanceMetrics).omit({
+  id: true,
+  calculatedAt: true,
+});
+
+// Type exports for user management
+export type UserRole = typeof userRoles.$inferSelect;
+export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
+
+export type UserPermission = typeof userPermissions.$inferSelect;
+export type InsertUserPermission = z.infer<typeof insertUserPermissionSchema>;
+
+export type UserPropertyAssignment = typeof userPropertyAssignments.$inferSelect;
+export type InsertUserPropertyAssignment = z.infer<typeof insertUserPropertyAssignmentSchema>;
+
+export type FreelancerAvailability = typeof freelancerAvailability.$inferSelect;
+export type InsertFreelancerAvailability = z.infer<typeof insertFreelancerAvailabilitySchema>;
+
+export type FreelancerTaskRequest = typeof freelancerTaskRequests.$inferSelect;
+export type InsertFreelancerTaskRequest = z.infer<typeof insertFreelancerTaskRequestSchema>;
+
+export type UserActivityAudit = typeof userActivityAudit.$inferSelect;
+export type InsertUserActivityAudit = z.infer<typeof insertUserActivityAuditSchema>;
+
+export type UserInvitation = typeof userInvitations.$inferSelect;
+export type InsertUserInvitation = z.infer<typeof insertUserInvitationSchema>;
+
+export type UserPerformanceMetrics = typeof userPerformanceMetrics.$inferSelect;
+export type InsertUserPerformanceMetrics = z.infer<typeof insertUserPerformanceMetricsSchema>;
+
+// Extended user type with role and permission information
+export type UserWithRoleAndPermissions = typeof users.$inferSelect & {
+  userRole?: UserRole;
+  userPermissions?: UserPermission;
+  propertyAssignments?: UserPropertyAssignment[];
+  performanceMetrics?: UserPerformanceMetrics;
+};
+
+// Default permission templates for different roles
+export const DEFAULT_ROLE_PERMISSIONS = {
+  admin: {
+    bookingsView: true,
+    financialReports: true,
+    taskAccess: true,
+    guestChat: true,
+    utilitiesView: true,
+    propertyEditor: true,
+    documentsModule: true,
+    calendarAccess: true,
+    salaryVisibility: true,
+    photoSubmission: true,
+    maintenanceLogs: true,
+    fileUpload: true,
+    notifications: true,
+    reservationNotes: true,
+    chatWall: true,
+  },
+  'portfolio-manager': {
+    bookingsView: true,
+    financialReports: true,
+    taskAccess: true,
+    guestChat: true,
+    utilitiesView: true,
+    propertyEditor: true,
+    documentsModule: true,
+    calendarAccess: true,
+    salaryVisibility: false,
+    photoSubmission: true,
+    maintenanceLogs: true,
+    fileUpload: true,
+    notifications: true,
+    reservationNotes: true,
+    chatWall: true,
+  },
+  owner: {
+    bookingsView: true,
+    financialReports: true,
+    taskAccess: false,
+    guestChat: false,
+    utilitiesView: true,
+    propertyEditor: false,
+    documentsModule: true,
+    calendarAccess: true,
+    salaryVisibility: false,
+    photoSubmission: false,
+    maintenanceLogs: true,
+    fileUpload: false,
+    notifications: true,
+    reservationNotes: true,
+    chatWall: false,
+  },
+  staff: {
+    bookingsView: false,
+    financialReports: false,
+    taskAccess: true,
+    guestChat: true,
+    utilitiesView: false,
+    propertyEditor: false,
+    documentsModule: false,
+    calendarAccess: true,
+    salaryVisibility: true,
+    photoSubmission: true,
+    maintenanceLogs: false,
+    fileUpload: true,
+    notifications: true,
+    reservationNotes: false,
+    chatWall: true,
+  },
+  'retail-agent': {
+    bookingsView: true,
+    financialReports: false,
+    taskAccess: false,
+    guestChat: true,
+    utilitiesView: false,
+    propertyEditor: false,
+    documentsModule: true,
+    calendarAccess: true,
+    salaryVisibility: false,
+    photoSubmission: false,
+    maintenanceLogs: false,
+    fileUpload: true,
+    notifications: true,
+    reservationNotes: true,
+    chatWall: false,
+  },
+  'referral-agent': {
+    bookingsView: true,
+    financialReports: false,
+    taskAccess: false,
+    guestChat: false,
+    utilitiesView: false,
+    propertyEditor: false,
+    documentsModule: true,
+    calendarAccess: true,
+    salaryVisibility: false,
+    photoSubmission: false,
+    maintenanceLogs: false,
+    fileUpload: true,
+    notifications: true,
+    reservationNotes: false,
+    chatWall: false,
+  },
+  freelancer: {
+    bookingsView: false,
+    financialReports: false,
+    taskAccess: true,
+    guestChat: false,
+    utilitiesView: false,
+    propertyEditor: false,
+    documentsModule: false,
+    calendarAccess: true,
+    salaryVisibility: true,
+    photoSubmission: true,
+    maintenanceLogs: false,
+    fileUpload: true,
+    notifications: true,
+    reservationNotes: false,
+    chatWall: false,
+  },
+  guest: {
+    bookingsView: false,
+    financialReports: false,
+    taskAccess: false,
+    guestChat: true,
+    utilitiesView: false,
+    propertyEditor: false,
+    documentsModule: false,
+    calendarAccess: false,
+    salaryVisibility: false,
+    photoSubmission: false,
+    maintenanceLogs: false,
+    fileUpload: false,
+    notifications: false,
+    reservationNotes: false,
+    chatWall: false,
+  },
+} as const;

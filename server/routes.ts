@@ -4,10 +4,12 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
 import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
-import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema } from "@shared/schema";
+import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema } from "@shared/schema";
 import { z } from "zod";
+import { CrossSyncedTaskVisibilityStorage } from "./crossSyncedTaskVisibility";
 import { seedThailandUtilityProviders } from "./seedThailandUtilityProviders";
 import { seedVillaSamuiDemo } from "./seedVillaSamuiDemo";
+import { UserManagementStorage } from "./userManagementStorage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup demo authentication (for development/testing)
@@ -31,6 +33,428 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // ===== USER MANAGEMENT SYSTEM ROUTES =====
+
+  // Middleware for admin-only operations
+  const requireAdmin = (req: any, res: any, next: any) => {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    next();
+  };
+
+  // Middleware for portfolio manager or admin access
+  const requirePortfolioManagerOrAdmin = (req: any, res: any, next: any) => {
+    if (!['admin', 'portfolio-manager'].includes(req.user?.role)) {
+      return res.status(403).json({ message: "Portfolio Manager or Admin access required" });
+    }
+    next();
+  };
+
+  // Get all users with filtering and search
+  app.get("/api/user-management/users", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const filters = {
+        search: req.query.search as string,
+        role: req.query.role as string,
+        propertyId: req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined,
+        isActive: req.query.isActive ? req.query.isActive === 'true' : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+      };
+
+      const users = await userMgmt.getAllUsers(filters);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Get user by ID
+  app.get("/api/user-management/users/:userId", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const user = await userMgmt.getUserById(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Update user role
+  app.put("/api/user-management/users/:userId/role", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const { primaryRole, subRole } = req.body;
+      const userId = req.params.userId;
+      const assignedBy = req.user.id;
+
+      // Check if user has existing role
+      const existingUser = await userMgmt.getUserById(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let result;
+      if (existingUser.userRole) {
+        // Update existing role
+        result = await userMgmt.updateUserRole(userId, { primaryRole, subRole, assignedBy });
+      } else {
+        // Assign new role
+        result = await userMgmt.assignUserRole({ userId, primaryRole, subRole, assignedBy });
+      }
+
+      if (!result) {
+        return res.status(500).json({ message: "Failed to update role" });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  // Update user permissions
+  app.put("/api/user-management/users/:userId/permissions", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const { moduleAccess } = req.body;
+      const userId = req.params.userId;
+      const updatedBy = req.user.id;
+
+      const result = await userMgmt.updateUserPermissions(userId, moduleAccess, updatedBy);
+      if (!result) {
+        return res.status(500).json({ message: "Failed to update permissions" });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating user permissions:", error);
+      res.status(500).json({ message: "Failed to update user permissions" });
+    }
+  });
+
+  // Update user status (activate/deactivate)
+  app.put("/api/user-management/users/:userId/status", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const { isActive } = req.body;
+      const userId = req.params.userId;
+      const updatedBy = req.user.id;
+
+      const success = await userMgmt.updateUserStatus(userId, isActive, updatedBy);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to update user status" });
+      }
+
+      res.json({ success: true, message: `User ${isActive ? 'activated' : 'deactivated'} successfully` });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
+  // Assign property to user
+  app.post("/api/user-management/users/:userId/properties", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const { propertyId, assignmentType, startDate, endDate } = req.body;
+      const userId = req.params.userId;
+      const assignedBy = req.user.id;
+
+      const assignment = await userMgmt.assignUserToProperty({
+        userId,
+        propertyId,
+        assignmentType,
+        startDate: startDate || null,
+        endDate: endDate || null,
+        assignedBy,
+      });
+
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error assigning property to user:", error);
+      res.status(500).json({ message: "Failed to assign property to user" });
+    }
+  });
+
+  // Remove property assignment
+  app.delete("/api/user-management/users/:userId/properties/:propertyId", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const userId = req.params.userId;
+      const propertyId = parseInt(req.params.propertyId);
+
+      const success = await userMgmt.removeUserFromProperty(userId, propertyId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to remove property assignment" });
+      }
+
+      res.json({ success: true, message: "Property assignment removed successfully" });
+    } catch (error) {
+      console.error("Error removing property assignment:", error);
+      res.status(500).json({ message: "Failed to remove property assignment" });
+    }
+  });
+
+  // Get user activity history
+  app.get("/api/user-management/users/:userId/activity", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const userId = req.params.userId;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+      const activities = await userMgmt.getUserActivityHistory(userId, limit);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching user activity:", error);
+      res.status(500).json({ message: "Failed to fetch user activity" });
+    }
+  });
+
+  // Send user invitation
+  app.post("/api/user-management/invitations", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const { email, roleAssignment, subRoleAssignment, propertyAssignments, modulePermissions, expiresAt } = req.body;
+      const invitedBy = req.user.id;
+
+      const invitation = await userMgmt.createUserInvitation({
+        email,
+        roleAssignment,
+        subRoleAssignment: subRoleAssignment || null,
+        propertyAssignments: propertyAssignments || null,
+        modulePermissions: modulePermissions || null,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        invitedBy,
+      });
+
+      res.json(invitation);
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      res.status(500).json({ message: "Failed to send invitation" });
+    }
+  });
+
+  // Get pending invitations
+  app.get("/api/user-management/invitations", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const invitations = await userMgmt.getPendingInvitations();
+      res.json(invitations);
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  // Accept invitation (public endpoint)
+  app.post("/api/user-management/invitations/:inviteCode/accept", async (req: any, res) => {
+    try {
+      // This would normally be called after user authentication via invitation link
+      // For now, we'll just mark it as accepted
+      const { inviteCode } = req.params;
+      
+      // You would implement the logic to:
+      // 1. Find invitation by code
+      // 2. Create user account if needed
+      // 3. Assign role and permissions
+      // 4. Mark invitation as accepted
+      
+      res.json({ message: "Invitation system ready - requires full authentication flow" });
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
+    }
+  });
+
+  // FREELANCER MANAGEMENT
+
+  // Get freelancer task requests
+  app.get("/api/user-management/freelancer-requests", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const freelancerId = req.query.freelancerId as string;
+      const status = req.query.status as string;
+
+      const requests = await userMgmt.getFreelancerTaskRequests(freelancerId, status);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching freelancer requests:", error);
+      res.status(500).json({ message: "Failed to fetch freelancer requests" });
+    }
+  });
+
+  // Create freelancer task request
+  app.post("/api/user-management/freelancer-requests", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const requestData = {
+        ...req.body,
+        requestedBy: req.user.id,
+      };
+
+      const request = await userMgmt.createFreelancerTaskRequest(requestData);
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating freelancer request:", error);
+      res.status(500).json({ message: "Failed to create freelancer request" });
+    }
+  });
+
+  // Update freelancer task request
+  app.put("/api/user-management/freelancer-requests/:requestId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const requestId = parseInt(req.params.requestId);
+      const updates = req.body;
+
+      const request = await userMgmt.updateFreelancerTaskRequest(requestId, updates);
+      if (!request) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+
+      res.json(request);
+    } catch (error) {
+      console.error("Error updating freelancer request:", error);
+      res.status(500).json({ message: "Failed to update freelancer request" });
+    }
+  });
+
+  // Get freelancer availability
+  app.get("/api/user-management/freelancers/:freelancerId/availability", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const freelancerId = req.params.freelancerId;
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+
+      const availability = await userMgmt.getFreelancerAvailability(freelancerId, startDate, endDate);
+      res.json(availability);
+    } catch (error) {
+      console.error("Error fetching freelancer availability:", error);
+      res.status(500).json({ message: "Failed to fetch freelancer availability" });
+    }
+  });
+
+  // Update freelancer availability
+  app.post("/api/user-management/freelancers/:freelancerId/availability", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const freelancerId = req.params.freelancerId;
+      
+      // Check if user is updating their own availability or is admin/PM
+      if (req.user.id !== freelancerId && !['admin', 'portfolio-manager'].includes(req.user.role)) {
+        return res.status(403).json({ message: "Can only update your own availability" });
+      }
+
+      const availabilityData = {
+        ...req.body,
+        freelancerId,
+      };
+
+      const availability = await userMgmt.updateFreelancerAvailability(availabilityData);
+      res.json(availability);
+    } catch (error) {
+      console.error("Error updating freelancer availability:", error);
+      res.status(500).json({ message: "Failed to update freelancer availability" });
+    }
+  });
+
+  // AUDIT AND REPORTING
+
+  // Get system activity log
+  app.get("/api/user-management/audit-log", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+
+      const activities = await userMgmt.getSystemActivityLog(limit);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching audit log:", error);
+      res.status(500).json({ message: "Failed to fetch audit log" });
+    }
+  });
+
+  // Get user performance metrics
+  app.get("/api/user-management/users/:userId/performance", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const userId = req.params.userId;
+      const periodYear = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const periodMonth = req.query.month ? parseInt(req.query.month as string) : undefined;
+
+      const metrics = await userMgmt.getUserPerformanceMetrics(userId, periodYear, periodMonth);
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching user performance:", error);
+      res.status(500).json({ message: "Failed to fetch user performance" });
+    }
+  });
+
+  // Update user performance metrics (usually called by system jobs)
+  app.post("/api/user-management/users/:userId/performance", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const userMgmt = new UserManagementStorage(organizationId);
+      
+      const userId = req.params.userId;
+      const metricsData = {
+        ...req.body,
+        userId,
+      };
+
+      const metrics = await userMgmt.updateUserPerformanceMetrics(metricsData);
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error updating user performance:", error);
+      res.status(500).json({ message: "Failed to update user performance" });
     }
   });
 
@@ -22876,6 +23300,257 @@ async function processGuestIssueForAI(issueReport: any) {
     } catch (error) {
       console.error("Error fetching issue:", error);
       res.status(500).json({ message: "Failed to fetch issue" });
+    }
+  });
+
+  // ===== CROSS-SYNCED TASK VISIBILITY API ROUTES =====
+
+  // Helper to get organization and create storage instance
+  const getCrossSyncStorage = (req: any) => {
+    const organizationId = req.user?.organizationId || "demo-org";
+    return new CrossSyncedTaskVisibilityStorage(organizationId);
+  };
+
+  // Guest Service Requests
+  app.get("/api/cross-sync/guest-service-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const {
+        bookingId,
+        reservationId,
+        propertyId,
+        status,
+        requestType,
+        assignedDepartment,
+        isVisible
+      } = req.query;
+
+      const filters = {
+        ...(bookingId && { bookingId: parseInt(bookingId) }),
+        ...(reservationId && { reservationId }),
+        ...(propertyId && { propertyId: parseInt(propertyId) }),
+        ...(status && { status }),
+        ...(requestType && { requestType }),
+        ...(assignedDepartment && { assignedDepartment }),
+        ...(isVisible !== undefined && { isVisible: isVisible === 'true' })
+      };
+
+      const requests = await crossSyncStorage.getGuestServiceRequests(filters);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching guest service requests:", error);
+      res.status(500).json({ message: "Failed to fetch guest service requests" });
+    }
+  });
+
+  app.get("/api/cross-sync/guest-service-requests/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const requestId = parseInt(req.params.id);
+      
+      const request = await crossSyncStorage.getGuestServiceRequest(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+      
+      res.json(request);
+    } catch (error) {
+      console.error("Error fetching service request:", error);
+      res.status(500).json({ message: "Failed to fetch service request" });
+    }
+  });
+
+  app.post("/api/cross-sync/guest-service-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      
+      const validatedData = insertGuestServiceRequestSchema.parse({
+        ...req.body,
+        requestedBy: req.user?.id
+      });
+
+      const request = await crossSyncStorage.createGuestServiceRequest(validatedData);
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating service request:", error);
+      res.status(500).json({ message: "Failed to create service request" });
+    }
+  });
+
+  app.put("/api/cross-sync/guest-service-requests/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const requestId = parseInt(req.params.id);
+      
+      const validatedData = insertGuestServiceRequestSchema.partial().parse(req.body);
+      
+      const updatedRequest = await crossSyncStorage.updateGuestServiceRequest(requestId, validatedData);
+      if (!updatedRequest) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+      
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error updating service request:", error);
+      res.status(500).json({ message: "Failed to update service request" });
+    }
+  });
+
+  // Guest Confirmed Services
+  app.get("/api/cross-sync/guest-confirmed-services", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const {
+        bookingId,
+        reservationId,
+        propertyId,
+        serviceType,
+        scheduledDate,
+        isActive,
+        isCompleted
+      } = req.query;
+
+      const filters = {
+        ...(bookingId && { bookingId: parseInt(bookingId) }),
+        ...(reservationId && { reservationId }),
+        ...(propertyId && { propertyId: parseInt(propertyId) }),
+        ...(serviceType && { serviceType }),
+        ...(scheduledDate && { scheduledDate }),
+        ...(isActive !== undefined && { isActive: isActive === 'true' }),
+        ...(isCompleted !== undefined && { isCompleted: isCompleted === 'true' })
+      };
+
+      const services = await crossSyncStorage.getGuestConfirmedServices(filters);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching confirmed services:", error);
+      res.status(500).json({ message: "Failed to fetch confirmed services" });
+    }
+  });
+
+  app.post("/api/cross-sync/guest-confirmed-services", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      
+      const validatedData = insertGuestConfirmedServiceSchema.parse({
+        ...req.body,
+        confirmedBy: req.user?.id
+      });
+
+      const service = await crossSyncStorage.createGuestConfirmedService(validatedData);
+      res.json(service);
+    } catch (error) {
+      console.error("Error creating confirmed service:", error);
+      res.status(500).json({ message: "Failed to create confirmed service" });
+    }
+  });
+
+  // Booking Linked Tasks
+  app.get("/api/cross-sync/booking-linked-tasks", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const {
+        taskId,
+        bookingId,
+        reservationId,
+        taskCategory,
+        isGuestVisible,
+        isServiceGenerated
+      } = req.query;
+
+      const filters = {
+        ...(taskId && { taskId: parseInt(taskId) }),
+        ...(bookingId && { bookingId: parseInt(bookingId) }),
+        ...(reservationId && { reservationId }),
+        ...(taskCategory && { taskCategory }),
+        ...(isGuestVisible !== undefined && { isGuestVisible: isGuestVisible === 'true' }),
+        ...(isServiceGenerated !== undefined && { isServiceGenerated: isServiceGenerated === 'true' })
+      };
+
+      const linkedTasks = await crossSyncStorage.getBookingLinkedTasks(filters);
+      res.json(linkedTasks);
+    } catch (error) {
+      console.error("Error fetching booking linked tasks:", error);
+      res.status(500).json({ message: "Failed to fetch booking linked tasks" });
+    }
+  });
+
+  app.post("/api/cross-sync/booking-linked-tasks", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      
+      const validatedData = insertBookingLinkedTaskSchema.parse(req.body);
+
+      const linkedTask = await crossSyncStorage.createBookingLinkedTask(validatedData);
+      res.json(linkedTask);
+    } catch (error) {
+      console.error("Error creating booking linked task:", error);
+      res.status(500).json({ message: "Failed to create booking linked task" });
+    }
+  });
+
+  // Cross-Synced Views
+  app.get("/api/cross-sync/guest-visible-tasks/:reservationId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const { reservationId } = req.params;
+      
+      const guestTasks = await crossSyncStorage.getGuestVisibleTasks(reservationId);
+      res.json(guestTasks);
+    } catch (error) {
+      console.error("Error fetching guest visible tasks:", error);
+      res.status(500).json({ message: "Failed to fetch guest visible tasks" });
+    }
+  });
+
+  app.get("/api/cross-sync/staff-tasks/:reservationId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const { reservationId } = req.params;
+      const { staffRole } = req.query;
+      
+      const staffTasks = await crossSyncStorage.getStaffTasksForReservation(reservationId, staffRole);
+      res.json(staffTasks);
+    } catch (error) {
+      console.error("Error fetching staff tasks:", error);
+      res.status(500).json({ message: "Failed to fetch staff tasks" });
+    }
+  });
+
+  // Service Request Processing
+  app.post("/api/cross-sync/process-service-request/:requestId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const requestId = parseInt(req.params.requestId);
+      const { action, ...data } = req.body;
+      
+      if (!['approve', 'reject', 'complete'].includes(action)) {
+        return res.status(400).json({ message: "Invalid action. Must be 'approve', 'reject', or 'complete'" });
+      }
+
+      const result = await crossSyncStorage.processServiceRequest(requestId, action, {
+        ...data,
+        approvedBy: req.user?.id
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing service request:", error);
+      res.status(500).json({ message: "Failed to process service request" });
+    }
+  });
+
+  // Analytics and Reporting
+  app.get("/api/cross-sync/reservation-summary/:reservationId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const crossSyncStorage = getCrossSyncStorage(req);
+      const { reservationId } = req.params;
+      
+      const summary = await crossSyncStorage.getReservationTaskSummary(reservationId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching reservation summary:", error);
+      res.status(500).json({ message: "Failed to fetch reservation summary" });
     }
   });
 
