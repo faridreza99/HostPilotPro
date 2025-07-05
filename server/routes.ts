@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
+import { setupSecureAuth, requireAuth, requireRole, requirePermission } from "./secureAuth";
 import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
 import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema, insertBookingRevenueSchema, insertOtaPlatformSettingsSchema, insertBookingRevenueCommissionSchema } from "@shared/schema";
 import { BookingRevenueStorage } from "./bookingRevenueStorage";
@@ -15,6 +16,9 @@ import { userManagementStorage } from "./userManagementStorage";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup demo authentication (for development/testing)
   await setupDemoAuth(app);
+  
+  // Setup secure authentication with bcrypt
+  setupSecureAuth(app);
   
   // Also setup production auth (fallback)
   await setupAuth(app);

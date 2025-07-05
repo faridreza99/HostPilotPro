@@ -4,9 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UIResetButton } from "@/components/UIResetButton";
-import { useAuth } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthSessionManager, useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import NotFound from "@/pages/not-found";
+import LoginPage from "@/pages/LoginPage";
 import Landing from "@/pages/Landing";
 import Help from "@/pages/Help";
 import Layout from "@/components/Layout";
@@ -130,19 +132,15 @@ import EnhancedAdminDashboard from "@/pages/EnhancedAdminDashboard";
 import FixedGuestCheckInTracker from "@/pages/FixedGuestCheckInTracker";
 
 function Router() {
-  const { isAuthenticated, isLoading, user } = useAuth();
   const [location, setLocation] = useLocation();
+  const { user: currentUser, isLoading, isAuthenticated } = useAuth();
 
-  // Handle role-based dashboard redirects
+  // Auto-redirect to login if not authenticated
   useEffect(() => {
-    if (isAuthenticated && user && location.startsWith('/dashboard/')) {
-      const roleFromUrl = location.split('/dashboard/')[1];
-      if (roleFromUrl !== (user as any)?.role) {
-        // Redirect to correct role dashboard
-        setLocation(`/dashboard/${(user as any)?.role}`);
-      }
+    if (!isLoading && !isAuthenticated && location !== '/login') {
+      setLocation('/login');
     }
-  }, [isAuthenticated, user, location, setLocation]);
+  }, [isAuthenticated, isLoading, location, setLocation]);
 
   // Role-based dashboard component selector
   const getDashboardComponent = (role?: string) => {
@@ -166,15 +164,25 @@ function Router() {
     }
   };
 
-  // Render public routes without layout
-  if (isLoading || !isAuthenticated) {
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin w-8 h-8 border-4 border-gray-300 border-t-primary rounded-full" />
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
     return (
       <Switch>
+        <Route path="/login" component={LoginPage} />
         <Route path="/guest-portal" component={GuestPortal} />
         <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
         <Route path="/enhanced-guest-dashboard" component={EnhancedGuestDashboard} />
-        <Route path="/" component={Landing} />
-        <Route component={NotFound} />
+        <Route path="/" component={LoginPage} />
+        <Route component={LoginPage} />
       </Switch>
     );
   }
@@ -186,7 +194,7 @@ function Router() {
         <Route path="/">
           {() => {
             // Redirect to role-specific dashboard
-            const userRole = (user as any)?.role;
+            const userRole = currentUser?.role;
             const DashboardComponent = getDashboardComponent(userRole);
             return <DashboardComponent />;
           }}
