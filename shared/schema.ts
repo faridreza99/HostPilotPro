@@ -12046,3 +12046,7 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     chatWall: false,
   },
 } as const;
+
+// Additional type exports
+export type PMPayoutRequest = typeof pmPayoutRequests.$inferSelect;
+export type InsertPMPayoutRequest = typeof pmPayoutRequests.$inferInsert;

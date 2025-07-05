@@ -39,7 +39,7 @@ export default function PropertyAccess() {
 
       {/* Properties Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {properties?.map((property: any) => (
+        {(properties && Array.isArray(properties) ? properties : [])?.map((property: any) => (
           <Card key={property.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -198,7 +198,7 @@ export default function PropertyAccess() {
         ))}
       </div>
 
-      {!properties?.length && (
+      {!(properties && Array.isArray(properties) && properties.length > 0) && (
         <Card>
           <CardContent className="text-center py-8">
             <Building className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

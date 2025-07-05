@@ -78,6 +78,7 @@ import {
   routingAuditLog,
   maintenanceSuggestions,
   maintenanceApprovalLogs,
+  pmPayoutRequests,
   maintenanceSuggestionSettings,
   maintenanceTimelineEntries,
   propertyPayoutRules,

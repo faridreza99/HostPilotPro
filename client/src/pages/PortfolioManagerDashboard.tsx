@@ -403,7 +403,7 @@ export default function PortfolioManagerDashboard() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Properties</SelectItem>
-              {portfolioProperties?.map((property: any) => (
+              {(portfolioProperties && Array.isArray(portfolioProperties) ? portfolioProperties : [])?.map((property: any) => (
                 <SelectItem key={property.id} value={property.id.toString()}>
                   {property.name}
                 </SelectItem>
@@ -436,7 +436,7 @@ export default function PortfolioManagerDashboard() {
             <Building className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{portfolioProperties?.length || 0}</div>
+            <div className="text-2xl font-bold">{(portfolioProperties && Array.isArray(portfolioProperties) ? portfolioProperties.length : 0) || 0}</div>
             <p className="text-xs text-muted-foreground">
               Under management
             </p>
@@ -465,7 +465,7 @@ export default function PortfolioManagerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {notifications?.filter(n => !n.isRead).length || 0}
+              {(notifications && Array.isArray(notifications) ? notifications.filter(n => !n.isRead).length : 0) || 0}
             </div>
             <p className="text-xs text-muted-foreground">
               Require attention
@@ -541,7 +541,7 @@ export default function PortfolioManagerDashboard() {
                 <CardDescription>Commission earnings by property</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {financialOverview?.propertyBreakdown?.map((property) => (
+                {(financialOverview?.propertyBreakdown && Array.isArray(financialOverview.propertyBreakdown) ? financialOverview.propertyBreakdown : []).map((property) => (
                   <div key={property.propertyId} className="flex justify-between items-center p-3 border rounded">
                     <div>
                       <p className="font-medium">{property.propertyName}</p>
@@ -574,7 +574,7 @@ export default function PortfolioManagerDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {financialOverview?.monthlyTrend?.map((month) => (
+                  {(financialOverview?.monthlyTrend && Array.isArray(financialOverview.monthlyTrend) ? financialOverview.monthlyTrend : []).map((month) => (
                     <div key={month.period} className="flex justify-between items-center">
                       <span className="text-sm">{month.period}</span>
                       <span className="font-semibold">${month.earnings?.toLocaleString()}</span>
@@ -717,7 +717,7 @@ export default function PortfolioManagerDashboard() {
                   <div className="text-center py-4">Loading...</div>
                 ) : (
                   <div className="space-y-3">
-                    {payouts?.slice(0, 5).map((payout) => (
+                    {(payouts && Array.isArray(payouts) ? payouts.slice(0, 5) : []).map((payout) => (
                       <div key={payout.id} className="flex items-center justify-between p-3 border rounded">
                         <div className="space-y-1">
                           <p className="font-medium">${payout.amount?.toLocaleString()} {payout.currency}</p>
@@ -1018,7 +1018,7 @@ export default function PortfolioManagerDashboard() {
                 <div className="text-center py-8">Loading invoices...</div>
               ) : (
                 <div className="space-y-4">
-                  {invoices?.map((invoice) => (
+                  {(invoices && Array.isArray(invoices) ? invoices : [])?.map((invoice) => (
                     <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="space-y-1">
                         <p className="font-medium">{invoice.invoiceNumber}</p>
@@ -1103,7 +1103,7 @@ export default function PortfolioManagerDashboard() {
                 <div className="text-center py-8">Loading task logs...</div>
               ) : (
                 <div className="space-y-4">
-                  {taskLogs?.map((task) => (
+                  {(taskLogs && Array.isArray(taskLogs) ? taskLogs : [])?.map((task) => (
                     <div key={task.id} className="flex items-start justify-between p-4 border rounded-lg">
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2">
@@ -1180,7 +1180,7 @@ export default function PortfolioManagerDashboard() {
                 <div className="text-center py-8">Loading notifications...</div>
               ) : (
                 <div className="space-y-4">
-                  {notifications?.map((notification) => (
+                  {(notifications && Array.isArray(notifications) ? notifications : [])?.map((notification) => (
                     <div 
                       key={notification.id} 
                       className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
