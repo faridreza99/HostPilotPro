@@ -126,6 +126,8 @@ import SmartPricingPerformanceToolkit from "@/pages/SmartPricingPerformanceToolk
 import OwnerTargetUpgradeTracker from "@/pages/OwnerTargetUpgradeTracker";
 import WaterUtilityEnhanced from "@/pages/WaterUtilityEnhanced";
 import OtaPayoutLogicSmartRevenue from "@/pages/OtaPayoutLogicSmartRevenue";
+import EnhancedAdminDashboard from "@/pages/EnhancedAdminDashboard";
+import FixedGuestCheckInTracker from "@/pages/FixedGuestCheckInTracker";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -207,6 +209,8 @@ function Router() {
         <Route path="/maintenance-utilities-renovation-tracker" component={MaintenanceUtilitiesRenovationTracker} />
         <Route path="/maintenance-service-tracking" component={MaintenanceServiceTracking} />
         <Route path="/guest-checkin-checkout-tracker" component={GuestCheckInCheckOutTracker} />
+        <Route path="/fixed-guest-checkin-tracker" component={FixedGuestCheckInTracker} />
+        <Route path="/enhanced-admin-dashboard" component={EnhancedAdminDashboard} />
         <Route path="/auto-scheduling-recurring-task-generator" component={AutoSchedulingRecurringTaskGenerator} />
         <Route path="/maintenance-log-warranty-tracker" component={MaintenanceLogWarrantyTracker} />
         <Route path="/smart-inventory-dashboard" component={SmartInventoryDashboard} />

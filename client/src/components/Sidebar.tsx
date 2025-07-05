@@ -105,6 +105,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
           { label: "Guest Check-In Tracker", icon: Luggage, href: "/guest-checkin-checkout-tracker", badge: "New" },
+          { label: "Fixed Guest Check-In Tracker", icon: Luggage, href: "/fixed-guest-checkin-tracker", badge: "Fixed" },
           { label: "Owner Onboarding", icon: UserPlus, href: "/owner-onboarding-system", badge: "New" },
           { label: "Maintenance System", icon: Wrench, href: "/maintenance-task-system" },
           { label: "Auto-Scheduling Rules", icon: Clock, href: "/auto-scheduling-recurring-task-generator", badge: "New" },
@@ -156,6 +157,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
       {
         title: "Administration",
         items: [
+          { label: "Enhanced Admin Dashboard", icon: BarChart3, href: "/enhanced-admin-dashboard", badge: "Enhanced" },
           { label: "User Management", icon: Users, href: "/admin/user-management", badge: "New" },
           { label: "User Access & Visibility", icon: Eye, href: "/admin/user-access", badge: "New" },
           { label: "System Integrity Check", icon: Shield, href: "/admin/system-integrity-check", badge: "QA" },
@@ -386,9 +388,9 @@ export default function Sidebar({ className }: SidebarProps) {
   }
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full max-h-screen">
       {/* Header */}
-      <div className="p-4 border-b">
+      <div className="p-4 border-b flex-shrink-0">
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={(user as any)?.profileImageUrl} />
@@ -569,7 +571,7 @@ export default function Sidebar({ className }: SidebarProps) {
                 Navigation
               </SheetTitle>
             </SheetHeader>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto">
               <SidebarContent />
             </div>
           </SheetContent>
