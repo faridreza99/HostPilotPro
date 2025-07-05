@@ -131,6 +131,7 @@ import OtaPayoutLogicSmartRevenue from "@/pages/OtaPayoutLogicSmartRevenue";
 import EnhancedAdminDashboard from "@/pages/EnhancedAdminDashboard";
 import FixedGuestCheckInTracker from "@/pages/FixedGuestCheckInTracker";
 import UserAccessManager from "@/pages/UserAccessManager";
+import PropertyVisibilityControl from "@/pages/PropertyVisibilityControl";
 
 function Router() {
   const [location, setLocation] = useLocation();
@@ -323,6 +324,7 @@ function Router() {
         <Route path="/owner-target-upgrade-tracker" component={OwnerTargetUpgradeTracker} />
         <Route path="/water-utility-enhanced" component={WaterUtilityEnhanced} />
         <Route path="/ota-payout-logic-smart-revenue" component={OtaPayoutLogicSmartRevenue} />
+        <ProtectedRoute path="/property-visibility-control" component={PropertyVisibilityControl} allowedRoles={['admin']} />
         <Route component={NotFound} />
         </Switch>
       </Layout>

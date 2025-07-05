@@ -333,6 +333,117 @@ export const freelancerTaskRequests = pgTable("freelancer_task_requests", {
   index("IDX_freelancer_req_status").on(table.status),
 ]);
 
+// ===== PROPERTY VISIBILITY CONTROL SYSTEM =====
+
+// Property access permissions for granular user control
+export const propertyAccessControl = pgTable("property_access_control", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => userManagement.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Access levels
+  canView: boolean("can_view").default(false),
+  canManage: boolean("can_manage").default(false),
+  canReceiveTasks: boolean("can_receive_tasks").default(false),
+  
+  // Owner-specific module toggles
+  hasFinancialAccess: boolean("has_financial_access").default(true),
+  hasMaintenanceAccess: boolean("has_maintenance_access").default(true),
+  hasGuestBookingAccess: boolean("has_guest_booking_access").default(true),
+  hasUtilitiesAccess: boolean("has_utilities_access").default(true),
+  hasPropertyInfoAccess: boolean("has_property_info_access").default(true),
+  hasServiceOrderAccess: boolean("has_service_order_access").default(true),
+  
+  assignedBy: varchar("assigned_by").references(() => userManagement.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_access_org").on(table.organizationId),
+  index("IDX_property_access_user").on(table.userId),
+  index("IDX_property_access_property").on(table.propertyId),
+]);
+
+// Bulk access control templates for role-based assignments
+export const propertyAccessTemplates = pgTable("property_access_templates", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  templateName: varchar("template_name").notNull(),
+  targetRole: varchar("target_role").notNull(), // owner, staff, manager, agent
+  description: text("description"),
+  
+  // Default permissions for this template
+  defaultCanView: boolean("default_can_view").default(false),
+  defaultCanManage: boolean("default_can_manage").default(false),
+  defaultCanReceiveTasks: boolean("default_can_receive_tasks").default(false),
+  
+  // Owner-specific defaults
+  defaultFinancialAccess: boolean("default_financial_access").default(true),
+  defaultMaintenanceAccess: boolean("default_maintenance_access").default(true),
+  defaultGuestBookingAccess: boolean("default_guest_booking_access").default(true),
+  defaultUtilitiesAccess: boolean("default_utilities_access").default(true),
+  defaultPropertyInfoAccess: boolean("default_property_info_access").default(true),
+  defaultServiceOrderAccess: boolean("default_service_order_access").default(true),
+  
+  createdBy: varchar("created_by").references(() => userManagement.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_access_template_org").on(table.organizationId),
+  index("IDX_access_template_role").on(table.targetRole),
+]);
+
+// Property visibility matrix for admin dashboard display
+export const propertyVisibilityMatrix = pgTable("property_visibility_matrix", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => userManagement.id).notNull(),
+  
+  // Computed fields for dashboard display
+  propertiesLinked: jsonb("properties_linked").default([]), // Array of property IDs
+  accessLevel: varchar("access_level").default("read-only"), // read-only, partial, full
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  lastUpdatedBy: varchar("last_updated_by").references(() => userManagement.id),
+  
+  // Quick action flags
+  hasFullAccess: boolean("has_full_access").default(false),
+  hasRestrictedAccess: boolean("has_restricted_access").default(false),
+  requiresReview: boolean("requires_review").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_visibility_matrix_org").on(table.organizationId),
+  index("IDX_visibility_matrix_user").on(table.userId),
+  index("IDX_visibility_matrix_access").on(table.accessLevel),
+]);
+
+// User session permissions cache for real-time sync
+export const userSessionPermissions = pgTable("user_session_permissions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => userManagement.id).notNull(),
+  sessionId: varchar("session_id"), // For real-time updates
+  
+  // Cached permission data for fast access
+  permissionsCache: jsonb("permissions_cache").notNull(), // Full permissions object
+  propertyAccessCache: jsonb("property_access_cache").notNull(), // Property-specific permissions
+  
+  // Sync tracking
+  lastSyncAt: timestamp("last_sync_at").defaultNow(),
+  syncVersion: integer("sync_version").default(1),
+  isActive: boolean("is_active").default(true),
+  
+  expiresAt: timestamp("expires_at"), // Session expiration
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_session_perm_org").on(table.organizationId),
+  index("IDX_session_perm_user").on(table.userId),
+  index("IDX_session_perm_session").on(table.sessionId),
+  index("IDX_session_perm_expires").on(table.expiresAt),
+]);
+
 // User activity audit log
 export const userActivityAudit = pgTable("user_activity_audit", {
   id: serial("id").primaryKey(),
@@ -13730,3 +13841,43 @@ export type InsertOtaPayoutAlert = z.infer<typeof insertOtaPayoutAlertSchema>;
 
 export type OtaRevenueReport = typeof otaRevenueReports.$inferSelect;
 export type InsertOtaRevenueReport = z.infer<typeof insertOtaRevenueReportSchema>;
+
+// ===== PROPERTY VISIBILITY CONTROL TYPES =====
+
+// Insert schemas for Property Visibility Control
+export const insertPropertyAccessControlSchema = createInsertSchema(propertyAccessControl).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyAccessTemplateSchema = createInsertSchema(propertyAccessTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPropertyVisibilityMatrixSchema = createInsertSchema(propertyVisibilityMatrix).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserSessionPermissionsSchema = createInsertSchema(userSessionPermissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports for Property Visibility Control
+export type PropertyAccessControl = typeof propertyAccessControl.$inferSelect;
+export type InsertPropertyAccessControl = z.infer<typeof insertPropertyAccessControlSchema>;
+
+export type PropertyAccessTemplate = typeof propertyAccessTemplates.$inferSelect;
+export type InsertPropertyAccessTemplate = z.infer<typeof insertPropertyAccessTemplateSchema>;
+
+export type PropertyVisibilityMatrix = typeof propertyVisibilityMatrix.$inferSelect;
+export type InsertPropertyVisibilityMatrix = z.infer<typeof insertPropertyVisibilityMatrixSchema>;
+
+export type UserSessionPermissions = typeof userSessionPermissions.$inferSelect;
+export type InsertUserSessionPermissions = z.infer<typeof insertUserSessionPermissionsSchema>;

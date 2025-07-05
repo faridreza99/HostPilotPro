@@ -542,6 +542,262 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== PROPERTY VISIBILITY CONTROL API ROUTES =====
+
+  // Import PropertyVisibilityStorage
+  const { PropertyVisibilityStorage } = await import("./propertyVisibilityStorage");
+
+  // Get property access matrix
+  app.get("/api/property-visibility/access-matrix", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const { userId, propertyId, canView, canManage } = req.query;
+      
+      const accessMatrix = await propertyVisibility.getPropertyAccessControl({
+        userId: userId as string || undefined,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        canView: canView === 'true' ? true : canView === 'false' ? false : undefined,
+        canManage: canManage === 'true' ? true : canManage === 'false' ? false : undefined,
+      });
+      
+      res.json(accessMatrix);
+    } catch (error) {
+      console.error("Error fetching access matrix:", error);
+      res.status(500).json({ message: "Failed to fetch access matrix" });
+    }
+  });
+
+  // Get property visibility matrix for dashboard
+  app.get("/api/property-visibility/visibility-matrix", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const { userId, accessLevel, hasFullAccess } = req.query;
+      
+      const visibilityMatrix = await propertyVisibility.getVisibilityMatrix({
+        userId: userId as string || undefined,
+        accessLevel: accessLevel as string || undefined,
+        hasFullAccess: hasFullAccess === 'true' ? true : hasFullAccess === 'false' ? false : undefined,
+      });
+      
+      res.json(visibilityMatrix);
+    } catch (error) {
+      console.error("Error fetching visibility matrix:", error);
+      res.status(500).json({ message: "Failed to fetch visibility matrix" });
+    }
+  });
+
+  // Create property access record
+  app.post("/api/property-visibility/access", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const accessData = {
+        ...req.body,
+        assignedBy: req.user.id,
+      };
+      
+      const accessRecord = await propertyVisibility.createPropertyAccess(accessData);
+      res.status(201).json(accessRecord);
+    } catch (error) {
+      console.error("Error creating property access:", error);
+      res.status(500).json({ message: "Failed to create property access" });
+    }
+  });
+
+  // Update property access record
+  app.put("/api/property-visibility/access/:id", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const id = parseInt(req.params.id);
+      const accessData = req.body;
+      
+      const accessRecord = await propertyVisibility.updatePropertyAccess(id, accessData);
+      if (!accessRecord) {
+        return res.status(404).json({ message: "Access record not found" });
+      }
+      
+      res.json(accessRecord);
+    } catch (error) {
+      console.error("Error updating property access:", error);
+      res.status(500).json({ message: "Failed to update property access" });
+    }
+  });
+
+  // Delete property access record
+  app.delete("/api/property-visibility/access/:id", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const id = parseInt(req.params.id);
+      
+      const success = await propertyVisibility.deletePropertyAccess(id);
+      if (!success) {
+        return res.status(404).json({ message: "Access record not found" });
+      }
+      
+      res.json({ success: true, message: "Access record deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting property access:", error);
+      res.status(500).json({ message: "Failed to delete property access" });
+    }
+  });
+
+  // Bulk update property access for a user
+  app.put("/api/property-visibility/users/:userId/bulk-access", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const userId = req.params.userId;
+      const { propertyIds, accessData } = req.body;
+      
+      const accessRecords = await propertyVisibility.bulkUpdatePropertyAccess(
+        userId, 
+        propertyIds, 
+        { ...accessData, assignedBy: req.user.id }
+      );
+      
+      res.json(accessRecords);
+    } catch (error) {
+      console.error("Error bulk updating property access:", error);
+      res.status(500).json({ message: "Failed to bulk update property access" });
+    }
+  });
+
+  // Get access templates
+  app.get("/api/property-visibility/templates", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const { targetRole } = req.query;
+      
+      const templates = await propertyVisibility.getAccessTemplates(targetRole as string || undefined);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching access templates:", error);
+      res.status(500).json({ message: "Failed to fetch access templates" });
+    }
+  });
+
+  // Create access template
+  app.post("/api/property-visibility/templates", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const templateData = {
+        ...req.body,
+        createdBy: req.user.id,
+      };
+      
+      const template = await propertyVisibility.createAccessTemplate(templateData);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating access template:", error);
+      res.status(500).json({ message: "Failed to create access template" });
+    }
+  });
+
+  // Apply template to user
+  app.post("/api/property-visibility/templates/:templateId/apply", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const templateId = parseInt(req.params.templateId);
+      const { userId, propertyIds } = req.body;
+      
+      const accessRecords = await propertyVisibility.applyTemplateToUser(templateId, userId, propertyIds);
+      res.json(accessRecords);
+    } catch (error) {
+      console.error("Error applying template:", error);
+      res.status(500).json({ message: "Failed to apply template" });
+    }
+  });
+
+  // Get user session permissions
+  app.get("/api/property-visibility/session-permissions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const userId = req.user.id;
+      const sessionId = req.headers['x-session-id'] as string || undefined;
+      
+      const sessionPermissions = await propertyVisibility.getUserSessionPermissions(userId, sessionId);
+      res.json(sessionPermissions);
+    } catch (error) {
+      console.error("Error fetching session permissions:", error);
+      res.status(500).json({ message: "Failed to fetch session permissions" });
+    }
+  });
+
+  // Sync user session permissions
+  app.post("/api/property-visibility/sync-session", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const userId = req.user.id;
+      const sessionId = req.headers['x-session-id'] as string || `session-${Date.now()}`;
+      
+      const sessionPermissions = await propertyVisibility.syncUserSessionPermissions(userId, sessionId);
+      res.json(sessionPermissions);
+    } catch (error) {
+      console.error("Error syncing session permissions:", error);
+      res.status(500).json({ message: "Failed to sync session permissions" });
+    }
+  });
+
+  // Demo data endpoints for development/testing
+  app.get("/api/property-visibility/demo/visibility-matrix", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const demoMatrix = await propertyVisibility.getDemoVisibilityMatrix();
+      res.json(demoMatrix);
+    } catch (error) {
+      console.error("Error fetching demo visibility matrix:", error);
+      res.status(500).json({ message: "Failed to fetch demo visibility matrix" });
+    }
+  });
+
+  app.get("/api/property-visibility/demo/access-matrix", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const demoAccess = await propertyVisibility.getDemoPropertyAccess();
+      res.json(demoAccess);
+    } catch (error) {
+      console.error("Error fetching demo access matrix:", error);
+      res.status(500).json({ message: "Failed to fetch demo access matrix" });
+    }
+  });
+
+  app.get("/api/property-visibility/demo/templates", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyVisibility = new PropertyVisibilityStorage(organizationId);
+      
+      const demoTemplates = await propertyVisibility.getDemoAccessTemplates();
+      res.json(demoTemplates);
+    } catch (error) {
+      console.error("Error fetching demo templates:", error);
+      res.status(500).json({ message: "Failed to fetch demo templates" });
+    }
+  });
+
   // Property routes
   app.get("/api/properties", isDemoAuthenticated, async (req: any, res) => {
     try {
