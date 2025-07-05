@@ -116,6 +116,7 @@ import Maintenance from "@/pages/portfolio/Maintenance";
 import ServiceTracker from "@/pages/portfolio/ServiceTracker";
 import Invoices from "@/pages/portfolio/Invoices";
 import AiNotificationsReminders from "@/pages/AiNotificationsReminders";
+import BookingRevenueTransparency from "@/pages/BookingRevenueTransparency";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -283,6 +284,7 @@ function Router() {
         <Route path="/guest-activity-recommendations" component={GuestActivityRecommendations} />
         <Route path="/system-wide-demo-integration" component={SystemWideDemoIntegration} />
         <Route path="/extended-utilities-management" component={ExtendedUtilitiesManagement} />
+        <Route path="/booking-revenue-transparency" component={BookingRevenueTransparency} />
         <Route path="/portfolio/property-access" component={PropertyAccess} />
         <Route path="/portfolio/documents" component={Documents} />
         <Route path="/portfolio/maintenance" component={Maintenance} />

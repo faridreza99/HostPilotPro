@@ -24860,6 +24860,199 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== BOOKING REVENUE TRANSPARENCY ROUTES =====
+
+  // Get booking revenue data with filtering
+  app.get("/api/revenue/bookings", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { platform, status, dateRange, search } = req.query;
+
+      // Only admin, portfolio-manager, and owners can access revenue data
+      if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const bookings = await storage.getBookingRevenueData(organizationId, {
+        platform,
+        status,
+        dateRange,
+        search,
+        ownerId: role === 'owner' ? req.user.id : undefined
+      });
+
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching booking revenue data:", error);
+      res.status(500).json({ message: "Failed to fetch booking revenue data" });
+    }
+  });
+
+  // Get revenue analytics
+  app.get("/api/revenue/analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { platform, dateRange } = req.query;
+
+      if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const analytics = await storage.getRevenueAnalytics(organizationId, {
+        platform,
+        dateRange,
+        ownerId: role === 'owner' ? req.user.id : undefined
+      });
+
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching revenue analytics:", error);
+      res.status(500).json({ message: "Failed to fetch revenue analytics" });
+    }
+  });
+
+  // Update booking revenue data (manual override)
+  app.post("/api/revenue/bookings/:id/override", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const bookingId = parseInt(req.params.id);
+      const { guestTotalPrice, otaCommissionPercentage, stripeFees, overrideReason } = req.body;
+
+      // Only admin and portfolio-manager can override revenue data
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions for revenue override" });
+      }
+
+      // Validate input
+      if (!guestTotalPrice || !otaCommissionPercentage || !overrideReason) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const guestTotal = parseFloat(guestTotalPrice);
+      const commissionRate = parseFloat(otaCommissionPercentage);
+      const fees = stripeFees ? parseFloat(stripeFees) : 0;
+
+      // Calculate derived values
+      const commissionAmount = (guestTotal * commissionRate) / 100;
+      const platformPayout = guestTotal - commissionAmount;
+      const netHostPayout = platformPayout - fees;
+
+      const updatedBooking = await storage.updateBookingRevenueOverride(bookingId, {
+        guestTotalPrice: guestTotal,
+        otaCommissionPercentage: commissionRate,
+        otaCommissionAmount: commissionAmount,
+        platformPayout,
+        stripeFees: fees,
+        netHostPayout,
+        manualOverride: true,
+        overrideReason,
+        revenueVerified: false // Reset verification when manually overridden
+      });
+
+      if (!updatedBooking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      res.json(updatedBooking);
+    } catch (error) {
+      console.error("Error updating booking revenue:", error);
+      res.status(500).json({ message: "Failed to update booking revenue" });
+    }
+  });
+
+  // Export revenue data to CSV
+  app.get("/api/revenue/export", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { platform, status, dateRange, search } = req.query;
+
+      if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const bookings = await storage.getBookingRevenueData(organizationId, {
+        platform,
+        status,
+        dateRange,
+        search,
+        ownerId: role === 'owner' ? req.user.id : undefined
+      });
+
+      // Generate CSV content
+      const csvHeaders = [
+        'Booking Reference',
+        'Hostaway ID',
+        'Guest Name',
+        'Property Name',
+        'Platform',
+        'Check In',
+        'Check Out',
+        'Status',
+        'Guest Paid (Gross)',
+        'OTA Commission %',
+        'OTA Commission Amount',
+        'Platform Payout',
+        'Stripe Fees',
+        'Net Host Payout',
+        'Currency',
+        'Manual Override',
+        'Revenue Verified',
+        'Created Date'
+      ].join(',');
+
+      const csvRows = bookings.map((booking: any) => [
+        booking.bookingReference || '',
+        booking.hostawayId || '',
+        `"${booking.guestName}"`,
+        `"${booking.propertyName}"`,
+        booking.bookingPlatform,
+        booking.checkIn,
+        booking.checkOut,
+        booking.status,
+        booking.guestTotalPrice || '',
+        booking.otaCommissionPercentage || '',
+        booking.otaCommissionAmount || '',
+        booking.platformPayout || '',
+        booking.stripeFees || '',
+        booking.netHostPayout || booking.platformPayout || '',
+        booking.currency,
+        booking.manualOverride ? 'Yes' : 'No',
+        booking.revenueVerified ? 'Yes' : 'No',
+        booking.createdAt
+      ].join(','));
+
+      const csvContent = [csvHeaders, ...csvRows].join('\n');
+
+      res.json({ csv: csvContent });
+    } catch (error) {
+      console.error("Error exporting revenue data:", error);
+      res.status(500).json({ message: "Failed to export revenue data" });
+    }
+  });
+
+  // Mark booking revenue as verified
+  app.put("/api/revenue/bookings/:id/verify", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const bookingId = parseInt(req.params.id);
+
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+
+      const updatedBooking = await storage.markBookingRevenueVerified(bookingId, true);
+      
+      if (!updatedBooking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      res.json(updatedBooking);
+    } catch (error) {
+      console.error("Error verifying booking revenue:", error);
+      res.status(500).json({ message: "Failed to verify booking revenue" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

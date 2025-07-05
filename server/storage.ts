@@ -32474,6 +32474,243 @@ Plant Care:
       pendingSuggestions: pendingSuggestionsResult.count
     };
   }
+
+  // ===== BOOKING REVENUE TRANSPARENCY METHODS =====
+
+  async getBookingRevenueData(organizationId: string, filters?: {
+    platform?: string;
+    status?: string;
+    dateRange?: string;
+    search?: string;
+    ownerId?: string;
+  }) {
+    // Demo data for booking revenue transparency
+    const demoBookings = [
+      {
+        id: 1,
+        bookingReference: "BK2024001",
+        hostawayId: "HW123456",
+        guestName: "John & Sarah Smith",
+        propertyName: "Villa Samui Breeze",
+        checkIn: "2024-01-03",
+        checkOut: "2024-01-10",
+        bookingPlatform: "airbnb",
+        status: "checked-out",
+        guestTotalPrice: 2800.00,
+        otaCommissionAmount: 420.00,
+        otaCommissionPercentage: 15.0,
+        platformPayout: 2380.00,
+        stripeFees: 72.00,
+        netHostPayout: 2308.00,
+        manualOverride: false,
+        overrideReason: null,
+        revenueVerified: true,
+        currency: "AUD",
+        createdAt: "2024-01-01T00:00:00Z"
+      },
+      {
+        id: 2,
+        bookingReference: "BK2024002",
+        hostawayId: "HW789012",
+        guestName: "Michael Johnson",
+        propertyName: "Villa Tropical Paradise",
+        checkIn: "2024-02-15",
+        checkOut: "2024-02-22",
+        bookingPlatform: "vrbo",
+        status: "confirmed",
+        guestTotalPrice: 3200.00,
+        otaCommissionAmount: 320.00,
+        otaCommissionPercentage: 10.0,
+        platformPayout: 2880.00,
+        stripeFees: 86.40,
+        netHostPayout: 2793.60,
+        manualOverride: false,
+        overrideReason: null,
+        revenueVerified: false,
+        currency: "AUD",
+        createdAt: "2024-02-10T00:00:00Z"
+      },
+      {
+        id: 3,
+        bookingReference: "BK2024003",
+        hostawayId: "HW345678",
+        guestName: "Emma Wilson",
+        propertyName: "Villa Balinese Charm",
+        checkIn: "2024-03-08",
+        checkOut: "2024-03-15",
+        bookingPlatform: "booking_com",
+        status: "checked-in",
+        guestTotalPrice: 2500.00,
+        otaCommissionAmount: 375.00,
+        otaCommissionPercentage: 15.0,
+        platformPayout: 2125.00,
+        stripeFees: 63.75,
+        netHostPayout: 2061.25,
+        manualOverride: false,
+        overrideReason: null,
+        revenueVerified: false,
+        currency: "AUD",
+        createdAt: "2024-03-01T00:00:00Z"
+      },
+      {
+        id: 4,
+        bookingReference: "BK2024004",
+        hostawayId: null,
+        guestName: "David & Lisa Brown",
+        propertyName: "Villa Gala",
+        checkIn: "2024-04-12",
+        checkOut: "2024-04-19",
+        bookingPlatform: "direct",
+        status: "confirmed",
+        guestTotalPrice: 3500.00,
+        otaCommissionAmount: 0.00,
+        otaCommissionPercentage: 0.0,
+        platformPayout: 3500.00,
+        stripeFees: 105.00,
+        netHostPayout: 3395.00,
+        manualOverride: false,
+        overrideReason: null,
+        revenueVerified: true,
+        currency: "AUD",
+        createdAt: "2024-04-05T00:00:00Z"
+      },
+      {
+        id: 5,
+        bookingReference: "BK2024005",
+        hostawayId: "HW901234",
+        guestName: "Carlos Rodriguez",
+        propertyName: "Villa Samui Breeze",
+        checkIn: "2024-05-20",
+        checkOut: "2024-05-27",
+        bookingPlatform: "airbnb",
+        status: "cancelled",
+        guestTotalPrice: 2900.00,
+        otaCommissionAmount: 435.00,
+        otaCommissionPercentage: 15.0,
+        platformPayout: 2465.00,
+        stripeFees: 73.95,
+        netHostPayout: 2391.05,
+        manualOverride: true,
+        overrideReason: "Adjusted for partial refund due to cancellation",
+        revenueVerified: false,
+        currency: "AUD",
+        createdAt: "2024-05-10T00:00:00Z"
+      }
+    ];
+
+    // Apply filters
+    let filteredBookings = demoBookings;
+
+    if (filters?.platform && filters.platform !== "all") {
+      filteredBookings = filteredBookings.filter(b => b.bookingPlatform === filters.platform);
+    }
+
+    if (filters?.status && filters.status !== "all") {
+      filteredBookings = filteredBookings.filter(b => b.status === filters.status);
+    }
+
+    if (filters?.search) {
+      const searchLower = filters.search.toLowerCase();
+      filteredBookings = filteredBookings.filter(b => 
+        b.guestName.toLowerCase().includes(searchLower) ||
+        b.bookingReference.toLowerCase().includes(searchLower) ||
+        b.hostawayId?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return filteredBookings;
+  }
+
+  async getRevenueAnalytics(organizationId: string, filters?: {
+    platform?: string;
+    dateRange?: string;
+    ownerId?: string;
+  }) {
+    const bookings = await this.getBookingRevenueData(organizationId, filters);
+
+    const totalBookings = bookings.length;
+    const totalGuestPayments = bookings.reduce((sum, b) => sum + (b.guestTotalPrice || 0), 0);
+    const totalOtaCommissions = bookings.reduce((sum, b) => sum + (b.otaCommissionAmount || 0), 0);
+    const totalNetPayouts = bookings.reduce((sum, b) => sum + (b.netHostPayout || b.platformPayout || 0), 0);
+    const averageOtaCommission = totalGuestPayments > 0 ? (totalOtaCommissions / totalGuestPayments) * 100 : 0;
+
+    // Platform breakdown
+    const platformBreakdown = bookings.reduce((acc, booking) => {
+      const platform = booking.bookingPlatform;
+      const existing = acc.find(p => p.platform === platform);
+      
+      if (existing) {
+        existing.bookings++;
+        existing.guestTotal += booking.guestTotalPrice || 0;
+        existing.netPayout += booking.netHostPayout || booking.platformPayout || 0;
+      } else {
+        acc.push({
+          platform,
+          bookings: 1,
+          guestTotal: booking.guestTotalPrice || 0,
+          netPayout: booking.netHostPayout || booking.platformPayout || 0,
+          commissionRate: booking.otaCommissionPercentage || 0
+        });
+      }
+      
+      return acc;
+    }, [] as any[]);
+
+    // Monthly trend (last 6 months)
+    const monthlyTrend = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      
+      const monthBookings = bookings.filter(b => b.checkIn.startsWith(monthKey));
+      monthlyTrend.push({
+        month: monthKey,
+        bookings: monthBookings.length,
+        netRevenue: monthBookings.reduce((sum, b) => sum + (b.netHostPayout || b.platformPayout || 0), 0)
+      });
+    }
+
+    return {
+      totalBookings,
+      totalGuestPayments,
+      totalOtaCommissions,
+      totalNetPayouts,
+      averageOtaCommission,
+      platformBreakdown,
+      monthlyTrend
+    };
+  }
+
+  async updateBookingRevenueOverride(bookingId: number, data: {
+    guestTotalPrice: number;
+    otaCommissionPercentage: number;
+    otaCommissionAmount: number;
+    platformPayout: number;
+    stripeFees: number;
+    netHostPayout: number;
+    manualOverride: boolean;
+    overrideReason: string;
+    revenueVerified: boolean;
+  }) {
+    // In a real implementation, this would update the database
+    // For demo purposes, return a mock updated booking
+    return {
+      id: bookingId,
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  async markBookingRevenueVerified(bookingId: number, verified: boolean) {
+    // In a real implementation, this would update the database
+    // For demo purposes, return a mock updated booking
+    return {
+      id: bookingId,
+      revenueVerified: verified,
+      verifiedAt: verified ? new Date().toISOString() : null
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();

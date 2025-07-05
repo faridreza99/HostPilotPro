@@ -575,7 +575,15 @@ export const bookings = pgTable("bookings", {
   guestTotalPrice: decimal("guest_total_price", { precision: 10, scale: 2 }), // What guest paid to OTA
   platformPayout: decimal("platform_payout", { precision: 10, scale: 2 }), // What host receives after OTA commission
   otaCommissionAmount: decimal("ota_commission_amount", { precision: 10, scale: 2 }), // OTA commission deducted
+  otaCommissionPercentage: decimal("ota_commission_percentage", { precision: 5, scale: 2 }), // OTA commission rate
   bookingPlatform: varchar("booking_platform").default("direct"), // airbnb, vrbo, booking_com, direct
+  
+  // Revenue Transparency Fields
+  stripeFees: decimal("stripe_fees", { precision: 10, scale: 2 }), // Payment processing fees
+  netHostPayout: decimal("net_host_payout", { precision: 10, scale: 2 }), // Final amount after all fees
+  manualOverride: boolean("manual_override").default(false), // True if manually entered
+  overrideReason: text("override_reason"), // Why manual entry was needed
+  revenueVerified: boolean("revenue_verified").default(false), // Verified against bank/Stripe
   
   // Legacy field for backward compatibility
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }), // Will map to platformPayout for existing data
