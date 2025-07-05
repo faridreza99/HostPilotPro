@@ -852,6 +852,80 @@ export const utilityBillReminders = pgTable("utility_bill_reminders", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// OTA Payout Logic - Smart Revenue Tracking
+export const otaPayoutRules = pgTable("ota_payout_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id, { onDelete: "cascade" }),
+  otaPlatform: varchar("ota_platform").notNull(), // airbnb, booking_com, vrbo, direct
+  defaultCommissionRate: decimal("default_commission_rate", { precision: 5, scale: 2 }), // Platform's typical commission %
+  useHostawayPayout: boolean("use_hostaway_payout").default(true),
+  manualPayoutOverride: boolean("manual_payout_override").default(false),
+  alertOnPayoutMissing: boolean("alert_on_payout_missing").default(true),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const otaBookingPayouts = pgTable("ota_booking_payouts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  reservationCode: varchar("reservation_code").notNull(),
+  guestName: varchar("guest_name").notNull(),
+  checkInDate: date("check_in_date").notNull(),
+  checkOutDate: date("check_out_date").notNull(),
+  otaPlatform: varchar("ota_platform").notNull(), // airbnb, booking_com, vrbo, direct
+  guestPaidAmount: decimal("guest_paid_amount", { precision: 10, scale: 2 }).notNull(),
+  netPayoutAmount: decimal("net_payout_amount", { precision: 10, scale: 2 }).notNull(),
+  otaCommissionAmount: decimal("ota_commission_amount", { precision: 10, scale: 2 }).notNull(),
+  otaCommissionRate: decimal("ota_commission_rate", { precision: 5, scale: 2 }).notNull(),
+  currency: varchar("currency").default("THB"),
+  payoutStatus: varchar("payout_status").notNull().default("pending"), // pending, confirmed, received, discrepancy
+  payoutConfirmedAt: timestamp("payout_confirmed_at"),
+  payoutConfirmedBy: varchar("payout_confirmed_by").references(() => users.id),
+  hostawaySync: boolean("hostaway_sync").default(false),
+  emailParsed: boolean("email_parsed").default(false),
+  manualOverride: boolean("manual_override").default(false),
+  overrideReason: text("override_reason"),
+  overrideBy: varchar("override_by").references(() => users.id),
+  overrideAt: timestamp("override_at"),
+  notes: text("notes"),
+  alertGenerated: boolean("alert_generated").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const otaPayoutAlerts = pgTable("ota_payout_alerts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  bookingPayoutId: integer("booking_payout_id").references(() => otaBookingPayouts.id, { onDelete: "cascade" }),
+  alertType: varchar("alert_type").notNull(), // payout_missing, payout_discrepancy, manual_review_needed
+  alertMessage: text("alert_message").notNull(),
+  severity: varchar("severity").notNull().default("medium"), // low, medium, high, critical
+  isResolved: boolean("is_resolved").default(false),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolvedAt: timestamp("resolved_at"),
+  resolutionNotes: text("resolution_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const otaRevenueReports = pgTable("ota_revenue_reports", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  reportPeriod: varchar("report_period").notNull(), // monthly, quarterly, yearly
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  totalGrossRevenue: decimal("total_gross_revenue", { precision: 12, scale: 2 }).notNull(),
+  totalNetPayout: decimal("total_net_payout", { precision: 12, scale: 2 }).notNull(),
+  totalOtaCommissions: decimal("total_ota_commissions", { precision: 12, scale: 2 }).notNull(),
+  totalBookings: integer("total_bookings").notNull(),
+  averageOtaCommissionRate: decimal("average_ota_commission_rate", { precision: 5, scale: 2 }),
+  platformBreakdown: json("platform_breakdown"), // JSON with per-platform stats
+  generatedBy: varchar("generated_by").references(() => users.id),
+  generatedAt: timestamp("generated_at").defaultNow(),
+});
+
 // Platform settings for admin configuration
 export const platformSettings = pgTable("platform_settings", {
   id: serial("id").primaryKey(),
@@ -13303,3 +13377,41 @@ export type InsertTargetUpgradeSuggestion = z.infer<typeof insertTargetUpgradeSu
 
 export type TargetProgressTracking = typeof targetProgressTracking.$inferSelect;
 export type InsertTargetProgressTracking = z.infer<typeof insertTargetProgressTrackingSchema>;
+
+// ===== OTA PAYOUT LOGIC - SMART REVENUE TRACKING =====
+
+// Insert schemas for OTA Payout Logic
+export const insertOtaPayoutRuleSchema = createInsertSchema(otaPayoutRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOtaBookingPayoutSchema = createInsertSchema(otaBookingPayouts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOtaPayoutAlertSchema = createInsertSchema(otaPayoutAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertOtaRevenueReportSchema = createInsertSchema(otaRevenueReports).omit({
+  id: true,
+  generatedAt: true,
+});
+
+// Type exports for OTA Payout Logic
+export type OtaPayoutRule = typeof otaPayoutRules.$inferSelect;
+export type InsertOtaPayoutRule = z.infer<typeof insertOtaPayoutRuleSchema>;
+
+export type OtaBookingPayout = typeof otaBookingPayouts.$inferSelect;
+export type InsertOtaBookingPayout = z.infer<typeof insertOtaBookingPayoutSchema>;
+
+export type OtaPayoutAlert = typeof otaPayoutAlerts.$inferSelect;
+export type InsertOtaPayoutAlert = z.infer<typeof insertOtaPayoutAlertSchema>;
+
+export type OtaRevenueReport = typeof otaRevenueReports.$inferSelect;
+export type InsertOtaRevenueReport = z.infer<typeof insertOtaRevenueReportSchema>;

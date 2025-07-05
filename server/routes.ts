@@ -26698,6 +26698,256 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== OTA PAYOUT LOGIC - SMART REVENUE TRACKING ROUTES =====
+
+  const { OtaPayoutLogicStorage } = await import("./otaPayoutLogicStorage");
+
+  // OTA Payout Rules Routes
+  app.get("/api/ota-payout/rules", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { propertyId } = req.query;
+      
+      const rules = await otaStorage.getDemoOtaPayoutRules();
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching OTA payout rules:", error);
+      res.status(500).json({ message: "Failed to fetch OTA payout rules" });
+    }
+  });
+
+  app.post("/api/ota-payout/rules", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const rule = await otaStorage.createOtaPayoutRule(req.body);
+      res.json(rule);
+    } catch (error) {
+      console.error("Error creating OTA payout rule:", error);
+      res.status(500).json({ message: "Failed to create OTA payout rule" });
+    }
+  });
+
+  app.put("/api/ota-payout/rules/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { id } = req.params;
+      const rule = await otaStorage.updateOtaPayoutRule(parseInt(id), req.body);
+      
+      if (!rule) {
+        return res.status(404).json({ message: "OTA payout rule not found" });
+      }
+      
+      res.json(rule);
+    } catch (error) {
+      console.error("Error updating OTA payout rule:", error);
+      res.status(500).json({ message: "Failed to update OTA payout rule" });
+    }
+  });
+
+  // OTA Booking Payouts Routes
+  app.get("/api/ota-payout/bookings", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { propertyId, otaPlatform, payoutStatus, startDate, endDate } = req.query;
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (otaPlatform) filters.otaPlatform = otaPlatform as string;
+      if (payoutStatus) filters.payoutStatus = payoutStatus as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      
+      const payouts = await otaStorage.getDemoOtaBookingPayouts();
+      res.json(payouts);
+    } catch (error) {
+      console.error("Error fetching OTA booking payouts:", error);
+      res.status(500).json({ message: "Failed to fetch OTA booking payouts" });
+    }
+  });
+
+  app.get("/api/ota-payout/bookings/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { id } = req.params;
+      const payout = await otaStorage.getOtaBookingPayout(parseInt(id));
+      
+      if (!payout) {
+        return res.status(404).json({ message: "OTA booking payout not found" });
+      }
+      
+      res.json(payout);
+    } catch (error) {
+      console.error("Error fetching OTA booking payout:", error);
+      res.status(500).json({ message: "Failed to fetch OTA booking payout" });
+    }
+  });
+
+  app.post("/api/ota-payout/bookings", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const payout = await otaStorage.createOtaBookingPayout(req.body);
+      res.json(payout);
+    } catch (error) {
+      console.error("Error creating OTA booking payout:", error);
+      res.status(500).json({ message: "Failed to create OTA booking payout" });
+    }
+  });
+
+  app.put("/api/ota-payout/bookings/:id/confirm", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { id } = req.params;
+      const payout = await otaStorage.confirmPayout(parseInt(id), req.user.id);
+      
+      if (!payout) {
+        return res.status(404).json({ message: "OTA booking payout not found" });
+      }
+      
+      res.json(payout);
+    } catch (error) {
+      console.error("Error confirming OTA payout:", error);
+      res.status(500).json({ message: "Failed to confirm OTA payout" });
+    }
+  });
+
+  app.put("/api/ota-payout/bookings/:id/override", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { id } = req.params;
+      const {
+        netPayoutAmount,
+        otaCommissionAmount,
+        otaCommissionRate,
+        overrideReason
+      } = req.body;
+      
+      const payout = await otaStorage.overridePayout(parseInt(id), {
+        netPayoutAmount,
+        otaCommissionAmount,
+        otaCommissionRate,
+        overrideReason,
+        overrideBy: req.user.id
+      });
+      
+      if (!payout) {
+        return res.status(404).json({ message: "OTA booking payout not found" });
+      }
+      
+      res.json(payout);
+    } catch (error) {
+      console.error("Error overriding OTA payout:", error);
+      res.status(500).json({ message: "Failed to override OTA payout" });
+    }
+  });
+
+  // OTA Payout Alerts Routes
+  app.get("/api/ota-payout/alerts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { alertType, severity, isResolved } = req.query;
+      
+      const filters: any = {};
+      if (alertType) filters.alertType = alertType as string;
+      if (severity) filters.severity = severity as string;
+      if (isResolved !== undefined) filters.isResolved = isResolved === 'true';
+      
+      const alerts = await otaStorage.getDemoOtaPayoutAlerts();
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching OTA payout alerts:", error);
+      res.status(500).json({ message: "Failed to fetch OTA payout alerts" });
+    }
+  });
+
+  app.post("/api/ota-payout/alerts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const alert = await otaStorage.createOtaPayoutAlert(req.body);
+      res.json(alert);
+    } catch (error) {
+      console.error("Error creating OTA payout alert:", error);
+      res.status(500).json({ message: "Failed to create OTA payout alert" });
+    }
+  });
+
+  app.put("/api/ota-payout/alerts/:id/resolve", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { id } = req.params;
+      const { resolutionNotes } = req.body;
+      
+      const alert = await otaStorage.resolveOtaPayoutAlert(
+        parseInt(id),
+        req.user.id,
+        resolutionNotes
+      );
+      
+      if (!alert) {
+        return res.status(404).json({ message: "OTA payout alert not found" });
+      }
+      
+      res.json(alert);
+    } catch (error) {
+      console.error("Error resolving OTA payout alert:", error);
+      res.status(500).json({ message: "Failed to resolve OTA payout alert" });
+    }
+  });
+
+  // OTA Revenue Analytics Routes
+  app.get("/api/ota-payout/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { propertyId, otaPlatform, startDate, endDate } = req.query;
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (otaPlatform) filters.otaPlatform = otaPlatform as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+      
+      const analytics = await otaStorage.getDemoRevenueAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching OTA revenue analytics:", error);
+      res.status(500).json({ message: "Failed to fetch OTA revenue analytics" });
+    }
+  });
+
+  app.post("/api/ota-payout/reports", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { reportPeriod, periodStart, periodEnd } = req.body;
+      
+      const report = await otaStorage.generateRevenueReport(
+        reportPeriod,
+        periodStart,
+        periodEnd,
+        req.user.id
+      );
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating OTA revenue report:", error);
+      res.status(500).json({ message: "Failed to generate OTA revenue report" });
+    }
+  });
+
+  app.get("/api/ota-payout/reports", isDemoAuthenticated, async (req, res) => {
+    try {
+      const otaStorage = new OtaPayoutLogicStorage(req.user.organizationId);
+      const { limit } = req.query;
+      
+      const reports = await otaStorage.getRevenueReports(
+        limit ? parseInt(limit as string) : 10
+      );
+      
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching OTA revenue reports:", error);
+      res.status(500).json({ message: "Failed to fetch OTA revenue reports" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
