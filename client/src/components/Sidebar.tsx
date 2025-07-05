@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Menu, 
   X,
@@ -48,9 +49,13 @@ import {
   Phone,
   Eye,
   Brain,
+  ChevronRight,
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Calculator,
   Droplets,
-  Target,
-  Calculator
+  Target
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -91,36 +96,71 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
   const roleSpecificMenus: Record<string, MenuSection[]> = {
     admin: [
       {
-        title: "Core Management",
+        title: "Dashboard",
         items: [
           { label: "Daily Operations", icon: Calendar, href: "/daily-operations" },
+          { label: "Enhanced Admin Dashboard", icon: BarChart3, href: "/enhanced-admin-dashboard", badge: "Enhanced" },
           { label: "Properties", icon: Building, href: "/properties" },
-          { label: "Tasks", icon: CheckSquare, href: "/tasks" },
           { label: "Bookings", icon: Calendar, href: "/bookings" },
-          { label: "Finances", icon: DollarSign, href: "/finances" },
         ]
       },
       {
-        title: "Property Management",
+        title: "Finances",
         items: [
-          { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
-          { label: "Guest Check-In Tracker", icon: Luggage, href: "/guest-checkin-checkout-tracker", badge: "New" },
-          { label: "Fixed Guest Check-In Tracker", icon: Luggage, href: "/fixed-guest-checkin-tracker", badge: "Fixed" },
-          { label: "Owner Onboarding", icon: UserPlus, href: "/owner-onboarding-system", badge: "New" },
+          { label: "Finances", icon: DollarSign, href: "/finances" },
+          { label: "Enhanced Financial Controls", icon: Shield, href: "/enhanced-financial-controls" },
+          { label: "Booking Revenue Transparency", icon: BarChart3, href: "/booking-revenue-transparency", badge: "New" },
+          { label: "OTA Revenue & Net Payout", icon: BarChart3, href: "/ota-revenue-net-payout-calculation", badge: "New" },
+          { label: "OTA Payout Logic — Smart Revenue", icon: Calculator, href: "/ota-payout-logic-smart-revenue", badge: "NEW" },
+          { label: "Smart Pricing & Performance", icon: Brain, href: "/smart-pricing-performance-toolkit", badge: "AI" },
+          { label: "Invoices", icon: FileText, href: "/invoice-generator" },
+          { label: "Booking Income", icon: BarChart3, href: "/booking-income-rules" },
+          { label: "Finance Engine", icon: Database, href: "/finance-engine" },
+          { label: "Payouts", icon: DollarSign, href: "/payouts" },
+        ]
+      },
+      {
+        title: "Tasks",
+        items: [
+          { label: "Tasks Overview", icon: CheckSquare, href: "/tasks" },
           { label: "Maintenance System", icon: Wrench, href: "/maintenance-task-system" },
           { label: "Auto-Scheduling Rules", icon: Clock, href: "/auto-scheduling-recurring-task-generator", badge: "New" },
           { label: "Maintenance Log & Warranty", icon: Wrench, href: "/maintenance-log-warranty-tracker", badge: "New" },
           { label: "Maintenance & Service Tracking", icon: Activity, href: "/maintenance-service-tracking", badge: "New" },
+          { label: "Task Attachments", icon: FileText, href: "/task-attachments-notes" },
+          { label: "Check-in/Check-out", icon: LogOut, href: "/checkin-checkout-workflow" },
+          { label: "Guest Check-In Tracker", icon: Luggage, href: "/guest-checkin-checkout-tracker", badge: "New" },
+          { label: "Fixed Guest Check-In Tracker", icon: Luggage, href: "/fixed-guest-checkin-tracker", badge: "Fixed" },
+          { label: "AI Task Manager", icon: Activity, href: "/ai-task-manager" },
+        ]
+      },
+      {
+        title: "Utilities",
+        items: [
           { label: "Utilities & Maintenance", icon: Settings, href: "/maintenance-utilities-renovation-tracker" },
           { label: "Extended Utilities Management", icon: Settings, href: "/extended-utilities-management", badge: "New" },
           { label: "Water Emergency Refill Log", icon: Droplets, href: "/water-utility-emergency-truck-refill-log", badge: "New" },
           { label: "Water Utility & Emergency Tracker", icon: Droplets, href: "/water-utility-emergency-tracker", badge: "New" },
           { label: "Enhanced Water Utility", icon: Droplets, href: "/water-utility-enhanced", badge: "AI" },
-          { label: "Task Attachments", icon: FileText, href: "/task-attachments-notes" },
-          { label: "Document Center", icon: FolderOpen, href: "/document-center" },
+          { label: "Utility Tracker", icon: Car, href: "/utility-tracker" },
+        ]
+      },
+      {
+        title: "Agents / Staff",
+        items: [
+          { label: "Staff Management", icon: Users, href: "/staff-tasks" },
+          { label: "Guest Services", icon: MessageSquare, href: "/guest-communication-center" },
+          { label: "Service Request Confirmation", icon: CheckCircle, href: "/service-request-confirmation", badge: "New" },
+          { label: "Media Library", icon: Camera, href: "/agent-media-library" },
+          { label: "Owner Onboarding", icon: UserPlus, href: "/owner-onboarding-system", badge: "New" },
           { label: "Local Contacts Management", icon: Phone, href: "/local-contacts-management", badge: "New" },
+        ]
+      },
+      {
+        title: "Tools / Modules",
+        items: [
+          { label: "Document Center", icon: FolderOpen, href: "/document-center" },
           { label: "Property Access", icon: Key, href: "/property-access" },
-          { label: "AI Task Manager", icon: Activity, href: "/ai-task-manager" },
           { label: "Welcome Packs", icon: Package, href: "/welcome-packs" },
           { label: "Smart Inventory", icon: Package, href: "/smart-inventory-dashboard", badge: "New" },
           { label: "Service Marketplace", icon: Star, href: "/service-marketplace-dashboard", badge: "New" },
@@ -347,6 +387,16 @@ export default function Sidebar({ className }: SidebarProps) {
   const [location, setLocation] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    Dashboard: false,
+    Finances: false,
+    Tasks: false,
+    Utilities: false,
+    Settings: false,
+    "Agents / Staff": false,
+    "Tools / Modules": false,
+  });
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState("en");
   const [notifications, setNotifications] = useState({
@@ -358,6 +408,17 @@ export default function Sidebar({ className }: SidebarProps) {
   
   const { user, isAuthenticated } = useAuth();
   const userRole = (user as any)?.role || "guest";
+
+  const toggleSection = (sectionTitle: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionTitle]: !prev[sectionTitle]
+    }));
+  };
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
   
   // Handle mobile menu close on route change
   useEffect(() => {
@@ -494,15 +555,48 @@ export default function Sidebar({ className }: SidebarProps) {
         </div>
       </div>
 
-      {/* Navigation Menu */}
-      <ScrollArea className="flex-1 min-h-0 px-2" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-        <div className="py-4 space-y-6">
+      {/* Sidebar Collapse Toggle (Optional) */}
+      {!isCollapsed && (
+        <div className="px-4 py-2 border-b">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleSidebar}
+            className="w-full justify-start"
+          >
+            <PanelLeftClose className="h-4 w-4 mr-2" />
+            Collapse Sidebar
+          </Button>
+        </div>
+      )}
+
+      {/* Navigation Menu with Collapsible Sections */}
+      <ScrollArea className="flex-1 min-h-0 px-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+        <div className="py-4 space-y-2">
           {menuSections.map((section, sectionIndex) => (
-            <div key={sectionIndex}>
-              <h3 className="px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                {section.title}
-              </h3>
-              <div className="space-y-1">
+            <Collapsible
+              key={sectionIndex}
+              open={!collapsedSections[section.title]}
+              onOpenChange={() => toggleSection(section.title)}
+            >
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-left h-auto py-3 px-3 hover:bg-muted/50"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <h3 className="text-sm font-medium text-foreground">
+                      {section.title}
+                    </h3>
+                    {collapsedSections[section.title] ? (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-1 pl-4 pr-2">
                 {section.items.map((item, itemIndex) => {
                   const Icon = item.icon;
                   const isActive = location === item.href;
@@ -535,8 +629,8 @@ export default function Sidebar({ className }: SidebarProps) {
                     </Link>
                   );
                 })}
-              </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           ))}
         </div>
       </ScrollArea>
