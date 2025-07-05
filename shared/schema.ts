@@ -88,9 +88,134 @@ export const users = pgTable("users", {
   index("IDX_user_email_org").on(table.email, table.organizationId),
 ]);
 
-// ===== USER MANAGEMENT SYSTEM =====
+// ===== COMPREHENSIVE USER MANAGEMENT SYSTEM =====
 
-// User roles and sub-roles
+// Enhanced User table with comprehensive role-based access control
+export const userManagement = pgTable("user_management", {
+  id: varchar("id").primaryKey().notNull(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  email: varchar("email").unique().notNull(),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull(),
+  profileImageUrl: varchar("profile_image_url"),
+  
+  // Role System
+  primaryRole: varchar("primary_role").notNull(), // admin, portfolio_manager, owner, retail_agent, referral_agent, housekeeping, maintenance, supervisor
+  subRole: varchar("sub_role"), // Additional role specificity
+  
+  // Listing Access Control
+  listingsAccess: jsonb("listings_access").default([]), // Array of villa IDs: ["villa_majesta", "villa_tramonto"]
+  
+  // Groups System
+  groups: jsonb("groups").default([]), // Custom groups: ["Property Owners", "Adam Portfolio"]
+  
+  // Notification Preferences
+  dashboardAlerts: boolean("dashboard_alerts").default(true),
+  emailAlerts: boolean("email_alerts").default(true),
+  smsAlerts: boolean("sms_alerts").default(false),
+  
+  // Status and Activity
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  lastSeenAt: timestamp("last_seen_at"),
+  
+  // Security and Audit
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_user_mgmt_org").on(table.organizationId),
+  index("IDX_user_mgmt_email").on(table.email),
+  index("IDX_user_mgmt_role").on(table.primaryRole),
+]);
+
+// User Permission Matrix
+export const userPermissionsMatrix = pgTable("user_permissions_matrix", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => userManagement.id).notNull(),
+  
+  // Module Permissions
+  module: varchar("module").notNull(), // listings, reservations, owner_stays, calendar, booking_engine, financial_reporting, expenses_extras, owner_statements, channel_manager
+  
+  // Access Level Permissions
+  canView: boolean("can_view").default(false),
+  canModify: boolean("can_modify").default(false),
+  canCreate: boolean("can_create").default(false),
+  canDelete: boolean("can_delete").default(false),
+  
+  // Special Permissions
+  canImpersonate: boolean("can_impersonate").default(false), // God mode for admins
+  canAccessAllListings: boolean("can_access_all_listings").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_permissions_user").on(table.userId),
+  index("IDX_permissions_module").on(table.module),
+  index("IDX_permissions_org").on(table.organizationId),
+]);
+
+// User Groups for organizing users
+export const userGroups = pgTable("user_groups", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  color: varchar("color").default("#3B82F6"), // Hex color for UI
+  icon: varchar("icon").default("Users"), // Lucide icon name
+  
+  // Group-specific settings
+  defaultPermissions: jsonb("default_permissions").default({}),
+  listingsAccess: jsonb("listings_access").default([]),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_groups_org").on(table.organizationId),
+  index("IDX_groups_name").on(table.name),
+]);
+
+// User Group Memberships
+export const userGroupMemberships = pgTable("user_group_memberships", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => userManagement.id).notNull(),
+  groupId: integer("group_id").references(() => userGroups.id).notNull(),
+  role: varchar("role").default("member"), // member, moderator, admin
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => [
+  index("IDX_membership_user").on(table.userId),
+  index("IDX_membership_group").on(table.groupId),
+  index("IDX_membership_org").on(table.organizationId),
+]);
+
+// User Activity Logs for auditing
+export const userActivityLogs = pgTable("user_activity_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => userManagement.id),
+  impersonatedUserId: varchar("impersonated_user_id").references(() => userManagement.id), // For God mode tracking
+  
+  action: varchar("action").notNull(), // login, logout, view, create, update, delete, impersonate
+  module: varchar("module"), // Which module was accessed
+  resourceId: varchar("resource_id"), // ID of the resource that was acted upon
+  resourceType: varchar("resource_type"), // Type of resource (listing, reservation, etc.)
+  
+  details: jsonb("details"), // Additional context
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  
+  timestamp: timestamp("timestamp").defaultNow(),
+}, (table) => [
+  index("IDX_activity_user").on(table.userId),
+  index("IDX_activity_timestamp").on(table.timestamp),
+  index("IDX_activity_org").on(table.organizationId),
+]);
+
+// User roles and sub-roles (keeping existing for compatibility)
 export const userRoles = pgTable("user_roles", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
@@ -12694,11 +12819,200 @@ export type RolePermission = typeof rolePermissions.$inferSelect;
 export type InsertRolePermission = typeof rolePermissions.$inferInsert;
 
 // Extended user type with role and permission information
+// ===== USER MANAGEMENT TYPES =====
+
+// Zod schemas for validation
+export const insertUserManagementSchema = createInsertSchema(userManagement);
+export const insertUserPermissionsMatrixSchema = createInsertSchema(userPermissionsMatrix);
+export const insertUserGroupSchema = createInsertSchema(userGroups);
+export const insertUserGroupMembershipSchema = createInsertSchema(userGroupMemberships);
+export const insertUserActivityLogSchema = createInsertSchema(userActivityLogs);
+
+// Type definitions
+export type UserManagement = typeof userManagement.$inferSelect;
+export type InsertUserManagement = z.infer<typeof insertUserManagementSchema>;
+
+export type UserPermissionsMatrix = typeof userPermissionsMatrix.$inferSelect;
+export type InsertUserPermissionsMatrix = z.infer<typeof insertUserPermissionsMatrixSchema>;
+
+export type UserGroup = typeof userGroups.$inferSelect;
+export type InsertUserGroup = z.infer<typeof insertUserGroupSchema>;
+
+export type UserGroupMembership = typeof userGroupMemberships.$inferSelect;
+export type InsertUserGroupMembership = z.infer<typeof insertUserGroupMembershipSchema>;
+
+export type UserActivityLog = typeof userActivityLogs.$inferSelect;
+export type InsertUserActivityLog = z.infer<typeof insertUserActivityLogSchema>;
+
+// Extended types with relations
+export type UserManagementWithPermissions = UserManagement & {
+  permissions?: UserPermission[];
+  groups?: UserGroup[];
+  activityLogs?: UserActivityLog[];
+};
+
 export type UserWithRoleAndPermissions = typeof users.$inferSelect & {
   userRole?: UserRole;
   userPermissions?: UserPermission;
   propertyAssignments?: UserPropertyAssignment[];
   performanceMetrics?: UserPerformanceMetrics;
+};
+
+// Role definitions
+export const USER_ROLES = [
+  'admin',
+  'portfolio_manager', 
+  'owner',
+  'retail_agent',
+  'referral_agent',
+  'housekeeping',
+  'maintenance',
+  'supervisor'
+] as const;
+
+export type UserRoleType = typeof USER_ROLES[number];
+
+// Module definitions for permissions
+export const PERMISSION_MODULES = [
+  'listings',
+  'reservations',
+  'owner_stays',
+  'calendar',
+  'booking_engine',
+  'financial_reporting',
+  'expenses_extras',
+  'owner_statements',
+  'channel_manager',
+  'analytics',
+  'rental_activity',
+  'occupancy',
+  'quickbooks'
+] as const;
+
+export type PermissionModule = typeof PERMISSION_MODULES[number];
+
+// Permission templates for each role
+export const ROLE_PERMISSION_TEMPLATES: Record<UserRoleType, Record<PermissionModule, { canView: boolean; canModify: boolean; canCreate: boolean; canDelete: boolean }>> = {
+  admin: {
+    listings: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    reservations: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    owner_stays: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    calendar: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    booking_engine: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    financial_reporting: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    expenses_extras: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    owner_statements: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    channel_manager: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    analytics: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    rental_activity: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    occupancy: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    quickbooks: { canView: true, canModify: true, canCreate: true, canDelete: true },
+  },
+  portfolio_manager: {
+    listings: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    reservations: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    owner_stays: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    calendar: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    booking_engine: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    financial_reporting: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    expenses_extras: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    owner_statements: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    channel_manager: { canView: true, canModify: true, canCreate: false, canDelete: false },
+    analytics: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    rental_activity: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    occupancy: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    quickbooks: { canView: false, canModify: false, canCreate: false, canDelete: false },
+  },
+  owner: {
+    listings: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    reservations: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    owner_stays: { canView: true, canModify: true, canCreate: true, canDelete: true },
+    calendar: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    booking_engine: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    financial_reporting: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    expenses_extras: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    owner_statements: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    channel_manager: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    analytics: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    rental_activity: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    occupancy: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    quickbooks: { canView: false, canModify: false, canCreate: false, canDelete: false },
+  },
+  retail_agent: {
+    listings: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    reservations: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    owner_stays: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    calendar: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    booking_engine: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    financial_reporting: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    expenses_extras: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    owner_statements: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    channel_manager: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    analytics: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    rental_activity: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    occupancy: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    quickbooks: { canView: false, canModify: false, canCreate: false, canDelete: false },
+  },
+  referral_agent: {
+    listings: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    reservations: { canView: true, canModify: false, canCreate: true, canDelete: false },
+    owner_stays: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    calendar: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    booking_engine: { canView: true, canModify: false, canCreate: true, canDelete: false },
+    financial_reporting: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    expenses_extras: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    owner_statements: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    channel_manager: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    analytics: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    rental_activity: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    occupancy: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    quickbooks: { canView: false, canModify: false, canCreate: false, canDelete: false },
+  },
+  housekeeping: {
+    listings: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    reservations: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    owner_stays: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    calendar: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    booking_engine: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    financial_reporting: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    expenses_extras: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    owner_statements: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    channel_manager: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    analytics: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    rental_activity: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    occupancy: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    quickbooks: { canView: false, canModify: false, canCreate: false, canDelete: false },
+  },
+  maintenance: {
+    listings: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    reservations: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    owner_stays: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    calendar: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    booking_engine: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    financial_reporting: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    expenses_extras: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    owner_statements: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    channel_manager: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    analytics: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    rental_activity: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    occupancy: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    quickbooks: { canView: false, canModify: false, canCreate: false, canDelete: false },
+  },
+  supervisor: {
+    listings: { canView: true, canModify: true, canCreate: false, canDelete: false },
+    reservations: { canView: true, canModify: true, canCreate: false, canDelete: false },
+    owner_stays: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    calendar: { canView: true, canModify: true, canCreate: false, canDelete: false },
+    booking_engine: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    financial_reporting: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    expenses_extras: { canView: true, canModify: true, canCreate: true, canDelete: false },
+    owner_statements: { canView: false, canModify: false, canCreate: false, canDelete: false },
+    channel_manager: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    analytics: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    rental_activity: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    occupancy: { canView: true, canModify: false, canCreate: false, canDelete: false },
+    quickbooks: { canView: false, canModify: false, canCreate: false, canDelete: false },
+  },
 };
 
 // Default permission templates for different roles

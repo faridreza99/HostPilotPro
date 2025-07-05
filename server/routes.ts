@@ -10,7 +10,7 @@ import { z } from "zod";
 import { CrossSyncedTaskVisibilityStorage } from "./crossSyncedTaskVisibility";
 import { seedThailandUtilityProviders } from "./seedThailandUtilityProviders";
 import { seedVillaSamuiDemo } from "./seedVillaSamuiDemo";
-import { UserManagementStorage } from "./userManagementStorage";
+import { userManagementStorage } from "./userManagementStorage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup demo authentication (for development/testing)
