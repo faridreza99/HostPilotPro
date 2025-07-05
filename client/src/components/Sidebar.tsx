@@ -45,7 +45,8 @@ import {
   Key,
   Luggage,
   CheckCircle,
-  Phone
+  Phone,
+  Eye
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -143,6 +144,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         title: "Administration",
         items: [
           { label: "User Management", icon: Users, href: "/admin/user-management", badge: "New" },
+          { label: "User Access & Visibility", icon: Eye, href: "/admin/user-access", badge: "New" },
           { label: "System Integrity Check", icon: Shield, href: "/admin/system-integrity-check", badge: "QA" },
           { label: "Activity Logs", icon: Activity, href: "/admin/activity-log" },
           { label: "Finance Reset", icon: Shield, href: "/admin/finance-reset" },

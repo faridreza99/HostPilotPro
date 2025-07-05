@@ -107,6 +107,8 @@ import GuestActivityRecommendations from "@/pages/GuestActivityRecommendations";
 import SystemWideDemoIntegration from "@/pages/SystemWideDemoIntegration";
 import SystemIntegrityCheck from "@/pages/SystemIntegrityCheck";
 import UserManagementModule from "@/pages/UserManagementModule";
+import UserAccessVisibilityControls from "@/pages/UserAccessVisibilityControls";
+import AccessDenied from "@/pages/AccessDenied";
 import ExtendedUtilitiesManagement from "@/pages/ExtendedUtilitiesManagement";
 import PropertyAccess from "@/pages/portfolio/PropertyAccess";
 import Documents from "@/pages/portfolio/Documents";
@@ -256,6 +258,8 @@ function Router() {
         <Route path="/admin/activity-log" component={AdminActivityLog} />
         <Route path="/admin/system-integrity-check" component={SystemIntegrityCheck} />
         <Route path="/admin/user-management" component={UserManagementModule} />
+        <Route path="/admin/user-access" component={UserAccessVisibilityControls} />
+        <Route path="/access-denied" component={AccessDenied} />
         <Route path="/document-center" component={DocumentCenter} />
         <Route path="/property-access" component={PropertyAccessManagement} />
         <Route path="/property/:id" component={PropertyDetailView} />

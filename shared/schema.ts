@@ -106,6 +106,24 @@ export const userRoles = pgTable("user_roles", {
   index("IDX_user_role_user").on(table.userId),
 ]);
 
+// Role definitions and permissions
+export const rolePermissions = pgTable("role_permissions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  roleId: varchar("role_id").notNull(), // admin, portfolio-manager, owner, staff, etc.
+  roleName: varchar("role_name").notNull(),
+  displayName: varchar("display_name").notNull(),
+  description: text("description"),
+  permissions: jsonb("permissions").notNull(), // Module permissions object
+  isCustom: boolean("is_custom").default(false), // Whether it's a custom role
+  userCount: integer("user_count").default(0), // Number of users with this role
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_role_perm_org").on(table.organizationId),
+  index("IDX_role_perm_role").on(table.roleId),
+]);
+
 // User permissions for granular access control
 export const userPermissions = pgTable("user_permissions", {
   id: serial("id").primaryKey(),
@@ -11877,6 +11895,9 @@ export type InsertUserInvitation = z.infer<typeof insertUserInvitationSchema>;
 
 export type UserPerformanceMetrics = typeof userPerformanceMetrics.$inferSelect;
 export type InsertUserPerformanceMetrics = z.infer<typeof insertUserPerformanceMetricsSchema>;
+
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = typeof rolePermissions.$inferInsert;
 
 // Extended user type with role and permission information
 export type UserWithRoleAndPermissions = typeof users.$inferSelect & {

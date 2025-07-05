@@ -4099,6 +4099,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ROLE & PERMISSION MANAGEMENT ROUTES =====
+
+  // Get all role permissions (Admin only)
+  app.get("/api/admin/role-permissions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      // Admin-only check
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { organizationId } = req.user;
+      const rolePermissions = await storage.getAllRolePermissions(organizationId);
+      res.json(rolePermissions);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ message: "Failed to fetch role permissions" });
+    }
+  });
+
+  // Update specific role permission (Admin only)
+  app.patch("/api/admin/role-permissions/:roleId/:moduleKey", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      // Admin-only check
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { roleId, moduleKey } = req.params;
+      const { visible, access } = req.body;
+      const { organizationId } = req.user;
+
+      const updated = await storage.updateRolePermission(organizationId, roleId, moduleKey, { visible, access });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating role permission:", error);
+      res.status(500).json({ message: "Failed to update role permission" });
+    }
+  });
+
+  // Create new custom role (Admin only)
+  app.post("/api/admin/roles", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      // Admin-only check
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { name, displayName, description, cloneFromRole } = req.body;
+      const { organizationId } = req.user;
+
+      const newRole = await storage.createCustomRole(organizationId, {
+        name,
+        displayName,
+        description,
+        cloneFromRole
+      });
+
+      res.json(newRole);
+    } catch (error) {
+      console.error("Error creating role:", error);
+      res.status(500).json({ message: "Failed to create role" });
+    }
+  });
+
+  // Get user permissions for current user
+  app.get("/api/user/permissions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const permissions = await storage.getUserPermissions(organizationId, role);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching user permissions:", error);
+      res.status(500).json({ message: "Failed to fetch user permissions" });
+    }
+  });
+
+  // Get freelancer availability (for freelancer roles)
+  app.get("/api/freelancer/availability", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: freelancerId } = req.user;
+      
+      // Check if user is a freelancer role
+      const freelancerRoles = ['electrician', 'pest-control', 'plumber', 'chef', 'nanny'];
+      if (!freelancerRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: "Freelancer access required" });
+      }
+
+      const availability = await storage.getFreelancerAvailability(organizationId, freelancerId);
+      res.json(availability);
+    } catch (error) {
+      console.error("Error fetching freelancer availability:", error);
+      res.status(500).json({ message: "Failed to fetch availability" });
+    }
+  });
+
+  // Update freelancer availability
+  app.post("/api/freelancer/availability", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: freelancerId } = req.user;
+      const { availableDate, timeSlots, isAvailable, notes } = req.body;
+      
+      // Check if user is a freelancer role
+      const freelancerRoles = ['electrician', 'pest-control', 'plumber', 'chef', 'nanny'];
+      if (!freelancerRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: "Freelancer access required" });
+      }
+
+      const availability = await storage.updateFreelancerAvailability(organizationId, freelancerId, {
+        availableDate,
+        timeSlots,
+        isAvailable,
+        notes
+      });
+
+      res.json(availability);
+    } catch (error) {
+      console.error("Error updating freelancer availability:", error);
+      res.status(500).json({ message: "Failed to update availability" });
+    }
+  });
+
+  // Get freelancer task requests
+  app.get("/api/freelancer/task-requests", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: freelancerId } = req.user;
+      const { status } = req.query;
+      
+      // Check if user is a freelancer role
+      const freelancerRoles = ['electrician', 'pest-control', 'plumber', 'chef', 'nanny'];
+      if (!freelancerRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: "Freelancer access required" });
+      }
+
+      const requests = await storage.getFreelancerTaskRequests(organizationId, freelancerId, { status });
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching task requests:", error);
+      res.status(500).json({ message: "Failed to fetch task requests" });
+    }
+  });
+
+  // Respond to freelancer task request
+  app.patch("/api/freelancer/task-requests/:id/respond", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status, response, counterProposedDate, counterProposedTimeStart, counterProposedTimeEnd } = req.body;
+      const { id: freelancerId } = req.user;
+      
+      // Check if user is a freelancer role
+      const freelancerRoles = ['electrician', 'pest-control', 'plumber', 'chef', 'nanny'];
+      if (!freelancerRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: "Freelancer access required" });
+      }
+
+      const updated = await storage.respondToTaskRequest(parseInt(id), freelancerId, {
+        status,
+        response,
+        counterProposedDate,
+        counterProposedTimeStart,
+        counterProposedTimeEnd
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error responding to task request:", error);
+      res.status(500).json({ message: "Failed to respond to task request" });
+    }
+  });
+
   // PM Invoice Builder
   app.post("/api/pm/dashboard/invoices", isDemoAuthenticated, async (req: any, res) => {
     try {

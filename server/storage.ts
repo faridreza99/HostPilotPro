@@ -1379,6 +1379,18 @@ export interface IStorage {
     paymentStatus: string;
   }>;
 
+  // Role & Permission Management Methods (Admin Only)
+  getAllRolePermissions(organizationId: string): Promise<any>;
+  updateRolePermission(organizationId: string, roleId: string, moduleKey: string, updates: any): Promise<any>;
+  createCustomRole(organizationId: string, roleData: any): Promise<any>;
+  getUserPermissions(organizationId: string, role: string): Promise<any>;
+  
+  // Freelancer Management Methods
+  getFreelancerAvailability(organizationId: string, freelancerId: string): Promise<any>;
+  updateFreelancerAvailability(organizationId: string, freelancerId: string, data: any): Promise<any>;
+  getFreelancerTaskRequests(organizationId: string, freelancerId: string, filters: any): Promise<any>;
+  respondToTaskRequest(requestId: number, freelancerId: string, response: any): Promise<any>;
+
   // Balance Reset Control Methods (Admin Only)
   getUsersForBalanceReset(organizationId: string): Promise<Array<{
     id: string;
@@ -31908,6 +31920,224 @@ Plant Care:
     }
 
     return tasks;
+  }
+
+  // ===== ROLE & PERMISSION MANAGEMENT METHODS =====
+
+  async getAllRolePermissions(organizationId: string): Promise<any> {
+    // Mock implementation for role permission management
+    const modules = [
+      {
+        key: 'property-management',
+        name: 'Property Management',
+        description: 'Manage properties, maintenance, and guest services',
+        icon: 'Building'
+      },
+      {
+        key: 'booking-management',
+        name: 'Booking Management',
+        description: 'Handle reservations, calendar, and guest check-ins',
+        icon: 'Calendar'
+      },
+      {
+        key: 'financial-management',
+        name: 'Financial Management',
+        description: 'Manage invoices, payouts, and revenue tracking',
+        icon: 'DollarSign'
+      },
+      {
+        key: 'staff-management',
+        name: 'Staff Management',
+        description: 'Staff scheduling, payroll, and performance tracking',
+        icon: 'Users'
+      },
+      {
+        key: 'guest-services',
+        name: 'Guest Services',
+        description: 'Guest communication, feedback, and service requests',
+        icon: 'MessageCircle'
+      },
+      {
+        key: 'administration',
+        name: 'Administration',
+        description: 'System settings, user management, and platform controls',
+        icon: 'Settings'
+      }
+    ];
+
+    const roles = [
+      'admin',
+      'portfolio-manager',
+      'owner',
+      'staff',
+      'retail-agent',
+      'referral-agent',
+      'electrician',
+      'pest-control',
+      'plumber',
+      'chef',
+      'nanny'
+    ];
+
+    const permissions: any = {};
+
+    roles.forEach(role => {
+      permissions[role] = {};
+      modules.forEach(module => {
+        // Default permissions based on role type
+        let visible = true;
+        let access = 'read';
+
+        if (role === 'admin') {
+          access = 'admin';
+        } else if (role === 'portfolio-manager') {
+          access = module.key === 'administration' ? 'read' : 'write';
+        } else if (role === 'owner') {
+          visible = ['property-management', 'booking-management', 'financial-management'].includes(module.key);
+          access = 'read';
+        } else if (role === 'staff') {
+          visible = ['property-management', 'guest-services'].includes(module.key);
+          access = 'write';
+        } else if (['retail-agent', 'referral-agent'].includes(role)) {
+          visible = ['booking-management', 'financial-management'].includes(module.key);
+          access = 'read';
+        } else {
+          // Freelancer roles
+          visible = ['property-management'].includes(module.key);
+          access = 'read';
+        }
+
+        permissions[role][module.key] = {
+          visible,
+          access
+        };
+      });
+    });
+
+    return {
+      modules,
+      roles,
+      permissions
+    };
+  }
+
+  async updateRolePermission(organizationId: string, roleId: string, moduleKey: string, updates: any): Promise<any> {
+    // Mock implementation - in real app, this would update the database
+    console.log(`Updating role permission for ${roleId}.${moduleKey}:`, updates);
+    return {
+      roleId,
+      moduleKey,
+      ...updates,
+      updatedAt: new Date()
+    };
+  }
+
+  async createCustomRole(organizationId: string, roleData: any): Promise<any> {
+    // Mock implementation for creating custom roles
+    const newRole = {
+      id: `custom_${Date.now()}`,
+      organizationId,
+      name: roleData.name,
+      displayName: roleData.displayName,
+      description: roleData.description,
+      isCustom: true,
+      createdAt: new Date(),
+      ...roleData
+    };
+
+    console.log('Creating custom role:', newRole);
+    return newRole;
+  }
+
+  async getUserPermissions(organizationId: string, role: string): Promise<any> {
+    // Mock implementation - return permissions for the specific user role
+    const allPermissions = await this.getAllRolePermissions(organizationId);
+    return allPermissions.permissions[role] || {};
+  }
+
+  // ===== FREELANCER MANAGEMENT METHODS =====
+
+  async getFreelancerAvailability(organizationId: string, freelancerId: string): Promise<any> {
+    // Mock freelancer availability data
+    return [
+      {
+        id: 1,
+        date: '2025-01-06',
+        timeSlots: ['09:00-12:00', '14:00-17:00'],
+        isAvailable: true,
+        notes: 'Available for electrical work'
+      },
+      {
+        id: 2,
+        date: '2025-01-07',
+        timeSlots: ['10:00-16:00'],
+        isAvailable: true,
+        notes: 'Full day available'
+      }
+    ];
+  }
+
+  async updateFreelancerAvailability(organizationId: string, freelancerId: string, data: any): Promise<any> {
+    // Mock implementation for updating freelancer availability
+    const availability = {
+      id: Date.now(),
+      freelancerId,
+      organizationId,
+      ...data,
+      updatedAt: new Date()
+    };
+
+    console.log('Updating freelancer availability:', availability);
+    return availability;
+  }
+
+  async getFreelancerTaskRequests(organizationId: string, freelancerId: string, filters: any): Promise<any> {
+    // Mock task requests for freelancers
+    return [
+      {
+        id: 1,
+        taskTitle: 'Fix electrical outlet in Villa A',
+        propertyName: 'Villa Samui Breeze',
+        requestedDate: '2025-01-08',
+        timeStart: '10:00',
+        timeEnd: '14:00',
+        urgency: 'high',
+        status: 'pending',
+        estimatedCost: 2500,
+        description: 'Guest reports non-working outlet in bedroom',
+        requestedBy: 'John Manager',
+        createdAt: new Date('2025-01-05')
+      },
+      {
+        id: 2,
+        taskTitle: 'Install new ceiling fan',
+        propertyName: 'Villa Tropical Paradise',
+        requestedDate: '2025-01-10',
+        timeStart: '09:00',
+        timeEnd: '12:00',
+        urgency: 'medium',
+        status: 'pending',
+        estimatedCost: 3500,
+        description: 'Owner requested ceiling fan installation',
+        requestedBy: 'Sarah PM',
+        createdAt: new Date('2025-01-04')
+      }
+    ];
+  }
+
+  async respondToTaskRequest(requestId: number, freelancerId: string, response: any): Promise<any> {
+    // Mock implementation for freelancer responding to task requests
+    const updatedRequest = {
+      id: requestId,
+      freelancerId,
+      status: response.status,
+      freelancerResponse: response.response,
+      respondedAt: new Date(),
+      ...response
+    };
+
+    console.log('Freelancer responding to task request:', updatedRequest);
+    return updatedRequest;
   }
 }
 
