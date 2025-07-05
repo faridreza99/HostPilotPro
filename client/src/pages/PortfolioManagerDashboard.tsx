@@ -487,6 +487,52 @@ export default function PortfolioManagerDashboard() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
+          {/* Portfolio Quick Access */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Portfolio Management</CardTitle>
+              <CardDescription>Quick access to property management tools</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-5">
+                <Button asChild variant="outline" className="h-20 flex-col">
+                  <a href="/portfolio/property-access">
+                    <Building className="h-6 w-6 mb-2" />
+                    <span className="text-sm">Property Access</span>
+                  </a>
+                </Button>
+                
+                <Button asChild variant="outline" className="h-20 flex-col">
+                  <a href="/portfolio/documents">
+                    <FileText className="h-6 w-6 mb-2" />
+                    <span className="text-sm">Document Center</span>
+                  </a>
+                </Button>
+                
+                <Button asChild variant="outline" className="h-20 flex-col">
+                  <a href="/portfolio/maintenance">
+                    <Settings className="h-6 w-6 mb-2" />
+                    <span className="text-sm">Maintenance</span>
+                  </a>
+                </Button>
+                
+                <Button asChild variant="outline" className="h-20 flex-col">
+                  <a href="/portfolio/service-tracker">
+                    <Calendar className="h-6 w-6 mb-2" />
+                    <span className="text-sm">Service Tracker</span>
+                  </a>
+                </Button>
+                
+                <Button asChild variant="outline" className="h-20 flex-col">
+                  <a href="/portfolio/invoices">
+                    <Receipt className="h-6 w-6 mb-2" />
+                    <span className="text-sm">Invoices</span>
+                  </a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          
           <div className="grid gap-4 md:grid-cols-2">
             {/* Property Performance Breakdown */}
             <Card>

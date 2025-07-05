@@ -108,6 +108,11 @@ import SystemWideDemoIntegration from "@/pages/SystemWideDemoIntegration";
 import SystemIntegrityCheck from "@/pages/SystemIntegrityCheck";
 import UserManagementModule from "@/pages/UserManagementModule";
 import ExtendedUtilitiesManagement from "@/pages/ExtendedUtilitiesManagement";
+import PropertyAccess from "@/pages/portfolio/PropertyAccess";
+import Documents from "@/pages/portfolio/Documents";
+import Maintenance from "@/pages/portfolio/Maintenance";
+import ServiceTracker from "@/pages/portfolio/ServiceTracker";
+import Invoices from "@/pages/portfolio/Invoices";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -272,6 +277,11 @@ function Router() {
         <Route path="/guest-activity-recommendations" component={GuestActivityRecommendations} />
         <Route path="/system-wide-demo-integration" component={SystemWideDemoIntegration} />
         <Route path="/extended-utilities-management" component={ExtendedUtilitiesManagement} />
+        <Route path="/portfolio/property-access" component={PropertyAccess} />
+        <Route path="/portfolio/documents" component={Documents} />
+        <Route path="/portfolio/maintenance" component={Maintenance} />
+        <Route path="/portfolio/service-tracker" component={ServiceTracker} />
+        <Route path="/portfolio/invoices" component={Invoices} />
         <Route path="/help" component={Help} />
         <Route component={NotFound} />
         </Switch>
