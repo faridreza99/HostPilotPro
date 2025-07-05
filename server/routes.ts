@@ -24293,6 +24293,146 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== EMERGENCY WATER TRUCK DELIVERY ROUTES =====
+
+  // Get emergency water deliveries
+  app.get("/api/emergency-water/deliveries", isDemoAuthenticated, requireUtilitiesAccess, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const utilStorage = new ExtendedUtilitiesStorage(organizationId);
+      
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined;
+      const deliveries = await utilStorage.getEmergencyWaterDeliveries(propertyId);
+      res.json(deliveries);
+    } catch (error) {
+      console.error("Error fetching emergency water deliveries:", error);
+      res.status(500).json({ message: "Failed to fetch emergency water deliveries" });
+    }
+  });
+
+  // Create emergency water delivery
+  app.post("/api/emergency-water/deliveries", isDemoAuthenticated, requireUtilitiesAccess, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const utilStorage = new ExtendedUtilitiesStorage(organizationId);
+      
+      const deliveryData = {
+        ...req.body,
+        createdBy: req.user.id,
+        receivedBy: req.user.id
+      };
+      
+      const delivery = await utilStorage.createEmergencyWaterDelivery(deliveryData);
+      res.status(201).json(delivery);
+    } catch (error) {
+      console.error("Error creating emergency water delivery:", error);
+      res.status(500).json({ message: "Failed to create emergency water delivery" });
+    }
+  });
+
+  // Update emergency water delivery
+  app.put("/api/emergency-water/deliveries/:id", isDemoAuthenticated, requireUtilitiesAccess, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const utilStorage = new ExtendedUtilitiesStorage(organizationId);
+      const deliveryId = parseInt(req.params.id);
+      
+      const delivery = await utilStorage.updateEmergencyWaterDelivery(deliveryId, req.body);
+      if (!delivery) {
+        return res.status(404).json({ message: "Emergency water delivery not found" });
+      }
+      
+      res.json(delivery);
+    } catch (error) {
+      console.error("Error updating emergency water delivery:", error);
+      res.status(500).json({ message: "Failed to update emergency water delivery" });
+    }
+  });
+
+  // Delete emergency water delivery (admin only)
+  app.delete("/api/emergency-water/deliveries/:id", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const utilStorage = new ExtendedUtilitiesStorage(organizationId);
+      const deliveryId = parseInt(req.params.id);
+      
+      const success = await utilStorage.deleteEmergencyWaterDelivery(deliveryId);
+      if (!success) {
+        return res.status(404).json({ message: "Emergency water delivery not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting emergency water delivery:", error);
+      res.status(500).json({ message: "Failed to delete emergency water delivery" });
+    }
+  });
+
+  // Get emergency water alerts
+  app.get("/api/emergency-water/alerts", isDemoAuthenticated, requireUtilitiesAccess, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const utilStorage = new ExtendedUtilitiesStorage(organizationId);
+      
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined;
+      const alerts = await utilStorage.getEmergencyWaterAlerts(propertyId);
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching emergency water alerts:", error);
+      res.status(500).json({ message: "Failed to fetch emergency water alerts" });
+    }
+  });
+
+  // Resolve emergency water alert
+  app.put("/api/emergency-water/alerts/:id/resolve", isDemoAuthenticated, requirePortfolioManagerOrAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const utilStorage = new ExtendedUtilitiesStorage(organizationId);
+      const alertId = parseInt(req.params.id);
+      const { notes } = req.body;
+      
+      const alert = await utilStorage.resolveEmergencyWaterAlert(alertId, req.user.id, notes);
+      if (!alert) {
+        return res.status(404).json({ message: "Emergency water alert not found" });
+      }
+      
+      res.json(alert);
+    } catch (error) {
+      console.error("Error resolving emergency water alert:", error);
+      res.status(500).json({ message: "Failed to resolve emergency water alert" });
+    }
+  });
+
+  // Get emergency water analytics
+  app.get("/api/emergency-water/analytics", isDemoAuthenticated, requireUtilitiesAccess, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const utilStorage = new ExtendedUtilitiesStorage(organizationId);
+      
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined;
+      const analytics = await utilStorage.getEmergencyWaterAnalytics(propertyId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching emergency water analytics:", error);
+      res.status(500).json({ message: "Failed to fetch emergency water analytics" });
+    }
+  });
+
+  // Inject demo emergency water data (development only)
+  app.post("/api/emergency-water/inject-demo", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const utilStorage = new ExtendedUtilitiesStorage(organizationId);
+      const { propertyId } = req.body;
+      
+      await utilStorage.injectDemoEmergencyWaterData(propertyId);
+      res.json({ message: "Demo emergency water data injected successfully" });
+    } catch (error) {
+      console.error("Error injecting demo emergency water data:", error);
+      res.status(500).json({ message: "Failed to inject demo emergency water data" });
+    }
+  });
+
   // ===== AI NOTIFICATIONS & REMINDERS MODULE ROUTES =====
 
   // Import AI notifications storage

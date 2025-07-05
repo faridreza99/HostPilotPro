@@ -16,7 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
-import { Zap, Droplets, Wifi, Bug, TreePine, Car, Plus, Search, Edit, Trash2, Bell, Upload, Download, Calendar, DollarSign, AlertTriangle, CheckCircle, XCircle, Clock, User, Settings, BarChart3, FileText, Eye, EyeOff, Filter, RefreshCw, BookOpen, Target, Activity, Lightbulb } from "lucide-react";
+import { Zap, Droplets, Wifi, Bug, TreePine, Car, Plus, Search, Edit, Trash2, Bell, Upload, Download, Calendar, DollarSign, AlertTriangle, CheckCircle, XCircle, Clock, User, Settings, BarChart3, FileText, Eye, EyeOff, Filter, RefreshCw, BookOpen, Target, Activity, Lightbulb, Truck } from "lucide-react";
+import { EmergencyWaterTruck } from "@/components/EmergencyWaterTruck";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -667,7 +668,7 @@ export default function ExtendedUtilitiesManagement() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview" className="flex items-center gap-1">
               <BarChart3 className="h-4 w-4" />
               Overview
@@ -679,6 +680,10 @@ export default function ExtendedUtilitiesManagement() {
             <TabsTrigger value="bills" className="flex items-center gap-1">
               <FileText className="h-4 w-4" />
               Bills
+            </TabsTrigger>
+            <TabsTrigger value="emergency-water" className="flex items-center gap-1">
+              <Truck className="h-4 w-4" />
+              Water Truck
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-1">
               <Bell className="h-4 w-4" />
@@ -1072,6 +1077,14 @@ export default function ExtendedUtilitiesManagement() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Emergency Water Truck Tab */}
+          <TabsContent value="emergency-water" className="space-y-4">
+            <EmergencyWaterTruck 
+              propertyId={selectedProperty} 
+              userRole={user?.role || 'guest'} 
+            />
           </TabsContent>
 
           {/* Notifications Tab */}

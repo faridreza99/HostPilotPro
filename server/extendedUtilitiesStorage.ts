@@ -9,11 +9,17 @@ import {
   InsertUtilityAiPredictions,
   UtilityNotifications,
   InsertUtilityNotifications,
+  EmergencyWaterDelivery,
+  InsertEmergencyWaterDelivery,
+  EmergencyWaterAlert,
+  InsertEmergencyWaterAlert,
   propertyUtilitiesMaster,
   utilityBillsExtended,
   utilityAccessPermissions,
   utilityAiPredictions,
   utilityNotifications,
+  emergencyWaterDeliveries,
+  emergencyWaterAlerts,
   properties,
   users
 } from "@shared/schema";
@@ -647,5 +653,281 @@ export class ExtendedUtilitiesStorage {
       averageArrivalDay: averageDay,
       notes: `Based on ${historicalBills.length} months of data. Average arrival: day ${averageDay}.`
     };
+  }
+
+  // ===== EMERGENCY WATER TRUCK DELIVERY MANAGEMENT =====
+
+  async getEmergencyWaterDeliveries(propertyId?: number): Promise<EmergencyWaterDelivery[]> {
+    let query = db
+      .select()
+      .from(emergencyWaterDeliveries)
+      .where(eq(emergencyWaterDeliveries.organizationId, this.organizationId));
+
+    if (propertyId) {
+      query = query.where(and(
+        eq(emergencyWaterDeliveries.organizationId, this.organizationId),
+        eq(emergencyWaterDeliveries.propertyId, propertyId)
+      ));
+    }
+
+    return query.orderBy(desc(emergencyWaterDeliveries.deliveryDate));
+  }
+
+  async createEmergencyWaterDelivery(deliveryData: InsertEmergencyWaterDelivery): Promise<EmergencyWaterDelivery> {
+    const [delivery] = await db
+      .insert(emergencyWaterDeliveries)
+      .values({
+        ...deliveryData,
+        organizationId: this.organizationId
+      })
+      .returning();
+
+    // Check if this triggers an alert
+    await this.checkEmergencyWaterFrequency(deliveryData.propertyId);
+
+    return delivery;
+  }
+
+  async updateEmergencyWaterDelivery(
+    deliveryId: number, 
+    updateData: Partial<InsertEmergencyWaterDelivery>
+  ): Promise<EmergencyWaterDelivery | null> {
+    const [updated] = await db
+      .update(emergencyWaterDeliveries)
+      .set({
+        ...updateData,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(emergencyWaterDeliveries.id, deliveryId),
+        eq(emergencyWaterDeliveries.organizationId, this.organizationId)
+      ))
+      .returning();
+
+    return updated || null;
+  }
+
+  async deleteEmergencyWaterDelivery(deliveryId: number): Promise<boolean> {
+    const result = await db
+      .delete(emergencyWaterDeliveries)
+      .where(and(
+        eq(emergencyWaterDeliveries.id, deliveryId),
+        eq(emergencyWaterDeliveries.organizationId, this.organizationId)
+      ));
+
+    return result.rowCount > 0;
+  }
+
+  // ===== EMERGENCY WATER ALERTS MANAGEMENT =====
+
+  async getEmergencyWaterAlerts(propertyId?: number): Promise<EmergencyWaterAlert[]> {
+    let query = db
+      .select()
+      .from(emergencyWaterAlerts)
+      .where(eq(emergencyWaterAlerts.organizationId, this.organizationId));
+
+    if (propertyId) {
+      query = query.where(and(
+        eq(emergencyWaterAlerts.organizationId, this.organizationId),
+        eq(emergencyWaterAlerts.propertyId, propertyId)
+      ));
+    }
+
+    return query.orderBy(desc(emergencyWaterAlerts.lastTriggered));
+  }
+
+  async createEmergencyWaterAlert(alertData: InsertEmergencyWaterAlert): Promise<EmergencyWaterAlert> {
+    const [alert] = await db
+      .insert(emergencyWaterAlerts)
+      .values({
+        ...alertData,
+        organizationId: this.organizationId
+      })
+      .returning();
+
+    return alert;
+  }
+
+  async checkEmergencyWaterFrequency(propertyId: number): Promise<void> {
+    // Get deliveries from current month
+    const currentDate = new Date();
+    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+    const monthlyDeliveries = await db
+      .select()
+      .from(emergencyWaterDeliveries)
+      .where(and(
+        eq(emergencyWaterDeliveries.organizationId, this.organizationId),
+        eq(emergencyWaterDeliveries.propertyId, propertyId),
+        gte(emergencyWaterDeliveries.deliveryDate, monthStart.toISOString().split('T')[0]),
+        lte(emergencyWaterDeliveries.deliveryDate, monthEnd.toISOString().split('T')[0])
+      ));
+
+    // Check if deliveries exceed threshold (default: 2 per month)
+    if (monthlyDeliveries.length >= 2) {
+      // Check if alert already exists for this property and month
+      const existingAlert = await db
+        .select()
+        .from(emergencyWaterAlerts)
+        .where(and(
+          eq(emergencyWaterAlerts.organizationId, this.organizationId),
+          eq(emergencyWaterAlerts.propertyId, propertyId),
+          eq(emergencyWaterAlerts.alertType, 'frequency_alert'),
+          eq(emergencyWaterAlerts.isActive, true),
+          gte(emergencyWaterAlerts.lastTriggered || new Date(), monthStart)
+        ))
+        .limit(1);
+
+      if (existingAlert.length === 0) {
+        // Create new alert
+        await this.createEmergencyWaterAlert({
+          propertyId,
+          alertType: 'frequency_alert',
+          alertTrigger: 'monthly_frequency',
+          thresholdValue: 2,
+          alertMessage: `Property has had ${monthlyDeliveries.length} emergency water deliveries this month. Consider investigating the main water supply system.`,
+          aiRecommendations: [
+            'Check main water pump system for failures',
+            'Inspect water pipes for leaks or blockages',
+            'Verify water utility provider service status',
+            'Consider upgrading to backup water storage system'
+          ],
+          recommendedActions: [
+            'Schedule plumber inspection',
+            'Contact water utility provider',
+            'Install backup water tank',
+            'Monitor water pressure regularly'
+          ],
+          lastTriggered: new Date(),
+          triggerCount: 1
+        });
+      } else {
+        // Update existing alert
+        await db
+          .update(emergencyWaterAlerts)
+          .set({
+            lastTriggered: new Date(),
+            triggerCount: (existingAlert[0].triggerCount || 0) + 1
+          })
+          .where(eq(emergencyWaterAlerts.id, existingAlert[0].id));
+      }
+    }
+  }
+
+  async resolveEmergencyWaterAlert(
+    alertId: number, 
+    resolvedBy: string, 
+    notes: string
+  ): Promise<EmergencyWaterAlert | null> {
+    const [resolved] = await db
+      .update(emergencyWaterAlerts)
+      .set({
+        isResolved: true,
+        resolvedAt: new Date(),
+        resolvedBy,
+        resolutionNotes: notes,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(emergencyWaterAlerts.id, alertId),
+        eq(emergencyWaterAlerts.organizationId, this.organizationId)
+      ))
+      .returning();
+
+    return resolved || null;
+  }
+
+  // ===== EMERGENCY WATER ANALYTICS =====
+
+  async getEmergencyWaterAnalytics(propertyId?: number) {
+    // Base query for deliveries
+    let deliveriesQuery = db
+      .select()
+      .from(emergencyWaterDeliveries)
+      .where(eq(emergencyWaterDeliveries.organizationId, this.organizationId));
+
+    if (propertyId) {
+      deliveriesQuery = deliveriesQuery.where(and(
+        eq(emergencyWaterDeliveries.organizationId, this.organizationId),
+        eq(emergencyWaterDeliveries.propertyId, propertyId)
+      ));
+    }
+
+    const deliveries = await deliveriesQuery;
+
+    // Calculate analytics
+    const totalDeliveries = deliveries.length;
+    const totalCost = deliveries.reduce((sum, d) => sum + parseFloat(d.totalCost), 0);
+    const totalVolume = deliveries.reduce((sum, d) => sum + d.volumeLiters, 0);
+    const averageCostPerLiter = totalVolume > 0 ? totalCost / totalVolume : 0;
+
+    // Monthly breakdown
+    const monthlyData = deliveries.reduce((acc, delivery) => {
+      const month = new Date(delivery.deliveryDate).toISOString().substring(0, 7); // YYYY-MM
+      if (!acc[month]) {
+        acc[month] = { deliveries: 0, cost: 0, volume: 0 };
+      }
+      acc[month].deliveries++;
+      acc[month].cost += parseFloat(delivery.totalCost);
+      acc[month].volume += delivery.volumeLiters;
+      return acc;
+    }, {} as Record<string, { deliveries: number, cost: number, volume: number }>);
+
+    // Emergency types breakdown
+    const emergencyTypes = deliveries.reduce((acc, delivery) => {
+      const type = delivery.emergencyType;
+      if (!acc[type]) {
+        acc[type] = { count: 0, cost: 0 };
+      }
+      acc[type].count++;
+      acc[type].cost += parseFloat(delivery.totalCost);
+      return acc;
+    }, {} as Record<string, { count: number, cost: number }>);
+
+    return {
+      totalDeliveries,
+      totalCost,
+      totalVolume,
+      averageCostPerLiter,
+      monthlyData,
+      emergencyTypes,
+      recentDeliveries: deliveries.slice(0, 5) // Last 5 deliveries
+    };
+  }
+
+  // ===== DEMO DATA INJECTION =====
+
+  async injectDemoEmergencyWaterData(propertyId: number): Promise<void> {
+    // Villa Aruna emergency water delivery demo data
+    const demoDelivery = {
+      propertyId,
+      deliveryDate: '2025-07-05', // July 5, 2025
+      supplierName: 'Samui Water Rescue',
+      volumeLiters: 1500,
+      costPerLiter: 0.8, // 0.8 THB per liter
+      totalCost: 1200, // 1,500L × 0.8 THB = 1,200 THB
+      currency: 'THB',
+      paymentStatus: 'paid',
+      paymentMethod: 'cash',
+      receiptUrl: '/uploads/emergency-water-receipt-20250705.pdf',
+      emergencyType: 'outage',
+      urgencyLevel: 'high',
+      deliveryNotes: 'Main water supply disrupted due to pipe maintenance. Emergency delivery required for guest stay.',
+      billingAssignment: 'owner',
+      deliveryStatus: 'delivered',
+      deliveredBy: 'Niran Thongchai - Samui Water Rescue',
+      receivedBy: 'admin_user_id', // Replace with actual admin user ID
+      deliveryTime: '14:30',
+      followUpRequired: false,
+      waterSystemRestored: true,
+      restorationDate: new Date('2025-07-05T18:00:00Z'), // Restored at 6 PM
+      createdBy: 'admin_user_id' // Replace with actual admin user ID
+    };
+
+    // Create the demo delivery
+    await this.createEmergencyWaterDelivery(demoDelivery);
+
+    console.log('Demo emergency water delivery data injected for Villa Aruna');
   }
 }
