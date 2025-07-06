@@ -24,7 +24,7 @@ try {
   // Use esbuild to compile TypeScript server to JavaScript
   console.log('📦 Compiling TypeScript server with esbuild...');
   
-  const esbuildCommand = `npx esbuild server/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --external:@neondatabase/serverless --external:drizzle-kit --external:esbuild --external:lightningcss --external:@babel/preset-typescript/package.json --format=esm --minify=false --define:import.meta.dirname=__dirname`;
+  const esbuildCommand = `npx esbuild server/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --external:@neondatabase/serverless --external:drizzle-kit --external:esbuild --external:lightningcss --external:@babel/preset-typescript/package.json --format=cjs --minify=false --define:process.env.NODE_ENV='"production"' --define:import.meta.dirname='"' + process.cwd() + '"'`;
   
   execSync(esbuildCommand, { stdio: 'inherit' });
   console.log('✅ Server compiled successfully');
