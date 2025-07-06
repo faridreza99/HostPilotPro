@@ -255,9 +255,13 @@ export default function Sidebar({ className }: SidebarProps) {
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/demo-logout", { method: "POST" });
-      window.location.href = "/";
+      localStorage.clear(); // Clear all user/session tokens
+      sessionStorage.clear(); // Clear session-only storage
+      window.location.href = "/"; // Redirect to main login selector
     } catch (error) {
       console.error("Logout error:", error);
+      localStorage.clear();
+      sessionStorage.clear();
       window.location.href = "/";
     }
   };

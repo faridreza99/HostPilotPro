@@ -289,8 +289,18 @@ export default function EnhancedAgentBookingDemo() {
     return (totalAmount * commissionRate) / 100;
   };
 
-  const handleLogout = () => {
-    window.location.href = "/api/auth/demo-logout";
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/demo-logout", { method: "POST" });
+      localStorage.clear(); // Clear all user/session tokens
+      sessionStorage.clear(); // Clear session-only storage
+      window.location.href = "/"; // Redirect to main login selector
+    } catch (error) {
+      console.error("Logout error:", error);
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = "/";
+    }
   };
 
   const commissionSummary = getDemoCommissionSummary();
