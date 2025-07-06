@@ -55,6 +55,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Emergency logout page - bypasses React routing
+  app.get("/emergency-logout", (req, res) => {
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Emergency Logout</title>
+        <style>
+          body { font-family: Arial; margin: 40px; background: #f5f5f5; }
+          .container { max-width: 600px; background: white; padding: 30px; border-radius: 8px; margin: 0 auto; }
+          .button { background: #dc2626; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin: 10px 0; }
+          .button:hover { background: #b91c1c; }
+          .success { color: #059669; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🚨 Emergency Logout Tool</h1>
+          <p>Click the button below to force logout and clear all session data:</p>
+          
+          <button class="button" onclick="forceLogout()">FORCE LOGOUT NOW</button>
+          
+          <div id="status"></div>
+          
+          <h3>Alternative Methods:</h3>
+          <p><strong>Browser Console (F12):</strong></p>
+          <code>localStorage.clear(); sessionStorage.clear(); window.location.href = '/';</code>
+          
+          <p><strong>Direct URL:</strong></p>
+          <code>/api/auth/logout</code>
+        </div>
+
+        <script>
+          async function forceLogout() {
+            const status = document.getElementById('status');
+            status.innerHTML = '<p>Logging out...</p>';
+            
+            try {
+              // Clear all storage
+              localStorage.clear();
+              sessionStorage.clear();
+              
+              // Clear cookies
+              document.cookie.split(";").forEach((c) => {
+                const eqPos = c.indexOf("=");
+                const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+              });
+
+              // Call logout endpoints
+              await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+              await fetch('/api/auth/demo-logout', { method: 'POST' }).catch(() => {});
+
+              status.innerHTML = '<p class="success">✅ Logout successful! Redirecting...</p>';
+              
+              // Redirect to root
+              setTimeout(() => {
+                window.location.href = '/';
+              }, 2000);
+              
+            } catch (error) {
+              console.error('Logout error:', error);
+              status.innerHTML = '<p class="success">✅ Storage cleared! Redirecting...</p>';
+              setTimeout(() => {
+                window.location.href = '/';
+              }, 2000);
+            }
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  });
+
 // Auth routes
   app.get('/api/auth/user', isDemoAuthenticated, async (req: any, res) => {
     try {
