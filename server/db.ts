@@ -28,3 +28,6 @@ export const pool = new Pool({
 });
 
 export const db = drizzle({ client: pool, schema });
+
+// Ensure compatibility with deployment scripts
+export { db as default } from "./db.js";
