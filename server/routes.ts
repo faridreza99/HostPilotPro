@@ -44,15 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // const { seedExtendedUtilitiesDemo } = await import("./seedExtendedUtilitiesDemo");
   // await seedExtendedUtilitiesDemo();
 
-  
-  // Simple notification routes for deployment stability
-  app.get("/api/notifications", (req, res) => {
-    res.json([]);
-  });
 
-  app.get("/api/notifications/unread", (req, res) => {
-    res.json([]);
-  });
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
@@ -27521,6 +27513,15 @@ async function processGuestIssueForAI(issueReport: any) {
       version: process.env.npm_package_version || "1.0.0",
       environment: process.env.NODE_ENV || "development",
       database: process.env.DATABASE_URL ? "connected" : "not_configured"
+    });
+  });
+
+  // API 404 handler - must be after all other API routes
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({ 
+      error: "API endpoint not found",
+      path: req.originalUrl,
+      method: req.method 
     });
   });
 
