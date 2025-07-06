@@ -150,17 +150,19 @@ export default function AiNotificationsReminders() {
     },
   });
 
-  const activeNotifications = notifications?.filter((n: AiNotification) => 
+  const notificationsArray = Array.isArray(notifications) ? notifications : [];
+
+  const activeNotifications = notificationsArray.filter((n: AiNotification) => 
     n.status === "active" && (!n.snoozeUntil || new Date(n.snoozeUntil) <= new Date())
-  ) || [];
+  );
 
-  const snoozedNotifications = notifications?.filter((n: AiNotification) => 
+  const snoozedNotifications = notificationsArray.filter((n: AiNotification) => 
     n.status === "snoozed" && n.snoozeUntil && new Date(n.snoozeUntil) > new Date()
-  ) || [];
+  );
 
-  const completedNotifications = notifications?.filter((n: AiNotification) => 
+  const completedNotifications = notificationsArray.filter((n: AiNotification) => 
     n.status === "completed" || n.status === "dismissed"
-  ) || [];
+  );
 
   const formatDate = (date: string | null) => {
     if (!date) return "Not set";
