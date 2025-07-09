@@ -271,6 +271,37 @@ export async function setupDemoAuth(app: Express) {
     });
   });
 
+  // Get current user route
+  app.get("/api/auth/user", async (req: any, res) => {
+    try {
+      if (!req.session?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get user from database
+      const { db } = await import("./db");
+      const { users: usersTable } = await import("@shared/schema");
+      const dbUsers = await db.select().from(usersTable);
+      const user = dbUsers.find(u => u.id === req.session.userId && u.organizationId === 'default-org');
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        organizationId: user.organizationId,
+      });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(401).json({ message: "Unauthorized" });
+    }
+  });
+
   // Demo logout route  
   app.post("/api/auth/demo-logout", (req: any, res) => {
     req.session.destroy((err: any) => {
