@@ -40,8 +40,20 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await login(email, password);
-      setLocation("/");
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Redirect to role-specific dashboard
+        setLocation(data.redirectUrl || "/");
+      } else {
+        throw new Error('Login failed');
+      }
     } catch (err: any) {
       setError(err.message || "Login failed. Please check your credentials.");
     } finally {
@@ -56,8 +68,20 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await login(demoEmail, demoPassword);
-      setLocation("/");
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: demoEmail, password: demoPassword }),
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Redirect to role-specific dashboard
+        setLocation(data.redirectUrl || "/");
+      } else {
+        throw new Error('Demo login failed');
+      }
     } catch (err: any) {
       setError(err.message || "Demo login failed.");
     } finally {

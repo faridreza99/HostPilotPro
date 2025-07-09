@@ -206,6 +206,15 @@ function Router() {
             return <DashboardComponent />;
           }}
         </Route>
+        
+        {/* Role-specific dashboard routes */}
+        <Route path="/admin-dashboard" component={Dashboard} />
+        <Route path="/portfolio-dashboard" component={PortfolioManagerDashboard} />
+        <Route path="/owner-dashboard" component={OwnerDashboard} />
+        <Route path="/retail-agent-dashboard" component={RetailAgentDashboard} />
+        <Route path="/referral-agent-dashboard" component={ReferralAgentDashboard} />
+        <Route path="/staff-dashboard" component={StaffDashboard} />
+        <Route path="/guest-dashboard" component={EnhancedGuestDashboard} />
         <Route path="/dashboard/:role">
           {({ role }) => {
             const DashboardComponent = getDashboardComponent(role);

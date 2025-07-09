@@ -204,9 +204,22 @@ export async function setupDemoAuth(app: Express) {
           return res.status(500).json({ message: "Login failed" });
         }
         
+        // Determine role-based redirect
+        const roleRedirects = {
+          'admin': '/admin-dashboard',
+          'portfolio-manager': '/portfolio-dashboard', 
+          'owner': '/owner-dashboard',
+          'retail-agent': '/retail-agent-dashboard',
+          'referral-agent': '/referral-agent-dashboard',
+          'staff': '/staff-dashboard',
+          'guest': '/guest-dashboard'
+        };
+        
+        const redirectUrl = roleRedirects[user.role] || '/';
+        
         res.json({ 
           message: "Login successful", 
-          redirectUrl: "/",
+          redirectUrl,
           user: {
             id: user.id,
             email: user.email,
