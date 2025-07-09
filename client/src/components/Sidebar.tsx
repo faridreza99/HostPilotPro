@@ -59,7 +59,7 @@ import {
   Target,
   Filter
 } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -288,9 +288,9 @@ export default function Sidebar({ className }: SidebarProps) {
   const menuSections = getRoleBasedMenus(userRole);
   const RoleIcon = roleIcons[userRole as keyof typeof roleIcons] || User;
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  // For now, show sidebar regardless of auth state to fix the infinite loop
+  // This will allow the Quick Login Fix to work
+  console.log("Sidebar auth check:", { user, isAuthenticated, userRole });
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full max-h-screen bg-background">

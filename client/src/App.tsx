@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UIResetButton } from "@/components/UIResetButton";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { AuthSessionManager, useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/LoginPage";
@@ -141,12 +141,13 @@ function Router() {
   const [location, setLocation] = useLocation();
   const { user: currentUser, isLoading, isAuthenticated } = useAuth();
 
-  // Auto-redirect to login if not authenticated
+  // Simplified redirect logic
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && location !== '/login') {
-      setLocation('/login');
+    if (!isAuthenticated && location !== '/login' && location !== '/force-logout' && !location.includes('emergency')) {
+      const timer = setTimeout(() => setLocation('/login'), 500);
+      return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, isLoading, location, setLocation]);
+  }, [isAuthenticated, location, setLocation]);
 
   // Role-based dashboard component selector
   const getDashboardComponent = (role?: string) => {

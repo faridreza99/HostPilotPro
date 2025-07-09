@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Building2, Shield, Users, CheckCircle } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 const DEMO_CREDENTIALS = [
   { email: "admin@test.com", role: "Admin", password: "admin123", permissions: "Full system access, User management, God Mode" },
@@ -21,7 +21,7 @@ const DEMO_CREDENTIALS = [
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const { login, user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
