@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Sidebar from "./Sidebar";
-import QuickLoginFix from "./QuickLoginFix";
+import DirectLogin from "./DirectLogin";
+import AuthRepairNotice from "./AuthRepairNotice";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -12,7 +13,8 @@ export default function Layout({ children, className }: LayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      <QuickLoginFix />
+      <DirectLogin />
+      <AuthRepairNotice />
       
       {/* Main Content */}
       <div className="lg:pl-80">
