@@ -182,6 +182,46 @@ export async function setupDemoAuth(app: Express) {
   await seedDemoCommissionData();
   await seedUtilityData();
 
+  // Regular login route (matches database)
+  app.post("/api/auth/login", async (req: any, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      // Check against database users
+      const users = await storage.getUsers();
+      const user = users.find(u => u.email === email && u.password === password && u.organizationId === 'default-org');
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Create session
+      req.session.userId = user.id;
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Login failed" });
+        }
+        
+        res.json({ 
+          message: "Login successful", 
+          redirectUrl: "/",
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            organizationId: user.organizationId,
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
   // Demo login route
   app.post("/api/auth/demo-login", async (req: any, res) => {
     try {
@@ -216,6 +256,18 @@ export async function setupDemoAuth(app: Express) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
     }
+  });
+
+  // Regular logout route
+  app.post("/api/auth/logout", (req: any, res) => {
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ message: "Logout successful", redirectUrl: "/" });
+    });
   });
 
   // Demo logout route  
