@@ -122,7 +122,7 @@ function AppRoutes() {
         <Route path="/user-management" component={UserManagement} />
         <Route path="/admin/activity-log" component={ActivityLogs} />
         <Route path="/owner-target-upgrade-tracker" component={OwnerTargetUpgradeTracker} />
-        <Route path="/auto-schedule-recurring-task-generator" component={AutoScheduleTaskGenerator} />
+        <Route path="/auto-scheduling-recurring-task-generator" component={AutoScheduleTaskGenerator} />
         
         <Route component={NotFound} />
       </Switch>
