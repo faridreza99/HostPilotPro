@@ -141,13 +141,13 @@ function Router() {
   const [location, setLocation] = useLocation();
   const { user: currentUser, isLoading, isAuthenticated } = useAuth();
 
-  // Simplified redirect logic
-  useEffect(() => {
-    if (!isAuthenticated && location !== '/login' && location !== '/force-logout' && !location.includes('emergency')) {
-      const timer = setTimeout(() => setLocation('/login'), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, location, setLocation]);
+  // AUTHENTICATION DISABLED - NO REDIRECTS TO LOGIN
+  // useEffect(() => {
+  //   if (!isAuthenticated && location !== '/login' && location !== '/force-logout' && !location.includes('emergency')) {
+  //     const timer = setTimeout(() => setLocation('/login'), 500);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [isAuthenticated, location, setLocation]);
 
   // Role-based dashboard component selector
   const getDashboardComponent = (role?: string) => {
@@ -171,29 +171,29 @@ function Router() {
     }
   };
 
-  // Show loading while checking authentication
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin w-8 h-8 border-4 border-gray-300 border-t-primary rounded-full" />
-      </div>
-    );
-  }
+  // AUTHENTICATION DISABLED - SKIP ALL CHECKS
+  // if (isLoading) {
+  //   return (
+  //     <div className="flex items-center justify-center min-h-screen">
+  //       <div className="animate-spin w-8 h-8 border-4 border-gray-300 border-t-primary rounded-full" />
+  //     </div>
+  //   );
+  // }
 
-  // Show login page if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <Switch>
-        <Route path="/login" component={LoginPage} />
-        <Route path="/force-logout" component={ForceLogout} />
-        <Route path="/guest-portal" component={GuestPortal} />
-        <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
-        <Route path="/enhanced-guest-dashboard" component={EnhancedGuestDashboard} />
-        <Route path="/" component={LoginPage} />
-        <Route component={LoginPage} />
-      </Switch>
-    );
-  }
+  // DIRECT ACCESS - NO LOGIN REQUIRED
+  // if (!isAuthenticated) {
+  //   return (
+  //     <Switch>
+  //       <Route path="/login" component={LoginPage} />
+  //       <Route path="/force-logout" component={ForceLogout} />
+  //       <Route path="/guest-portal" component={GuestPortal} />
+  //       <Route path="/guest-communication-center" component={GuestCommunicationCenter} />
+  //       <Route path="/enhanced-guest-dashboard" component={EnhancedGuestDashboard} />
+  //       <Route path="/" component={LoginPage} />
+  //       <Route component={LoginPage} />
+  //     </Switch>
+  //   );
+  // }
 
   // Render authenticated routes with layout
   return (

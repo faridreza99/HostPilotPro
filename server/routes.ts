@@ -166,68 +166,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <div class="container">
         <h1>🚀 Emergency Login Access</h1>
         
-        <button class="role-btn" onclick="emergencyLogin('admin@test.com', 'admin123', '/admin-dashboard')">
+        <button class="role-btn" onclick="directAccess('/admin-dashboard')">
             🛡️ Admin Dashboard
-            <span class="email">admin@test.com</span>
+            <span class="email">DIRECT ACCESS</span>
         </button>
         
-        <button class="role-btn" onclick="emergencyLogin('manager@test.com', 'manager123', '/portfolio-dashboard')">
+        <button class="role-btn" onclick="directAccess('/portfolio-dashboard')">
             🏢 Portfolio Manager
-            <span class="email">manager@test.com</span>
+            <span class="email">DIRECT ACCESS</span>
         </button>
         
-        <button class="role-btn" onclick="emergencyLogin('owner@test.com', 'owner123', '/owner-dashboard')">
+        <button class="role-btn" onclick="directAccess('/owner-dashboard')">
             🏠 Property Owner  
-            <span class="email">owner@test.com</span>
+            <span class="email">DIRECT ACCESS</span>
         </button>
         
-        <button class="role-btn" onclick="emergencyLogin('staff@test.com', 'staff123', '/staff-dashboard')">
+        <button class="role-btn" onclick="directAccess('/staff-dashboard')">
             👥 Staff Member
-            <span class="email">staff@test.com</span>
+            <span class="email">DIRECT ACCESS</span>
         </button>
         
-        <button class="role-btn" onclick="emergencyLogin('retail@demo.com', '123456', '/retail-agent-dashboard')">
+        <button class="role-btn" onclick="directAccess('/retail-agent-dashboard')">
             💼 Retail Agent
-            <span class="email">retail@demo.com</span>
+            <span class="email">DIRECT ACCESS</span>
         </button>
         
-        <button class="role-btn" onclick="emergencyLogin('referral@demo.com', '123456', '/referral-agent-dashboard')">
+        <button class="role-btn" onclick="directAccess('/referral-agent-dashboard')">
             🤝 Referral Agent
-            <span class="email">referral@demo.com</span>
+            <span class="email">DIRECT ACCESS</span>
         </button>
         
         <div id="status"></div>
     </div>
 
     <script>
-        async function emergencyLogin(email, password, dashboard) {
+        function directAccess(dashboard) {
             const status = document.getElementById('status');
-            const buttons = document.querySelectorAll('.role-btn');
+            status.innerHTML = '<div class="success">✅ Direct access activated! Loading dashboard...</div>';
             
-            buttons.forEach(btn => btn.disabled = true);
-            status.innerHTML = '<div class="loading">🔄 Logging in...</div>';
-            
-            try {
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
-                    credentials: 'include'
-                });
-                
-                if (response.ok) {
-                    status.innerHTML = '<div class="success">✅ Login successful! Redirecting...</div>';
-                    setTimeout(() => {
-                        window.location.href = dashboard;
-                    }, 1000);
-                } else {
-                    throw new Error('Login failed');
-                }
-            } catch (error) {
-                status.innerHTML = '<div class="error">❌ Login failed. Please try again.</div>';
-                buttons.forEach(btn => btn.disabled = false);
-            }
+            // Immediate redirect - no authentication needed
+            setTimeout(() => {
+                window.location.href = dashboard;
+            }, 500);
         }
+        
+        // Show direct access message
+        document.addEventListener('DOMContentLoaded', function() {
+            const status = document.getElementById('status');
+            status.innerHTML = '<div style="background: #e8f5e8; color: #2d5a2d; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px;"><strong>🚀 AUTHENTICATION BYPASSED</strong><br/>Click any dashboard button for immediate access!</div>';
+        });
     </script>
 </body>
 </html>`);
