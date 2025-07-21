@@ -12,7 +12,7 @@ import Tasks from "@/pages/Tasks";
 import Bookings from "@/pages/Bookings";
 import Services from "@/pages/Services";
 import Finances from "@/pages/Finances";
-import Settings from "@/pages/Settings";
+import SimpleSettings from "./pages/SimpleSettings";
 import LoginPage from "@/pages/LoginPage";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/not-found";
@@ -94,7 +94,7 @@ function AppRoutes() {
         <Route path="/bookings" component={Bookings} />
         <Route path="/services" component={Services} />
         <Route path="/finances" component={Finances} />
-        <Route path="/settings" component={Settings} />
+        <Route path="/settings" component={SimpleSettings} />
         <Route path="/help" component={SimpleHelp} />
         
         {/* Enhanced Dashboards */}
