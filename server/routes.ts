@@ -77,6 +77,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
+  // Emergency login page - bypasses React routing  
+  app.get("/emergency-login", (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const filePath = path.join(process.cwd(), 'emergency-login.html');
+    
+    if (fs.existsSync(filePath)) {
+      const html = fs.readFileSync(filePath, 'utf8');
+      res.send(html);
+    } else {
+      res.status(404).send('Emergency login page not found');
+    }
+  });
+
   // Emergency logout page - bypasses React routing
   app.get("/emergency-logout", (req, res) => {
     res.send(`
