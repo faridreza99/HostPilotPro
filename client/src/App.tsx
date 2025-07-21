@@ -28,6 +28,9 @@ import GuestPortalSmartRequests from "@/pages/GuestPortalSmartRequests";
 import GuestActivityRecommendations from "@/pages/GuestActivityRecommendations";
 import SimpleHelp from "./pages/SimpleHelp";
 import UserManagement from "./pages/UserManagement";
+import OwnerTargetUpgradeTracker from "./pages/OwnerTargetUpgradeTracker";
+import ActivityLogs from "./pages/ActivityLogs";
+import AutoScheduleTaskGenerator from "./pages/AutoScheduleTaskGenerator";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,6 +120,9 @@ function AppRoutes() {
         {/* Administration */}
         <Route path="/admin/user-management" component={UserManagement} />
         <Route path="/user-management" component={UserManagement} />
+        <Route path="/admin/activity-log" component={ActivityLogs} />
+        <Route path="/owner-target-upgrade-tracker" component={OwnerTargetUpgradeTracker} />
+        <Route path="/auto-schedule-recurring-task-generator" component={AutoScheduleTaskGenerator} />
         
         <Route component={NotFound} />
       </Switch>
