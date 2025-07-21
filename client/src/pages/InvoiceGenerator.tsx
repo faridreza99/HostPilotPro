@@ -1,1188 +1,576 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  FileText, 
-  Download, 
-  Send, 
-  DollarSign, 
-  Calendar,
-  Receipt,
-  Eye,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  Filter,
-  RefreshCw,
-  Building,
-  User,
-  Settings,
-  Archive,
-  Calculator
-} from "lucide-react";
-
-const invoiceGenerationSchema = z.object({
-  templateId: z.number().optional(),
-  senderType: z.string().min(1, "Sender type is required"),
-  receiverType: z.string().min(1, "Receiver type is required"),
-  senderId: z.string().optional(),
-  receiverId: z.string().optional(),
-  senderName: z.string().min(1, "Sender name is required"),
-  receiverName: z.string().min(1, "Receiver name is required"),
-  senderEmail: z.string().email().optional(),
-  receiverEmail: z.string().email().optional(),
-  periodStart: z.string().min(1, "Start date is required"),
-  periodEnd: z.string().min(1, "End date is required"),
-  propertyIds: z.array(z.number()).optional(),
-  includeBookings: z.boolean().default(true),
-  includeAddons: z.boolean().default(true),
-  includeCommissions: z.boolean().default(false),
-  taxEnabled: z.boolean().default(false),
-  taxRate: z.number().min(0).max(100).default(0),
-  notes: z.string().optional(),
-  dueDate: z.string().optional(),
-});
-
-type InvoiceGenerationForm = z.infer<typeof invoiceGenerationSchema>;
-
-const templateSchema = z.object({
-  templateName: z.string().min(1, "Template name is required"),
-  templateType: z.string().min(1, "Template type is required"),
-  defaultSender: z.string().min(1, "Default sender is required"),
-  defaultReceiver: z.string().min(1, "Default receiver is required"),
-  taxRate: z.number().min(0).max(100).default(0),
-  taxEnabled: z.boolean().default(false),
-  headerText: z.string().optional(),
-  footerText: z.string().optional(),
-});
-
-type TemplateForm = z.infer<typeof templateSchema>;
+import { FileText, Plus, Download, Eye, Calendar, DollarSign, User, Building } from "lucide-react";
 
 export default function InvoiceGenerator() {
-  const [activeTab, setActiveTab] = useState("generate");
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
-  const [previewData, setPreviewData] = useState<any>(null);
-  const [filters, setFilters] = useState({
-    status: "",
-    paymentStatus: "",
-    startDate: "",
-    endDate: "",
-  });
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedClient, setSelectedClient] = useState("all");
+  const [selectedPeriod, setSelectedPeriod] = useState("month");
 
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Generate Invoice Form
-  const generateForm = useForm<InvoiceGenerationForm>({
-    resolver: zodResolver(invoiceGenerationSchema),
-    defaultValues: {
-      senderType: "management",
-      receiverType: "owner",
-      includeBookings: true,
-      includeAddons: true,
-      includeCommissions: false,
-      taxEnabled: false,
-      taxRate: 0,
+  const invoices = [
+    {
+      id: "INV-2025-001",
+      clientName: "John Smith",
+      clientType: "Owner",
+      property: "Villa Samui Breeze",
+      issueDate: "2025-01-15",
+      dueDate: "2025-02-14",
+      amount: 2450.00,
+      status: "paid",
+      description: "December 2024 Revenue Share",
+      items: [
+        { description: "Booking Revenue (70% share)", amount: 2100.00 },
+        { description: "Management Fee", amount: -150.00 },
+        { description: "Cleaning Services", amount: -75.00 },
+        { description: "Utility Charges", amount: -125.00 },
+        { description: "Platform Fees", amount: 600.00 }
+      ]
     },
-  });
-
-  // Template Form
-  const templateForm = useForm<TemplateForm>({
-    resolver: zodResolver(templateSchema),
-    defaultValues: {
-      templateType: "booking_commission",
-      defaultSender: "management",
-      defaultReceiver: "owner",
-      taxEnabled: false,
-      taxRate: 0,
+    {
+      id: "INV-2025-002",
+      clientName: "Sarah Wilson",
+      clientType: "Portfolio Manager",
+      property: "Multiple Properties",
+      issueDate: "2025-01-18",
+      dueDate: "2025-02-17",
+      amount: 3200.00,
+      status: "pending",
+      description: "January 2025 Commission Payment",
+      items: [
+        { description: "Management Commission (15%)", amount: 2800.00 },
+        { description: "Performance Bonus", amount: 400.00 }
+      ]
     },
-  });
-
-  // Queries
-  const { data: invoiceTemplates, isLoading: templatesLoading } = useQuery({
-    queryKey: ["/api/invoice-templates"],
-    queryFn: () => apiRequest("GET", "/api/invoice-templates"),
-  });
-
-  const { data: generatedInvoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ["/api/generated-invoices", filters],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
-      return apiRequest("GET", `/api/generated-invoices?${params.toString()}`);
+    {
+      id: "INV-2025-003",
+      clientName: "Mike Chen",
+      clientType: "Retail Agent",
+      property: "Villa Aruna",
+      issueDate: "2025-01-20",
+      dueDate: "2025-02-19",
+      amount: 850.00,
+      status: "overdue",
+      description: "December 2024 Booking Commission",
+      items: [
+        { description: "Booking Commission (10%)", amount: 750.00 },
+        { description: "Referral Bonus", amount: 100.00 }
+      ]
     },
-  });
+    {
+      id: "INV-2025-004",
+      clientName: "HostPilotPro Management",
+      clientType: "Internal",
+      property: "Villa Paradise",
+      issueDate: "2025-01-21",
+      dueDate: "2025-02-20",
+      amount: 1200.00,
+      status: "draft",
+      description: "January 2025 Operating Expenses",
+      items: [
+        { description: "Staff Salaries", amount: 800.00 },
+        { description: "Maintenance Costs", amount: 250.00 },
+        { description: "Marketing Expenses", amount: 150.00 }
+      ]
+    }
+  ];
 
-  const { data: properties } = useQuery({
-    queryKey: ["/api/properties"],
-    queryFn: () => apiRequest("GET", "/api/properties"),
-  });
-
-  const { data: users } = useQuery({
-    queryKey: ["/api/users"],
-    queryFn: () => apiRequest("GET", "/api/users"),
-  });
-
-  const { data: invoiceAnalytics } = useQuery({
-    queryKey: ["/api/invoice-analytics"],
-    queryFn: () => apiRequest("GET", "/api/invoice-analytics"),
-  });
-
-  // Mutations
-  const generateInvoiceMutation = useMutation({
-    mutationFn: (data: InvoiceGenerationForm) => 
-      apiRequest("POST", "/api/generate-invoice", data),
-    onSuccess: (response) => {
-      toast({
-        title: "Invoice Generated",
-        description: `Invoice ${response.invoiceNumber} has been created successfully.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/generated-invoices"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/invoice-analytics"] });
-      generateForm.reset();
-      setPreviewData(null);
-      setActiveTab("invoices");
+  const invoiceTemplates = [
+    {
+      id: 1,
+      name: "Owner Revenue Share",
+      description: "Monthly revenue distribution to property owners",
+      defaultItems: ["Booking Revenue Share", "Management Fee", "Maintenance Deduction", "Utility Charges"]
     },
-    onError: (error: any) => {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate invoice",
-        variant: "destructive",
-      });
+    {
+      id: 2,
+      name: "Portfolio Manager Commission",
+      description: "Commission payments to portfolio managers",
+      defaultItems: ["Management Commission", "Performance Bonus", "Override Commission"]
     },
-  });
-
-  const createTemplateMutation = useMutation({
-    mutationFn: (data: TemplateForm) => 
-      apiRequest("POST", "/api/invoice-templates", data),
-    onSuccess: () => {
-      toast({
-        title: "Template Created",
-        description: "Invoice template has been created successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/invoice-templates"] });
-      templateForm.reset();
-      setIsTemplateDialogOpen(false);
-      setEditingTemplate(null);
+    {
+      id: 3,
+      name: "Agent Commission",
+      description: "Commission payments to retail and referral agents",
+      defaultItems: ["Booking Commission", "Referral Bonus", "Performance Incentive"]
     },
-    onError: (error: any) => {
-      toast({
-        title: "Creation Failed",
-        description: error.message || "Failed to create template",
-        variant: "destructive",
-      });
+    {
+      id: 4,
+      name: "Service Provider Payment",
+      description: "Payments to external service providers",
+      defaultItems: ["Service Fee", "Materials Cost", "Labor Charges"]
     },
-  });
+    {
+      id: 5,
+      name: "Expense Reimbursement",
+      description: "Reimbursement for business expenses",
+      defaultItems: ["Travel Expenses", "Material Purchases", "Service Payments"]
+    }
+  ];
 
-  const updateTemplateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<TemplateForm> }) => 
-      apiRequest("PUT", `/api/invoice-templates/${id}`, data),
-    onSuccess: () => {
-      toast({
-        title: "Template Updated",
-        description: "Invoice template has been updated successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/invoice-templates"] });
-      setIsTemplateDialogOpen(false);
-      setEditingTemplate(null);
-    },
-  });
-
-  const markAsPaidMutation = useMutation({
-    mutationFn: ({ id, paymentData }: { id: number; paymentData: any }) => 
-      apiRequest("POST", `/api/generated-invoices/${id}/mark-paid`, paymentData),
-    onSuccess: () => {
-      toast({
-        title: "Payment Recorded",
-        description: "Invoice has been marked as paid.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/generated-invoices"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/invoice-analytics"] });
-    },
-  });
-
-  // Helper functions
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      draft: "outline",
-      sent: "default",
-      paid: "secondary",
-      overdue: "destructive",
-    };
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
-  };
-
-  const getPaymentStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      unpaid: "outline",
-      partial: "default",
-      paid: "secondary",
-    };
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
-  };
-
-  const handlePreviewData = async () => {
-    const formValues = generateForm.getValues();
-    try {
-      const params = new URLSearchParams({
-        startDate: formValues.periodStart,
-        endDate: formValues.periodEnd,
-      });
-      
-      if (formValues.propertyIds?.length) {
-        params.append('propertyIds', formValues.propertyIds.join(','));
-      }
-      if (formValues.receiverType === 'owner' && formValues.receiverId) {
-        params.append('ownerId', formValues.receiverId);
-      }
-      if (formValues.receiverType === 'portfolio_manager' && formValues.receiverId) {
-        params.append('portfolioManagerId', formValues.receiverId);
-      }
-
-      const data = await apiRequest("GET", `/api/invoice-preview-data?${params.toString()}`);
-      setPreviewData(data);
-    } catch (error) {
-      toast({
-        title: "Preview Failed",
-        description: "Failed to load preview data",
-        variant: "destructive",
-      });
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "paid": return "bg-green-100 text-green-800";
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "overdue": return "bg-red-100 text-red-800";
+      case "draft": return "bg-gray-100 text-gray-800";
+      default: return "bg-blue-100 text-blue-800";
     }
   };
 
-  const onGenerateSubmit = (data: InvoiceGenerationForm) => {
-    generateInvoiceMutation.mutate(data);
-  };
-
-  const onTemplateSubmit = (data: TemplateForm) => {
-    if (editingTemplate) {
-      updateTemplateMutation.mutate({ id: editingTemplate.id, data });
-    } else {
-      createTemplateMutation.mutate(data);
+  const getClientIcon = (clientType: string) => {
+    switch (clientType) {
+      case "Owner": return <User className="w-4 h-4" />;
+      case "Portfolio Manager": return <Building className="w-4 h-4" />;
+      case "Retail Agent": return <User className="w-4 h-4" />;
+      case "Internal": return <Building className="w-4 h-4" />;
+      default: return <User className="w-4 h-4" />;
     }
   };
 
-  const openTemplateDialog = (template?: any) => {
-    if (template) {
-      setEditingTemplate(template);
-      templateForm.reset(template);
-    } else {
-      setEditingTemplate(null);
-      templateForm.reset();
-    }
-    setIsTemplateDialogOpen(true);
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  const summaryStats = {
+    totalInvoices: invoices.length,
+    totalAmount: invoices.reduce((sum, inv) => sum + inv.amount, 0),
+    paidInvoices: invoices.filter(inv => inv.status === "paid").length,
+    overdueInvoices: invoices.filter(inv => inv.status === "overdue").length,
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Invoice Creator Tool</h1>
-          <p className="text-muted-foreground">
-            Automated invoice generation with PDF support and manual adjustments
-          </p>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <FileText className="w-8 h-8" />
+            Invoice Generator
+          </h1>
+          <p className="text-gray-600">Create, manage, and track invoices for owners, agents, and service providers</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => openTemplateDialog()} variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            New Template
+        <div className="flex items-center gap-3">
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Invoice
           </Button>
         </div>
       </div>
 
-      {/* Analytics Cards */}
-      {invoiceAnalytics && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{invoiceAnalytics.totalInvoices || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ${(invoiceAnalytics.totalAmount || 0).toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Paid Amount</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                ${(invoiceAnalytics.paidAmount || 0).toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
-              <AlertCircle className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                ${(invoiceAnalytics.unpaidAmount || 0).toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs defaultValue="invoices" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="generate">
-            <Calculator className="h-4 w-4 mr-2" />
-            Generate Invoice
-          </TabsTrigger>
-          <TabsTrigger value="invoices">
-            <FileText className="h-4 w-4 mr-2" />
-            Invoices
-          </TabsTrigger>
-          <TabsTrigger value="templates">
-            <Settings className="h-4 w-4 mr-2" />
-            Templates
-          </TabsTrigger>
-          <TabsTrigger value="archive">
-            <Archive className="h-4 w-4 mr-2" />
-            Archive
-          </TabsTrigger>
+          <TabsTrigger value="invoices">All Invoices</TabsTrigger>
+          <TabsTrigger value="create">Create Invoice</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
-        {/* Generate Invoice Tab */}
-        <TabsContent value="generate" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate New Invoice</CardTitle>
-              <CardDescription>
-                Create invoices for bookings, commissions, and services with automatic calculations
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...generateForm}>
-                <form onSubmit={generateForm.handleSubmit(onGenerateSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Invoice Parties */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Invoice Parties</h3>
-                      
-                      <FormField
-                        control={generateForm.control}
-                        name="senderType"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Sender Type</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select sender" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="management">Management</SelectItem>
-                                <SelectItem value="owner">Owner</SelectItem>
-                                <SelectItem value="portfolio_manager">Portfolio Manager</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={generateForm.control}
-                        name="receiverType"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Receiver Type</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select receiver" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="management">Management</SelectItem>
-                                <SelectItem value="owner">Owner</SelectItem>
-                                <SelectItem value="portfolio_manager">Portfolio Manager</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={generateForm.control}
-                        name="senderName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Sender Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter sender name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={generateForm.control}
-                        name="receiverName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Receiver Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter receiver name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {/* Invoice Details */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Invoice Period</h3>
-                      
-                      <FormField
-                        control={generateForm.control}
-                        name="periodStart"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Period Start</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={generateForm.control}
-                        name="periodEnd"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Period End</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={generateForm.control}
-                        name="dueDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Due Date (Optional)</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Include Options */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Include in Invoice</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormField
-                        control={generateForm.control}
-                        name="includeBookings"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Booking Revenue</FormLabel>
-                              <p className="text-sm text-muted-foreground">
-                                Include accommodation revenue and commissions
-                              </p>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={generateForm.control}
-                        name="includeAddons"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Add-on Services</FormLabel>
-                              <p className="text-sm text-muted-foreground">
-                                Include guest service bookings
-                              </p>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={generateForm.control}
-                        name="includeCommissions"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Commission Payments</FormLabel>
-                              <p className="text-sm text-muted-foreground">
-                                Include portfolio manager commissions
-                              </p>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Tax Settings */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <FormField
-                        control={generateForm.control}
-                        name="taxEnabled"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel>Enable Tax Calculation</FormLabel>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {generateForm.watch("taxEnabled") && (
-                      <FormField
-                        control={generateForm.control}
-                        name="taxRate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tax Rate (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.1"
-                                placeholder="Enter tax rate"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                  </div>
-
-                  {/* Notes */}
-                  <FormField
-                    control={generateForm.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Invoice Notes (Optional)</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Add any additional notes..."
-                            rows={3}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Preview Data */}
-                  {previewData && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Invoice Preview</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm font-medium">Booking Revenue:</p>
-                            <p className="text-lg">${previewData.totals.bookingRevenue.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">Add-on Services:</p>
-                            <p className="text-lg">${previewData.totals.addonServices.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">Management Commission:</p>
-                            <p className="text-lg">-${previewData.totals.managementCommission.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">Owner Payout:</p>
-                            <p className="text-lg">${previewData.totals.ownerPayout.toFixed(2)}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handlePreviewData}
-                      disabled={!generateForm.watch("periodStart") || !generateForm.watch("periodEnd")}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Preview Data
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={generateInvoiceMutation.isPending}
-                    >
-                      {generateInvoiceMutation.isPending ? (
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <FileText className="h-4 w-4 mr-2" />
-                      )}
-                      Generate Invoice
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Invoices List Tab */}
         <TabsContent value="invoices" className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Invoices</p>
+                    <p className="text-2xl font-bold">{summaryStats.totalInvoices}</p>
+                  </div>
+                  <FileText className="w-8 h-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Amount</p>
+                    <p className="text-2xl font-bold">{formatCurrency(summaryStats.totalAmount)}</p>
+                  </div>
+                  <DollarSign className="w-8 h-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Paid Invoices</p>
+                    <p className="text-2xl font-bold text-green-600">{summaryStats.paidInvoices}</p>
+                  </div>
+                  <Badge className="bg-green-100 text-green-800">Paid</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Overdue</p>
+                    <p className="text-2xl font-bold text-red-600">{summaryStats.overdueInvoices}</p>
+                  </div>
+                  <Badge className="bg-red-100 text-red-800">Overdue</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters */}
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Generated Invoices</CardTitle>
-                  <CardDescription>
-                    View, manage, and download invoices
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
-                  </Button>
-                </div>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedClient} onValueChange={setSelectedClient}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Clients" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Clients</SelectItem>
+                    <SelectItem value="Owner">Owners</SelectItem>
+                    <SelectItem value="Portfolio Manager">Portfolio Managers</SelectItem>
+                    <SelectItem value="Retail Agent">Retail Agents</SelectItem>
+                    <SelectItem value="Internal">Internal</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="This Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="quarter">This Quarter</SelectItem>
+                    <SelectItem value="year">This Year</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button>Apply Filters</Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              {invoicesLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="h-6 w-6 animate-spin" />
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Parties</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {generatedInvoices?.map((invoice: any) => (
-                      <TableRow key={invoice.id}>
-                        <TableCell className="font-medium">
-                          {invoice.invoiceNumber}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{invoice.senderName} → {invoice.receiverName}</div>
-                            <div className="text-muted-foreground">
-                              {invoice.senderType} → {invoice.receiverType}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(invoice.invoiceDate).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="font-medium">
-                              ${parseFloat(invoice.totalAmount).toFixed(2)}
-                            </div>
-                            {invoice.currency && (
-                              <div className="text-muted-foreground">{invoice.currency}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                        <TableCell>{getPaymentStatusBadge(invoice.paymentStatus)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedInvoice(invoice);
-                                setIsInvoiceDetailsOpen(true);
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            {invoice.paymentStatus === 'unpaid' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  markAsPaidMutation.mutate({
-                                    id: invoice.id,
-                                    paymentData: {
-                                      paymentMethod: 'manual',
-                                      paymentDate: new Date().toISOString().split('T')[0],
-                                    }
-                                  });
-                                }}
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="space-y-6">
+          {/* Invoice List */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Invoice Templates</CardTitle>
-                  <CardDescription>
-                    Manage reusable invoice templates
-                  </CardDescription>
-                </div>
-                <Button onClick={() => openTemplateDialog()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Template
-                </Button>
-              </div>
+              <CardTitle>Recent Invoices</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {invoiceTemplates?.map((template: any) => (
-                  <Card key={template.id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{template.templateName}</CardTitle>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openTemplateDialog(template)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+              <div className="space-y-4">
+                {invoices.map((invoice) => (
+                  <div key={invoice.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-2">
+                          {getClientIcon(invoice.clientType)}
+                          <div>
+                            <h4 className="font-medium">{invoice.id}</h4>
+                            <p className="text-sm text-gray-600">{invoice.description}</p>
+                          </div>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="text-sm">
-                        <span className="font-medium">Type:</span> {template.templateType}
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(invoice.status)}>
+                          {invoice.status}
+                        </Badge>
+                        <span className="font-bold text-green-600">{formatCurrency(invoice.amount)}</span>
                       </div>
-                      <div className="text-sm">
-                        <span className="font-medium">Default:</span> {template.defaultSender} → {template.defaultReceiver}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Client</p>
+                        <p className="font-medium">{invoice.clientName}</p>
+                        <p className="text-xs text-gray-500">{invoice.clientType}</p>
                       </div>
-                      {template.taxEnabled && (
-                        <div className="text-sm">
-                          <span className="font-medium">Tax:</span> {template.taxRate}%
-                        </div>
-                      )}
-                      <Badge variant={template.isActive ? "default" : "secondary"}>
-                        {template.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </CardContent>
-                  </Card>
+                      <div>
+                        <p className="text-xs text-gray-500">Property</p>
+                        <p className="font-medium">{invoice.property}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Issue Date</p>
+                        <p className="font-medium">{invoice.issueDate}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Due Date</p>
+                        <p className="font-medium">{invoice.dueDate}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Line Items</p>
+                        <p className="font-medium">{invoice.items.length} items</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          Created: {invoice.issueDate}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-3 h-3 mr-1" />
+                          View
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Download className="w-3 h-3 mr-1" />
+                          PDF
+                        </Button>
+                        {invoice.status === "draft" && (
+                          <Button size="sm">Send Invoice</Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Archive Tab */}
-        <TabsContent value="archive" className="space-y-6">
+        <TabsContent value="create" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Invoice Archive</CardTitle>
-              <CardDescription>
-                Historical invoices and export options
-              </CardDescription>
+              <CardTitle>Create New Invoice</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Archive functionality will be available soon
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="font-medium">Invoice Details</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm text-gray-600">Invoice Number</label>
+                      <Input placeholder="INV-2025-005" />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Client Type</label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select client type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="owner">Property Owner</SelectItem>
+                          <SelectItem value="pm">Portfolio Manager</SelectItem>
+                          <SelectItem value="agent">Retail Agent</SelectItem>
+                          <SelectItem value="referral">Referral Agent</SelectItem>
+                          <SelectItem value="vendor">Service Provider</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Client Name</label>
+                      <Input placeholder="Enter client name" />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Property</label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select property" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="villa-samui">Villa Samui Breeze</SelectItem>
+                          <SelectItem value="villa-aruna">Villa Aruna</SelectItem>
+                          <SelectItem value="villa-paradise">Villa Paradise</SelectItem>
+                          <SelectItem value="multiple">Multiple Properties</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-medium">Invoice Template</h4>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {invoiceTemplates.map((template) => (
+                        <SelectItem key={template.id} value={template.name}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm text-gray-600">Issue Date</label>
+                      <Input type="date" />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Due Date</label>
+                      <Input type="date" />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Description</label>
+                      <Input placeholder="Invoice description" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Line Items</h4>
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <Input placeholder="Description" />
+                    <Input type="number" placeholder="Amount" />
+                    <Button variant="outline">Add Item</Button>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Demo items will be populated based on template selection
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t">
+                <div className="text-lg font-bold">
+                  Total: <span className="text-green-600">$0.00</span>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline">Save as Draft</Button>
+                  <Button>Generate Invoice</Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="templates" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {invoiceTemplates.map((template) => (
+              <Card key={template.id}>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>{template.name}</span>
+                    <Button variant="outline" size="sm">Use Template</Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-gray-600">{template.description}</p>
+                  <div>
+                    <p className="text-sm font-medium mb-2">Default Line Items:</p>
+                    <ul className="space-y-1">
+                      {template.defaultItems.map((item, index) => (
+                        <li key={index} className="text-sm flex items-center gap-2">
+                          <FileText className="w-3 h-3 text-gray-400" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Invoice Status Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span>Paid</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full" style={{width: "25%"}}></div>
+                      </div>
+                      <span className="text-sm">1 (25%)</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Pending</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div className="bg-yellow-500 h-2 rounded-full" style={{width: "25%"}}></div>
+                      </div>
+                      <span className="text-sm">1 (25%)</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Overdue</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div className="bg-red-500 h-2 rounded-full" style={{width: "25%"}}></div>
+                      </div>
+                      <span className="text-sm">1 (25%)</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Draft</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div className="bg-gray-500 h-2 rounded-full" style={{width: "25%"}}></div>
+                      </div>
+                      <span className="text-sm">1 (25%)</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Invoice Totals</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-green-600">{formatCurrency(summaryStats.totalAmount)}</p>
+                  <p className="text-gray-600">January 2025 Total</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Owners</span>
+                    <span className="font-semibold">$2,450</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Portfolio Managers</span>
+                    <span className="font-semibold">$3,200</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Agents</span>
+                    <span className="font-semibold">$850</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Internal</span>
+                    <span className="font-semibold">$1,200</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
-
-      {/* Template Dialog */}
-      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTemplate ? "Edit Template" : "Create Template"}
-            </DialogTitle>
-            <DialogDescription>
-              Configure invoice template settings and defaults
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...templateForm}>
-            <form onSubmit={templateForm.handleSubmit(onTemplateSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={templateForm.control}
-                  name="templateName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Template Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter template name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={templateForm.control}
-                  name="templateType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Template Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="booking_commission">Booking Commission</SelectItem>
-                          <SelectItem value="monthly_summary">Monthly Summary</SelectItem>
-                          <SelectItem value="portfolio_manager">Portfolio Manager</SelectItem>
-                          <SelectItem value="service_fee">Service Fee</SelectItem>
-                          <SelectItem value="expense_reimbursement">Expense Reimbursement</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={templateForm.control}
-                  name="defaultSender"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Sender</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select sender" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="management">Management</SelectItem>
-                          <SelectItem value="owner">Owner</SelectItem>
-                          <SelectItem value="portfolio_manager">Portfolio Manager</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={templateForm.control}
-                  name="defaultReceiver"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Receiver</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select receiver" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="management">Management</SelectItem>
-                          <SelectItem value="owner">Owner</SelectItem>
-                          <SelectItem value="portfolio_manager">Portfolio Manager</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <FormField
-                  control={templateForm.control}
-                  name="taxEnabled"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel>Enable Tax by Default</FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {templateForm.watch("taxEnabled") && (
-                <FormField
-                  control={templateForm.control}
-                  name="taxRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Tax Rate (%)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          placeholder="Enter tax rate"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <FormField
-                control={templateForm.control}
-                name="headerText"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Header Text (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Custom header text for invoices..."
-                        rows={2}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={templateForm.control}
-                name="footerText"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Footer Text (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Custom footer text for invoices..."
-                        rows={2}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsTemplateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}
-                >
-                  {(createTemplateMutation.isPending || updateTemplateMutation.isPending) ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : null}
-                  {editingTemplate ? "Update Template" : "Create Template"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Invoice Details Dialog */}
-      <Dialog open={isInvoiceDetailsOpen} onOpenChange={setIsInvoiceDetailsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {selectedInvoice && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Invoice {selectedInvoice.invoiceNumber}</DialogTitle>
-                <DialogDescription>
-                  {selectedInvoice.senderName} → {selectedInvoice.receiverName}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium">Invoice Date:</p>
-                    <p>{new Date(selectedInvoice.invoiceDate).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Due Date:</p>
-                    <p>{selectedInvoice.dueDate ? new Date(selectedInvoice.dueDate).toLocaleDateString() : "Not set"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Status:</p>
-                    <div>{getStatusBadge(selectedInvoice.status)}</div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Payment Status:</p>
-                    <div>{getPaymentStatusBadge(selectedInvoice.paymentStatus)}</div>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-2">Financial Summary</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Subtotal:</p>
-                      <p className="font-medium">${parseFloat(selectedInvoice.subtotal).toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Tax:</p>
-                      <p className="font-medium">${parseFloat(selectedInvoice.taxAmount || 0).toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Total:</p>
-                      <p className="font-medium text-lg">${parseFloat(selectedInvoice.totalAmount).toFixed(2)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedInvoice.notes && (
-                  <div>
-                    <p className="text-sm font-medium">Notes:</p>
-                    <p className="text-sm text-muted-foreground">{selectedInvoice.notes}</p>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download PDF
-                  </Button>
-                  {selectedInvoice.paymentStatus === 'unpaid' && (
-                    <Button
-                      onClick={() => {
-                        markAsPaidMutation.mutate({
-                          id: selectedInvoice.id,
-                          paymentData: {
-                            paymentMethod: 'manual',
-                            paymentDate: new Date().toISOString().split('T')[0],
-                          }
-                        });
-                        setIsInvoiceDetailsOpen(false);
-                      }}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Mark as Paid
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

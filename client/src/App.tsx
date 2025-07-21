@@ -31,6 +31,10 @@ import UserManagement from "./pages/UserManagement";
 import OwnerTargetUpgradeTracker from "./pages/OwnerTargetUpgradeTracker";
 import ActivityLogs from "./pages/ActivityLogs";
 import AutoScheduleTaskGenerator from "./pages/AutoScheduleTaskGenerator";
+import OtaRevenueNetPayoutCalculation from "./pages/OtaRevenueNetPayoutCalculation";
+import LoyaltyGuestTracker from "./pages/LoyaltyGuestTracker";
+import InvoiceGenerator from "./pages/InvoiceGenerator";
+import StaffAdvanceSalaryOvertimeTracker from "./pages/StaffAdvanceSalaryOvertimeTracker";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,6 +127,11 @@ function AppRoutes() {
         <Route path="/admin/activity-log" component={ActivityLogs} />
         <Route path="/owner-target-upgrade-tracker" component={OwnerTargetUpgradeTracker} />
         <Route path="/auto-scheduling-recurring-task-generator" component={AutoScheduleTaskGenerator} />
+        <Route path="/ota-revenue-net-payout-calculation" component={OtaRevenueNetPayoutCalculation} />
+        <Route path="/loyalty-guest-tracker" component={LoyaltyGuestTracker} />
+        <Route path="/invoice-generator" component={InvoiceGenerator} />
+        <Route path="/invoices" component={InvoiceGenerator} />
+        <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
         
         <Route component={NotFound} />
       </Switch>
