@@ -35,9 +35,9 @@ const demoBookings = [
 export default function BookingsPage() {
   const [view, setView] = useState("list");
   const [searchTerm, setSearchTerm] = useState("");
-  const [area, setArea] = useState("");
-  const [bedrooms, setBedrooms] = useState("");
-  const [manager, setManager] = useState("");
+  const [area, setArea] = useState("all");
+  const [bedrooms, setBedrooms] = useState("all");
+  const [manager, setManager] = useState("all");
   const [dateFilter, setDateFilter] = useState("All");
 
   const filtered = demoBookings
@@ -45,9 +45,9 @@ export default function BookingsPage() {
       b.property.toLowerCase().includes(searchTerm.toLowerCase()) ||
       b.guest.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .filter(b => (area ? b.area === area : true))
-    .filter(b => (bedrooms ? b.bedrooms === Number(bedrooms) : true))
-    .filter(b => (manager ? b.manager === manager : true))
+    .filter(b => (area !== "all" ? b.area === area : true))
+    .filter(b => (bedrooms !== "all" ? b.bedrooms === Number(bedrooms) : true))
+    .filter(b => (manager !== "all" ? b.manager === manager : true))
     .sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
 
   return (
@@ -70,7 +70,7 @@ export default function BookingsPage() {
             <SelectValue placeholder="All Areas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Areas</SelectItem>
+            <SelectItem value="all">All Areas</SelectItem>
             <SelectItem value="Bophut">Bophut</SelectItem>
             <SelectItem value="Lamai">Lamai</SelectItem>
           </SelectContent>
@@ -80,7 +80,7 @@ export default function BookingsPage() {
             <SelectValue placeholder="All Bedrooms" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Bedrooms</SelectItem>
+            <SelectItem value="all">All Bedrooms</SelectItem>
             <SelectItem value="2">2</SelectItem>
             <SelectItem value="3">3</SelectItem>
             <SelectItem value="4">4+</SelectItem>
@@ -91,7 +91,7 @@ export default function BookingsPage() {
             <SelectValue placeholder="All Managers" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Managers</SelectItem>
+            <SelectItem value="all">All Managers</SelectItem>
             <SelectItem value="Jane">Jane</SelectItem>
             <SelectItem value="Dean">Dean</SelectItem>
           </SelectContent>
