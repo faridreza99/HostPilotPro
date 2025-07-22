@@ -3,7 +3,7 @@ import { useRoute, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Users, Bed, Bath, Home, Star, DollarSign, Calendar, ClipboardList, TrendingUp, FileText, Settings, AlertCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Bed, Bath, Home, Star, DollarSign, Calendar, ClipboardList, TrendingUp, FileText, Settings, AlertCircle, ExternalLink, Plus, Edit, Camera, Video, Globe } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -140,6 +140,188 @@ export default function PropertyProfile() {
                   <p className="text-gray-700">📝 <span className="font-medium">Things to Note:</span> <span className="italic text-muted-foreground">Synced content from Hostaway</span></p>
                   <p className="text-gray-700">🚗 <span className="font-medium">Transit:</span> <span className="italic text-muted-foreground">Synced content from Hostaway</span></p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* OTA Platform Links */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="w-5 h-5" />
+                  OTA Platform Links
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-3">
+                  {/* Airbnb */}
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">Ab</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Airbnb</p>
+                        <p className="text-xs text-muted-foreground">https://airbnb.com/rooms/12345678</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        View
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Booking.com */}
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">B</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Booking.com</p>
+                        <p className="text-xs text-muted-foreground">https://booking.com/hotel/th/villa-aruna.html</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        View
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* VRBO */}
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">V</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">VRBO</p>
+                        <p className="text-xs text-muted-foreground">https://vrbo.com/2345678</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        View
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Our Website */}
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">W</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Our Website</p>
+                        <p className="text-xs text-muted-foreground">https://oursite.com/villa-aruna</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        View
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <Button variant="outline" className="w-full mt-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Platform
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Property Media */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Camera className="w-5 h-5" />
+                  Property Media
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Dropbox Links */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-blue-50">
+                    <div className="flex items-center gap-3">
+                      <Camera className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-sm">Property Photos</p>
+                        <p className="text-xs text-muted-foreground">Dropbox folder with high-resolution images</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Open
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-purple-50">
+                    <div className="flex items-center gap-3">
+                      <Video className="w-5 h-5 text-purple-600" />
+                      <div>
+                        <p className="font-medium text-sm">Property Videos</p>
+                        <p className="text-xs text-muted-foreground">Marketing videos and walkthrough footage</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Open
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-green-50">
+                    <div className="flex items-center gap-3">
+                      <Globe className="w-5 h-5 text-green-600" />
+                      <div>
+                        <p className="font-medium text-sm">360° Virtual Tour</p>
+                        <p className="text-xs text-muted-foreground">Interactive 360-degree property tour</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        View
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-3">
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <Button variant="outline" className="w-full mt-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Media Link
+                </Button>
               </CardContent>
             </Card>
 
