@@ -3,9 +3,13 @@ import { useRoute, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, MapPin, Users, Bed, Bath, Home, Star, DollarSign, Calendar, ClipboardList, TrendingUp, FileText, Settings, AlertCircle, ExternalLink, Plus, Edit, Camera, Video, Globe } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useState } from "react";
 
 const bookingSourceData = [
   { name: 'Airbnb', value: 70 },
@@ -20,6 +24,45 @@ export default function PropertyProfile() {
   const [, params] = useRoute("/property-profile/:id");
   const [, setLocation] = useLocation();
   const propertyId = params?.id;
+
+  // State for editing dialogs
+  const [otaPlatforms, setOtaPlatforms] = useState([
+    { id: 'airbnb', name: 'Airbnb', url: 'https://airbnb.com/rooms/12345678', color: 'bg-red-500', abbreviation: 'Ab' },
+    { id: 'booking', name: 'Booking.com', url: 'https://booking.com/hotel/th/villa-aruna.html', color: 'bg-blue-600', abbreviation: 'B' },
+    { id: 'vrbo', name: 'VRBO', url: 'https://vrbo.com/2345678', color: 'bg-yellow-500', abbreviation: 'V' },
+    { id: 'website', name: 'Our Website', url: 'https://oursite.com/villa-aruna', color: 'bg-green-600', abbreviation: 'W' }
+  ]);
+
+  const [mediaLinks, setMediaLinks] = useState([
+    { id: 'photos', name: 'Property Photos', url: 'https://dropbox.com/villa-aruna-photos', description: 'Dropbox folder with high-resolution images', icon: Camera, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { id: 'videos', name: 'Property Videos', url: 'https://dropbox.com/villa-aruna-videos', description: 'Marketing videos and walkthrough footage', icon: Video, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { id: 'tour', name: '360° Virtual Tour', url: 'https://matterport.com/villa-aruna-tour', description: 'Interactive 360-degree property tour', icon: Globe, color: 'text-green-600', bg: 'bg-green-50' }
+  ]);
+
+  const [editingOta, setEditingOta] = useState<any>(null);
+  const [editingMedia, setEditingMedia] = useState<any>(null);
+
+  const handleEditOta = (platform: any) => {
+    setEditingOta(platform);
+  };
+
+  const handleSaveOta = (updatedPlatform: any) => {
+    setOtaPlatforms(platforms => 
+      platforms.map(p => p.id === updatedPlatform.id ? updatedPlatform : p)
+    );
+    setEditingOta(null);
+  };
+
+  const handleEditMedia = (media: any) => {
+    setEditingMedia(media);
+  };
+
+  const handleSaveMedia = (updatedMedia: any) => {
+    setMediaLinks(links => 
+      links.map(l => l.id === updatedMedia.id ? updatedMedia : l)
+    );
+    setEditingMedia(null);
+  };
 
   const { data: property, isLoading, error } = useQuery({
     queryKey: [`/api/properties/${propertyId}`],
@@ -153,93 +196,64 @@ export default function PropertyProfile() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-3">
-                  {/* Airbnb */}
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">Ab</span>
+                  {otaPlatforms.map((platform) => (
+                    <div key={platform.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 ${platform.color} rounded-lg flex items-center justify-center`}>
+                          <span className="text-white font-bold text-xs">{platform.abbreviation}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{platform.name}</p>
+                          <p className="text-xs text-muted-foreground">{platform.url}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">Airbnb</p>
-                        <p className="text-xs text-muted-foreground">https://airbnb.com/rooms/12345678</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Booking.com */}
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">B</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">Booking.com</p>
-                        <p className="text-xs text-muted-foreground">https://booking.com/hotel/th/villa-aruna.html</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* VRBO */}
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">V</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">VRBO</p>
-                        <p className="text-xs text-muted-foreground">https://vrbo.com/2345678</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Our Website */}
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">W</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">Our Website</p>
-                        <p className="text-xs text-muted-foreground">https://oursite.com/villa-aruna</p>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 px-3"
+                          onClick={() => window.open(platform.url, '_blank')}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          View
+                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 px-3"
+                              onClick={() => handleEditOta(platform)}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit {platform.name} Link</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="platform-url">Platform URL</Label>
+                                <Input
+                                  id="platform-url"
+                                  defaultValue={platform.url}
+                                  placeholder="Enter platform URL"
+                                  onChange={(e) => setEditingOta({ ...platform, url: e.target.value })}
+                                />
+                              </div>
+                              <Button 
+                                onClick={() => editingOta && handleSaveOta(editingOta)}
+                                className="w-full"
+                              >
+                                Save Changes
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <Button variant="outline" className="w-full mt-4">
@@ -258,64 +272,75 @@ export default function PropertyProfile() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Dropbox Links */}
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded-lg bg-blue-50">
-                    <div className="flex items-center gap-3">
-                      <Camera className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium text-sm">Property Photos</p>
-                        <p className="text-xs text-muted-foreground">Dropbox folder with high-resolution images</p>
+                  {mediaLinks.map((media) => {
+                    const IconComponent = media.icon;
+                    return (
+                      <div key={media.id} className={`flex items-center justify-between p-3 border rounded-lg ${media.bg}`}>
+                        <div className="flex items-center gap-3">
+                          <IconComponent className={`w-5 h-5 ${media.color}`} />
+                          <div>
+                            <p className="font-medium text-sm">{media.name}</p>
+                            <p className="text-xs text-muted-foreground">{media.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 px-3"
+                            onClick={() => window.open(media.url, '_blank')}
+                          >
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            {media.id === 'tour' ? 'View' : 'Open'}
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 px-3"
+                                onClick={() => handleEditMedia(media)}
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit {media.name}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div>
+                                  <Label htmlFor="media-url">Media URL</Label>
+                                  <Input
+                                    id="media-url"
+                                    defaultValue={media.url}
+                                    placeholder="Enter media URL"
+                                    onChange={(e) => setEditingMedia({ ...media, url: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="media-description">Description</Label>
+                                  <Input
+                                    id="media-description"
+                                    defaultValue={media.description}
+                                    placeholder="Enter description"
+                                    onChange={(e) => setEditingMedia({ ...editingMedia, description: e.target.value })}
+                                  />
+                                </div>
+                                <Button 
+                                  onClick={() => editingMedia && handleSaveMedia(editingMedia)}
+                                  className="w-full"
+                                >
+                                  Save Changes
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        Open
-                      </Button>
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg bg-purple-50">
-                    <div className="flex items-center gap-3">
-                      <Video className="w-5 h-5 text-purple-600" />
-                      <div>
-                        <p className="font-medium text-sm">Property Videos</p>
-                        <p className="text-xs text-muted-foreground">Marketing videos and walkthrough footage</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        Open
-                      </Button>
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg bg-green-50">
-                    <div className="flex items-center gap-3">
-                      <Globe className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="font-medium text-sm">360° Virtual Tour</p>
-                        <p className="text-xs text-muted-foreground">Interactive 360-degree property tour</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                      <Button variant="outline" size="sm" className="h-8 px-3">
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
 
                 <Button variant="outline" className="w-full mt-4">
