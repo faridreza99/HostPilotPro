@@ -6,6 +6,7 @@ import StatsCard from "@/components/StatsCard";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import CreatePropertyDialog from "@/components/CreatePropertyDialog";
 import CreateTaskDialog from "@/components/CreateTaskDialog";
+import { formatCurrency } from "@/lib/currency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building, Calendar, ListTodo, DollarSign, Plus, Home, ClipboardList, TrendingUp } from "lucide-react";
@@ -66,7 +67,7 @@ export default function Dashboard() {
             />
             <StatsCard
               title="Monthly Revenue"
-              value={`$${stats?.monthlyRevenue?.toLocaleString() || '0'}`}
+              value={formatCurrency(stats?.monthlyRevenue || 0)}
               icon={DollarSign}
               color="accent"
             />
@@ -98,7 +99,7 @@ export default function Dashboard() {
                           <p className="text-sm font-medium text-gray-900">
                             {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
                           </p>
-                          <p className="text-sm text-gray-500">${booking.totalAmount}</p>
+                          <p className="text-sm text-gray-500">{formatCurrency(booking.totalAmount)}</p>
                         </div>
                       </div>
                     ))}

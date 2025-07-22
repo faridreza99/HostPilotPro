@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertTriangle, Info } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 
 interface DualOtaPricingProps {
   guestTotalPrice: number;
@@ -27,15 +28,6 @@ export function DualOtaPricing({
   reservationNumber,
   emphasizePayoutAsRevenue = false,
 }: DualOtaPricingProps) {
-  const formatCurrency = (amount: number, curr: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: curr,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
   const commissionAmount = otaCommissionAmount || (guestTotalPrice - platformPayout);
   const commissionPercentage = guestTotalPrice > 0 ? ((commissionAmount / guestTotalPrice) * 100) : 0;
 
@@ -51,7 +43,7 @@ export function DualOtaPricing({
       <div className="flex items-center justify-between">
         <span className="text-gray-600 dark:text-gray-400">Guest Paid:</span>
         <span className={`font-semibold text-blue-600 dark:text-blue-400 ${sizeClasses[size]}`}>
-          {formatCurrency(guestTotalPrice, currency)}
+          {formatCurrency(guestTotalPrice)}
         </span>
       </div>
 
@@ -61,7 +53,7 @@ export function DualOtaPricing({
           {emphasizePayoutAsRevenue ? "Revenue" : "Payout"} ({platform}):
         </span>
         <span className={`font-bold ${emphasizePayoutAsRevenue ? 'text-green-700 dark:text-green-400' : 'text-green-600 dark:text-green-400'} ${sizeClasses[size]}`}>
-          {formatCurrency(platformPayout, currency)}
+          {formatCurrency(platformPayout)}
           {emphasizePayoutAsRevenue && <span className="text-xs ml-1 text-green-600">*</span>}
         </span>
       </div>
@@ -74,7 +66,7 @@ export function DualOtaPricing({
           </span>
           <div className="flex items-center gap-1">
             <span className="text-xs text-red-600 dark:text-red-400 font-medium">
-              {formatCurrency(commissionAmount, currency)}
+              {formatCurrency(commissionAmount)}
             </span>
             <Badge variant="destructive" className="text-xs">
               {commissionPercentage.toFixed(1)}%
@@ -192,15 +184,6 @@ export function DualOtaPricingSummary({
   currency = "THB",
   platform = "OTA",
 }: DualOtaPricingProps) {
-  const formatCurrency = (amount: number, curr: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: curr,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
   const commissionAmount = otaCommissionAmount || (guestTotalPrice - platformPayout);
 
   return (
@@ -214,28 +197,28 @@ export function DualOtaPricingSummary({
         <div className="text-center">
           <div className="text-xs text-gray-500 mb-1">Guest Paid</div>
           <div className="font-bold text-blue-600">
-            {formatCurrency(guestTotalPrice, currency)}
+            {formatCurrency(guestTotalPrice)}
           </div>
         </div>
         
         <div className="text-center">
           <div className="text-xs text-gray-500 mb-1">{platform} Fee</div>
           <div className="font-bold text-red-600">
-            -{formatCurrency(commissionAmount, currency)}
+            -{formatCurrency(commissionAmount)}
           </div>
         </div>
         
         <div className="text-center">
           <div className="text-xs text-gray-500 mb-1">Your Payout</div>
           <div className="font-bold text-green-600">
-            {formatCurrency(platformPayout, currency)}
+            {formatCurrency(platformPayout)}
           </div>
         </div>
       </div>
       
       <div className="mt-3 p-2 bg-orange-50 rounded border-l-4 border-orange-400">
         <p className="text-xs text-orange-700">
-          💡 All commission calculations are based on the payout amount ({formatCurrency(platformPayout, currency)})
+          💡 All commission calculations are based on the payout amount ({formatCurrency(platformPayout)})
         </p>
       </div>
     </div>

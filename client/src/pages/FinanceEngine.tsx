@@ -147,9 +147,11 @@ export default function FinanceEngine() {
   ];
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('th-TH', {
       style: 'currency',
-      currency: 'THB'
+      currency: 'THB',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 

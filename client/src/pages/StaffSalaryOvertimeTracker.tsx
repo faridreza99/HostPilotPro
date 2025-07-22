@@ -161,9 +161,11 @@ export default function StaffSalaryOvertimeTracker() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-AU", {
+    return new Intl.NumberFormat("th-TH", {
       style: "currency",
-      currency: "AUD",
+      currency: "THB",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
