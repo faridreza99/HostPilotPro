@@ -45,6 +45,7 @@ import FinanceEngine from "./pages/FinanceEngine";
 import PropertyDetailView from "./pages/PropertyDetailView";
 import PropertyProfile from "./pages/PropertyProfile";
 import MultiPropertyCalendar from "./pages/MultiPropertyCalendar";
+import AITest from "./pages/AITest";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -150,6 +151,9 @@ function AppRoutes() {
         <Route path="/utility-tracker" component={UtilityTracker} />
         <Route path="/ai-notifications-reminders" component={AiNotificationsReminders} />
         <Route path="/finance-engine" component={FinanceEngine} />
+        
+        {/* AI Testing */}
+        <Route path="/ai-test" component={AITest} />
         
         <Route component={NotFound} />
       </Switch>
