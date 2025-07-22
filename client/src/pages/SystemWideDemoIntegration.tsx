@@ -1,618 +1,611 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Home, 
-  Calendar, 
-  User, 
-  MapPin, 
-  Clock, 
-  DollarSign,
-  CheckSquare,
-  Droplet,
-  Leaf,
-  Bug,
-  ChefHat,
-  ShoppingBag,
-  Link,
-  Users,
-  Building,
-  Eye,
-  Settings,
-  Zap,
-  Wrench
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { Database, Play, Settings, Users, Building, Calendar, DollarSign, CheckCircle, AlertCircle, Zap } from "lucide-react";
 
-// Villa Aruna Demo Data Configuration
-const DEMO_VILLA_DATA = {
-  villa: {
-    id: 1,
-    name: "Villa Aruna",
-    location: "Koh Samui, Thailand",
-    address: "123 Beach Road, Bophut, Koh Samui 84320"
-  },
-  reservation: {
-    code: "DEMO1234",
-    guest: "John Doe",
-    checkIn: "2025-07-06",
-    checkOut: "2025-07-11",
-    nights: 5,
-    pricePerNight: 10000,
-    totalAmount: 50000,
-    currency: "THB",
-    deposit: 8000,
-    electricityStartMeter: 1000,
-    electricityRate: 7
-  },
-  services: [
+export default function SystemWideDemoIntegration() {
+  const [selectedModule, setSelectedModule] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [demoMode, setDemoMode] = useState("realistic");
+
+  const demoModules = [
     {
       id: 1,
-      name: "Pool Cleaning",
-      date: "2025-07-03",
-      time: "15:00",
-      staff: "Pool Team",
-      status: "scheduled",
-      department: "pool"
+      name: "Property Management Demo",
+      description: "Comprehensive property portfolio with Villa Samui Breeze, Villa Aruna, and Villa Paradise",
+      status: "active",
+      lastUpdated: "2025-01-22",
+      records: 145,
+      coverage: "100%",
+      features: ["Properties", "Bookings", "Tasks", "Maintenance", "Financial Tracking"]
     },
     {
       id: 2,
-      name: "Garden Service", 
-      date: "2025-07-05",
-      time: "14:00",
-      staff: "Garden Team",
-      status: "scheduled",
-      department: "garden"
+      name: "Guest Services Demo",
+      description: "Complete guest lifecycle from check-in to check-out with AI recommendations",
+      status: "active",
+      lastUpdated: "2025-01-22",
+      records: 89,
+      coverage: "95%",
+      features: ["Guest Portal", "Smart Requests", "Activity Recommendations", "Service Timeline"]
     },
     {
       id: 3,
-      name: "During-Stay Cleaning",
-      date: "2025-07-08",
-      time: "10:00", 
-      staff: "Housekeeping Team",
-      status: "scheduled",
-      department: "housekeeping"
+      name: "Financial Operations Demo",
+      description: "Revenue tracking, commission calculations, and expense management",
+      status: "active",
+      lastUpdated: "2025-01-22",
+      records: 267,
+      coverage: "98%",
+      features: ["Booking Revenue", "Commission Tracking", "Expense Reports", "Invoicing"]
     },
     {
       id: 4,
-      name: "Chef Dinner Service",
-      date: "2025-07-07",
-      time: "19:00",
-      staff: "Chef Team", 
-      status: "scheduled",
-      department: "catering"
+      name: "Staff Management Demo",
+      description: "Staff profiles, task assignments, payroll, and performance tracking",
+      status: "active",
+      lastUpdated: "2025-01-22",
+      records: 156,
+      coverage: "92%",
+      features: ["Staff Profiles", "Task Management", "Payroll", "Overtime Tracking"]
     },
     {
       id: 5,
-      name: "Pest Control",
-      date: "2025-07-04",
-      time: "11:00",
-      staff: "Pest Control Team",
-      status: "scheduled", 
-      department: "pest"
+      name: "Agent & Partner Demo",
+      description: "Retail and referral agent management with commission tracking",
+      status: "active",
+      lastUpdated: "2025-01-22",
+      records: 78,
+      coverage: "88%",
+      features: ["Agent Profiles", "Commission Tracking", "Performance Analytics", "Booking Engine"]
     }
-  ],
-  staffTasks: {
-    housekeeping: [
-      { date: "2025-07-06", task: "Pre-clean for Villa Aruna", status: "scheduled" },
-      { date: "2025-07-08", task: "During-stay cleaning", status: "scheduled" },
-      { date: "2025-07-11", task: "Check-out clean", status: "scheduled" }
-    ],
-    garden: [
-      { date: "2025-07-05", task: "Garden Service @ Villa Aruna", time: "14:00", status: "scheduled" }
-    ],
-    pool: [
-      { date: "2025-07-03", task: "Pool Service @ Villa Aruna", time: "15:00", status: "scheduled" }
-    ],
-    pest: [
-      { date: "2025-07-04", task: "Pest Control @ Villa Aruna", time: "11:00", status: "scheduled" }
-    ],
-    host: [
-      { date: "2025-07-06", task: "Check-in - Villa Aruna", type: "check-in", status: "scheduled" },
-      { date: "2025-07-11", task: "Check-out - Villa Aruna", type: "check-out", status: "scheduled" }
-    ]
-  },
-  agents: {
-    retail: {
-      property: "Villa Aruna",
-      dates: "6-11 July",
-      nights: 5,
-      pricePerNight: 10000,
-      totalAmount: 50000,
-      commission: 10,
-      commissionAmount: 5000
+  ];
+
+  const demoUsers = [
+    {
+      id: 1,
+      name: "John Admin",
+      role: "admin",
+      email: "admin@test.com",
+      lastActive: "2025-01-22 09:30",
+      sessionsCount: 15,
+      modulesAccessed: 8
     },
-    referral: {
-      property: "Villa Aruna", 
-      managementFee: 10000, // 20% of 50,000
-      commission: 10,
-      commissionAmount: 1000
+    {
+      id: 2,
+      name: "Jane Manager",
+      role: "portfolio-manager",
+      email: "manager@test.com",
+      lastActive: "2025-01-22 08:45",
+      sessionsCount: 12,
+      modulesAccessed: 6
+    },
+    {
+      id: 3,
+      name: "Bob Owner",
+      role: "owner",
+      email: "owner@test.com",
+      lastActive: "2025-01-21 18:20",
+      sessionsCount: 8,
+      modulesAccessed: 4
+    },
+    {
+      id: 4,
+      name: "Sarah Staff",
+      role: "staff",
+      email: "staff@test.com",
+      lastActive: "2025-01-22 07:15",
+      sessionsCount: 20,
+      modulesAccessed: 5
+    },
+    {
+      id: 5,
+      name: "Mike Agent",
+      role: "retail-agent",
+      email: "agent@test.com",
+      lastActive: "2025-01-21 16:30",
+      sessionsCount: 6,
+      modulesAccessed: 3
     }
-  }
-};
+  ];
 
-// Demo User Types
-const DEMO_USERS = [
-  { id: "guest", name: "Guest (John Doe)", icon: User, color: "bg-blue-500" },
-  { id: "housekeeping", name: "Housekeeping Staff", icon: Home, color: "bg-green-500" },
-  { id: "pool", name: "Pool Staff", icon: Droplet, color: "bg-cyan-500" },
-  { id: "garden", name: "Garden Staff", icon: Leaf, color: "bg-emerald-500" },
-  { id: "pest", name: "Pest Control", icon: Bug, color: "bg-orange-500" },
-  { id: "host", name: "Host/Manager", icon: Building, color: "bg-purple-500" },
-  { id: "retail", name: "Retail Agent", icon: ShoppingBag, color: "bg-pink-500" },
-  { id: "referral", name: "Referral Agent", icon: Link, color: "bg-indigo-500" }
-];
-
-export default function SystemWideDemoIntegration() {
-  const { toast } = useToast();
-  const [selectedUser, setSelectedUser] = useState<string>("guest");
-  const [viewFilter, setViewFilter] = useState<string>("daily");
-
-  // Get current date for demo purposes
-  const currentDate = new Date().toISOString().split('T')[0];
-
-  const renderGuestDashboard = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Home className="h-5 w-5" />
-            Booking Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Reservation Code</p>
-              <p className="font-semibold">{DEMO_VILLA_DATA.reservation.code}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Property</p>
-              <p className="font-semibold">{DEMO_VILLA_DATA.villa.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Check-in</p>
-              <p className="font-semibold">{DEMO_VILLA_DATA.reservation.checkIn}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Check-out</p>
-              <p className="font-semibold">{DEMO_VILLA_DATA.reservation.checkOut}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Electricity Meter (Check-in)</p>
-              <p className="font-semibold">{DEMO_VILLA_DATA.reservation.electricityStartMeter} kWh</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Deposit Held</p>
-              <p className="font-semibold">{DEMO_VILLA_DATA.reservation.deposit.toLocaleString()} THB</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Confirmed Services
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {DEMO_VILLA_DATA.services.map((service) => (
-              <div key={service.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">{service.name}</p>
-                  <p className="text-sm text-muted-foreground">{service.date} at {service.time}</p>
-                </div>
-                <Badge variant="outline">{service.status}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Property Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-2">Address</p>
-          <p className="mb-4">{DEMO_VILLA_DATA.villa.address}</p>
-          <Button variant="outline" size="sm">
-            <Eye className="h-4 w-4 mr-2" />
-            View House Rules & AI Suggestions
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const renderStaffDashboard = (department: string) => {
-    const tasks = DEMO_VILLA_DATA.staffTasks[department as keyof typeof DEMO_VILLA_DATA.staffTasks] || [];
-    
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Schedule - {department.charAt(0).toUpperCase() + department.slice(1)} Department
-            </CardTitle>
-            <CardDescription>
-              Filter: 
-              <select 
-                value={viewFilter} 
-                onChange={(e) => setViewFilter(e.target.value)}
-                className="ml-2 border rounded px-2 py-1"
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {tasks.map((task, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{task.task}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {task.date} {task.time && `at ${task.time}`}
-                    </p>
-                    <p className="text-xs text-blue-600">Linked to: {DEMO_VILLA_DATA.reservation.code}</p>
-                  </div>
-                  <Badge variant="outline">{task.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Assigned Properties</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="font-medium">{DEMO_VILLA_DATA.villa.name}</p>
-              <p className="text-sm text-muted-foreground">{DEMO_VILLA_DATA.villa.location}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  const systemStats = {
+    totalModules: demoModules.length,
+    activeModules: demoModules.filter(m => m.status === "active").length,
+    totalRecords: demoModules.reduce((sum, m) => sum + m.records, 0),
+    averageCoverage: (demoModules.reduce((sum, m) => sum + parseInt(m.coverage), 0) / demoModules.length).toFixed(1)
   };
 
-  const renderHostDashboard = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckSquare className="h-5 w-5" />
-            Check-in/Check-out Tasks
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {DEMO_VILLA_DATA.staffTasks.host.map((task, index) => (
-              <div key={index} className="p-4 border rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="font-medium">{task.task}</p>
-                    <p className="text-sm text-muted-foreground">{task.date}</p>
-                  </div>
-                  <Badge variant="outline">{task.status}</Badge>
-                </div>
-                
-                {task.type === "check-in" && (
-                  <div className="bg-blue-50 p-3 rounded">
-                    <p className="text-sm font-medium mb-2">Check-in Requirements:</p>
-                    <ul className="text-sm space-y-1">
-                      <li>✓ Confirm deposit: {DEMO_VILLA_DATA.reservation.deposit.toLocaleString()} THB</li>
-                      <li>✓ Record electricity meter: {DEMO_VILLA_DATA.reservation.electricityStartMeter} kWh</li>
-                      <li>✓ Upload meter photo</li>
-                    </ul>
-                  </div>
-                )}
-                
-                {task.type === "check-out" && (
-                  <div className="bg-green-50 p-3 rounded">
-                    <p className="text-sm font-medium mb-2">Check-out Calculations:</p>
-                    <div className="text-sm space-y-1">
-                      <p>Electricity usage: 120 kWh = 840 THB</p>
-                      <p>Refundable deposit: {DEMO_VILLA_DATA.reservation.deposit} - 840 = 7,160 THB</p>
-                      <div className="mt-2">
-                        <label className="block text-xs">Payment Status:</label>
-                        <select className="border rounded px-2 py-1 text-xs">
-                          <option>Electricity paid by guest</option>
-                          <option>Included</option>
-                          <option>Complimentary</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const renderRetailAgentDashboard = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5" />
-            Demo Booking Preview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-3">{DEMO_VILLA_DATA.agents.retail.property}</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Dates</p>
-                <p className="font-medium">{DEMO_VILLA_DATA.agents.retail.dates}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Nights</p>
-                <p className="font-medium">{DEMO_VILLA_DATA.agents.retail.nights}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Price per night</p>
-                <p className="font-medium">{DEMO_VILLA_DATA.agents.retail.pricePerNight.toLocaleString()} THB</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Total Amount</p>
-                <p className="font-medium">{DEMO_VILLA_DATA.agents.retail.totalAmount.toLocaleString()} THB</p>
-              </div>
-            </div>
-            
-            <div className="mt-4 p-3 bg-green-100 rounded">
-              <p className="text-sm font-medium text-green-800">Commission Preview</p>
-              <p className="text-lg font-bold text-green-700">
-                {DEMO_VILLA_DATA.agents.retail.commission}% = {DEMO_VILLA_DATA.agents.retail.commissionAmount.toLocaleString()} THB
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Properties Available</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <p className="font-medium">{DEMO_VILLA_DATA.villa.name}</p>
-            <p className="text-sm text-muted-foreground">{DEMO_VILLA_DATA.villa.location}</p>
-            <Badge className="mt-2">Available for booking</Badge>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const renderReferralAgentDashboard = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Link className="h-5 w-5" />
-            Referral Performance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-3">Registered Property: {DEMO_VILLA_DATA.agents.referral.property}</h3>
-            
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Management Fee (20% of booking)</p>
-                <p className="font-medium">{DEMO_VILLA_DATA.agents.referral.managementFee.toLocaleString()} THB</p>
-              </div>
-              
-              <div className="p-3 bg-indigo-100 rounded">
-                <p className="text-sm font-medium text-indigo-800">Your Commission</p>
-                <p className="text-lg font-bold text-indigo-700">
-                  {DEMO_VILLA_DATA.agents.referral.commission}% = {DEMO_VILLA_DATA.agents.referral.commissionAmount.toLocaleString()} THB
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Assigned Villas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <p className="font-medium">{DEMO_VILLA_DATA.villa.name}</p>
-            <p className="text-sm text-muted-foreground">{DEMO_VILLA_DATA.villa.location}</p>
-            <div className="flex gap-2 mt-2">
-              <Badge variant="secondary">Active</Badge>
-              <Badge variant="outline">10% Commission</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const renderDashboard = () => {
-    switch (selectedUser) {
-      case "guest":
-        return renderGuestDashboard();
-      case "housekeeping":
-      case "pool":
-      case "garden":
-      case "pest":
-        return renderStaffDashboard(selectedUser);
-      case "host":
-        return renderHostDashboard();
-      case "retail":
-        return renderRetailAgentDashboard();
-      case "referral":
-        return renderReferralAgentDashboard();
-      default:
-        return <div>Select a user type to view their dashboard</div>;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active": return "bg-green-100 text-green-800";
+      case "inactive": return "bg-red-100 text-red-800";
+      case "updating": return "bg-yellow-100 text-yellow-800";
+      default: return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case "admin": return "bg-red-100 text-red-800";
+      case "portfolio-manager": return "bg-blue-100 text-blue-800";
+      case "owner": return "bg-green-100 text-green-800";
+      case "staff": return "bg-purple-100 text-purple-800";
+      case "retail-agent": return "bg-orange-100 text-orange-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getCoverageColor = (coverage: string) => {
+    const percent = parseInt(coverage);
+    if (percent >= 95) return "text-green-600";
+    if (percent >= 80) return "text-yellow-600";
+    return "text-red-600";
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Card className="bg-white shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                System-Wide Demo Data Integration
-              </CardTitle>
-              <CardDescription className="text-lg">
-                Test all user types with Villa Aruna reservation DEMO1234 - John Doe (July 6-11, 2025)
-              </CardDescription>
-            </CardHeader>
-          </Card>
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Database className="w-8 h-8" />
+            System-Wide Demo Integration
+          </h1>
+          <p className="text-gray-600">Comprehensive demo data management and system integration overview</p>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* User Type Selector */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Select User Type</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {DEMO_USERS.map((user) => {
-                  const IconComponent = user.icon;
-                  return (
-                    <Button
-                      key={user.id}
-                      onClick={() => setSelectedUser(user.id)}
-                      variant={selectedUser === user.id ? "default" : "ghost"}
-                      className="w-full justify-start"
-                    >
-                      <div className={`w-3 h-3 rounded-full ${user.color} mr-3`} />
-                      <IconComponent className="h-4 w-4 mr-2" />
-                      {user.name}
-                    </Button>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Villa Summary */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Demo Villa Info</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Villa</p>
-                  <p className="font-medium">{DEMO_VILLA_DATA.villa.name}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Reservation</p>
-                  <p className="font-medium">{DEMO_VILLA_DATA.reservation.code}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Guest</p>
-                  <p className="font-medium">{DEMO_VILLA_DATA.reservation.guest}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Dates</p>
-                  <p className="font-medium">{DEMO_VILLA_DATA.reservation.checkIn} to {DEMO_VILLA_DATA.reservation.checkOut}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Dashboard Content */}
-          <div className="lg:col-span-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {DEMO_USERS.find(u => u.id === selectedUser)?.icon && (
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const user = DEMO_USERS.find(u => u.id === selectedUser);
-                        if (user) {
-                          const IconComponent = user.icon;
-                          return (
-                            <>
-                              <div className={`w-4 h-4 rounded-full ${user.color}`} />
-                              <IconComponent className="h-5 w-5" />
-                            </>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                  )}
-                  {DEMO_USERS.find(u => u.id === selectedUser)?.name} Dashboard
-                </CardTitle>
-                <CardDescription>
-                  Simulated view for {DEMO_USERS.find(u => u.id === selectedUser)?.name} - All data visible for evaluation
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {renderDashboard()}
-              </CardContent>
-            </Card>
-          </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline">
+            <Settings className="w-4 h-4 mr-2" />
+            Configure Demo
+          </Button>
+          <Button>
+            <Play className="w-4 h-4 mr-2" />
+            Refresh All Data
+          </Button>
         </div>
-
-        {/* Services Schedule Overview */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Complete Service Schedule - Villa Aruna (DEMO1234)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {DEMO_VILLA_DATA.services.map((service) => (
-                <Card key={service.id} className="border-l-4 border-l-blue-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      {service.department === "pool" && <Droplet className="h-4 w-4 text-cyan-500" />}
-                      {service.department === "garden" && <Leaf className="h-4 w-4 text-green-500" />}
-                      {service.department === "housekeeping" && <Home className="h-4 w-4 text-blue-500" />}
-                      {service.department === "catering" && <ChefHat className="h-4 w-4 text-orange-500" />}
-                      {service.department === "pest" && <Bug className="h-4 w-4 text-red-500" />}
-                      <span className="text-xs font-medium text-muted-foreground uppercase">
-                        {service.department}
-                      </span>
-                    </div>
-                    <p className="font-medium text-sm">{service.name}</p>
-                    <p className="text-xs text-muted-foreground">{service.date}</p>
-                    <p className="text-xs text-muted-foreground">{service.time}</p>
-                    <Badge variant="outline" className="mt-2 text-xs">
-                      {service.status}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      <Tabs defaultValue="modules" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="modules">Demo Modules</TabsTrigger>
+          <TabsTrigger value="users">Demo Users</TabsTrigger>
+          <TabsTrigger value="integration">Integration Status</TabsTrigger>
+          <TabsTrigger value="analytics">System Analytics</TabsTrigger>
+          <TabsTrigger value="settings">Demo Settings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="modules" className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Modules</p>
+                    <p className="text-2xl font-bold">{systemStats.totalModules}</p>
+                  </div>
+                  <Database className="w-8 h-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Active Modules</p>
+                    <p className="text-2xl font-bold text-green-600">{systemStats.activeModules}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Demo Records</p>
+                    <p className="text-2xl font-bold text-purple-600">{systemStats.totalRecords.toLocaleString()}</p>
+                  </div>
+                  <DollarSign className="w-8 h-8 text-purple-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Avg Coverage</p>
+                    <p className="text-2xl font-bold text-orange-600">{systemStats.averageCoverage}%</p>
+                  </div>
+                  <Zap className="w-8 h-8 text-orange-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Select value={selectedModule} onValueChange={setSelectedModule}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Modules" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Modules</SelectItem>
+                    <SelectItem value="property">Property Management</SelectItem>
+                    <SelectItem value="guest">Guest Services</SelectItem>
+                    <SelectItem value="financial">Financial Operations</SelectItem>
+                    <SelectItem value="staff">Staff Management</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="updating">Updating</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={demoMode} onValueChange={setDemoMode}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Demo Mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="realistic">Realistic Data</SelectItem>
+                    <SelectItem value="minimal">Minimal Data</SelectItem>
+                    <SelectItem value="comprehensive">Comprehensive</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button>Apply Filters</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Module List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Demo Modules</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {demoModules.map((module) => (
+                  <div key={module.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start gap-3">
+                        <Database className="w-5 h-5 text-blue-500 mt-1" />
+                        <div>
+                          <h4 className="font-medium">{module.name}</h4>
+                          <p className="text-sm text-gray-600">{module.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(module.status)}>
+                          {module.status}
+                        </Badge>
+                        <span className={`font-bold ${getCoverageColor(module.coverage)}`}>
+                          {module.coverage}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Last Updated</p>
+                        <p className="font-medium">{module.lastUpdated}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Demo Records</p>
+                        <p className="font-medium text-purple-600">{module.records}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Coverage</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full" 
+                              style={{width: module.coverage}}
+                            ></div>
+                          </div>
+                          <span className="text-sm">{module.coverage}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Features</p>
+                        <p className="font-medium">{module.features.length} modules</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Features Included</p>
+                        <div className="flex gap-1 flex-wrap">
+                          {module.features.slice(0, 3).map((feature, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {feature}
+                            </Badge>
+                          ))}
+                          {module.features.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{module.features.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">View Details</Button>
+                        <Button variant="outline" size="sm">Refresh Data</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Demo User Accounts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {demoUsers.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-3">
+                      <Users className="w-4 h-4 text-gray-500" />
+                      <div>
+                        <p className="font-medium">{user.name}</p>
+                        <p className="text-sm text-gray-600">{user.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge className={getRoleColor(user.role)}>
+                        {user.role}
+                      </Badge>
+                      <div className="text-right text-sm">
+                        <p className="font-medium">{user.sessionsCount} sessions</p>
+                        <p className="text-gray-500">{user.modulesAccessed} modules accessed</p>
+                      </div>
+                      <div className="text-right text-sm">
+                        <p className="text-gray-500">Last active:</p>
+                        <p className="font-medium">{user.lastActive}</p>
+                      </div>
+                      <Button variant="outline" size="sm">Login As</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="integration" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>System Integration Health</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span>Database Connection</span>
+                  <Badge className="bg-green-100 text-green-800">Healthy</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Demo Data Sync</span>
+                  <Badge className="bg-green-100 text-green-800">Synced</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Cross-Module References</span>
+                  <Badge className="bg-green-100 text-green-800">Valid</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>User Authentication</span>
+                  <Badge className="bg-green-100 text-green-800">Active</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>API Endpoints</span>
+                  <Badge className="bg-yellow-100 text-yellow-800">98% Responsive</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Data Consistency Report</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-green-600">99.2%</p>
+                  <p className="text-gray-600">Overall Data Integrity</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Property Records</span>
+                    <span className="font-semibold">100%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">User Profiles</span>
+                    <span className="font-semibold">100%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Financial Data</span>
+                    <span className="font-semibold">98.5%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Task Management</span>
+                    <span className="font-semibold">99.1%</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Usage Statistics</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">1,247</p>
+                  <p className="text-gray-600">Total Demo Interactions</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Page Views</span>
+                    <span className="font-semibold">856</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">API Calls</span>
+                    <span className="font-semibold">391</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">User Sessions</span>
+                    <span className="font-semibold">61</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Most Accessed Modules</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span>Property Management</span>
+                  <span className="font-semibold">34%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Financial Dashboard</span>
+                  <span className="font-semibold">28%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Task Management</span>
+                  <span className="font-semibold">18%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Guest Services</span>
+                  <span className="font-semibold">12%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Staff Management</span>
+                  <span className="font-semibold">8%</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Performance Metrics</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">245ms</p>
+                  <p className="text-gray-600">Average Response Time</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">Uptime</span>
+                    <span className="font-semibold">99.8%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Error Rate</span>
+                    <span className="font-semibold">0.2%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm">Cache Hit Rate</span>
+                    <span className="font-semibold">94.5%</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Demo Configuration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="font-medium">Data Generation</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span>Auto-refresh demo data</span>
+                      <input type="checkbox" defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Generate realistic timestamps</span>
+                      <input type="checkbox" defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Cross-reference data integrity</span>
+                      <input type="checkbox" defaultChecked />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Refresh interval (hours)</label>
+                      <Input type="number" defaultValue="24" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-medium">Demo Modes</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm text-gray-600">Default demo mode</label>
+                      <Select defaultValue="realistic">
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="minimal">Minimal Data</SelectItem>
+                          <SelectItem value="realistic">Realistic Data</SelectItem>
+                          <SelectItem value="comprehensive">Comprehensive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">User session timeout (minutes)</label>
+                      <Input type="number" defaultValue="60" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t">
+                <div>
+                  <Button variant="outline">Reset All Demo Data</Button>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline">Export Configuration</Button>
+                  <Button>Save Settings</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

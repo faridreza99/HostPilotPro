@@ -35,6 +35,9 @@ import OtaRevenueNetPayoutCalculation from "./pages/OtaRevenueNetPayoutCalculati
 import LoyaltyGuestTracker from "./pages/LoyaltyGuestTracker";
 import InvoiceGenerator from "./pages/InvoiceGenerator";
 import StaffAdvanceSalaryOvertimeTracker from "./pages/StaffAdvanceSalaryOvertimeTracker";
+import SystemWideDemoIntegration from "./pages/SystemWideDemoIntegration";
+import MaintenanceLogWarrantyTracker from "./pages/MaintenanceLogWarrantyTracker";
+import StaffProfilePayroll from "./pages/StaffProfilePayroll";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -129,9 +132,13 @@ function AppRoutes() {
         <Route path="/auto-scheduling-recurring-task-generator" component={AutoScheduleTaskGenerator} />
         <Route path="/ota-revenue-net-payout-calculation" component={OtaRevenueNetPayoutCalculation} />
         <Route path="/loyalty-guest-tracker" component={LoyaltyGuestTracker} />
+        <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
         <Route path="/invoice-generator" component={InvoiceGenerator} />
         <Route path="/invoices" component={InvoiceGenerator} />
         <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
+        <Route path="/system-wide-demo-integration" component={SystemWideDemoIntegration} />
+        <Route path="/maintenance-log-warranty-tracker" component={MaintenanceLogWarrantyTracker} />
+        <Route path="/staff-profile-payroll" component={StaffProfilePayroll} />
         
         <Route component={NotFound} />
       </Switch>

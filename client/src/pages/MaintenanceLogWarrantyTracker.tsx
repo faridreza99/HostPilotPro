@@ -1,1181 +1,623 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  Wrench, 
-  Calendar, 
-  AlertTriangle, 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Zap,
-  Brain,
-  Shield,
-  Camera,
-  FileText,
-  Building,
-  Cpu,
-  Droplets,
-  Flower,
-  Wind,
-  Bug,
-  Lightbulb,
-  Hammer,
-  Snowflake,
-  Scissors
-} from "lucide-react";
-
-// Department icons mapping
-const getDepartmentIcon = (department: string) => {
-  switch (department.toLowerCase()) {
-    case 'maintenance': return <Wrench className="h-4 w-4" />;
-    case 'pool': return <Droplets className="h-4 w-4" />;
-    case 'garden': return <Flower className="h-4 w-4" />;
-    case 'ac': return <Wind className="h-4 w-4" />;
-    case 'pest': return <Bug className="h-4 w-4" />;
-    case 'electrical': return <Lightbulb className="h-4 w-4" />;
-    case 'plumbing': return <Droplets className="h-4 w-4" />;
-    case 'hvac': return <Snowflake className="h-4 w-4" />;
-    case 'landscaping': return <Scissors className="h-4 w-4" />;
-    default: return <Hammer className="h-4 w-4" />;
-  }
-};
-
-// Status color mapping
-const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'finished': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-    case 'in_progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-    case 'awaiting_approval': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-    case 'scheduled': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
-    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
-  }
-};
-
-// Priority color mapping
-const getPriorityColor = (priority: string) => {
-  switch (priority.toLowerCase()) {
-    case 'urgent': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-    case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
-    case 'normal': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-    case 'low': return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
-    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
-  }
-};
-
-interface MaintenanceLog {
-  id: number;
-  organizationId: string;
-  propertyId: number;
-  taskTitle: string;
-  repairDate: string;
-  department: string;
-  itemArea: string;
-  issueDescription: string;
-  actionTaken: string;
-  technicianAssigned?: string;
-  technicianName?: string;
-  cost: string;
-  currency: string;
-  invoiceUrl?: string;
-  status: string;
-  priority: string;
-  linkedImages: string[];
-  notes?: string;
-  hasWarranty: boolean;
-  warrantyDuration?: number;
-  warrantyExpirationDate?: string;
-  warrantyReceiptUrl?: string;
-  warrantyContactInfo?: string;
-  warrantyClaimStatus: string;
-  isRecurringService: boolean;
-  serviceCycleMonths?: number;
-  nextServiceDate?: string;
-  lastServiceDate?: string;
-  createdBy: string;
-  completedBy?: string;
-  approvedBy?: string;
-  createdAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  approvedAt?: string;
-}
-
-interface WarrantyAlert {
-  id: number;
-  organizationId: string;
-  maintenanceLogId: number;
-  propertyId: number;
-  alertType: string;
-  alertMessage: string;
-  daysUntilExpiration?: number;
-  isActive: boolean;
-  isSent: boolean;
-  sentAt?: string;
-  acknowledgedBy?: string;
-  acknowledgedAt?: string;
-  scheduledFor: string;
-  createdAt: string;
-}
-
-interface AiServicePrediction {
-  id: number;
-  organizationId: string;
-  propertyId: number;
-  department: string;
-  itemArea: string;
-  averageCycleMonths?: string;
-  lastServiceDates?: any;
-  predictedNextServiceDate?: string;
-  confidenceScore?: string;
-  basedOnHistoricalCount: number;
-  suggestionStatus: string;
-  suggestedBy: string;
-  reviewedBy?: string;
-  reviewedAt?: string;
-  convertedToTaskId?: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Wrench, Shield, AlertTriangle, CheckCircle, Clock, Calendar, DollarSign, FileText, Plus, Search } from "lucide-react";
 
 export default function MaintenanceLogWarrantyTracker() {
-  const [selectedProperty, setSelectedProperty] = useState<number | undefined>();
-  const [selectedDepartment, setSelectedDepartment] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [selectedPriority, setSelectedPriority] = useState<string>("");
-  const [isCreateLogOpen, setIsCreateLogOpen] = useState(false);
-  const [newLogForm, setNewLogForm] = useState({
-    propertyId: "",
-    taskTitle: "",
-    repairDate: "",
-    department: "",
-    itemArea: "",
-    issueDescription: "",
-    actionTaken: "",
-    technicianName: "",
-    cost: "",
-    priority: "normal",
-    hasWarranty: false,
-    warrantyDuration: "",
-    warrantyExpirationDate: "",
-    warrantyContactInfo: "",
-    isRecurringService: false,
-    serviceCycleMonths: "",
-    nextServiceDate: "",
-    notes: ""
-  });
+  const [selectedProperty, setSelectedProperty] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Fetch maintenance logs
-  const { data: maintenanceLogs = [], isLoading: isLogsLoading } = useQuery({
-    queryKey: ['/api/maintenance-logs', selectedProperty, selectedDepartment, selectedStatus, selectedPriority],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (selectedProperty) params.append('propertyId', selectedProperty.toString());
-      if (selectedDepartment) params.append('department', selectedDepartment);
-      if (selectedStatus) params.append('status', selectedStatus);
-      if (selectedPriority) params.append('priority', selectedPriority);
-      
-      return apiRequest('GET', `/api/maintenance-logs?${params.toString()}`);
-    }
-  });
-
-  // Fetch warranty alerts
-  const { data: warrantyAlerts = [], isLoading: isAlertsLoading } = useQuery({
-    queryKey: ['/api/warranty-alerts', selectedProperty],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (selectedProperty) params.append('propertyId', selectedProperty.toString());
-      params.append('isActive', 'true');
-      
-      return apiRequest('GET', `/api/warranty-alerts?${params.toString()}`);
-    }
-  });
-
-  // Fetch AI service predictions
-  const { data: aiPredictions = [], isLoading: isPredictionsLoading } = useQuery({
-    queryKey: ['/api/ai-service-predictions', selectedProperty, selectedDepartment],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (selectedProperty) params.append('propertyId', selectedProperty.toString());
-      if (selectedDepartment) params.append('department', selectedDepartment);
-      params.append('suggestionStatus', 'pending');
-      
-      return apiRequest('GET', `/api/ai-service-predictions?${params.toString()}`);
-    }
-  });
-
-  // Fetch dashboard analytics
-  const { data: dashboardAnalytics } = useQuery({
-    queryKey: ['/api/maintenance-dashboard-analytics', selectedProperty],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (selectedProperty) params.append('propertyId', selectedProperty.toString());
-      
-      return apiRequest('GET', `/api/maintenance-dashboard-analytics?${params.toString()}`);
-    }
-  });
-
-  // Fetch properties for dropdown
-  const { data: properties = [] } = useQuery({
-    queryKey: ['/api/properties'],
-    queryFn: () => apiRequest('GET', '/api/properties')
-  });
-
-  // Create maintenance log mutation
-  const createLogMutation = useMutation({
-    mutationFn: (logData: any) => apiRequest('POST', '/api/maintenance-logs', logData),
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Maintenance log created successfully",
-      });
-      setIsCreateLogOpen(false);
-      setNewLogForm({
-        propertyId: "",
-        taskTitle: "",
-        repairDate: "",
-        department: "",
-        itemArea: "",
-        issueDescription: "",
-        actionTaken: "",
-        technicianName: "",
-        cost: "",
-        priority: "normal",
-        hasWarranty: false,
-        warrantyDuration: "",
-        warrantyExpirationDate: "",
-        warrantyContactInfo: "",
-        isRecurringService: false,
-        serviceCycleMonths: "",
-        nextServiceDate: "",
-        notes: ""
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/maintenance-logs'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/maintenance-dashboard-analytics'] });
+  const maintenanceRecords = [
+    {
+      id: 1,
+      property: "Villa Samui Breeze",
+      category: "HVAC",
+      description: "Air conditioning system service and filter replacement",
+      date: "2025-01-20",
+      technician: "Somchai HVAC Services",
+      cost: 2500,
+      status: "completed",
+      warrantyExpiry: "2025-07-20",
+      nextService: "2025-04-20",
+      priority: "medium",
+      photos: ["ac_service_1.jpg", "filter_replacement.jpg"]
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create maintenance log",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Acknowledge warranty alert mutation
-  const acknowledgeAlertMutation = useMutation({
-    mutationFn: (alertId: number) => apiRequest('PUT', `/api/warranty-alerts/${alertId}/acknowledge`, {}),
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Warranty alert acknowledged",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/warranty-alerts'] });
+    {
+      id: 2,
+      property: "Villa Aruna",
+      category: "Pool",
+      description: "Pool pump replacement and chemical balancing",
+      date: "2025-01-18",
+      technician: "AquaTech Pool Services",
+      cost: 4200,
+      status: "completed",
+      warrantyExpiry: "2026-01-18",
+      nextService: "2025-02-18",
+      priority: "high",
+      photos: ["pool_pump_before.jpg", "pool_pump_after.jpg"]
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to acknowledge warranty alert",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Review AI suggestion mutation
-  const reviewAiSuggestionMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) => 
-      apiRequest('PUT', `/api/ai-service-predictions/${id}/review`, { suggestionStatus: status }),
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "AI suggestion reviewed",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/ai-service-predictions'] });
+    {
+      id: 3,
+      property: "Villa Paradise",
+      category: "Plumbing",
+      description: "Kitchen sink faucet repair and pipe inspection",
+      date: "2025-01-15",
+      technician: "Thailand Plumbing Co.",
+      cost: 800,
+      status: "completed",
+      warrantyExpiry: "2025-06-15",
+      nextService: "2025-07-15",
+      priority: "low",
+      photos: ["faucet_repair.jpg"]
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to review AI suggestion",
-        variant: "destructive",
-      });
+    {
+      id: 4,
+      property: "Villa Samui Breeze",
+      category: "Electrical",
+      description: "Main electrical panel upgrade and safety inspection",
+      date: "2025-01-12",
+      technician: "PowerTech Electrical",
+      cost: 6500,
+      status: "in_progress",
+      warrantyExpiry: "2027-01-12",
+      nextService: "2025-06-12",
+      priority: "high",
+      photos: ["electrical_panel_new.jpg"]
+    },
+    {
+      id: 5,
+      property: "Villa Aruna",
+      category: "Garden",
+      description: "Irrigation system installation and landscaping",
+      date: "2025-01-10",
+      technician: "Green Gardens Thailand",
+      cost: 3200,
+      status: "scheduled",
+      warrantyExpiry: "2025-12-10",
+      nextService: "2025-03-10",
+      priority: "medium",
+      photos: []
     }
-  });
+  ];
 
-  const handleCreateLog = () => {
-    const logData = {
-      ...newLogForm,
-      propertyId: parseInt(newLogForm.propertyId),
-      cost: parseFloat(newLogForm.cost) || 0,
-      warrantyDuration: newLogForm.warrantyDuration ? parseInt(newLogForm.warrantyDuration) : null,
-      serviceCycleMonths: newLogForm.serviceCycleMonths ? parseInt(newLogForm.serviceCycleMonths) : null,
-      linkedImages: [],
-      currency: "THB"
-    };
+  const warrantyAlerts = [
+    {
+      id: 1,
+      property: "Villa Paradise",
+      item: "Water heater unit",
+      category: "Plumbing",
+      purchaseDate: "2024-01-15",
+      warrantyExpiry: "2025-01-15",
+      daysUntilExpiry: -7,
+      status: "expired",
+      vendor: "Rheem Thailand",
+      cost: 8500
+    },
+    {
+      id: 2,
+      property: "Villa Samui Breeze",
+      item: "Refrigerator - Kitchen",
+      category: "Appliances",
+      purchaseDate: "2023-06-20",
+      warrantyExpiry: "2025-06-20",
+      daysUntilExpiry: 149,
+      status: "warning",
+      vendor: "Samsung Electronics",
+      cost: 15000
+    },
+    {
+      id: 3,
+      property: "Villa Aruna",
+      item: "Solar panel system",
+      category: "Electrical",
+      purchaseDate: "2022-11-10",
+      warrantyExpiry: "2027-11-10",
+      daysUntilExpiry: 1024,
+      status: "active",
+      vendor: "Thai Solar Solutions",
+      cost: 45000
+    }
+  ];
 
-    createLogMutation.mutate(logData);
+  const aiPredictions = [
+    {
+      id: 1,
+      property: "Villa Samui Breeze",
+      prediction: "Pool pump replacement recommended",
+      confidence: 87,
+      category: "Pool",
+      estimatedCost: 4500,
+      timeframe: "2-3 months",
+      reasoning: "Based on usage patterns and similar equipment lifecycle",
+      priority: "medium"
+    },
+    {
+      id: 2,
+      property: "Villa Paradise",
+      prediction: "HVAC system deep cleaning required",
+      confidence: 92,
+      category: "HVAC",
+      estimatedCost: 1200,
+      timeframe: "1 month",
+      reasoning: "Seasonal maintenance due and efficiency monitoring indicates need",
+      priority: "high"
+    },
+    {
+      id: 3,
+      property: "Villa Aruna",
+      prediction: "Roof inspection and minor repairs",
+      confidence: 74,
+      category: "Structure",
+      estimatedCost: 2800,
+      timeframe: "6 months",
+      reasoning: "Age of property and recent weather patterns suggest preventive maintenance",
+      priority: "low"
+    }
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed": return "bg-green-100 text-green-800";
+      case "in_progress": return "bg-blue-100 text-blue-800";
+      case "scheduled": return "bg-yellow-100 text-yellow-800";
+      case "pending": return "bg-orange-100 text-orange-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
 
-  const handleAcknowledgeAlert = (alertId: number) => {
-    acknowledgeAlertMutation.mutate(alertId);
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-100 text-red-800";
+      case "medium": return "bg-yellow-100 text-yellow-800";
+      case "low": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
 
-  const handleReviewAiSuggestion = (id: number, status: string) => {
-    reviewAiSuggestionMutation.mutate({ id, status });
+  const getWarrantyStatusColor = (status: string) => {
+    switch (status) {
+      case "active": return "bg-green-100 text-green-800";
+      case "warning": return "bg-yellow-100 text-yellow-800";
+      case "expired": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
 
-  const formatCurrency = (amount: string, currency: string = 'THB') => {
-    const value = parseFloat(amount);
-    return `${currency} ${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('th-TH', {
+      style: 'currency',
+      currency: 'THB'
+    }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const calculateDaysUntilExpiration = (expirationDate: string) => {
-    const today = new Date();
-    const expDate = new Date(expirationDate);
-    const timeDiff = expDate.getTime() - today.getTime();
-    return Math.ceil(timeDiff / (1000 * 3600 * 24));
+  const summaryStats = {
+    totalRecords: maintenanceRecords.length,
+    completedTasks: maintenanceRecords.filter(r => r.status === "completed").length,
+    totalCost: maintenanceRecords.reduce((sum, r) => sum + r.cost, 0),
+    warrantyAlerts: warrantyAlerts.filter(w => w.status === "warning" || w.status === "expired").length
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">🛠️ Maintenance Log, Warranty Tracker & AI Repair Cycle Alerts</h2>
-          <p className="text-muted-foreground">
-            Track maintenance jobs, warranties, and get AI-powered service cycle predictions
-          </p>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Wrench className="w-8 h-8" />
+            Maintenance Log & Warranty Tracker
+          </h1>
+          <p className="text-gray-600">Track maintenance records, warranty status, and AI-powered service predictions</p>
         </div>
-        <Dialog open={isCreateLogOpen} onOpenChange={setIsCreateLogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Wrench className="mr-2 h-4 w-4" />
-              Create Maintenance Log
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Maintenance Log</DialogTitle>
-              <DialogDescription>
-                Log a maintenance job with warranty tracking and AI cycle predictions
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="property">Property</Label>
-                <Select value={newLogForm.propertyId} onValueChange={(value) => 
-                  setNewLogForm(prev => ({ ...prev, propertyId: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select property" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {properties.map((property: any) => (
-                      <SelectItem key={property.id} value={property.id.toString()}>
-                        {property.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="taskTitle">Task Title</Label>
-                <Input
-                  id="taskTitle"
-                  value={newLogForm.taskTitle}
-                  onChange={(e) => setNewLogForm(prev => ({ ...prev, taskTitle: e.target.value }))}
-                  placeholder="e.g., Pool pump repair"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="repairDate">Repair Date</Label>
-                <Input
-                  id="repairDate"
-                  type="date"
-                  value={newLogForm.repairDate}
-                  onChange={(e) => setNewLogForm(prev => ({ ...prev, repairDate: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Select value={newLogForm.department} onValueChange={(value) => 
-                  setNewLogForm(prev => ({ ...prev, department: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="maintenance">🔧 Maintenance</SelectItem>
-                    <SelectItem value="pool">💧 Pool</SelectItem>
-                    <SelectItem value="garden">🌸 Garden</SelectItem>
-                    <SelectItem value="ac">🌀 AC/HVAC</SelectItem>
-                    <SelectItem value="pest">🐛 Pest Control</SelectItem>
-                    <SelectItem value="electrical">💡 Electrical</SelectItem>
-                    <SelectItem value="plumbing">🚿 Plumbing</SelectItem>
-                    <SelectItem value="landscaping">✂️ Landscaping</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="itemArea">Item/Area Repaired</Label>
-                <Input
-                  id="itemArea"
-                  value={newLogForm.itemArea}
-                  onChange={(e) => setNewLogForm(prev => ({ ...prev, itemArea: e.target.value }))}
-                  placeholder="e.g., Pool motor, AC unit bedroom 1"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="technicianName">Technician Name</Label>
-                <Input
-                  id="technicianName"
-                  value={newLogForm.technicianName}
-                  onChange={(e) => setNewLogForm(prev => ({ ...prev, technicianName: e.target.value }))}
-                  placeholder="e.g., John Smith, ABC Services"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="cost">Cost (THB)</Label>
-                <Input
-                  id="cost"
-                  type="number"
-                  step="0.01"
-                  value={newLogForm.cost}
-                  onChange={(e) => setNewLogForm(prev => ({ ...prev, cost: e.target.value }))}
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="priority">Priority</Label>
-                <Select value={newLogForm.priority} onValueChange={(value) => 
-                  setNewLogForm(prev => ({ ...prev, priority: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="issueDescription">Issue Description</Label>
-                <Textarea
-                  id="issueDescription"
-                  value={newLogForm.issueDescription}
-                  onChange={(e) => setNewLogForm(prev => ({ ...prev, issueDescription: e.target.value }))}
-                  placeholder="Describe the issue that needed repair..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="actionTaken">Action Taken</Label>
-                <Textarea
-                  id="actionTaken"
-                  value={newLogForm.actionTaken}
-                  onChange={(e) => setNewLogForm(prev => ({ ...prev, actionTaken: e.target.value }))}
-                  placeholder="Describe what was done to fix the issue..."
-                  rows={3}
-                />
-              </div>
-
-              {/* Warranty Section */}
-              <div className="md:col-span-2 space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasWarranty"
-                    checked={newLogForm.hasWarranty}
-                    onCheckedChange={(checked) => 
-                      setNewLogForm(prev => ({ ...prev, hasWarranty: checked as boolean }))
-                    }
-                  />
-                  <Label htmlFor="hasWarranty" className="flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    This repair/item has warranty
-                  </Label>
-                </div>
-
-                {newLogForm.hasWarranty && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="warrantyDuration">Warranty Duration (months)</Label>
-                      <Input
-                        id="warrantyDuration"
-                        type="number"
-                        value={newLogForm.warrantyDuration}
-                        onChange={(e) => setNewLogForm(prev => ({ ...prev, warrantyDuration: e.target.value }))}
-                        placeholder="12"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="warrantyExpirationDate">Warranty Expiration Date</Label>
-                      <Input
-                        id="warrantyExpirationDate"
-                        type="date"
-                        value={newLogForm.warrantyExpirationDate}
-                        onChange={(e) => setNewLogForm(prev => ({ ...prev, warrantyExpirationDate: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="warrantyContactInfo">Warranty Contact Info</Label>
-                      <Input
-                        id="warrantyContactInfo"
-                        value={newLogForm.warrantyContactInfo}
-                        onChange={(e) => setNewLogForm(prev => ({ ...prev, warrantyContactInfo: e.target.value }))}
-                        placeholder="Phone/Email for warranty claims"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* AI Service Cycle Section */}
-              <div className="md:col-span-2 space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="isRecurringService"
-                    checked={newLogForm.isRecurringService}
-                    onCheckedChange={(checked) => 
-                      setNewLogForm(prev => ({ ...prev, isRecurringService: checked as boolean }))
-                    }
-                  />
-                  <Label htmlFor="isRecurringService" className="flex items-center gap-2">
-                    <Brain className="h-4 w-4" />
-                    This is a recurring service (AI will learn patterns)
-                  </Label>
-                </div>
-
-                {newLogForm.isRecurringService && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="serviceCycleMonths">Service Cycle (months)</Label>
-                      <Input
-                        id="serviceCycleMonths"
-                        type="number"
-                        value={newLogForm.serviceCycleMonths}
-                        onChange={(e) => setNewLogForm(prev => ({ ...prev, serviceCycleMonths: e.target.value }))}
-                        placeholder="4"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="nextServiceDate">Next Service Date</Label>
-                      <Input
-                        id="nextServiceDate"
-                        type="date"
-                        value={newLogForm.nextServiceDate}
-                        onChange={(e) => setNewLogForm(prev => ({ ...prev, nextServiceDate: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="notes">Additional Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={newLogForm.notes}
-                  onChange={(e) => setNewLogForm(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Any additional notes about this maintenance job..."
-                  rows={2}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsCreateLogOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleCreateLog} 
-                disabled={createLogMutation.isPending}
-              >
-                {createLogMutation.isPending ? "Creating..." : "Create Log"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-3">
+          <Button variant="outline">
+            <FileText className="w-4 h-4 mr-2" />
+            Export Report
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Log Maintenance
+          </Button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <Select value={selectedProperty?.toString() || ""} onValueChange={(value) => 
-          setSelectedProperty(value ? parseInt(value) : undefined)
-        }>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Properties" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Properties</SelectItem>
-            {properties.map((property: any) => (
-              <SelectItem key={property.id} value={property.id.toString()}>
-                {property.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Departments" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Departments</SelectItem>
-            <SelectItem value="maintenance">🔧 Maintenance</SelectItem>
-            <SelectItem value="pool">💧 Pool</SelectItem>
-            <SelectItem value="garden">🌸 Garden</SelectItem>
-            <SelectItem value="ac">🌀 AC/HVAC</SelectItem>
-            <SelectItem value="pest">🐛 Pest Control</SelectItem>
-            <SelectItem value="electrical">💡 Electrical</SelectItem>
-            <SelectItem value="plumbing">🚿 Plumbing</SelectItem>
-            <SelectItem value="landscaping">✂️ Landscaping</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="awaiting_approval">Awaiting Approval</SelectItem>
-            <SelectItem value="finished">Finished</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Priorities" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Priorities</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="urgent">Urgent</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">📊 Overview</TabsTrigger>
-          <TabsTrigger value="logs">🔧 Maintenance Logs</TabsTrigger>
-          <TabsTrigger value="warranty">🛡️ Warranty Tracker</TabsTrigger>
-          <TabsTrigger value="ai-predictions">🧠 AI Predictions</TabsTrigger>
-          <TabsTrigger value="analytics">📈 Analytics</TabsTrigger>
+      <Tabs defaultValue="maintenance" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="maintenance">Maintenance Log</TabsTrigger>
+          <TabsTrigger value="warranty">Warranty Tracker</TabsTrigger>
+          <TabsTrigger value="predictions">AI Predictions</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4">
-          {/* Dashboard Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <TabsContent value="maintenance" className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Maintenance Logs</CardTitle>
-                <Wrench className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{dashboardAnalytics?.totalMaintenanceLogs || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  All time maintenance records
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Warranty Alerts</CardTitle>
-                <Shield className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{dashboardAnalytics?.activeWarrantyAlerts || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  Requiring attention
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending AI Suggestions</CardTitle>
-                <Brain className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{dashboardAnalytics?.pendingAiSuggestions || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  Service cycle predictions
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">This Month Cost</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(dashboardAnalytics?.thisMonthCost?.toString() || "0")}
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Records</p>
+                    <p className="text-2xl font-bold">{summaryStats.totalRecords}</p>
+                  </div>
+                  <Wrench className="w-8 h-8 text-blue-500" />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Total maintenance costs
-                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Completed</p>
+                    <p className="text-2xl font-bold text-green-600">{summaryStats.completedTasks}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Cost</p>
+                    <p className="text-2xl font-bold text-purple-600">{formatCurrency(summaryStats.totalCost)}</p>
+                  </div>
+                  <DollarSign className="w-8 h-8 text-purple-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Warranty Alerts</p>
+                    <p className="text-2xl font-bold text-red-600">{summaryStats.warrantyAlerts}</p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Status Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
-                <Clock className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{dashboardAnalytics?.activeJobs || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  In progress & scheduled
-                </p>
-              </CardContent>
-            </Card>
+          {/* Filters */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Properties" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Properties</SelectItem>
+                    <SelectItem value="villa-samui">Villa Samui Breeze</SelectItem>
+                    <SelectItem value="villa-aruna">Villa Aruna</SelectItem>
+                    <SelectItem value="villa-paradise">Villa Paradise</SelectItem>
+                  </SelectContent>
+                </Select>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed Jobs</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{dashboardAnalytics?.completedJobs || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  Recently finished
-                </p>
-              </CardContent>
-            </Card>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="hvac">HVAC</SelectItem>
+                    <SelectItem value="pool">Pool</SelectItem>
+                    <SelectItem value="plumbing">Plumbing</SelectItem>
+                    <SelectItem value="electrical">Electrical</SelectItem>
+                    <SelectItem value="garden">Garden</SelectItem>
+                  </SelectContent>
+                </Select>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Urgent Jobs</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{dashboardAnalytics?.urgentJobs || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  Requiring immediate attention
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                  </SelectContent>
+                </Select>
 
-          {/* Recent Logs */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input placeholder="Search maintenance..." className="pl-10" />
+                </div>
+
+                <Button>Apply Filters</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Maintenance Records */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Maintenance Logs</CardTitle>
-              <CardDescription>Latest maintenance activities</CardDescription>
+              <CardTitle>Maintenance Records</CardTitle>
             </CardHeader>
             <CardContent>
-              {dashboardAnalytics?.recentLogs?.length > 0 ? (
-                <div className="space-y-4">
-                  {dashboardAnalytics.recentLogs.map((log: MaintenanceLog) => (
-                    <div key={log.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          {getDepartmentIcon(log.department)}
-                          <span className="font-medium">{log.taskTitle}</span>
+              <div className="space-y-4">
+                {maintenanceRecords.map((record) => (
+                  <div key={record.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start gap-3">
+                        <Wrench className="w-5 h-5 text-blue-500 mt-1" />
+                        <div>
+                          <h4 className="font-medium">{record.description}</h4>
+                          <p className="text-sm text-gray-600">{record.property} • {record.category}</p>
+                          <p className="text-xs text-gray-500">Technician: {record.technician}</p>
                         </div>
-                        <Badge className={getStatusColor(log.status)}>
-                          {log.status.replace('_', ' ')}
-                        </Badge>
-                        <Badge className={getPriorityColor(log.priority)}>
-                          {log.priority}
-                        </Badge>
                       </div>
-                      <div className="text-right">
-                        <div className="font-medium">{formatCurrency(log.cost, log.currency)}</div>
-                        <div className="text-sm text-muted-foreground">{formatDate(log.repairDate)}</div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getPriorityColor(record.priority)}>
+                          {record.priority}
+                        </Badge>
+                        <Badge className={getStatusColor(record.status)}>
+                          {record.status}
+                        </Badge>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">No recent maintenance logs</p>
-              )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                      <div>
+                        <p className="text-xs text-gray-500">Date</p>
+                        <p className="font-medium">{record.date}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Cost</p>
+                        <p className="font-medium text-green-600">{formatCurrency(record.cost)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Warranty Until</p>
+                        <p className="font-medium">{record.warrantyExpiry}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Next Service</p>
+                        <p className="font-medium">{record.nextService}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Photos</p>
+                        <p className="font-medium">{record.photos.length} attachments</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-500">
+                        Category: {record.category} • Priority: {record.priority}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">View Photos</Button>
+                        <Button variant="outline" size="sm">Edit Record</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="logs" className="space-y-4">
-          <div className="grid gap-4">
-            {isLogsLoading ? (
-              <div className="text-center py-8">Loading maintenance logs...</div>
-            ) : maintenanceLogs.length > 0 ? (
-              maintenanceLogs.map((log: MaintenanceLog) => (
-                <Card key={log.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          {getDepartmentIcon(log.department)}
-                          <CardTitle className="text-lg">{log.taskTitle}</CardTitle>
-                        </div>
-                        <Badge className={getStatusColor(log.status)}>
-                          {log.status.replace('_', ' ')}
-                        </Badge>
-                        <Badge className={getPriorityColor(log.priority)}>
-                          {log.priority}
-                        </Badge>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold">{formatCurrency(log.cost, log.currency)}</div>
-                        <div className="text-sm text-muted-foreground">{formatDate(log.repairDate)}</div>
-                      </div>
-                    </div>
-                    <CardDescription>
-                      {log.itemArea} • {log.technicianName || 'Internal Staff'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div>
-                          <h4 className="font-medium mb-2">Issue Description</h4>
-                          <p className="text-sm text-muted-foreground">{log.issueDescription}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium mb-2">Action Taken</h4>
-                          <p className="text-sm text-muted-foreground">{log.actionTaken}</p>
-                        </div>
-                        {log.notes && (
-                          <div>
-                            <h4 className="font-medium mb-2">Notes</h4>
-                            <p className="text-sm text-muted-foreground">{log.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-4">
-                        {log.hasWarranty && (
-                          <div className="border rounded-lg p-4">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Shield className="h-4 w-4 text-green-500" />
-                              <h4 className="font-medium">Warranty Information</h4>
-                            </div>
-                            <div className="text-sm space-y-1">
-                              {log.warrantyDuration && (
-                                <p>Duration: {log.warrantyDuration} months</p>
-                              )}
-                              {log.warrantyExpirationDate && (
-                                <p>Expires: {formatDate(log.warrantyExpirationDate)}</p>
-                              )}
-                              {log.warrantyContactInfo && (
-                                <p>Contact: {log.warrantyContactInfo}</p>
-                              )}
-                              <Badge className={
-                                log.warrantyClaimStatus === 'none' ? 'bg-gray-100 text-gray-800' :
-                                log.warrantyClaimStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                log.warrantyClaimStatus === 'approved' ? 'bg-green-100 text-green-800' :
-                                'bg-red-100 text-red-800'
-                              }>
-                                {log.warrantyClaimStatus}
-                              </Badge>
-                            </div>
-                          </div>
-                        )}
-                        {log.isRecurringService && (
-                          <div className="border rounded-lg p-4">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Brain className="h-4 w-4 text-blue-500" />
-                              <h4 className="font-medium">Recurring Service</h4>
-                            </div>
-                            <div className="text-sm space-y-1">
-                              {log.serviceCycleMonths && (
-                                <p>Cycle: Every {log.serviceCycleMonths} months</p>
-                              )}
-                              {log.nextServiceDate && (
-                                <p>Next Service: {formatDate(log.nextServiceDate)}</p>
-                              )}
-                              {log.lastServiceDate && (
-                                <p>Last Service: {formatDate(log.lastServiceDate)}</p>
-                              )}
-                            </div>
-                          </div>
-                        )}
+        <TabsContent value="warranty" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Warranty Alerts</span>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Warranty
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {warrantyAlerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-3">
+                      <Shield className="w-4 h-4 text-blue-500" />
+                      <div>
+                        <p className="font-medium">{alert.item}</p>
+                        <p className="text-sm text-gray-600">{alert.property} • {alert.category}</p>
+                        <p className="text-xs text-gray-500">
+                          Vendor: {alert.vendor} • Cost: {formatCurrency(alert.cost)}
+                        </p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <Wrench className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No maintenance logs found</p>
-                  <p className="text-sm text-muted-foreground">Create your first maintenance log to get started</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                    <div className="text-right">
+                      <Badge className={getWarrantyStatusColor(alert.status)}>
+                        {alert.status}
+                      </Badge>
+                      <p className="text-sm font-medium mt-1">
+                        {alert.daysUntilExpiry < 0 
+                          ? `Expired ${Math.abs(alert.daysUntilExpiry)} days ago`
+                          : `${alert.daysUntilExpiry} days remaining`
+                        }
+                      </p>
+                      <p className="text-xs text-gray-500">Expires: {alert.warrantyExpiry}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="warranty" className="space-y-4">
-          <div className="grid gap-4">
-            {isAlertsLoading ? (
-              <div className="text-center py-8">Loading warranty alerts...</div>
-            ) : warrantyAlerts.length > 0 ? (
-              warrantyAlerts.map((alert: WarrantyAlert) => (
-                <Card key={alert.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <Shield className="h-5 w-5 text-orange-500" />
-                        <CardTitle className="text-lg">Warranty Alert</CardTitle>
-                        <Badge className={
-                          alert.alertType === 'warranty_expiring' ? 'bg-yellow-100 text-yellow-800' :
-                          alert.alertType === 'warranty_expired' ? 'bg-red-100 text-red-800' :
-                          'bg-blue-100 text-blue-800'
-                        }>
-                          {alert.alertType.replace('_', ' ')}
+        <TabsContent value="predictions" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Maintenance Predictions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {aiPredictions.map((prediction) => (
+                  <div key={prediction.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                        <div>
+                          <h4 className="font-medium">{prediction.prediction}</h4>
+                          <p className="text-sm text-gray-600">{prediction.property} • {prediction.category}</p>
+                          <p className="text-xs text-gray-500">{prediction.reasoning}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getPriorityColor(prediction.priority)}>
+                          {prediction.priority}
                         </Badge>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {alert.daysUntilExpiration && (
-                          <span className="text-sm font-medium">
-                            {alert.daysUntilExpiration} days left
-                          </span>
-                        )}
-                        {!alert.acknowledgedBy && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleAcknowledgeAlert(alert.id)}
-                            disabled={acknowledgeAlertMutation.isPending}
-                          >
-                            Acknowledge
-                          </Button>
-                        )}
+                        <span className="text-sm font-bold text-blue-600">
+                          {prediction.confidence}% confidence
+                        </span>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">{alert.alertMessage}</p>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                       <div>
-                        <span className="font-medium">Scheduled For:</span> {formatDate(alert.scheduledFor)}
+                        <p className="text-xs text-gray-500">Estimated Cost</p>
+                        <p className="font-medium text-orange-600">{formatCurrency(prediction.estimatedCost)}</p>
                       </div>
                       <div>
-                        <span className="font-medium">Created:</span> {formatDate(alert.createdAt)}
+                        <p className="text-xs text-gray-500">Timeframe</p>
+                        <p className="font-medium">{prediction.timeframe}</p>
                       </div>
-                      {alert.acknowledgedBy && (
-                        <>
-                          <div>
-                            <span className="font-medium">Acknowledged By:</span> {alert.acknowledgedBy}
+                      <div>
+                        <p className="text-xs text-gray-500">Confidence</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-500 h-2 rounded-full" 
+                              style={{width: `${prediction.confidence}%`}}
+                            ></div>
                           </div>
-                          <div>
-                            <span className="font-medium">Acknowledged At:</span> {alert.acknowledgedAt ? formatDate(alert.acknowledgedAt) : 'N/A'}
-                          </div>
-                        </>
-                      )}
+                          <span className="text-sm">{prediction.confidence}%</span>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <Shield className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No active warranty alerts</p>
-                  <p className="text-sm text-muted-foreground">All warranties are up to date</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-500">
+                        AI Recommendation • {prediction.category} • {prediction.priority} priority
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">Schedule Maintenance</Button>
+                        <Button variant="outline" size="sm">Dismiss</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="ai-predictions" className="space-y-4">
-          <div className="grid gap-4">
-            {isPredictionsLoading ? (
-              <div className="text-center py-8">Loading AI predictions...</div>
-            ) : aiPredictions.length > 0 ? (
-              aiPredictions.map((prediction: AiServicePrediction) => (
-                <Card key={prediction.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <Brain className="h-5 w-5 text-purple-500" />
-                        <div>
-                          <CardTitle className="text-lg">
-                            {prediction.itemArea} - {prediction.department}
-                          </CardTitle>
-                          <CardDescription>
-                            Based on {prediction.basedOnHistoricalCount} historical records
-                          </CardDescription>
-                        </div>
-                        <Badge className={
-                          prediction.suggestionStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          prediction.suggestionStatus === 'accepted' ? 'bg-green-100 text-green-800' :
-                          prediction.suggestionStatus === 'dismissed' ? 'bg-gray-100 text-gray-800' :
-                          'bg-blue-100 text-blue-800'
-                        }>
-                          {prediction.suggestionStatus}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {prediction.confidenceScore && (
-                          <span className="text-sm font-medium">
-                            {(parseFloat(prediction.confidenceScore) * 100).toFixed(0)}% confidence
-                          </span>
-                        )}
-                        {prediction.suggestionStatus === 'pending' && (
-                          <div className="flex space-x-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleReviewAiSuggestion(prediction.id, 'dismissed')}
-                              disabled={reviewAiSuggestionMutation.isPending}
-                            >
-                              Dismiss
-                            </Button>
-                            <Button 
-                              size="sm"
-                              onClick={() => handleReviewAiSuggestion(prediction.id, 'accepted')}
-                              disabled={reviewAiSuggestionMutation.isPending}
-                            >
-                              Accept
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium mb-2">Prediction Details</h4>
-                        <div className="text-sm space-y-1">
-                          {prediction.averageCycleMonths && (
-                            <p>Average Cycle: {parseFloat(prediction.averageCycleMonths).toFixed(1)} months</p>
-                          )}
-                          {prediction.predictedNextServiceDate && (
-                            <p>Predicted Next Service: {formatDate(prediction.predictedNextServiceDate)}</p>
-                          )}
-                          <p>Suggested By: {prediction.suggestedBy}</p>
-                        </div>
-                      </div>
-                      {prediction.reviewedBy && (
-                        <div>
-                          <h4 className="font-medium mb-2">Review Information</h4>
-                          <div className="text-sm space-y-1">
-                            <p>Reviewed By: {prediction.reviewedBy}</p>
-                            {prediction.reviewedAt && (
-                              <p>Reviewed At: {formatDate(prediction.reviewedAt)}</p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <Brain className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No AI predictions available</p>
-                  <p className="text-sm text-muted-foreground">AI will learn from maintenance patterns to suggest service cycles</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
+        <TabsContent value="analytics" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Top Department Costs */}
             <Card>
               <CardHeader>
-                <CardTitle>Top Department Costs</CardTitle>
-                <CardDescription>Breakdown by maintenance category</CardDescription>
+                <CardTitle>Maintenance Cost by Category</CardTitle>
               </CardHeader>
-              <CardContent>
-                {dashboardAnalytics?.topDepartmentCosts?.length > 0 ? (
-                  <div className="space-y-4">
-                    {dashboardAnalytics.topDepartmentCosts.map((dept: any) => (
-                      <div key={dept.department} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          {getDepartmentIcon(dept.department)}
-                          <span className="capitalize">{dept.department}</span>
-                        </div>
-                        <span className="font-medium">{formatCurrency(dept.cost.toString())}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-4">No cost data available</p>
-                )}
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span>HVAC Systems</span>
+                  <span className="font-bold">{formatCurrency(2500)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Pool Maintenance</span>
+                  <span className="font-bold">{formatCurrency(4200)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Electrical Work</span>
+                  <span className="font-bold">{formatCurrency(6500)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Garden & Landscaping</span>
+                  <span className="font-bold">{formatCurrency(3200)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Plumbing</span>
+                  <span className="font-bold">{formatCurrency(800)}</span>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Performance Metrics */}
             <Card>
               <CardHeader>
-                <CardTitle>Performance Metrics</CardTitle>
-                <CardDescription>Key performance indicators</CardDescription>
+                <CardTitle>Upcoming Maintenance</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span>Average Job Duration</span>
-                    <span className="font-medium">{dashboardAnalytics?.averageJobDuration || 0} days</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Total Jobs This Month</span>
-                    <span className="font-medium">{dashboardAnalytics?.totalMaintenanceLogs || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Active Warranties</span>
-                    <span className="font-medium">{dashboardAnalytics?.activeWarrantyAlerts || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>AI Suggestions Pending</span>
-                    <span className="font-medium">{dashboardAnalytics?.pendingAiSuggestions || 0}</span>
-                  </div>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm">Villa Aruna - Pool Service</span>
+                  <span className="text-sm font-medium">Feb 18, 2025</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Villa Paradise - HVAC Service</span>
+                  <span className="text-sm font-medium">Mar 10, 2025</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Villa Samui - Pool Service</span>
+                  <span className="text-sm font-medium">Apr 20, 2025</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Villa Aruna - Electrical Inspection</span>
+                  <span className="text-sm font-medium">Jun 12, 2025</span>
                 </div>
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Maintenance Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="font-medium">Notification Settings</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span>Warranty expiry alerts (days before)</span>
+                      <Input type="number" defaultValue="30" className="w-20" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Maintenance due reminders</span>
+                      <input type="checkbox" defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>AI prediction notifications</span>
+                      <input type="checkbox" defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-medium">AI Prediction Settings</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span>Minimum confidence threshold</span>
+                      <Input type="number" defaultValue="75" className="w-20" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Enable predictive maintenance</span>
+                      <input type="checkbox" defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Auto-schedule high confidence predictions</span>
+                      <input type="checkbox" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button>Save Settings</Button>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
