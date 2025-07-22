@@ -3,12 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import TopBar from "@/components/TopBar";
 import StatsCard from "@/components/StatsCard";
+import CreateBookingDialog from "@/components/CreateBookingDialog";
+import CreatePropertyDialog from "@/components/CreatePropertyDialog";
+import CreateTaskDialog from "@/components/CreateTaskDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building, Calendar, ListTodo, DollarSign, Plus, Home, ClipboardList, TrendingUp } from "lucide-react";
 
 export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const { data: stats } = useQuery({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -143,25 +149,55 @@ export default function Dashboard() {
 
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-24 flex flex-col items-center justify-center space-y-2"
+              onClick={() => setIsBookingDialogOpen(true)}
+            >
               <Plus className="w-6 h-6 text-primary" />
               <span>New Booking</span>
             </Button>
-            <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-24 flex flex-col items-center justify-center space-y-2"
+              onClick={() => setIsPropertyDialogOpen(true)}
+            >
               <Home className="w-6 h-6 text-green-600" />
               <span>Add Property</span>
             </Button>
-            <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-24 flex flex-col items-center justify-center space-y-2"
+              onClick={() => setIsTaskDialogOpen(true)}
+            >
               <ClipboardList className="w-6 h-6 text-yellow-600" />
               <span>Create Task</span>
             </Button>
-            <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2">
+            <Button 
+              variant="outline" 
+              className="h-24 flex flex-col items-center justify-center space-y-2"
+              onClick={() => window.location.href = '/finances'}
+            >
               <TrendingUp className="w-6 h-6 text-orange-600" />
               <span>View Reports</span>
             </Button>
           </div>
         </main>
       </div>
+
+      {/* Dialog Components */}
+      <CreateBookingDialog 
+        open={isBookingDialogOpen} 
+        onOpenChange={setIsBookingDialogOpen} 
+      />
+      <CreatePropertyDialog 
+        open={isPropertyDialogOpen} 
+        onOpenChange={setIsPropertyDialogOpen} 
+      />
+      <CreateTaskDialog 
+        open={isTaskDialogOpen} 
+        onOpenChange={setIsTaskDialogOpen} 
+      />
     </div>
   );
 }
