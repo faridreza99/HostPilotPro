@@ -102,28 +102,36 @@ export default function DailyOperationsDashboard() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch daily operations summary
+  // Fetch daily operations summary (prioritized - loads first)
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useQuery<DailyOperationsSummary>({
     queryKey: ['/api/daily-operations/summary', selectedDate],
     enabled: !!selectedDate,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch staff assignments
+  // Fetch staff assignments (lazy load after summary)
   const { data: staffAssignments, isLoading: staffLoading } = useQuery<DailyStaffAssignments[]>({
     queryKey: ['/api/daily-operations/staff', selectedDate],
-    enabled: !!selectedDate,
+    enabled: !!selectedDate && !!summary,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch property operations
+  // Fetch property operations (lazy load after summary)
   const { data: propertyOps, isLoading: propertyLoading } = useQuery<DailyPropertyOperations[]>({
     queryKey: ['/api/daily-operations/properties', selectedDate],
-    enabled: !!selectedDate,
+    enabled: !!selectedDate && !!summary,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch tasks
+  // Fetch tasks (lazy load after summary)
   const { data: tasks, isLoading: tasksLoading } = useQuery<OperationsTask[]>({
     queryKey: ['/api/daily-operations/tasks', selectedDate],
-    enabled: !!selectedDate,
+    enabled: !!selectedDate && !!summary,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Refresh data mutation
@@ -220,10 +228,22 @@ export default function DailyOperationsDashboard() {
     );
   };
 
-  if (summaryLoading) {
+  // Improved loading states
+  const isInitialLoading = summaryLoading;
+  const isDataLoading = staffLoading || propertyLoading || tasksLoading;
+
+  if (isInitialLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+          <div className="h-96 bg-gray-200 rounded"></div>
+        </div>
       </div>
     );
   }
