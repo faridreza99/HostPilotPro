@@ -1,752 +1,682 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { 
+  Car, 
   Zap, 
   Droplets, 
   Wifi, 
+  Flame, 
+  Shield, 
   Plus, 
-  Upload, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
+  Download, 
+  Upload,
   Calendar,
   DollarSign,
-  FileText,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Building,
   Settings,
   Bell,
-  Archive,
-  Filter,
-  Download,
-  Eye,
-  Home,
-  Building,
-  Receipt,
-  CreditCard,
-  Trash2
+  FileText,
+  Eye
 } from "lucide-react";
 
-// Utility type schema
-const utilityTypeSchema = z.object({
-  type: z.string().min(1, "Utility type is required"),
-  provider: z.string().min(1, "Provider is required"),
-  accountNumber: z.string().min(1, "Account number is required"),
-  billArrivalDay: z.string().min(1, "Bill arrival day is required"),
-  contractPackage: z.string().optional(),
-  customTitle: z.string().optional(),
-});
+export default function UtilityTracker() {
+  const [selectedProperty, setSelectedProperty] = useState("all");
+  const [selectedUtilityType, setSelectedUtilityType] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState("current");
 
-// Bill upload schema
-const billUploadSchema = z.object({
-  propertyId: z.string().min(1, "Property is required"),
-  utilityType: z.string().min(1, "Utility type is required"),
-  amount: z.string().min(1, "Amount is required"),
-  billDate: z.string().min(1, "Bill date is required"),
-  dueDate: z.string().min(1, "Due date is required"),
-  notes: z.string().optional(),
-});
+  const properties = [
+    { id: 1, name: "Villa Samui Breeze", location: "Koh Samui" },
+    { id: 2, name: "Villa Tropical Paradise", location: "Phuket" },
+    { id: 3, name: "Villa Aruna", location: "Bali" },
+    { id: 4, name: "Villa Gala", location: "Krabi" }
+  ];
 
-type UtilityTypeData = z.infer<typeof utilityTypeSchema>;
-type BillUploadData = z.infer<typeof billUploadSchema>;
+  const utilityTypes = [
+    { id: "electricity", name: "Electricity", icon: Zap, color: "text-yellow-500" },
+    { id: "water", name: "Water", icon: Droplets, color: "text-blue-500" },
+    { id: "internet", name: "Internet", icon: Wifi, color: "text-green-500" },
+    { id: "gas", name: "Gas", icon: Flame, color: "text-orange-500" },
+    { id: "security", name: "Security", icon: Shield, color: "text-red-500" },
+    { id: "maintenance", name: "Maintenance", icon: Settings, color: "text-purple-500" }
+  ];
 
-function UtilityTracker() {
-  const [selectedTab, setSelectedTab] = useState("overview");
-  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [isBillUploadDialogOpen, setIsBillUploadDialogOpen] = useState(false);
-  const [selectedProperty, setSelectedProperty] = useState<any>(null);
-  const [selectedUtilityType, setSelectedUtilityType] = useState("");
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const { toast } = useToast();
-
-  // Fetch utilities overview
-  const { data: utilitiesOverview, isLoading: overviewLoading } = useQuery({
-    queryKey: ["/api/utilities-overview"],
-  });
-
-  // Fetch properties
-  const { data: properties, isLoading: propertiesLoading } = useQuery({
-    queryKey: ["/api/properties"],
-  });
-
-  // Fetch utility bills
-  const { data: utilityBills, isLoading: billsLoading } = useQuery({
-    queryKey: ["/api/utility-bills"],
-  });
-
-  // Fetch utility reminders
-  const { data: utilityReminders, isLoading: remindersLoading } = useQuery({
-    queryKey: ["/api/utility-reminders"],
-  });
-
-  // Upload bill mutation
-  const uploadBillMutation = useMutation({
-    mutationFn: async (data: BillUploadData & { file?: File }) => {
-      const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (key !== 'file' && value) {
-          formData.append(key, value);
-        }
-      });
-      if (data.file) {
-        formData.append('billFile', data.file);
-      }
-      return apiRequest("POST", "/api/utility-bills", formData);
+  const utilityBills = [
+    {
+      id: 1,
+      propertyId: 1,
+      type: "electricity",
+      provider: "PEA (Provincial Electricity Authority)",
+      accountNumber: "1234567890",
+      billDate: "2025-01-15",
+      dueDate: "2025-02-15",
+      amount: 3500,
+      currency: "THB",
+      status: "paid",
+      usage: "875 kWh",
+      period: "December 2024",
+      receiptUrl: "/receipts/villa1-electricity-jan2025.pdf"
     },
-    onSuccess: () => {
-      toast({
-        title: "Bill Uploaded",
-        description: "Utility bill uploaded successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/utility-bills"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/utilities-overview"] });
-      setIsBillUploadDialogOpen(false);
-      billForm.reset();
-      setUploadedFile(null);
+    {
+      id: 2,
+      propertyId: 1,
+      type: "water",
+      provider: "Samui Water Works",
+      accountNumber: "WAT-001234",
+      billDate: "2025-01-10",
+      dueDate: "2025-02-10",
+      amount: 890,
+      currency: "THB",
+      status: "paid",
+      usage: "45 m³",
+      period: "December 2024",
+      receiptUrl: "/receipts/villa1-water-jan2025.pdf"
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to upload bill",
-        variant: "destructive",
-      });
+    {
+      id: 3,
+      propertyId: 2,
+      type: "internet",
+      provider: "AIS Fiber",
+      accountNumber: "AIS-567890",
+      billDate: "2025-01-20",
+      dueDate: "2025-02-20",
+      amount: 1200,
+      currency: "THB",
+      status: "pending",
+      usage: "Unlimited",
+      period: "January 2025",
+      receiptUrl: null
     },
-  });
+    {
+      id: 4,
+      propertyId: 3,
+      type: "electricity",
+      provider: "PLN (Perusahaan Listrik Negara)",
+      accountNumber: "PLN-789012",
+      billDate: "2025-01-12",
+      dueDate: "2025-02-12",
+      amount: 2800,
+      currency: "IDR",
+      status: "overdue",
+      usage: "690 kWh",
+      period: "December 2024",
+      receiptUrl: null
+    },
+    {
+      id: 5,
+      propertyId: 1,
+      type: "gas",
+      provider: "PTT Gas",
+      accountNumber: "GAS-345678",
+      billDate: "2025-01-08",
+      dueDate: "2025-02-08",
+      amount: 650,
+      currency: "THB",
+      status: "paid",
+      usage: "25 kg",
+      period: "December 2024",
+      receiptUrl: "/receipts/villa1-gas-jan2025.pdf"
+    }
+  ];
 
-  // Mark bill as paid mutation
-  const markPaidMutation = useMutation({
-    mutationFn: async ({ billId, receiptFile }: { billId: number; receiptFile?: File }) => {
-      const formData = new FormData();
-      formData.append('status', 'paid');
-      if (receiptFile) {
-        formData.append('receiptFile', receiptFile);
-      }
-      return apiRequest("PUT", `/api/utility-bills/${billId}`, formData);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Payment Confirmed",
-        description: "Bill marked as paid successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/utility-bills"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/utilities-overview"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to mark bill as paid",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Configure utility mutation
-  const configureUtilityMutation = useMutation({
-    mutationFn: async (data: { propertyId: number; utilities: UtilityTypeData[] }) => {
-      return apiRequest("POST", "/api/property-utilities", data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Utilities Configured",
-        description: "Property utilities configured successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/utilities-overview"] });
-      setIsSettingsDialogOpen(false);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to configure utilities",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const billForm = useForm<BillUploadData>({
-    resolver: zodResolver(billUploadSchema),
-    defaultValues: {
-      propertyId: "",
-      utilityType: "",
-      amount: "",
-      billDate: "",
-      dueDate: "",
-      notes: "",
-    },
-  });
-
-  const onUploadBill = (data: BillUploadData) => {
-    uploadBillMutation.mutate({ ...data, file: uploadedFile || undefined });
+  const monthlyStats = {
+    totalAmount: 8940,
+    paidAmount: 6340,
+    pendingAmount: 1200,
+    overdueAmount: 1400,
+    billCount: 15,
+    averagePerProperty: 2235
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setUploadedFile(file);
+  const formatCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency
+    }).format(amount);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "paid": return "bg-green-100 text-green-800";
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "overdue": return "bg-red-100 text-red-800";
+      case "processing": return "bg-blue-100 text-blue-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getStatusBadge = (status: string, dueDate?: string) => {
-    const isOverdue = dueDate && new Date(dueDate) < new Date();
-    
-    if (status === "paid") {
-      return <Badge className="bg-green-500 text-white">Paid</Badge>;
-    } else if (isOverdue) {
-      return <Badge className="bg-red-500 text-white">Overdue</Badge>;
-    } else if (status === "uploaded") {
-      return <Badge className="bg-blue-500 text-white">Pending Payment</Badge>;
-    } else {
-      return <Badge className="bg-yellow-500 text-white">Awaiting Bill</Badge>;
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "paid": return CheckCircle;
+      case "pending": return Clock;
+      case "overdue": return AlertTriangle;
+      default: return Clock;
     }
   };
 
-  const getUtilityIcon = (type: string) => {
-    switch (type.toLowerCase()) {
-      case "electricity":
-        return <Zap className="h-5 w-5 text-yellow-500" />;
-      case "water":
-        return <Droplets className="h-5 w-5 text-blue-500" />;
-      case "internet":
-        return <Wifi className="h-5 w-5 text-purple-500" />;
-      default:
-        return <Home className="h-5 w-5 text-gray-500" />;
-    }
-  };
+  const filteredBills = utilityBills.filter(bill => {
+    if (selectedProperty !== "all" && bill.propertyId !== parseInt(selectedProperty)) return false;
+    if (selectedUtilityType !== "all" && bill.type !== selectedUtilityType) return false;
+    return true;
+  });
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Car className="w-8 h-8" />
             Utility Tracker
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Track electricity, water, internet, and custom utility bills across all properties
-          </p>
+          <p className="text-gray-600">Track utility bills, usage, and payments across all properties</p>
         </div>
-
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Home className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="bills" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Bills & Payments
-            </TabsTrigger>
-            <TabsTrigger value="reminders" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              Reminders
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center gap-2">
-              <Archive className="h-4 w-4" />
-              Reports
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Properties Utility Overview</h2>
-              <div className="flex gap-2">
-                <Dialog open={isBillUploadDialogOpen} onOpenChange={setIsBillUploadDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="flex items-center gap-2">
-                      <Upload className="h-4 w-4" />
-                      Upload Bill
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Upload Utility Bill</DialogTitle>
-                      <DialogDescription>
-                        Upload a new utility bill and payment details
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    <Form {...billForm}>
-                      <form onSubmit={billForm.handleSubmit(onUploadBill)} className="space-y-4">
-                        <FormField
-                          control={billForm.control}
-                          name="propertyId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Property</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select property" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {properties?.map((property: any) => (
-                                    <SelectItem key={property.id} value={property.id.toString()}>
-                                      {property.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={billForm.control}
-                          name="utilityType"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Utility Type</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select utility type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="electricity">Electricity</SelectItem>
-                                  <SelectItem value="water">Water</SelectItem>
-                                  <SelectItem value="internet">Internet</SelectItem>
-                                  <SelectItem value="gas">Gas</SelectItem>
-                                  <SelectItem value="pest_control">Pest Control</SelectItem>
-                                  <SelectItem value="residence_fee">Residence Fee</SelectItem>
-                                  <SelectItem value="other">Other</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={billForm.control}
-                          name="amount"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Amount (THB)</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={billForm.control}
-                            name="billDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Bill Date</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={billForm.control}
-                            name="dueDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Due Date</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Bill File</label>
-                          <Input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={handleFileUpload}
-                            className="cursor-pointer"
-                          />
-                          {uploadedFile && (
-                            <p className="text-sm text-gray-600 mt-1">
-                              Selected: {uploadedFile.name}
-                            </p>
-                          )}
-                        </div>
-
-                        <FormField
-                          control={billForm.control}
-                          name="notes"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Notes (Optional)</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="Additional notes about this bill..."
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsBillUploadDialogOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            type="submit"
-                            disabled={uploadBillMutation.isPending}
-                          >
-                            {uploadBillMutation.isPending ? "Uploading..." : "Upload Bill"}
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
-
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Configure Utilities
-                </Button>
-              </div>
-            </div>
-
-            {overviewLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Clock className="h-6 w-6 animate-spin mr-2" />
-                Loading utilities overview...
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {properties?.map((property: any) => (
-                  <Card key={property.id}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2">
-                        <Building className="h-5 w-5" />
-                        {property.name}
-                      </CardTitle>
-                      <CardDescription>
-                        {property.bedrooms} bed • {property.bathrooms} bath
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Demo utility data */}
-                      {[
-                        { type: "electricity", provider: "PEA", amount: "3,200", status: "paid", dueDate: "2024-01-15" },
-                        { type: "water", provider: "Local Authority", amount: "450", status: "uploaded", dueDate: "2024-01-20" },
-                        { type: "internet", provider: "AIS Fiber", amount: "1,200", status: "awaiting", dueDate: "2024-01-25" },
-                      ].map((utility, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            {getUtilityIcon(utility.type)}
-                            <div>
-                              <p className="font-medium capitalize">{utility.type}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{utility.provider}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold">₿{utility.amount}</p>
-                            {getStatusBadge(utility.status, utility.dueDate)}
-                          </div>
-                        </div>
+        <div className="flex items-center gap-3">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Bill
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Upload Utility Bill</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Property</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select property" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {properties.map(property => (
+                        <SelectItem key={property.id} value={property.id.toString()}>
+                          {property.name}
+                        </SelectItem>
                       ))}
-                    </CardContent>
-                  </Card>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Utility Type</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {utilityTypes.map(type => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Bill Amount</Label>
+                  <Input type="number" placeholder="Enter amount" />
+                </div>
+                <div>
+                  <Label>Due Date</Label>
+                  <Input type="date" />
+                </div>
+                <div>
+                  <Label>Upload Receipt</Label>
+                  <Input type="file" accept=".pdf,.jpg,.png" />
+                </div>
+                <Button className="w-full">Upload Bill</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </Button>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Utility Account
+          </Button>
+        </div>
+      </div>
+
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="bills">Bills</TabsTrigger>
+          <TabsTrigger value="accounts">Accounts</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="alerts">Alerts</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Monthly</p>
+                    <p className="text-2xl font-bold">{formatCurrency(monthlyStats.totalAmount, 'THB')}</p>
+                  </div>
+                  <DollarSign className="w-8 h-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Paid Bills</p>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(monthlyStats.paidAmount, 'THB')}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">{formatCurrency(monthlyStats.pendingAmount, 'THB')}</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-yellow-500" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Overdue</p>
+                    <p className="text-2xl font-bold text-red-600">{formatCurrency(monthlyStats.overdueAmount, 'THB')}</p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Utility Types Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {utilityTypes.map((type) => {
+              const IconComponent = type.icon;
+              const typeBills = utilityBills.filter(bill => bill.type === type.id);
+              const totalAmount = typeBills.reduce((sum, bill) => sum + bill.amount, 0);
+              
+              return (
+                <Card key={type.id}>
+                  <CardContent className="p-4 text-center">
+                    <IconComponent className={`w-8 h-8 mx-auto mb-2 ${type.color}`} />
+                    <p className="font-medium text-sm">{type.name}</p>
+                    <p className="text-xs text-gray-600">{typeBills.length} bills</p>
+                    <p className="text-sm font-bold mt-1">{formatCurrency(totalAmount, 'THB')}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Recent Bills */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Bills</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {utilityBills.slice(0, 5).map((bill) => {
+                  const property = properties.find(p => p.id === bill.propertyId);
+                  const utilityType = utilityTypes.find(t => t.id === bill.type);
+                  const StatusIcon = getStatusIcon(bill.status);
+                  const UtilityIcon = utilityType?.icon || Car;
+                  
+                  return (
+                    <div key={bill.id} className="flex items-center justify-between p-3 border rounded">
+                      <div className="flex items-center gap-3">
+                        <UtilityIcon className={`w-5 h-5 ${utilityType?.color}`} />
+                        <div>
+                          <p className="font-medium">{property?.name}</p>
+                          <p className="text-sm text-gray-600">{utilityType?.name} • {bill.period}</p>
+                          <p className="text-xs text-gray-500">{bill.provider}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-2 mb-1">
+                          <StatusIcon className="w-4 h-4" />
+                          <Badge className={getStatusColor(bill.status)}>
+                            {bill.status}
+                          </Badge>
+                        </div>
+                        <p className="font-bold">{formatCurrency(bill.amount, bill.currency)}</p>
+                        <p className="text-xs text-gray-500">Due: {bill.dueDate}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bills" className="space-y-6">
+          {/* Filters */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Properties" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Properties</SelectItem>
+                    {properties.map(property => (
+                      <SelectItem key={property.id} value={property.id.toString()}>
+                        {property.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedUtilityType} onValueChange={setSelectedUtilityType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Utilities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Utilities</SelectItem>
+                    {utilityTypes.map(type => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Current Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">Current Month</SelectItem>
+                    <SelectItem value="last">Last Month</SelectItem>
+                    <SelectItem value="last3">Last 3 Months</SelectItem>
+                    <SelectItem value="year">This Year</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button>Apply Filters</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Bills List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Utility Bills ({filteredBills.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {filteredBills.map((bill) => {
+                  const property = properties.find(p => p.id === bill.propertyId);
+                  const utilityType = utilityTypes.find(t => t.id === bill.type);
+                  const StatusIcon = getStatusIcon(bill.status);
+                  const UtilityIcon = utilityType?.icon || Car;
+                  
+                  return (
+                    <div key={bill.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <UtilityIcon className={`w-6 h-6 ${utilityType?.color}`} />
+                          <div>
+                            <h4 className="font-medium">{property?.name}</h4>
+                            <p className="text-sm text-gray-600">{utilityType?.name} Bill</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusIcon className="w-5 h-5" />
+                          <Badge className={getStatusColor(bill.status)}>
+                            {bill.status}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Provider</p>
+                          <p className="font-medium">{bill.provider}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Period</p>
+                          <p className="font-medium">{bill.period}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Usage</p>
+                          <p className="font-medium">{bill.usage}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Amount</p>
+                          <p className="font-bold text-lg">{formatCurrency(bill.amount, bill.currency)}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                        <div className="text-sm text-gray-500">
+                          Due: {bill.dueDate} • Account: {bill.accountNumber}
+                        </div>
+                        <div className="flex gap-2">
+                          {bill.receiptUrl && (
+                            <Button variant="outline" size="sm">
+                              <Eye className="w-4 h-4 mr-1" />
+                              View Receipt
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm">
+                            <FileText className="w-4 h-4 mr-1" />
+                            Mark Paid
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="accounts" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Utility Accounts Setup</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {properties.map((property) => (
+                  <div key={property.id} className="border rounded-lg p-4">
+                    <h4 className="font-medium mb-3">{property.name}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {utilityTypes.map((type) => {
+                        const IconComponent = type.icon;
+                        return (
+                          <div key={type.id} className="flex items-center justify-between p-2 border rounded">
+                            <div className="flex items-center gap-2">
+                              <IconComponent className={`w-4 h-4 ${type.color}`} />
+                              <span className="text-sm">{type.name}</span>
+                            </div>
+                            <Button variant="outline" size="sm">Setup</Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
               </div>
-            )}
-          </TabsContent>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          {/* Bills & Payments Tab */}
-          <TabsContent value="bills" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Bills & Payments</h2>
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  Filter
-                </Button>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </div>
-            </div>
-
-            {billsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Clock className="h-6 w-6 animate-spin mr-2" />
-                Loading bills...
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="border-b bg-gray-50 dark:bg-gray-800">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Property</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Utility</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Amount</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Due Date</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {/* Demo bill data */}
-                        {[
-                          { 
-                            id: 1,
-                            property: "Villa Moonlight", 
-                            utility: "Electricity", 
-                            provider: "PEA",
-                            amount: "3,200", 
-                            dueDate: "2024-01-15", 
-                            status: "uploaded",
-                            billFile: "electricity_dec_2023.pdf"
-                          },
-                          { 
-                            id: 2,
-                            property: "Villa Sunshine", 
-                            utility: "Water", 
-                            provider: "Local Authority",
-                            amount: "450", 
-                            dueDate: "2024-01-20", 
-                            status: "paid",
-                            billFile: "water_dec_2023.pdf"
-                          },
-                          { 
-                            id: 3,
-                            property: "Villa Paradise", 
-                            utility: "Internet", 
-                            provider: "AIS Fiber",
-                            amount: "1,200", 
-                            dueDate: "2024-01-25", 
-                            status: "awaiting",
-                            billFile: null
-                          },
-                        ].map((bill) => (
-                          <tr key={bill.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <td className="px-4 py-3">
-                              <div>
-                                <p className="font-medium">{bill.property}</p>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                {getUtilityIcon(bill.utility)}
-                                <div>
-                                  <p className="font-medium">{bill.utility}</p>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">{bill.provider}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="font-semibold">₿{bill.amount}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-gray-400" />
-                                {new Date(bill.dueDate).toLocaleDateString()}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              {getStatusBadge(bill.status, bill.dueDate)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                {bill.billFile && (
-                                  <Button size="sm" variant="outline">
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    View
-                                  </Button>
-                                )}
-                                {bill.status === "uploaded" && (
-                                  <Button 
-                                    size="sm"
-                                    onClick={() => markPaidMutation.mutate({ billId: bill.id })}
-                                    className="bg-green-600 hover:bg-green-700"
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Mark Paid
-                                  </Button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Trends</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>January 2025</span>
+                    <span className="font-bold">{formatCurrency(8940, 'THB')}</span>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Reminders Tab */}
-          <TabsContent value="reminders" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
-                  Active Reminders
-                </CardTitle>
-                <CardDescription>
-                  Automated notifications for overdue and missing bills
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Demo reminder data */}
-                  {[
-                    {
-                      id: 1,
-                      property: "Villa Moonlight",
-                      utility: "Electricity",
-                      type: "overdue",
-                      days: 3,
-                      expectedDate: "2024-01-14",
-                      message: "Bill expected 3 days ago"
-                    },
-                    {
-                      id: 2,
-                      property: "Villa Paradise",
-                      utility: "Water",
-                      type: "due_soon",
-                      days: 2,
-                      expectedDate: "2024-01-18",
-                      message: "Bill expected in 2 days"
-                    }
-                  ].map((reminder) => (
-                    <div key={reminder.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${
-                          reminder.type === 'overdue' ? 'bg-red-500' : 'bg-yellow-500'
-                        }`} />
-                        <div>
-                          <p className="font-medium">{reminder.property} - {reminder.utility}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{reminder.message}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={reminder.type === 'overdue' ? 'destructive' : 'default'}>
-                          {reminder.type === 'overdue' ? 'Overdue' : 'Due Soon'}
-                        </Badge>
-                        <Button size="sm" variant="outline">
-                          <Upload className="h-4 w-4 mr-1" />
-                          Upload
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                  <div className="flex justify-between">
+                    <span>December 2024</span>
+                    <span className="font-bold">{formatCurrency(8230, 'THB')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>November 2024</span>
+                    <span className="font-bold">{formatCurrency(7890, 'THB')}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Reports Tab */}
-          <TabsContent value="reports" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Monthly Expenses</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600 mb-2">₿45,250</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">This month</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Pending Bills</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-yellow-600 mb-2">12</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Awaiting upload</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Overdue Bills</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-red-600 mb-2">3</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Need attention</p>
-                </CardContent>
-              </Card>
-            </div>
 
             <Card>
               <CardHeader>
-                <CardTitle>Utility Expense Breakdown</CardTitle>
-                <CardDescription>Monthly expenses by utility type</CardDescription>
+                <CardTitle>Cost by Utility Type</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {[
-                    { type: "Electricity", amount: "28,500", percentage: 63, color: "bg-yellow-500" },
-                    { type: "Water", amount: "8,200", percentage: 18, color: "bg-blue-500" },
-                    { type: "Internet", amount: "6,400", percentage: 14, color: "bg-purple-500" },
-                    { type: "Other", amount: "2,150", percentage: 5, color: "bg-gray-500" },
-                  ].map((item) => (
-                    <div key={item.type} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-4 h-4 rounded ${item.color}`} />
-                        <span className="font-medium">{item.type}</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${item.color}`}
-                            style={{ width: `${item.percentage}%` }}
-                          />
+                <div className="space-y-3">
+                  {utilityTypes.map((type) => {
+                    const typeBills = utilityBills.filter(bill => bill.type === type.id);
+                    const totalAmount = typeBills.reduce((sum, bill) => sum + bill.amount, 0);
+                    const IconComponent = type.icon;
+                    
+                    return (
+                      <div key={type.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <IconComponent className={`w-4 h-4 ${type.color}`} />
+                          <span className="text-sm">{type.name}</span>
                         </div>
-                        <span className="font-semibold w-20 text-right">₿{item.amount}</span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400 w-12 text-right">{item.percentage}%</span>
+                        <span className="font-medium">{formatCurrency(totalAmount, 'THB')}</span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bill Alerts & Notifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 border border-red-200 rounded bg-red-50">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                    <div>
+                      <p className="font-medium text-red-800">Overdue Bill</p>
+                      <p className="text-sm text-red-600">Villa Aruna electricity bill is 5 days overdue</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline">Review</Button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 border border-yellow-200 rounded bg-yellow-50">
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-yellow-500" />
+                    <div>
+                      <p className="font-medium text-yellow-800">Due Soon</p>
+                      <p className="text-sm text-yellow-600">Villa Tropical Paradise internet bill due in 3 days</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline">Pay Now</Button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 border border-blue-200 rounded bg-blue-50">
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-5 h-5 text-blue-500" />
+                    <div>
+                      <p className="font-medium text-blue-800">New Bill Received</p>
+                      <p className="text-sm text-blue-600">Villa Samui Breeze water bill for January 2025</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline">View</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Email Notifications</p>
+                    <p className="text-sm text-gray-600">Receive email alerts for due bills</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">SMS Notifications</p>
+                    <p className="text-sm text-gray-600">Get SMS alerts for overdue bills</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Auto-pay Reminders</p>
+                    <p className="text-sm text-gray-600">Reminders 7 days before due date</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+
+                <div>
+                  <Label>Default Currency</Label>
+                  <Select defaultValue="THB">
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="THB">THB</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="IDR">IDR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button>Save Settings</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
-
-// [MERGED] This module has been consolidated into EnhancedUtilityTracker.tsx
-// Basic utility tracking functionality is now available in the comprehensive utility management system
-export default UtilityTracker;

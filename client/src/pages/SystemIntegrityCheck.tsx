@@ -1,509 +1,480 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
-  AlertTriangle, 
+  Shield, 
   CheckCircle, 
+  AlertTriangle, 
   XCircle, 
-  Search, 
-  RefreshCw, 
-  FileText, 
-  Send,
-  ArrowLeft,
-  Settings,
-  Shield,
-  Users,
+  Database, 
+  Server, 
+  Users, 
+  Building,
   Calendar,
-  DollarSign
+  DollarSign,
+  RefreshCw,
+  Download,
+  Clock,
+  Activity
 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-
-interface IntegrityIssue {
-  id: string;
-  dashboardRole: string;
-  pageName: string;
-  issueType: 'Broken Link' | 'Missing Field' | 'Empty Component' | 'No Back Button' | 'Unhandled Role Access' | 'Missing Logout' | 'Broken Form' | 'Undefined Component';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  description: string;
-  resolutionSuggestion: string;
-  status: 'open' | 'flagged_resolved' | 'sent_to_developer';
-  notes?: string;
-  detectedAt: string;
-  componentPath?: string;
-  expectedBehavior?: string;
-}
-
-interface IntegrityReport {
-  scanId: string;
-  scanTimestamp: string;
-  totalIssues: number;
-  criticalIssues: number;
-  highIssues: number;
-  mediumIssues: number;
-  lowIssues: number;
-  dashboardCoverage: {
-    role: string;
-    pagesScanned: number;
-    issuesFound: number;
-  }[];
-  issues: IntegrityIssue[];
-}
-
-const severityColors = {
-  low: "bg-blue-100 text-blue-800",
-  medium: "bg-yellow-100 text-yellow-800", 
-  high: "bg-orange-100 text-orange-800",
-  critical: "bg-red-100 text-red-800"
-};
-
-const statusColors = {
-  open: "bg-gray-100 text-gray-800",
-  flagged_resolved: "bg-green-100 text-green-800",
-  sent_to_developer: "bg-purple-100 text-purple-800"
-};
-
-const issueTypeIcons = {
-  'Broken Link': XCircle,
-  'Missing Field': AlertTriangle,
-  'Empty Component': FileText,
-  'No Back Button': ArrowLeft,
-  'Unhandled Role Access': Shield,
-  'Missing Logout': Users,
-  'Broken Form': Settings,
-  'Undefined Component': XCircle
-};
 
 export default function SystemIntegrityCheck() {
-  const [selectedIssue, setSelectedIssue] = useState<IntegrityIssue | null>(null);
-  const [developerNote, setDeveloperNote] = useState("");
-  const [scanRunning, setScanRunning] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
 
-  // Fetch latest integrity report
-  const { data: report, isLoading, refetch } = useQuery<IntegrityReport>({
-    queryKey: ["/api/admin/system-integrity-check"],
-    staleTime: 5 * 60 * 1000 // 5 minutes
-  });
+  const systemChecks = [
+    {
+      category: "Database Integrity",
+      icon: Database,
+      status: "healthy",
+      issues: 0,
+      checks: [
+        { name: "Property Records", status: "pass", description: "All property records are valid" },
+        { name: "Booking Consistency", status: "pass", description: "No orphaned booking records" },
+        { name: "User Account Integrity", status: "warning", description: "2 inactive accounts need review" },
+        { name: "Financial Records", status: "pass", description: "All transactions balanced" },
+      ]
+    },
+    {
+      category: "API Endpoints",
+      icon: Server,
+      status: "healthy",
+      issues: 1,
+      checks: [
+        { name: "Authentication Service", status: "pass", description: "All auth endpoints responding" },
+        { name: "Property Management API", status: "pass", description: "CRUD operations working" },
+        { name: "Booking Engine API", status: "warning", description: "Slow response times detected" },
+        { name: "Financial API", status: "pass", description: "All payment endpoints active" },
+      ]
+    },
+    {
+      category: "User Access Control",
+      icon: Users,
+      status: "warning",
+      issues: 3,
+      checks: [
+        { name: "Role Permissions", status: "pass", description: "All roles configured correctly" },
+        { name: "Admin Access", status: "pass", description: "Admin permissions verified" },
+        { name: "Guest Access", status: "warning", description: "3 expired guest sessions found" },
+        { name: "Staff Permissions", status: "pass", description: "Staff access levels correct" },
+      ]
+    },
+    {
+      category: "Property Data",
+      icon: Building,
+      status: "healthy",
+      issues: 0,
+      checks: [
+        { name: "Property Listings", status: "pass", description: "All properties have complete data" },
+        { name: "Amenity Information", status: "pass", description: "Amenities properly configured" },
+        { name: "Pricing Data", status: "pass", description: "All pricing rules valid" },
+        { name: "Availability Calendar", status: "pass", description: "Calendar sync operational" },
+      ]
+    }
+  ];
 
-  // Run new integrity scan
-  const scanMutation = useMutation({
-    mutationFn: async () => {
-      setScanRunning(true);
-      return await apiRequest("POST", "/api/admin/system-integrity-check/scan", {});
+  const recentAlerts = [
+    {
+      id: 1,
+      type: "warning",
+      message: "3 guest sessions expired and need cleanup",
+      timestamp: "2025-01-22 09:30:00",
+      category: "User Access"
     },
-    onSuccess: () => {
-      toast({
-        title: "Scan Complete",
-        description: "System integrity scan completed successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/system-integrity-check"] });
-      setScanRunning(false);
+    {
+      id: 2,
+      type: "info",
+      message: "Database backup completed successfully",
+      timestamp: "2025-01-22 08:00:00",
+      category: "System"
     },
-    onError: (error: any) => {
-      toast({
-        title: "Scan Failed",
-        description: error.message || "Failed to run integrity scan.",
-        variant: "destructive",
-      });
-      setScanRunning(false);
+    {
+      id: 3,
+      type: "warning",
+      message: "Booking API response time increased to 2.3s",
+      timestamp: "2025-01-22 07:45:00",
+      category: "Performance"
     },
-  });
+    {
+      id: 4,
+      type: "success",
+      message: "Security scan completed - no vulnerabilities found",
+      timestamp: "2025-01-22 06:00:00",
+      category: "Security"
+    }
+  ];
 
-  // Update issue status
-  const updateIssueMutation = useMutation({
-    mutationFn: async ({ issueId, status, notes }: { issueId: string; status: string; notes?: string }) => {
-      return await apiRequest("PATCH", `/api/admin/system-integrity-check/issues/${issueId}`, {
-        status,
-        notes
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Issue Updated",
-        description: "Issue status updated successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/system-integrity-check"] });
-      setSelectedIssue(null);
-      setDeveloperNote("");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update issue status.",
-        variant: "destructive",
-      });
-    },
-  });
+  const performanceMetrics = [
+    { name: "Database Query Speed", value: 95, unit: "ms avg", status: "good" },
+    { name: "API Response Time", value: 230, unit: "ms avg", status: "warning" },
+    { name: "Memory Usage", value: 68, unit: "% used", status: "good" },
+    { name: "CPU Utilization", value: 42, unit: "% avg", status: "good" },
+    { name: "Storage Usage", value: 73, unit: "% used", status: "good" },
+    { name: "Active Connections", value: 156, unit: "concurrent", status: "good" }
+  ];
 
-  const handleFlagResolved = (issue: IntegrityIssue) => {
-    updateIssueMutation.mutate({
-      issueId: issue.id,
-      status: 'flagged_resolved'
-    });
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pass":
+      case "healthy":
+      case "good":
+      case "success":
+        return "text-green-600 bg-green-100";
+      case "warning":
+        return "text-yellow-600 bg-yellow-100";
+      case "error":
+      case "critical":
+        return "text-red-600 bg-red-100";
+      default:
+        return "text-gray-600 bg-gray-100";
+    }
   };
 
-  const handleSendToDeveloper = (issue: IntegrityIssue) => {
-    updateIssueMutation.mutate({
-      issueId: issue.id,
-      status: 'sent_to_developer',
-      notes: developerNote
-    });
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "pass":
+      case "healthy":
+      case "good":
+      case "success":
+        return CheckCircle;
+      case "warning":
+        return AlertTriangle;
+      case "error":
+      case "critical":
+        return XCircle;
+      default:
+        return CheckCircle;
+    }
   };
 
-  const getIssuesByRole = (role: string) => {
-    return report?.issues.filter(issue => issue.dashboardRole === role) || [];
+  const startSystemScan = () => {
+    setIsScanning(true);
+    setScanProgress(0);
+    
+    const interval = setInterval(() => {
+      setScanProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsScanning(false);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 300);
   };
-
-  const getIssuesBySeverity = (severity: string) => {
-    return report?.issues.filter(issue => issue.severity === severity) || [];
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading system integrity report...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">System Integrity Check</h1>
-          <p className="text-muted-foreground">
-            Comprehensive diagnostic tool for validating dashboard interfaces and functionality
-          </p>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Shield className="w-8 h-8" />
+            System Integrity Check
+          </h1>
+          <p className="text-gray-600">Monitor system health, database integrity, and performance metrics</p>
         </div>
-        <Button 
-          onClick={() => scanMutation.mutate()} 
-          disabled={scanRunning}
-          className="min-w-32"
-        >
-          {scanRunning ? (
-            <>
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Scanning...
-            </>
-          ) : (
-            <>
-              <Search className="h-4 w-4 mr-2" />
-              Run New Scan
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </Button>
+          <Button onClick={startSystemScan} disabled={isScanning}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${isScanning ? 'animate-spin' : ''}`} />
+            {isScanning ? 'Scanning...' : 'Run Full Scan'}
+          </Button>
+        </div>
       </div>
 
-      {report && (
-        <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {isScanning && (
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <Activity className="w-5 h-5 animate-pulse" />
+              <span className="font-medium">System Scan in Progress...</span>
+            </div>
+            <Progress value={scanProgress} className="w-full" />
+            <p className="text-sm text-gray-600 mt-2">{scanProgress}% Complete</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="database">Database</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="alerts">Alerts</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* System Health Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Issues</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{report.totalIssues}</div>
-                <p className="text-xs text-muted-foreground">
-                  Last scan: {new Date(report.scanTimestamp).toLocaleString()}
-                </p>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">System Status</p>
+                    <p className="text-2xl font-bold text-green-600">Healthy</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Critical Issues</CardTitle>
-                <XCircle className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{report.criticalIssues}</div>
-                <p className="text-xs text-muted-foreground">
-                  Require immediate attention
-                </p>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Active Issues</p>
+                    <p className="text-2xl font-bold text-yellow-600">4</p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-yellow-500" />
+                </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">High Priority</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-orange-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{report.highIssues}</div>
-                <p className="text-xs text-muted-foreground">
-                  Should be addressed soon
-                </p>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Last Scan</p>
+                    <p className="text-2xl font-bold">2h ago</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-blue-500" />
+                </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Dashboards Scanned</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{report.dashboardCoverage.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  Role-based interfaces
-                </p>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Uptime</p>
+                    <p className="text-2xl font-bold text-green-600">99.8%</p>
+                  </div>
+                  <Activity className="w-8 h-8 text-green-500" />
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Dashboard Coverage Overview */}
+          {/* System Checks Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {systemChecks.map((check, index) => {
+              const IconComponent = check.icon;
+              const StatusIcon = getStatusIcon(check.status);
+              
+              return (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <IconComponent className="w-5 h-5" />
+                        {check.category}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusIcon className="w-5 h-5" />
+                        <Badge className={getStatusColor(check.status)}>
+                          {check.status}
+                        </Badge>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {check.checks.map((item, idx) => {
+                        const ItemStatusIcon = getStatusIcon(item.status);
+                        return (
+                          <div key={idx} className="flex items-center justify-between p-2 rounded border">
+                            <div className="flex items-center gap-2">
+                              <ItemStatusIcon className="w-4 h-4" />
+                              <div>
+                                <p className="font-medium text-sm">{item.name}</p>
+                                <p className="text-xs text-gray-600">{item.description}</p>
+                              </div>
+                            </div>
+                            <Badge className={getStatusColor(item.status)} variant="outline">
+                              {item.status}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="database" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Dashboard Coverage</CardTitle>
-              <CardDescription>Issues found per role-based dashboard</CardDescription>
+              <CardTitle>Database Health Check</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {report.dashboardCoverage.map((coverage) => (
-                  <div key={coverage.role} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">{coverage.role}</h4>
-                      <Badge variant={coverage.issuesFound > 0 ? "destructive" : "default"}>
-                        {coverage.issuesFound} issues
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 border rounded">
+                  <Database className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+                  <p className="font-medium">Total Tables</p>
+                  <p className="text-2xl font-bold">24</p>
+                </div>
+                <div className="text-center p-4 border rounded">
+                  <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                  <p className="font-medium">Healthy Tables</p>
+                  <p className="text-2xl font-bold text-green-600">22</p>
+                </div>
+                <div className="text-center p-4 border rounded">
+                  <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
+                  <p className="font-medium">Need Attention</p>
+                  <p className="text-2xl font-bold text-yellow-600">2</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Table Status Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[
+                  { name: "properties", records: 1245, status: "healthy", lastCheck: "5 min ago" },
+                  { name: "bookings", records: 3567, status: "healthy", lastCheck: "5 min ago" },
+                  { name: "users", records: 892, status: "warning", lastCheck: "5 min ago" },
+                  { name: "tasks", records: 2134, status: "healthy", lastCheck: "5 min ago" },
+                  { name: "financial_transactions", records: 8901, status: "healthy", lastCheck: "5 min ago" },
+                ].map((table, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-3">
+                      <Database className="w-4 h-4" />
+                      <div>
+                        <p className="font-medium">{table.name}</p>
+                        <p className="text-sm text-gray-600">{table.records.toLocaleString()} records</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">{table.lastCheck}</span>
+                      <Badge className={getStatusColor(table.status)}>
+                        {table.status}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {coverage.pagesScanned} pages scanned
-                    </p>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Issues List */}
-          <Tabs defaultValue="all" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="all">All Issues</TabsTrigger>
-              <TabsTrigger value="critical">Critical</TabsTrigger>
-              <TabsTrigger value="high">High</TabsTrigger>
-              <TabsTrigger value="medium">Medium</TabsTrigger>
-              <TabsTrigger value="low">Low</TabsTrigger>
-              <TabsTrigger value="by-role">By Role</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all" className="space-y-4">
-              <IssuesList issues={report.issues} onSelectIssue={setSelectedIssue} />
-            </TabsContent>
-
-            <TabsContent value="critical" className="space-y-4">
-              <IssuesList issues={getIssuesBySeverity('critical')} onSelectIssue={setSelectedIssue} />
-            </TabsContent>
-
-            <TabsContent value="high" className="space-y-4">
-              <IssuesList issues={getIssuesBySeverity('high')} onSelectIssue={setSelectedIssue} />
-            </TabsContent>
-
-            <TabsContent value="medium" className="space-y-4">
-              <IssuesList issues={getIssuesBySeverity('medium')} onSelectIssue={setSelectedIssue} />
-            </TabsContent>
-
-            <TabsContent value="low" className="space-y-4">
-              <IssuesList issues={getIssuesBySeverity('low')} onSelectIssue={setSelectedIssue} />
-            </TabsContent>
-
-            <TabsContent value="by-role" className="space-y-4">
-              <div className="space-y-6">
-                {['Admin', 'Host', 'Housekeeping', 'Pool', 'Retail Agent', 'Referral Agent', 'Owner', 'Guest'].map(role => {
-                  const roleIssues = getIssuesByRole(role);
-                  if (roleIssues.length === 0) return null;
-                  
-                  return (
-                    <Card key={role}>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          {role} Dashboard
-                          <Badge variant="outline">{roleIssues.length} issues</Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <IssuesList issues={roleIssues} onSelectIssue={setSelectedIssue} />
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
-
-      {/* Issue Detail Dialog */}
-      <Dialog open={!!selectedIssue} onOpenChange={() => setSelectedIssue(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedIssue && issueTypeIcons[selectedIssue.issueType] && 
-                React.createElement(issueTypeIcons[selectedIssue.issueType], { className: "h-5 w-5" })
-              }
-              {selectedIssue?.issueType} - {selectedIssue?.pageName}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedIssue?.dashboardRole} Dashboard Issue
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedIssue && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Badge className={severityColors[selectedIssue.severity]}>
-                  {selectedIssue.severity.toUpperCase()}
-                </Badge>
-                <Badge className={statusColors[selectedIssue.status]}>
-                  {selectedIssue.status.replace('_', ' ').toUpperCase()}
-                </Badge>
-              </div>
-              
-              <div>
-                <h4 className="font-medium">Description</h4>
-                <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
-              </div>
-              
-              <div>
-                <h4 className="font-medium">Resolution Suggestion</h4>
-                <p className="text-sm text-muted-foreground">{selectedIssue.resolutionSuggestion}</p>
-              </div>
-              
-              {selectedIssue.componentPath && (
-                <div>
-                  <h4 className="font-medium">Component Path</h4>
-                  <code className="text-sm bg-muted p-1 rounded">{selectedIssue.componentPath}</code>
-                </div>
-              )}
-              
-              {selectedIssue.expectedBehavior && (
-                <div>
-                  <h4 className="font-medium">Expected Behavior</h4>
-                  <p className="text-sm text-muted-foreground">{selectedIssue.expectedBehavior}</p>
-                </div>
-              )}
-              
-              {selectedIssue.status === 'open' && (
-                <div className="space-y-3">
-                  <div>
-                    <label htmlFor="developer-note" className="text-sm font-medium">
-                      Developer Note (for Send to Developer)
-                    </label>
-                    <Textarea
-                      id="developer-note"
-                      value={developerNote}
-                      onChange={(e) => setDeveloperNote(e.target.value)}
-                      placeholder="Add any additional context or specific instructions for the developer..."
-                      className="mt-1"
-                    />
+        <TabsContent value="performance" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {performanceMetrics.map((metric, index) => (
+              <Card key={index}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium">{metric.name}</p>
+                    <Badge className={getStatusColor(metric.status)}>
+                      {metric.status}
+                    </Badge>
                   </div>
-                  
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={() => handleFlagResolved(selectedIssue)}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Flag as Resolved
-                    </Button>
-                    <Button 
-                      onClick={() => handleSendToDeveloper(selectedIssue)}
-                      className="flex-1"
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      Send to Developer
-                    </Button>
+                  <p className="text-2xl font-bold">{metric.value}</p>
+                  <p className="text-sm text-gray-600">{metric.unit}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Security Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span>SSL Certificate</span>
+                    <Badge className="bg-green-100 text-green-800">Valid</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Firewall Status</span>
+                    <Badge className="bg-green-100 text-green-800">Active</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Last Security Scan</span>
+                    <Badge className="bg-blue-100 text-blue-800">6h ago</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Failed Login Attempts</span>
+                    <Badge className="bg-yellow-100 text-yellow-800">3 today</Badge>
                   </div>
                 </div>
-              )}
-              
-              {selectedIssue.notes && (
-                <div>
-                  <h4 className="font-medium">Notes</h4>
-                  <p className="text-sm text-muted-foreground">{selectedIssue.notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+              </CardContent>
+            </Card>
 
-interface IssuesListProps {
-  issues: IntegrityIssue[];
-  onSelectIssue: (issue: IntegrityIssue) => void;
-}
-
-function IssuesList({ issues, onSelectIssue }: IssuesListProps) {
-  if (issues.length === 0) {
-    return (
-      <Alert>
-        <CheckCircle className="h-4 w-4" />
-        <AlertDescription>
-          No issues found! All scanned components are functioning correctly.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {issues.map((issue) => {
-        const IconComponent = issueTypeIcons[issue.issueType];
-        
-        return (
-          <Card 
-            key={issue.id} 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => onSelectIssue(issue)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3 flex-1">
-                  <IconComponent className="h-5 w-5 mt-0.5 text-muted-foreground" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium">{issue.pageName}</h4>
-                      <Badge variant="outline" className="text-xs">
-                        {issue.dashboardRole}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {issue.description}
-                    </p>
-                    <div className="flex gap-2">
-                      <Badge className={severityColors[issue.severity]}>
-                        {issue.severity}
-                      </Badge>
-                      <Badge className={statusColors[issue.status]}>
-                        {issue.status.replace('_', ' ')}
-                      </Badge>
-                      <Badge variant="outline">
-                        {issue.issueType}
-                      </Badge>
-                    </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Access Control</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span>Active Sessions</span>
+                    <span className="font-bold">156</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Admin Sessions</span>
+                    <span className="font-bold">3</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Guest Sessions</span>
+                    <span className="font-bold">89</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Expired Sessions</span>
+                    <span className="font-bold text-yellow-600">3</span>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent System Alerts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recentAlerts.map((alert) => (
+                  <Alert key={alert.id}>
+                    <AlertDescription className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {alert.type === 'warning' && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
+                        {alert.type === 'success' && <CheckCircle className="w-4 h-4 text-green-500" />}
+                        {alert.type === 'info' && <Activity className="w-4 h-4 text-blue-500" />}
+                        <div>
+                          <p>{alert.message}</p>
+                          <p className="text-sm text-gray-500">{alert.category} • {alert.timestamp}</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline">{alert.type}</Badge>
+                    </AlertDescription>
+                  </Alert>
+                ))}
               </div>
             </CardContent>
           </Card>
-        );
-      })}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

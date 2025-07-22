@@ -11,6 +11,13 @@ export default function OtaRevenueNetPayoutCalculation() {
   const [selectedProperty, setSelectedProperty] = useState("all");
   const [selectedOta, setSelectedOta] = useState("all");
   const [selectedPeriod, setSelectedPeriod] = useState("month");
+  const [filters, setFilters] = useState({
+    minRevenue: "",
+    maxRevenue: "",
+    minBookings: "",
+    dateFrom: "",
+    dateTo: ""
+  });
 
   const otaPlatforms = [
     {
@@ -126,6 +133,142 @@ export default function OtaRevenueNetPayoutCalculation() {
           </Button>
         </div>
       </div>
+
+      {/* Enhanced Filters Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Filters & Property Selection</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Property</label>
+              <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select property" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Properties</SelectItem>
+                  <SelectItem value="villa-samui-breeze">Villa Samui Breeze</SelectItem>
+                  <SelectItem value="villa-aruna">Villa Aruna</SelectItem>
+                  <SelectItem value="villa-paradise">Villa Paradise</SelectItem>
+                  <SelectItem value="villa-tropical">Villa Tropical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">OTA Platform</label>
+              <Select value={selectedOta} onValueChange={setSelectedOta}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select platform" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Platforms</SelectItem>
+                  <SelectItem value="airbnb">Airbnb</SelectItem>
+                  <SelectItem value="booking">Booking.com</SelectItem>
+                  <SelectItem value="vrbo">VRBO</SelectItem>
+                  <SelectItem value="expedia">Expedia</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Time Period</label>
+              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="quarter">This Quarter</SelectItem>
+                  <SelectItem value="year">This Year</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Min Bookings</label>
+              <Input 
+                type="number" 
+                placeholder="e.g. 10"
+                value={filters.minBookings}
+                onChange={(e) => setFilters({...filters, minBookings: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Min Revenue ($)</label>
+              <Input 
+                type="number" 
+                placeholder="e.g. 5000"
+                value={filters.minRevenue}
+                onChange={(e) => setFilters({...filters, minRevenue: e.target.value})}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Max Revenue ($)</label>
+              <Input 
+                type="number" 
+                placeholder="e.g. 50000"
+                value={filters.maxRevenue}
+                onChange={(e) => setFilters({...filters, maxRevenue: e.target.value})}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Date From</label>
+              <Input 
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Date To</label>
+              <Input 
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 mt-4">
+            <Button onClick={() => {
+              // Apply filters logic would go here
+              console.log('Filters applied:', filters, selectedProperty, selectedOta, selectedPeriod);
+            }}>
+              Apply Filters
+            </Button>
+            <Button variant="outline" onClick={() => {
+              setFilters({
+                minRevenue: "",
+                maxRevenue: "",
+                minBookings: "",
+                dateFrom: "",
+                dateTo: ""
+              });
+              setSelectedProperty("all");
+              setSelectedOta("all");
+              setSelectedPeriod("month");
+            }}>
+              Clear Filters
+            </Button>
+            <Badge variant="outline" className="ml-2 px-3 py-1">
+              {selectedProperty === "all" ? "All Properties" : selectedProperty} • 
+              {selectedOta === "all" ? "All Platforms" : selectedOta} • 
+              {selectedPeriod}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">

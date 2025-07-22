@@ -38,6 +38,10 @@ import StaffAdvanceSalaryOvertimeTracker from "./pages/StaffAdvanceSalaryOvertim
 import SystemWideDemoIntegration from "./pages/SystemWideDemoIntegration";
 import MaintenanceLogWarrantyTracker from "./pages/MaintenanceLogWarrantyTracker";
 import StaffProfilePayroll from "./pages/StaffProfilePayroll";
+import SystemIntegrityCheck from "./pages/SystemIntegrityCheck";
+import UtilityTracker from "./pages/UtilityTracker";
+import AiNotificationsReminders from "./pages/AiNotificationsReminders";
+import FinanceEngine from "./pages/FinanceEngine";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -139,6 +143,10 @@ function AppRoutes() {
         <Route path="/system-wide-demo-integration" component={SystemWideDemoIntegration} />
         <Route path="/maintenance-log-warranty-tracker" component={MaintenanceLogWarrantyTracker} />
         <Route path="/staff-profile-payroll" component={StaffProfilePayroll} />
+        <Route path="/admin/system-integrity-check" component={SystemIntegrityCheck} />
+        <Route path="/utility-tracker" component={UtilityTracker} />
+        <Route path="/ai-notifications-reminders" component={AiNotificationsReminders} />
+        <Route path="/finance-engine" component={FinanceEngine} />
         
         <Route component={NotFound} />
       </Switch>

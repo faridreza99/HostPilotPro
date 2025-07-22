@@ -1,503 +1,590 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Trash2,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  Zap,
-  Calendar,
-  Plus,
-  Bell,
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { 
+  Brain, 
+  Bell, 
+  CheckCircle, 
+  AlertTriangle, 
+  Clock, 
+  Users, 
+  Building,
   Settings,
-  Brain,
-  Lightbulb,
-  Droplet,
-  Leaf,
-  Bug,
-  Wrench,
-  Snowflake,
-  UserCheck,
+  Zap,
+  MessageSquare,
+  Calendar,
+  DollarSign,
+  Mail,
+  Smartphone,
+  Target,
   TrendingUp,
+  Bot,
+  Activity
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import type { AiNotification, InsertAiNotification, AiReminderSetting } from "@shared/schema";
-
-const ALERT_TYPE_CONFIG = {
-  cleaning: { icon: <Lightbulb className="h-4 w-4" />, label: "Cleaning", color: "bg-blue-500" },
-  electricity: { icon: <Zap className="h-4 w-4" />, label: "Electricity", color: "bg-yellow-500" },
-  garden: { icon: <Leaf className="h-4 w-4" />, label: "Garden", color: "bg-green-500" },
-  pest: { icon: <Bug className="h-4 w-4" />, label: "Pest Control", color: "bg-orange-500" },
-  maintenance: { icon: <Wrench className="h-4 w-4" />, label: "Maintenance", color: "bg-gray-500" },
-  ac: { icon: <Snowflake className="h-4 w-4" />, label: "AC Service", color: "bg-cyan-500" },
-  water: { icon: <Droplet className="h-4 w-4" />, label: "Water", color: "bg-blue-600" },
-  checkin: { icon: <UserCheck className="h-4 w-4" />, label: "Check-in", color: "bg-purple-500" },
-  upgrade: { icon: <TrendingUp className="h-4 w-4" />, label: "Upgrade", color: "bg-pink-500" },
-};
-
-const PRIORITY_CONFIG = {
-  low: { label: "Low", variant: "secondary" as const, color: "text-gray-600" },
-  medium: { label: "Medium", variant: "outline" as const, color: "text-blue-600" },
-  high: { label: "High", variant: "destructive" as const, color: "text-orange-600" },
-  critical: { label: "Critical", variant: "destructive" as const, color: "text-red-600" },
-};
 
 export default function AiNotificationsReminders() {
-  const [selectedProperty, setSelectedProperty] = useState<string>("1");
-  const [activeTab, setActiveTab] = useState("timeline");
-  const [newTaskDialog, setNewTaskDialog] = useState(false);
-  const [dismissDialog, setDismissDialog] = useState<number | null>(null);
-  const { toast } = useToast();
-
-  // Fetch AI notifications for selected property
-  const { data: notifications, isLoading } = useQuery({
-    queryKey: ["/api/ai-notifications", selectedProperty],
-    queryFn: () => apiRequest("GET", `/api/ai-notifications?propertyId=${selectedProperty}`),
+  const [selectedProperty, setSelectedProperty] = useState("all");
+  const [notificationSettings, setNotificationSettings] = useState({
+    email: true,
+    sms: false,
+    inApp: true,
+    slack: false
   });
 
-  // Fetch reminder settings
-  const { data: reminderSettings } = useQuery({
-    queryKey: ["/api/ai-reminder-settings", selectedProperty],
-    queryFn: () => apiRequest("GET", `/api/ai-reminder-settings?propertyId=${selectedProperty}`),
-  });
+  const properties = [
+    { id: 1, name: "Villa Samui Breeze", location: "Koh Samui" },
+    { id: 2, name: "Villa Tropical Paradise", location: "Phuket" },
+    { id: 3, name: "Villa Aruna", location: "Bali" },
+    { id: 4, name: "Villa Gala", location: "Krabi" }
+  ];
 
-  // Mark notification as done mutation
-  const markAsDoneMutation = useMutation({
-    mutationFn: (notificationId: number) =>
-      apiRequest("PATCH", `/api/ai-notifications/${notificationId}`, {
-        status: "completed",
-        actionTaken: true,
-        actionTakenAt: new Date(),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-notifications"] });
-      toast({ title: "Notification marked as completed" });
+  const aiInsights = [
+    {
+      id: 1,
+      type: "maintenance",
+      priority: "high",
+      title: "Pool Maintenance Due",
+      description: "Villa Samui Breeze pool hasn't been cleaned in 6 days. AI recommends immediate action based on guest check-in tomorrow.",
+      property: "Villa Samui Breeze",
+      confidence: 92,
+      suggestedAction: "Schedule pool cleaning",
+      estimatedCost: 800,
+      currency: "THB",
+      dueDate: "2025-01-23",
+      aiReasoning: "Historical data shows guest complaints increase by 45% when pool maintenance exceeds 7 days"
     },
-  });
-
-  // Dismiss notification mutation
-  const dismissMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
-      apiRequest("PATCH", `/api/ai-notifications/${id}`, {
-        status: "dismissed",
-        actionNotes: reason,
-        actionTaken: true,
-        actionTakenAt: new Date(),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-notifications"] });
-      setDismissDialog(null);
-      toast({ title: "Notification dismissed" });
+    {
+      id: 2,
+      type: "booking",
+      priority: "medium",
+      title: "Price Optimization Opportunity",
+      description: "Villa Tropical Paradise rates are 15% below market average for next weekend. AI suggests price adjustment.",
+      property: "Villa Tropical Paradise",
+      confidence: 87,
+      suggestedAction: "Increase rates by 12%",
+      estimatedCost: 0,
+      currency: "THB",
+      dueDate: "2025-01-24",
+      aiReasoning: "Similar properties in area showing 95% occupancy at higher rates"
     },
-  });
-
-  // Snooze notification mutation
-  const snoozeMutation = useMutation({
-    mutationFn: ({ id, days }: { id: number; days: number }) => {
-      const snoozeUntil = new Date();
-      snoozeUntil.setDate(snoozeUntil.getDate() + days);
-      return apiRequest("PATCH", `/api/ai-notifications/${id}`, {
-        status: "snoozed",
-        snoozeUntil,
-      });
+    {
+      id: 3,
+      type: "guest",
+      priority: "low",
+      title: "Guest Experience Enhancement",
+      description: "Repeat guest Sarah Johnson prefers extra towels. AI suggests proactive preparation.",
+      property: "Villa Aruna",
+      confidence: 78,
+      suggestedAction: "Add extra towels to housekeeping checklist",
+      estimatedCost: 0,
+      currency: "THB",
+      dueDate: "2025-01-25",
+      aiReasoning: "Guest mentioned towel preference in previous 3 stays"
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-notifications"] });
-      toast({ title: "Notification snoozed" });
+    {
+      id: 4,
+      type: "financial",
+      priority: "high",
+      title: "Utility Bill Alert",
+      description: "Villa Gala electricity usage up 35% this month. AI recommends investigation.",
+      property: "Villa Gala",
+      confidence: 95,
+      suggestedAction: "Check AC units and appliances",
+      estimatedCost: 500,
+      currency: "THB",
+      dueDate: "2025-01-23",
+      aiReasoning: "Usage pattern indicates potential equipment malfunction"
+    }
+  ];
+
+  const notificationHistory = [
+    {
+      id: 1,
+      type: "sent",
+      channel: "email",
+      recipient: "property.manager@company.com",
+      subject: "AI Alert: Pool Maintenance Required",
+      timestamp: "2025-01-22 14:30:00",
+      status: "delivered"
     },
-  });
-
-  // Create task mutation
-  const createTaskMutation = useMutation({
-    mutationFn: (notification: AiNotification) =>
-      apiRequest("POST", "/api/tasks", {
-        title: notification.title,
-        description: notification.description,
-        priority: notification.priority,
-        propertyId: notification.propertyId,
-        dueDate: notification.dueDate,
-        type: notification.alertType,
-        sourceType: "ai_notification",
-        sourceId: notification.id.toString(),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      setNewTaskDialog(false);
-      toast({ title: "Task created successfully" });
+    {
+      id: 2,
+      type: "sent",
+      channel: "sms",
+      recipient: "+66 89 123 4567",
+      subject: "Price optimization alert for Villa Tropical Paradise",
+      timestamp: "2025-01-22 13:15:00",
+      status: "delivered"
     },
-  });
+    {
+      id: 3,
+      type: "scheduled",
+      channel: "email",
+      recipient: "owner@villa-aruna.com",
+      subject: "Weekly AI Performance Report",
+      timestamp: "2025-01-23 09:00:00",
+      status: "pending"
+    }
+  ];
 
-  const activeNotifications = notifications?.filter((n: AiNotification) => 
-    n.status === "active" && (!n.snoozeUntil || new Date(n.snoozeUntil) <= new Date())
-  ) || [];
+  const automationRules = [
+    {
+      id: 1,
+      name: "Maintenance Reminders",
+      trigger: "Days since last service > 7",
+      action: "Send notification to maintenance team",
+      frequency: "Daily check",
+      enabled: true,
+      properties: ["All Properties"]
+    },
+    {
+      id: 2,
+      name: "Price Optimization",
+      trigger: "Rate variance > 10% from market",
+      action: "Alert revenue manager",
+      frequency: "Hourly check",
+      enabled: true,
+      properties: ["Villa Samui Breeze", "Villa Tropical Paradise"]
+    },
+    {
+      id: 3,
+      name: "Guest Preference Alerts",
+      trigger: "Repeat guest booking detected",
+      action: "Send preference reminder to housekeeping",
+      frequency: "On booking confirmation",
+      enabled: false,
+      properties: ["All Properties"]
+    }
+  ];
 
-  const snoozedNotifications = notifications?.filter((n: AiNotification) => 
-    n.status === "snoozed" && n.snoozeUntil && new Date(n.snoozeUntil) > new Date()
-  ) || [];
-
-  const completedNotifications = notifications?.filter((n: AiNotification) => 
-    n.status === "completed" || n.status === "dismissed"
-  ) || [];
-
-  const formatDate = (date: string | null) => {
-    if (!date) return "Not set";
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "maintenance": return Settings;
+      case "booking": return Calendar;
+      case "guest": return Users;
+      case "financial": return DollarSign;
+      default: return Bell;
+    }
   };
 
-  const formatDateRelative = (date: string | null) => {
-    if (!date) return "";
-    const now = new Date();
-    const target = new Date(date);
-    const diff = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diff < 0) return `${Math.abs(diff)} days overdue`;
-    if (diff === 0) return "Due today";
-    if (diff === 1) return "Due tomorrow";
-    return `Due in ${diff} days`;
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "maintenance": return "text-blue-500";
+      case "booking": return "text-green-500";
+      case "guest": return "text-purple-500";
+      case "financial": return "text-orange-500";
+      default: return "text-gray-500";
+    }
   };
 
-  const NotificationCard = ({ notification }: { notification: AiNotification }) => {
-    const config = ALERT_TYPE_CONFIG[notification.alertType as keyof typeof ALERT_TYPE_CONFIG];
-    const priorityConfig = PRIORITY_CONFIG[notification.priority as keyof typeof PRIORITY_CONFIG];
-    const isOverdue = notification.dueDate && new Date(notification.dueDate) < new Date();
-
-    return (
-      <Card className={`mb-4 ${isOverdue ? 'border-red-300 bg-red-50' : ''}`}>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-full ${config?.color} text-white`}>
-                {config?.icon}
-              </div>
-              <div>
-                <CardTitle className="text-lg">{notification.title}</CardTitle>
-                <CardDescription className="mt-1">
-                  {notification.description}
-                </CardDescription>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <Badge variant={priorityConfig.variant}>
-                {priorityConfig.label}
-              </Badge>
-              {notification.aiConfidence && (
-                <Badge variant="outline" className="text-xs">
-                  AI: {Math.round(Number(notification.aiConfidence) * 100)}%
-                </Badge>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Due Date: {formatDate(notification.dueDate)}</span>
-              {notification.dueDate && (
-                <span className={isOverdue ? 'text-red-600 font-medium' : ''}>
-                  {formatDateRelative(notification.dueDate)}
-                </span>
-              )}
-            </div>
-            {notification.lastServiceDate && (
-              <div className="text-sm text-muted-foreground">
-                Last Service: {formatDate(notification.lastServiceDate)}
-              </div>
-            )}
-            
-            <div className="flex gap-2 pt-2">
-              <Button
-                size="sm"
-                onClick={() => markAsDoneMutation.mutate(notification.id)}
-                disabled={markAsDoneMutation.isPending}
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Mark as Done
-              </Button>
-              
-              <Dialog open={newTaskDialog} onOpenChange={setNewTaskDialog}>
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Create Task
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create Task from Alert</DialogTitle>
-                    <DialogDescription>
-                      This will create a new task based on this AI notification.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Task Title</label>
-                      <Input value={notification.title} readOnly />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Description</label>
-                      <Textarea value={notification.description || ""} readOnly />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => createTaskMutation.mutate(notification)}
-                        disabled={createTaskMutation.isPending}
-                      >
-                        Create Task
-                      </Button>
-                      <Button variant="outline" onClick={() => setNewTaskDialog(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={dismissDialog === notification.id} onOpenChange={(open) => 
-                setDismissDialog(open ? notification.id : null)
-              }>
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Dismiss
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Dismiss Notification</DialogTitle>
-                    <DialogDescription>
-                      Provide a reason for dismissing this alert.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <Textarea
-                      placeholder="Enter reason for dismissal..."
-                      id="dismiss-reason"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => {
-                          const reason = (document.getElementById('dismiss-reason') as HTMLTextAreaElement)?.value;
-                          dismissMutation.mutate({ id: notification.id, reason });
-                        }}
-                        disabled={dismissMutation.isPending}
-                      >
-                        Dismiss Alert
-                      </Button>
-                      <Button variant="outline" onClick={() => setDismissDialog(null)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Select onValueChange={(days) => snoozeMutation.mutate({ id: notification.id, days: Number(days) })}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Snooze" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 day</SelectItem>
-                  <SelectItem value="3">3 days</SelectItem>
-                  <SelectItem value="7">1 week</SelectItem>
-                  <SelectItem value="14">2 weeks</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-100 text-red-800";
+      case "medium": return "bg-yellow-100 text-yellow-800";
+      case "low": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
+  const formatCurrency = (amount: number, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency
+    }).format(amount);
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Brain className="h-6 w-6 text-blue-600" />
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Brain className="w-8 h-8" />
             AI Notifications & Reminders
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Smart alerts and automated reminders for property management
-          </p>
+          <p className="text-gray-600">Intelligent alerts and automated reminders powered by AI analysis</p>
         </div>
-        <Select value={selectedProperty} onValueChange={setSelectedProperty}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select property" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1">Villa Aruna (Demo)</SelectItem>
-            <SelectItem value="2">Villa Samui Breeze</SelectItem>
-            <SelectItem value="3">Villa Tropical Paradise</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Button variant="outline">
+            <Settings className="w-4 h-4 mr-2" />
+            Configure AI
+          </Button>
+          <Button>
+            <Bell className="w-4 h-4 mr-2" />
+            Test Notification
+          </Button>
+        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="timeline">🚨 Active Alerts</TabsTrigger>
-          <TabsTrigger value="snoozed">😴 Snoozed</TabsTrigger>
-          <TabsTrigger value="completed">✅ Completed</TabsTrigger>
-          <TabsTrigger value="settings">⚙️ Settings</TabsTrigger>
+      <Tabs defaultValue="insights" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="insights">AI Insights</TabsTrigger>
+          <TabsTrigger value="automation">Automation Rules</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="channels">Channels</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="timeline" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <TabsContent value="insights" className="space-y-6">
+          {/* AI Insights Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{activeNotifications.length}</div>
-                <p className="text-xs text-muted-foreground">Require attention</p>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Active Insights</p>
+                    <p className="text-2xl font-bold">{aiInsights.length}</p>
+                  </div>
+                  <Brain className="w-8 h-8 text-blue-500" />
+                </div>
               </CardContent>
             </Card>
+
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Overdue Items</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {activeNotifications.filter(n => n.dueDate && new Date(n.dueDate) < new Date()).length}
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">High Priority</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {aiInsights.filter(i => i.priority === 'high').length}
+                    </p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
                 </div>
-                <p className="text-xs text-muted-foreground">Past due date</p>
               </CardContent>
             </Card>
+
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">High Priority</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
-                  {activeNotifications.filter(n => n.priority === "high" || n.priority === "critical").length}
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Avg Confidence</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {Math.round(aiInsights.reduce((sum, i) => sum + i.confidence, 0) / aiInsights.length)}%
+                    </p>
+                  </div>
+                  <Target className="w-8 h-8 text-green-500" />
                 </div>
-                <p className="text-xs text-muted-foreground">Critical items</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Est. Savings</p>
+                    <p className="text-2xl font-bold text-blue-600">₹2,500</p>
+                  </div>
+                  <TrendingUp className="w-8 h-8 text-blue-500" />
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {activeNotifications.length === 0 ? (
-            <Alert>
-              <Bell className="h-4 w-4" />
-              <AlertDescription>
-                No active notifications for this property. AI monitoring is working to detect upcoming maintenance needs.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="space-y-4">
-              {activeNotifications.map((notification: AiNotification) => (
-                <NotificationCard key={notification.id} notification={notification} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
+          {/* Property Filter */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <Label>Filter by Property:</Label>
+                <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="All Properties" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Properties</SelectItem>
+                    {properties.map(property => (
+                      <SelectItem key={property.id} value={property.name}>
+                        {property.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
-        <TabsContent value="snoozed" className="space-y-4">
-          <h3 className="text-lg font-semibold">Snoozed Notifications</h3>
-          {snoozedNotifications.length === 0 ? (
-            <Alert>
-              <Clock className="h-4 w-4" />
-              <AlertDescription>No snoozed notifications.</AlertDescription>
-            </Alert>
-          ) : (
-            snoozedNotifications.map((notification: AiNotification) => (
-              <NotificationCard key={notification.id} notification={notification} />
-            ))
-          )}
-        </TabsContent>
-
-        <TabsContent value="completed" className="space-y-4">
-          <h3 className="text-lg font-semibold">Recent Activity</h3>
-          {completedNotifications.slice(0, 10).map((notification: AiNotification) => {
-            const config = ALERT_TYPE_CONFIG[notification.alertType as keyof typeof ALERT_TYPE_CONFIG];
-            return (
-              <Card key={notification.id} className="bg-gray-50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${config?.color} text-white opacity-60`}>
-                      {config?.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium">{notification.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {notification.status === "completed" ? "Completed" : "Dismissed"} on{" "}
-                        {formatDate(notification.actionTakenAt)}
+          {/* AI Insights List */}
+          <div className="space-y-4">
+            {aiInsights.map((insight) => {
+              const TypeIcon = getTypeIcon(insight.type);
+              
+              return (
+                <Card key={insight.id} className="border-l-4 border-l-blue-500">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <TypeIcon className={`w-6 h-6 ${getTypeColor(insight.type)}`} />
+                        <div>
+                          <h3 className="font-semibold text-lg">{insight.title}</h3>
+                          <p className="text-sm text-gray-600">{insight.property}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getPriorityColor(insight.priority)}>
+                          {insight.priority}
+                        </Badge>
+                        <Badge variant="outline">
+                          {insight.confidence}% confidence
+                        </Badge>
                       </div>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {notification.status}
-                    </Badge>
+
+                    <p className="text-gray-700 mb-4">{insight.description}</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="bg-blue-50 p-3 rounded">
+                        <p className="text-sm text-blue-600 font-medium">Suggested Action</p>
+                        <p className="text-blue-800">{insight.suggestedAction}</p>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded">
+                        <p className="text-sm text-green-600 font-medium">Estimated Cost</p>
+                        <p className="text-green-800">
+                          {insight.estimatedCost > 0 
+                            ? formatCurrency(insight.estimatedCost, insight.currency)
+                            : "No cost"
+                          }
+                        </p>
+                      </div>
+                      <div className="bg-orange-50 p-3 rounded">
+                        <p className="text-sm text-orange-600 font-medium">Due Date</p>
+                        <p className="text-orange-800">{insight.dueDate}</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-3 rounded mb-4">
+                      <p className="text-sm text-gray-600 font-medium mb-1">AI Reasoning:</p>
+                      <p className="text-gray-700 text-sm">{insight.aiReasoning}</p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button size="sm">
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Accept & Schedule
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Discuss
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Dismiss
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="automation" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Automation Rules</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {automationRules.map((rule) => (
+                  <div key={rule.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Bot className="w-5 h-5 text-blue-500" />
+                        <div>
+                          <h4 className="font-medium">{rule.name}</h4>
+                          <p className="text-sm text-gray-600">{rule.frequency}</p>
+                        </div>
+                      </div>
+                      <Switch checked={rule.enabled} />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500 font-medium">Trigger Condition</p>
+                        <p>{rule.trigger}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 font-medium">Action</p>
+                        <p>{rule.action}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <p className="text-gray-500 font-medium text-sm">Applied to:</p>
+                      <div className="flex gap-2 mt-1">
+                        {rule.properties.map((property, index) => (
+                          <Badge key={index} variant="outline">{property}</Badge>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {notificationHistory.map((notification) => (
+                  <div key={notification.id} className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-3">
+                      {notification.channel === 'email' && <Mail className="w-4 h-4 text-blue-500" />}
+                      {notification.channel === 'sms' && <Smartphone className="w-4 h-4 text-green-500" />}
+                      <div>
+                        <p className="font-medium text-sm">{notification.subject}</p>
+                        <p className="text-xs text-gray-600">To: {notification.recipient}</p>
+                        <p className="text-xs text-gray-500">{notification.timestamp}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={
+                        notification.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                        notification.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }>
+                        {notification.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="channels" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Email Notifications</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Enable Email Alerts</p>
+                    <p className="text-sm text-gray-600">Send notifications via email</p>
+                  </div>
+                  <Switch 
+                    checked={notificationSettings.email}
+                    onCheckedChange={(checked) => 
+                      setNotificationSettings({...notificationSettings, email: checked})
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Default Recipients</Label>
+                  <Input value="admin@hostpilotpro.com" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Email Template</Label>
+                  <Select defaultValue="standard">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard Template</SelectItem>
+                      <SelectItem value="detailed">Detailed Template</SelectItem>
+                      <SelectItem value="minimal">Minimal Template</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>SMS Notifications</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Enable SMS Alerts</p>
+                    <p className="text-sm text-gray-600">Send critical alerts via SMS</p>
+                  </div>
+                  <Switch 
+                    checked={notificationSettings.sms}
+                    onCheckedChange={(checked) => 
+                      setNotificationSettings({...notificationSettings, sms: checked})
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Phone Number</Label>
+                  <Input value="+66 89 123 4567" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Priority Threshold</Label>
+                  <Select defaultValue="high">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Alerts</SelectItem>
+                      <SelectItem value="medium">Medium & High</SelectItem>
+                      <SelectItem value="high">High Priority Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Reminder Settings
-              </CardTitle>
-              <CardDescription>
-                Configure how AI monitors and alerts for this property
-              </CardDescription>
+              <CardTitle>AI Configuration</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(ALERT_TYPE_CONFIG).map(([type, config]) => (
-                  <div key={type} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${config.color} text-white`}>
-                        {config.icon}
-                      </div>
-                      <span className="font-medium">{config.label}</span>
-                    </div>
-                    <Badge variant="outline">Enabled</Badge>
-                  </div>
-                ))}
+            <CardContent className="space-y-6">
+              <div>
+                <Label>AI Analysis Frequency</Label>
+                <Select defaultValue="hourly">
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="realtime">Real-time</SelectItem>
+                    <SelectItem value="hourly">Every Hour</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              <div>
+                <Label>Minimum Confidence Level</Label>
+                <div className="flex items-center gap-4 mt-2">
+                  <Input type="range" min="50" max="95" defaultValue="75" className="flex-1" />
+                  <span className="text-sm font-medium">75%</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Learning Mode</p>
+                  <p className="text-sm text-gray-600">Allow AI to learn from user actions</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Proactive Suggestions</p>
+                  <p className="text-sm text-gray-600">Generate preventive recommendations</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+
+              <Button>Save AI Settings</Button>
             </CardContent>
           </Card>
         </TabsContent>
