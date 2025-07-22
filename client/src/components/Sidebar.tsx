@@ -79,68 +79,50 @@ interface MenuSection {
 }
 
 const getRoleBasedMenus = (role: string): MenuSection[] => {
-  const commonMenus: MenuSection[] = [
-    {
-      title: "Navigation",
-      items: [
-        { label: "Dashboard", icon: Home, href: "/", description: "Main dashboard overview" },
-      ]
-    },
-    {
-      title: "Support",
-      items: [
-        { label: "Help", icon: Phone, href: "/help", description: "Contact information and support" },
-      ]
-    }
-  ];
-
   const roleSpecificMenus: Record<string, MenuSection[]> = {
     admin: [
       {
-        title: "Dashboard",
+        title: "📊 Dashboards",
         items: [
-          { label: "Admin Dashboard", icon: Home, href: "/", description: "Admin overview and insights" },
+          { label: "Admin Dashboard", icon: Home, href: "/", description: "Main overview and insights" },
           { label: "Enhanced Admin Dashboard", icon: BarChart3, href: "/enhanced-admin-dashboard", badge: "Enhanced" },
           { label: "Financial Dashboard", icon: DollarSign, href: "/filtered-financial-dashboard", badge: "New" },
           { label: "Property Dashboard", icon: Building, href: "/filtered-property-dashboard", badge: "New" },
         ]
       },
       {
-        title: "Core Management",
+        title: "🏘️ Property Management",
         items: [
           { label: "Properties", icon: Building, href: "/properties", description: "Manage all properties" },
           { label: "Bookings", icon: Calendar, href: "/bookings", description: "View and manage bookings" },
           { label: "Live Booking Calendar", icon: Calendar, href: "/booking-calendar", badge: "Live" },
           { label: "Tasks", icon: CheckSquare, href: "/tasks", description: "Track and assign tasks" },
-          { label: "Maintenance Suggestions & Approval", icon: Wrench, href: "/maintenance-suggestions" },
           { label: "Check-in/Check-out Workflow", icon: CheckCircle, href: "/checkin-checkout-workflow" },
           { label: "Daily Operations", icon: Clock, href: "/daily-operations", badge: "New" },
-          { label: "Sandbox Testing Dashboard", icon: Activity, href: "/sandbox-testing", badge: "QA" },
         ]
       },
       {
-        title: "Communication & Guest Services",
+        title: "🧹 Operations",
+        items: [
+          { label: "Auto-Scheduling Rules", icon: Clock, href: "/auto-scheduling-recurring-task-generator" },
+          { label: "Maintenance Log & Warranty", icon: Wrench, href: "/maintenance-log-warranty-tracker" },
+          { label: "Staff Profile & Payroll", icon: Users, href: "/staff-profile-payroll" },
+          { label: "Staff Advance & Overtime", icon: Clock, href: "/staff-advance-salary-overtime-tracker" },
+          { label: "Maintenance Suggestions", icon: Wrench, href: "/maintenance-suggestions" },
+        ]
+      },
+      {
+        title: "💬 Guest Services",
         items: [
           { label: "Guest Portal Smart Requests", icon: MessageSquare, href: "/guest-portal-smart-requests", badge: "AI" },
           { label: "Guest Activity Recommendations", icon: Star, href: "/guest-activity-recommendations", badge: "AI" },
           { label: "Loyalty Guest Tracker", icon: Users, href: "/loyalty-tracker", badge: "New" },
-          { label: "System-Wide Demo Integration", icon: Database, href: "/system-wide-demo-integration", badge: "Demo" },
         ]
       },
       {
-        title: "Staff & Operations",
-        items: [
-          { label: "Auto-Scheduling Rules", icon: Clock, href: "/auto-scheduling-recurring-task-generator", badge: "New" },
-          { label: "Maintenance Log & Warranty", icon: Wrench, href: "/maintenance-log-warranty-tracker", badge: "New" },
-          { label: "Staff Profile & Payroll", icon: Users, href: "/staff-profile-payroll", badge: "New" },
-          { label: "Staff Advance & Overtime", icon: Clock, href: "/staff-advance-salary-overtime-tracker", badge: "New" },
-        ]
-      },
-      {
-        title: "Finance & Revenue",
+        title: "💰 Finance & Revenue",
         items: [
           { label: "Enhanced Financial Controls", icon: Shield, href: "/enhanced-financial-controls" },
-          { label: "Booking Revenue Transparency", icon: BarChart3, href: "/booking-revenue-transparency", badge: "New" },
           { label: "OTA Revenue & Net Payout", icon: BarChart3, href: "/ota-revenue-net-payout-calculation", badge: "New" },
           { label: "OTA Payout Logic — Smart Revenue", icon: Calculator, href: "/ota-payout-logic-smart-revenue", badge: "NEW" },
           { label: "Smart Pricing & Performance", icon: Brain, href: "/smart-pricing-performance-toolkit", badge: "AI" },
@@ -148,21 +130,20 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Booking Income", icon: BarChart3, href: "/booking-income-rules" },
           { label: "Finance Engine", icon: Database, href: "/finance-engine" },
           { label: "Utility Tracker", icon: Car, href: "/utility-tracker" },
-          { label: "Payouts", icon: DollarSign, href: "/payouts" },
         ]
       },
       {
-        title: "Administration",
+        title: "⚙️ System & Admin",
         items: [
-          { label: "Enhanced Admin Dashboard", icon: BarChart3, href: "/enhanced-admin-dashboard", badge: "Enhanced" },
-          { label: "User Management", icon: Users, href: "/admin/user-management", description: "Manage users, permissions & access controls" },
+          { label: "User Management", icon: Users, href: "/admin/user-management", description: "Manage users & permissions" },
           { label: "System Integrity Check", icon: Shield, href: "/admin/system-integrity-check", badge: "QA" },
+          { label: "System-Wide Demo Integration", icon: Database, href: "/system-wide-demo-integration", badge: "Demo" },
           { label: "Activity Logs", icon: Activity, href: "/admin/activity-log" },
           { label: "Finance Reset", icon: Shield, href: "/admin/finance-reset" },
           { label: "AI Notifications & Reminders", icon: Brain, href: "/ai-notifications-reminders", badge: "New" },
           { label: "Owner Targets & Upgrades", icon: Target, href: "/owner-target-upgrade-tracker", badge: "New" },
+          { label: "Sandbox Testing", icon: Activity, href: "/sandbox-testing", badge: "QA" },
           { label: "System Settings", icon: Settings, href: "/settings" },
-          { label: "Utility Settings", icon: Settings, href: "/admin/utility-customization" },
         ]
       }
     ],
@@ -210,15 +191,12 @@ export default function Sidebar({ className }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
-    Dashboard: false,
-    "Core Management": false,
-    "Communication & Guest Services": false,
-    "Staff & Operations": false,
-    "Finance & Revenue": false,
-    Administration: false,
-    Settings: false,
-    "Agents / Staff": false,
-    "Tools / Modules": false,
+    "📊 Dashboards": false,
+    "🏘️ Property Management": false,
+    "🧹 Operations": false,
+    "💬 Guest Services": false,
+    "💰 Finance & Revenue": false,
+    "⚙️ System & Admin": false,
   });
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState("en");
