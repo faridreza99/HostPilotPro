@@ -14,13 +14,20 @@ export async function generatePropertyDescription(propertyDetails: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(propertyDetails),
+    credentials: 'include',
   });
   
   if (!response.ok) {
-    throw new Error('Failed to generate property description');
+    const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(`Property description generation failed (${response.status}): ${errorData.message}`);
   }
   
   const data = await response.json();
+  
+  if (!data.description) {
+    throw new Error('No description returned from AI service');
+  }
+  
   return data.description;
 }
 
@@ -63,12 +70,20 @@ export async function askAssistant(prompt: string) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ prompt }),
+    credentials: 'include',
   });
   
   if (!response.ok) {
-    throw new Error('Failed to get AI response');
+    const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(`AI request failed (${response.status}): ${errorData.message}`);
   }
   
   const data = await response.json();
+  console.log('AI response data:', data);
+  
+  if (!data.response) {
+    throw new Error('No response from AI service');
+  }
+  
   return data.response;
 }

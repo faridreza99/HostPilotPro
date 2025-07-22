@@ -6,15 +6,41 @@ const openai = new OpenAI({
 
 export async function askAssistant(prompt: string) {
   try {
+    console.log("Making OpenAI API call with prompt:", prompt.substring(0, 100) + "...");
+    
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not configured");
+    }
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages: [{ role: "user", content: prompt }],
     });
 
-    return response.choices[0].message.content;
+    console.log("OpenAI response received:", {
+      choices: response.choices?.length,
+      content: response.choices?.[0]?.message?.content?.substring(0, 100) + "..."
+    });
+
+    if (!response.choices || response.choices.length === 0) {
+      throw new Error("No response from OpenAI API");
+    }
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("Empty response from OpenAI API");
+    }
+
+    return content;
   } catch (error) {
-    console.error("OpenAI API Error:", error);
-    throw new Error("Failed to get AI response");
+    console.error("OpenAI API Error details:", {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      status: error.status,
+      type: error.type
+    });
+    throw new Error(`Failed to get AI response: ${error.message}`);
   }
 }
 
