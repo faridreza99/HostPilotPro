@@ -11,6 +11,24 @@ export default function InvoiceGenerator() {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedClient, setSelectedClient] = useState("all");
   const [selectedPeriod, setSelectedPeriod] = useState("month");
+  
+  // New invoice form state
+  const [newInvoice, setNewInvoice] = useState({
+    invoiceNumber: "",
+    clientType: "",
+    clientName: "",
+    property: "",
+    template: "",
+    issueDate: "",
+    dueDate: "",
+    description: "",
+    items: []
+  });
+  
+  const [currentItem, setCurrentItem] = useState({
+    description: "",
+    amount: ""
+  });
 
   const invoices = [
     {
@@ -137,6 +155,68 @@ export default function InvoiceGenerator() {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+
+  // Helper functions for invoice form
+  const addLineItem = () => {
+    if (currentItem.description && currentItem.amount) {
+      setNewInvoice(prev => ({
+        ...prev,
+        items: [...prev.items, {
+          description: currentItem.description,
+          amount: parseFloat(currentItem.amount)
+        }]
+      }));
+      setCurrentItem({ description: "", amount: "" });
+    }
+  };
+
+  const removeLineItem = (index) => {
+    setNewInvoice(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
+  };
+
+  const calculateTotal = () => {
+    return newInvoice.items.reduce((sum, item) => sum + item.amount, 0);
+  };
+
+  const loadTemplate = (templateName) => {
+    const template = invoiceTemplates.find(t => t.name === templateName);
+    if (template) {
+      const templateItems = template.defaultItems.map(item => ({
+        description: item,
+        amount: 0
+      }));
+      setNewInvoice(prev => ({
+        ...prev,
+        template: templateName,
+        items: templateItems
+      }));
+    }
+  };
+
+  const generateInvoiceNumber = () => {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const nextNumber = String(invoices.length + 1).padStart(3, '0');
+    return `INV-${year}-${month}-${nextNumber}`;
+  };
+
+  const resetForm = () => {
+    setNewInvoice({
+      invoiceNumber: "",
+      clientType: "",
+      clientName: "",
+      property: "",
+      template: "",
+      issueDate: "",
+      dueDate: "",
+      description: "",
+      items: []
+    });
+    setCurrentItem({ description: "", amount: "" });
   };
 
   const summaryStats = {
@@ -366,11 +446,27 @@ export default function InvoiceGenerator() {
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm text-gray-600">Invoice Number</label>
-                      <Input placeholder="INV-2025-005" />
+                      <div className="flex gap-2">
+                        <Input 
+                          value={newInvoice.invoiceNumber}
+                          onChange={(e) => setNewInvoice({...newInvoice, invoiceNumber: e.target.value})}
+                          placeholder="INV-2025-005" 
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setNewInvoice({...newInvoice, invoiceNumber: generateInvoiceNumber()})}
+                        >
+                          Auto
+                        </Button>
+                      </div>
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">Client Type</label>
-                      <Select>
+                      <Select 
+                        value={newInvoice.clientType}
+                        onValueChange={(value) => setNewInvoice({...newInvoice, clientType: value})}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select client type" />
                         </SelectTrigger>
@@ -385,11 +481,18 @@ export default function InvoiceGenerator() {
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">Client Name</label>
-                      <Input placeholder="Enter client name" />
+                      <Input 
+                        value={newInvoice.clientName}
+                        onChange={(e) => setNewInvoice({...newInvoice, clientName: e.target.value})}
+                        placeholder="Enter client name" 
+                      />
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">Property</label>
-                      <Select>
+                      <Select 
+                        value={newInvoice.property}
+                        onValueChange={(value) => setNewInvoice({...newInvoice, property: value})}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select property" />
                         </SelectTrigger>
@@ -406,7 +509,13 @@ export default function InvoiceGenerator() {
 
                 <div className="space-y-4">
                   <h4 className="font-medium">Invoice Template</h4>
-                  <Select>
+                  <Select 
+                    value={newInvoice.template}
+                    onValueChange={(value) => {
+                      setNewInvoice({...newInvoice, template: value});
+                      loadTemplate(value);
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select template" />
                     </SelectTrigger>
@@ -421,15 +530,27 @@ export default function InvoiceGenerator() {
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm text-gray-600">Issue Date</label>
-                      <Input type="date" />
+                      <Input 
+                        type="date" 
+                        value={newInvoice.issueDate}
+                        onChange={(e) => setNewInvoice({...newInvoice, issueDate: e.target.value})}
+                      />
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">Due Date</label>
-                      <Input type="date" />
+                      <Input 
+                        type="date" 
+                        value={newInvoice.dueDate}
+                        onChange={(e) => setNewInvoice({...newInvoice, dueDate: e.target.value})}
+                      />
                     </div>
                     <div>
                       <label className="text-sm text-gray-600">Description</label>
-                      <Input placeholder="Invoice description" />
+                      <Input 
+                        value={newInvoice.description}
+                        onChange={(e) => setNewInvoice({...newInvoice, description: e.target.value})}
+                        placeholder="Invoice description" 
+                      />
                     </div>
                   </div>
                 </div>
@@ -439,23 +560,105 @@ export default function InvoiceGenerator() {
                 <h4 className="font-medium">Line Items</h4>
                 <div className="border rounded-lg p-4 space-y-3">
                   <div className="grid grid-cols-3 gap-3">
-                    <Input placeholder="Description" />
-                    <Input type="number" placeholder="Amount" />
-                    <Button variant="outline">Add Item</Button>
+                    <Input 
+                      value={currentItem.description}
+                      onChange={(e) => setCurrentItem({...currentItem, description: e.target.value})}
+                      placeholder="Description" 
+                    />
+                    <Input 
+                      type="number" 
+                      value={currentItem.amount}
+                      onChange={(e) => setCurrentItem({...currentItem, amount: e.target.value})}
+                      placeholder="Amount" 
+                    />
+                    <Button 
+                      variant="outline"
+                      onClick={addLineItem}
+                      disabled={!currentItem.description || !currentItem.amount}
+                    >
+                      Add Item
+                    </Button>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    Demo items will be populated based on template selection
-                  </div>
+                  
+                  {/* Display existing line items */}
+                  {newInvoice.items.length > 0 && (
+                    <div className="space-y-2 pt-3 border-t">
+                      {newInvoice.items.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex-1">
+                            <Input
+                              value={item.description}
+                              onChange={(e) => {
+                                const updatedItems = [...newInvoice.items];
+                                updatedItems[index].description = e.target.value;
+                                setNewInvoice({...newInvoice, items: updatedItems});
+                              }}
+                              className="mb-1"
+                            />
+                          </div>
+                          <div className="w-32 mx-2">
+                            <Input
+                              type="number"
+                              value={item.amount}
+                              onChange={(e) => {
+                                const updatedItems = [...newInvoice.items];
+                                updatedItems[index].amount = parseFloat(e.target.value) || 0;
+                                setNewInvoice({...newInvoice, items: updatedItems});
+                              }}
+                            />
+                          </div>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => removeLineItem(index)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {newInvoice.items.length === 0 && (
+                    <div className="text-sm text-gray-600">
+                      {newInvoice.template ? "Template items loaded above. You can edit amounts or add new items." : "Add line items or select a template to populate default items"}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="flex justify-between items-center pt-4 border-t">
                 <div className="text-lg font-bold">
-                  Total: <span className="text-green-600">$0.00</span>
+                  Total: <span className="text-green-600">{formatCurrency(calculateTotal())}</span>
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="outline">Save as Draft</Button>
-                  <Button>Generate Invoice</Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      console.log('Saving invoice as draft:', newInvoice);
+                      // Here you would typically save to backend
+                      alert('Invoice saved as draft');
+                    }}
+                  >
+                    Save as Draft
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      console.log('Generating invoice:', newInvoice);
+                      // Here you would typically generate final invoice
+                      alert(`Invoice generated! Total: ${formatCurrency(calculateTotal())}`);
+                      resetForm();
+                    }}
+                    disabled={!newInvoice.invoiceNumber || !newInvoice.clientName || newInvoice.items.length === 0}
+                  >
+                    Generate Invoice
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={resetForm}
+                  >
+                    Clear Form
+                  </Button>
                 </div>
               </div>
             </CardContent>
