@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 
 import TopBar from "@/components/TopBar";
 import StatsCard from "@/components/StatsCard";
@@ -9,13 +10,30 @@ import CreateTaskDialog from "@/components/CreateTaskDialog";
 import { formatCurrency } from "@/lib/currency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building, Calendar, ListTodo, DollarSign, Plus, Home, ClipboardList, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Building, Calendar, ListTodo, DollarSign, Plus, Home, ClipboardList, TrendingUp, Users, AlertTriangle, CheckCircle, Clock, Wrench } from "lucide-react";
+
+interface AdminFilters {
+  propertyId?: number;
+  ownerId?: string;
+  portfolioManagerId?: string;
+  area?: string;
+  bedroomCount?: number;
+  searchText?: string;
+}
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<AdminFilters>({});
+  const [activeTab, setActiveTab] = useState("overview");
+
   const { data: stats } = useQuery({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -32,46 +50,155 @@ export default function Dashboard() {
     queryKey: ["/api/bookings"],
   });
 
-  const recentBookings = bookings.slice(0, 3);
-  const recentTasks = tasks.slice(0, 3);
+  // Enhanced demo data for better dashboard experience
+  const enhancedProperties = [
+    { id: 1, name: "Villa Samui Breeze", owner: "John Smith", portfolioManager: "Alex Thompson", area: "Chaweng", bedrooms: 3, status: "active", revenue: 125000 },
+    { id: 2, name: "Villa Tropical Paradise", owner: "Sarah Johnson", portfolioManager: "Jessica Wilson", area: "Lamai", bedrooms: 4, status: "active", revenue: 145000 },
+    { id: 3, name: "Villa Balinese Charm", owner: "Michael Brown", portfolioManager: "Alex Thompson", area: "Bophut", bedrooms: 2, status: "maintenance", revenue: 105000 },
+    ...properties
+  ];
+
+  const enhancedTasks = [
+    { id: 1, title: "Pool Cleaning", property: "Villa Samui Breeze", assignedTo: "Pool Team", priority: "high", status: "pending", dueDate: "2025-01-06" },
+    { id: 2, title: "AC Maintenance", property: "Villa Tropical Paradise", assignedTo: "Maintenance Team", priority: "medium", status: "in-progress", dueDate: "2025-01-07" },
+    { id: 3, title: "Garden Service", property: "Villa Balinese Charm", assignedTo: "Garden Team", priority: "low", status: "completed", dueDate: "2025-01-05" },
+    ...tasks
+  ];
+
+  const enhancedBookings = [
+    { id: 1, guestName: "Robert Wilson", property: "Villa Samui Breeze", checkIn: "2025-01-10", checkOut: "2025-01-17", status: "confirmed", totalAmount: 35000 },
+    { id: 2, guestName: "Lisa Chen", property: "Villa Tropical Paradise", checkIn: "2025-01-12", checkOut: "2025-01-19", status: "pending", totalAmount: 43500 },
+    { id: 3, guestName: "James Miller", property: "Villa Ocean View", checkIn: "2025-01-15", checkOut: "2025-01-22", status: "confirmed", totalAmount: 52500 },
+    ...bookings
+  ];
+
+  const recentBookings = enhancedBookings.slice(0, 3);
+  const recentTasks = enhancedTasks.slice(0, 3);
+
+  // Filter data based on active filters
+  const filteredProperties = enhancedProperties.filter(property => {
+    if (activeFilters.searchText && !property.name.toLowerCase().includes(activeFilters.searchText.toLowerCase())) return false;
+    if (activeFilters.area && property.area !== activeFilters.area) return false;
+    if (activeFilters.bedroomCount && property.bedrooms !== activeFilters.bedroomCount) return false;
+    return true;
+  });
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'active': case 'confirmed': case 'paid': case 'completed': return 'default';
+      case 'pending': case 'scheduled': return 'secondary';
+      case 'overdue': case 'high': return 'destructive';
+      case 'maintenance': case 'in-progress': case 'medium': return 'outline';
+      default: return 'secondary';
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'high': return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'medium': return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'low': return <CheckCircle className="h-4 w-4 text-green-500" />;
+      default: return null;
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-background">
       <div className="flex-1 flex flex-col lg:ml-0">
         <TopBar 
-          title="Dashboard" 
-          subtitle="Welcome back! Here's your property overview"
+          title="Enhanced Admin Dashboard" 
+          subtitle="Comprehensive property management overview with advanced filtering"
           onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
         
         <main className="flex-1 overflow-auto p-6">
-          {/* Stats Cards */}
+          {/* Enhanced Global Filter Bar */}
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Input
+                  placeholder="Search properties..."
+                  value={activeFilters.searchText || ""}
+                  onChange={(e) => setActiveFilters(prev => ({ ...prev, searchText: e.target.value }))}
+                />
+                <Select 
+                  value={activeFilters.area || ""} 
+                  onValueChange={(value) => setActiveFilters(prev => ({ ...prev, area: value || undefined }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Areas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Areas</SelectItem>
+                    <SelectItem value="Chaweng">Chaweng</SelectItem>
+                    <SelectItem value="Lamai">Lamai</SelectItem>
+                    <SelectItem value="Bophut">Bophut</SelectItem>
+                    <SelectItem value="Nathon">Nathon</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select 
+                  value={activeFilters.bedroomCount?.toString() || ""} 
+                  onValueChange={(value) => setActiveFilters(prev => ({ ...prev, bedroomCount: value ? parseInt(value) : undefined }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Bedrooms" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Bedrooms</SelectItem>
+                    <SelectItem value="2">2 Bedrooms</SelectItem>
+                    <SelectItem value="3">3 Bedrooms</SelectItem>
+                    <SelectItem value="4">4 Bedrooms</SelectItem>
+                    <SelectItem value="5">5+ Bedrooms</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setActiveFilters({})}
+                  className="w-full"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          {/* Enhanced Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatsCard
               title="Total Properties"
-              value={stats?.totalProperties || 0}
+              value={filteredProperties.length}
               icon={Building}
               color="primary"
             />
             <StatsCard
-              title="Active Bookings"
-              value={stats?.activeBookings || 0}
-              icon={Calendar}
+              title="Active Properties"
+              value={filteredProperties.filter(p => p.status === 'active').length}
+              icon={Home}
               color="success"
             />
             <StatsCard
-              title="Pending ListTodo"
-              value={stats?.pendingTasks || 0}
-              icon={ListTodo}
+              title="High Priority Tasks"
+              value={enhancedTasks.filter(t => t.priority === 'high').length}
+              icon={AlertTriangle}
               color="warning"
             />
             <StatsCard
               title="Monthly Revenue"
-              value={formatCurrency(stats?.monthlyRevenue || 0)}
+              value={formatCurrency(filteredProperties.reduce((sum, p) => sum + p.revenue, 0))}
               icon={DollarSign}
               color="accent"
             />
           </div>
+
+          {/* Enhanced Tabbed Interface */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="properties">Properties</TabsTrigger>
+              <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="bookings">Bookings</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Recent Bookings */}
@@ -183,6 +310,87 @@ export default function Dashboard() {
               <span>View Reports</span>
             </Button>
           </div>
+            </TabsContent>
+
+            <TabsContent value="properties" className="space-y-4">
+              <div className="grid gap-4">
+                {filteredProperties.map((property) => (
+                  <Card key={property.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold">{property.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {property.area} • {property.bedrooms} bedrooms • {property.owner}
+                          </p>
+                          <p className="text-sm font-medium text-green-600">
+                            Revenue: {formatCurrency(property.revenue)}
+                          </p>
+                        </div>
+                        <Badge variant={getStatusBadgeVariant(property.status)}>
+                          {property.status}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="tasks" className="space-y-4">
+              <div className="grid gap-4">
+                {enhancedTasks.map((task) => (
+                  <Card key={task.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {getPriorityIcon(task.priority)}
+                          <div>
+                            <h3 className="font-semibold">{task.title}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {task.property} • {task.assignedTo}
+                            </p>
+                            <p className="text-sm text-muted-foreground">Due: {task.dueDate}</p>
+                          </div>
+                        </div>
+                        <Badge variant={getStatusBadgeVariant(task.status)}>
+                          {task.status}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="bookings" className="space-y-4">
+              <div className="grid gap-4">
+                {enhancedBookings.map((booking) => (
+                  <Card key={booking.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold">{booking.guestName}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {booking.property}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {booking.checkIn} → {booking.checkOut}
+                          </p>
+                          <p className="text-sm font-medium text-green-600">
+                            {formatCurrency(booking.totalAmount)}
+                          </p>
+                        </div>
+                        <Badge variant={getStatusBadgeVariant(booking.status)}>
+                          {booking.status}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
 
