@@ -44,6 +44,7 @@ import AiNotificationsReminders from "./pages/AiNotificationsReminders";
 import FinanceEngine from "./pages/FinanceEngine";
 import PropertyDetailView from "./pages/PropertyDetailView";
 import PropertyProfile from "./pages/PropertyProfile";
+import MultiPropertyCalendar from "./pages/MultiPropertyCalendar";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -122,6 +123,7 @@ function AppRoutes() {
         
         {/* Core Management */}
         <Route path="/booking-calendar" component={SimpleLiveBookingCalendar} />
+        <Route path="/multi-property-calendar" component={MultiPropertyCalendar} />
         <Route path="/maintenance-suggestions" component={SimpleMaintenanceSuggestions} />
         <Route path="/checkin-checkout-workflow" component={CheckInCheckOutWorkflow} />
         <Route path="/daily-operations" component={DailyOperationsDashboard} />
