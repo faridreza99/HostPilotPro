@@ -146,7 +146,90 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         ]
       }
     ],
-    // Add other roles...
+    "portfolio-manager": [
+      {
+        title: "📊 Dashboards",
+        items: [
+          { label: "Portfolio Manager Dashboard", icon: Home, href: "/", description: "Property portfolio overview" },
+          { label: "Financial Dashboard", icon: DollarSign, href: "/filtered-financial-dashboard", badge: "New" },
+          { label: "Property Dashboard", icon: Building, href: "/filtered-property-dashboard", badge: "New" },
+        ]
+      },
+      {
+        title: "🏘️ Property Management",
+        items: [
+          { label: "Properties", icon: Building, href: "/properties", description: "Manage portfolio properties" },
+          { label: "Unified Calendar & Bookings", icon: Calendar, href: "/bookings", description: "All booking views and calendar management" },
+          { label: "Tasks", icon: CheckSquare, href: "/tasks", description: "Track and assign tasks" },
+          { label: "Check-in/Check-out Workflow", icon: CheckCircle, href: "/checkin-checkout-workflow" },
+          { label: "Daily Operations", icon: Clock, href: "/daily-operations", badge: "New" },
+        ]
+      },
+      {
+        title: "🧹 Operations",
+        items: [
+          { label: "Auto-Scheduling Rules", icon: Clock, href: "/auto-scheduling-recurring-task-generator" },
+          { label: "Maintenance Log & Warranty", icon: Wrench, href: "/maintenance-log-warranty-tracker" },
+          { label: "Staff Profile & Payroll", icon: Users, href: "/staff-profile-payroll" },
+          { label: "Staff Advance & Overtime", icon: Clock, href: "/staff-advance-salary-overtime-tracker" },
+        ]
+      },
+      {
+        title: "💬 Guest Services",
+        items: [
+          { label: "Guest Portal Smart Requests", icon: MessageSquare, href: "/guest-portal-smart-requests", badge: "AI" },
+          { label: "Guest Activity Recommendations", icon: Star, href: "/guest-activity-recommendations", badge: "AI" },
+          { label: "Loyalty Guest Tracker", icon: Users, href: "/loyalty-tracker", badge: "New" },
+        ]
+      },
+      {
+        title: "💰 Finance & Revenue",
+        items: [
+          { label: "OTA Revenue & Net Payout", icon: BarChart3, href: "/ota-revenue-net-payout-calculation", badge: "New" },
+          { label: "OTA Payout Logic — Smart Revenue", icon: Calculator, href: "/ota-payout-logic-smart-revenue", badge: "NEW" },
+          { label: "Smart Pricing & Performance", icon: Brain, href: "/smart-pricing-performance-toolkit", badge: "AI" },
+          { label: "Invoices", icon: FileText, href: "/invoice-generator" },
+          { label: "Booking Income", icon: BarChart3, href: "/booking-income-rules" },
+          { label: "Finance Engine", icon: Database, href: "/finance-engine" },
+          { label: "Utility Tracker", icon: Car, href: "/utility-tracker" },
+        ]
+      }
+    ],
+    staff: [
+      {
+        title: "📊 Daily Tasks",
+        items: [
+          { label: "Staff Dashboard", icon: Home, href: "/", description: "Daily task overview" },
+          { label: "My Tasks", icon: CheckSquare, href: "/tasks", description: "Assigned tasks" },
+          { label: "Daily Operations", icon: Clock, href: "/daily-operations", badge: "New" },
+        ]
+      },
+      {
+        title: "🏘️ Property Operations",
+        items: [
+          { label: "Check-in/Check-out", icon: CheckCircle, href: "/checkin-checkout-workflow" },
+          { label: "Maintenance Requests", icon: Wrench, href: "/maintenance-log-warranty-tracker" },
+          { label: "Guest Services", icon: MessageSquare, href: "/guest-portal-smart-requests" },
+        ]
+      }
+    ],
+    owner: [
+      {
+        title: "📊 My Properties",
+        items: [
+          { label: "Owner Dashboard", icon: Home, href: "/", description: "Property overview" },
+          { label: "My Properties", icon: Building, href: "/properties", description: "View my properties" },
+          { label: "Financial Reports", icon: DollarSign, href: "/filtered-financial-dashboard" },
+        ]
+      },
+      {
+        title: "💰 Finances",
+        items: [
+          { label: "Booking Income", icon: BarChart3, href: "/booking-income-rules" },
+          { label: "Invoices", icon: FileText, href: "/invoice-generator" },
+        ]
+      }
+    ],
     guest: [
       {
         title: "Guest Services",
@@ -159,7 +242,18 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
     ]
   };
 
-  return roleSpecificMenus[role] || commonMenus;
+  // Default fallback menu for unrecognized roles
+  const defaultMenus: MenuSection[] = [
+    {
+      title: "📊 Dashboard",
+      items: [
+        { label: "Dashboard", icon: Home, href: "/", description: "Main dashboard" },
+        { label: "Properties", icon: Building, href: "/properties" },
+      ]
+    }
+  ];
+
+  return roleSpecificMenus[role] || defaultMenus;
 };
 
 const roleIcons = {
