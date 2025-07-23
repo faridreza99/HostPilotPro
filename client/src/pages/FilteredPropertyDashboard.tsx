@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -239,6 +240,7 @@ function PropertyCard({
   utilityBills: any[];
   bookings: any[];
 }) {
+  const [, setLocation] = useLocation();
   const pendingIssues = maintenanceIssues.filter(issue => issue.status === "open").length;
   const pendingBills = utilityBills.length;
   const upcomingBookings = bookings.length;
@@ -319,7 +321,12 @@ function PropertyCard({
 
         {/* Actions */}
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={() => setLocation(`/property/${property.id}`)}
+          >
             <Settings className="h-4 w-4 mr-1" />
             Manage
           </Button>
