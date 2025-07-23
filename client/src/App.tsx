@@ -47,6 +47,7 @@ import PropertyDetailView from "./pages/PropertyDetailView";
 import MultiPropertyCalendar from "./pages/MultiPropertyCalendar";
 import AITest from "./pages/AITest";
 import AIFeatureDashboard from "./pages/AIFeatureDashboard";
+import MrPilot from "@/components/MrPilot";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -167,6 +168,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AppRoutes />
+        <MrPilot />
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
