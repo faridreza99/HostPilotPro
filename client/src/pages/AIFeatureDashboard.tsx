@@ -34,7 +34,8 @@ export default function AIFeatureDashboard() {
       const response = await apiRequest("POST", "/api/ai/test", {
         prompt: "Hello! Please confirm you're working and tell me about HostPilotPro's AI capabilities."
       });
-      setResult(response.result || "No response received");
+      const data = await response.json();
+      setResult(data.result || "No response received");
       toast({
         title: "AI Assistant Working!",
         description: "Basic AI functionality confirmed",
@@ -65,7 +66,8 @@ export default function AIFeatureDashboard() {
           location: "Koh Samui, Thailand"
         }
       });
-      setResult(response.description || "No description generated");
+      const data = await response.json();
+      setResult(data.description || "No description generated");
       toast({
         title: "Success!",
         description: "AI property description generated",
@@ -90,7 +92,8 @@ export default function AIFeatureDashboard() {
       const response = await apiRequest("POST", "/api/ai/analyze-review", {
         reviewText: reviewText
       });
-      setResult(JSON.stringify(response.analysis, null, 2));
+      const data = await response.json();
+      setResult(JSON.stringify(data.analysis, null, 2));
       toast({
         title: "Review Analyzed!",
         description: "AI sentiment analysis completed",
@@ -116,7 +119,8 @@ export default function AIFeatureDashboard() {
         propertyType: "luxury villa",
         lastMaintenanceDate: "2024-01-15"
       });
-      setResult(JSON.stringify(response.suggestions, null, 2));
+      const data = await response.json();
+      setResult(JSON.stringify(data.suggestions, null, 2));
       toast({
         title: "Maintenance Suggestions Generated!",
         description: "AI-powered maintenance recommendations ready",
@@ -150,7 +154,8 @@ export default function AIFeatureDashboard() {
       const response = await apiRequest("POST", "/api/ai/custom", {
         prompt: customPrompt
       });
-      setResult(response.result || "No response received");
+      const data = await response.json();
+      setResult(data.result || "No response received");
       toast({
         title: "Custom AI Response!",
         description: "Your custom prompt was processed",
