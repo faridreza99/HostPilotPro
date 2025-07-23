@@ -211,6 +211,15 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Maintenance Requests", icon: Wrench, href: "/maintenance-log-warranty-tracker" },
           { label: "Guest Services", icon: MessageSquare, href: "/guest-portal-smart-requests" },
         ]
+      },
+      {
+        title: "💰 My Finances & Payroll",
+        items: [
+          { label: "My Salary & Balance", icon: DollarSign, href: "/staff-profile-payroll", description: "View salary and balance reports" },
+          { label: "Salary & Overtime Tracker", icon: Clock, href: "/staff-advance-salary-overtime-tracker", description: "Track hours and overtime" },
+          { label: "Salary Invoice Generator", icon: FileText, href: "/staff-salary-invoice-generator", description: "Generate salary statements" },
+          { label: "My Wallet & Advances", icon: Calculator, href: "/staff-salary-overtime-tracker", description: "Request advances and view wallet" },
+        ]
       }
     ],
     owner: [
