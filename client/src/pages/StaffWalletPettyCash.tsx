@@ -19,57 +19,17 @@ export default function StaffWalletPettyCash() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock data for staff wallet
-  const walletData = {
-    currentBalance: 6750, // 5000 base + 1750 from recent check-out
-    basePettyCash: 5000,
-    totalCollected: 2500, // Cash collected from check-outs
-    totalExpenses: 750,   // Expenses paid
-    lastCleared: "2025-01-22",
-    staffName: "Niran Thepsiri",
-    staffId: "staff-pool"
-  };
+  // Fetch wallet data from backend
+  const { data: walletData } = useQuery({
+    queryKey: ["/api/staff-wallet/staff-pool"],
+    enabled: true
+  });
 
-  const recentTransactions = [
-    {
-      id: 1,
-      type: "income",
-      amount: 1750,
-      description: "Check-out cash collection - Villa Aruna electricity",
-      category: "checkout_cash",
-      date: "2025-01-23 14:30",
-      guestName: "John Smith",
-      propertyName: "Villa Aruna"
-    },
-    {
-      id: 2,
-      type: "expense",
-      amount: 450,
-      description: "Gasoline for property visits",
-      category: "transport",
-      date: "2025-01-23 10:15",
-      receipt: "Receipt-GAS-001.jpg"
-    },
-    {
-      id: 3,
-      type: "income",
-      amount: 750,
-      description: "Check-out cash collection - Villa Breeze deposit return",
-      category: "checkout_cash",
-      date: "2025-01-22 16:45",
-      guestName: "Sarah Wilson",
-      propertyName: "Villa Breeze"
-    },
-    {
-      id: 4,
-      type: "expense",
-      amount: 300,
-      description: "Office supplies and cleaning materials",
-      category: "supplies",
-      date: "2025-01-22 11:30",
-      receipt: "Receipt-SUP-002.jpg"
-    }
-  ];
+  // Fetch transactions from backend
+  const { data: recentTransactions = [] } = useQuery({
+    queryKey: ["/api/staff-wallet/staff-pool/transactions"],
+    enabled: true
+  });
 
   const expenseCategories = [
     { value: "transport", label: "Transport & Fuel", icon: Car },
@@ -98,31 +58,55 @@ export default function StaffWalletPettyCash() {
     onSuccess: () => {
       toast({ title: "Expense added successfully" });
       setIsAddExpenseOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool/transactions"] });
     }
   });
 
   const addIncomeMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Mock API call
-      return { success: true, data };
+      const response = await fetch(`/api/staff-wallet/cash-collection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...data, staffId: 'staff-pool' }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to record cash collection');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({ title: "Cash collection recorded" });
       setIsAddIncomeOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool/transactions"] });
     }
   });
 
   const clearBalanceMutation = useMutation({
     mutationFn: async () => {
-      // Mock API call to clear balance and reset to base petty cash
-      return { success: true };
+      const response = await fetch(`/api/staff-wallet/staff-pool/clear-balance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to clear balance');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({ title: "Balance cleared and reset to base petty cash amount" });
       setIsClearBalanceOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool/transactions"] });
     }
   });
 
@@ -147,7 +131,7 @@ export default function StaffWalletPettyCash() {
               <div>
                 <p className="text-sm text-gray-600">Current Balance</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(walletData.currentBalance)}
+                  {formatCurrency(walletData?.currentBalance || 0)}
                 </p>
               </div>
               <Wallet className="w-8 h-8 text-green-500" />
@@ -161,7 +145,7 @@ export default function StaffWalletPettyCash() {
               <div>
                 <p className="text-sm text-gray-600">Base Petty Cash</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(walletData.basePettyCash)}
+                  {formatCurrency(walletData?.basePettyCash || 5000)}
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-blue-500" />
@@ -175,7 +159,7 @@ export default function StaffWalletPettyCash() {
               <div>
                 <p className="text-sm text-gray-600">Cash Collected</p>
                 <p className="text-2xl font-bold text-green-600">
-                  +{formatCurrency(walletData.totalCollected)}
+                  +{formatCurrency(walletData?.totalCollected || 0)}
                 </p>
               </div>
               <TrendingUp className="w-8 h-8 text-green-500" />
@@ -189,7 +173,7 @@ export default function StaffWalletPettyCash() {
               <div>
                 <p className="text-sm text-gray-600">Total Expenses</p>
                 <p className="text-2xl font-bold text-red-600">
-                  -{formatCurrency(walletData.totalExpenses)}
+                  -{formatCurrency(walletData?.totalExpenses || 0)}
                 </p>
               </div>
               <Receipt className="w-8 h-8 text-red-500" />
@@ -380,7 +364,14 @@ export default function StaffWalletPettyCash() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentTransactions.map((transaction) => (
+            {recentTransactions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Clock className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p>No transactions yet</p>
+                <p className="text-sm">Add an expense or record cash collection to see transactions here</p>
+              </div>
+            ) : (
+              recentTransactions.map((transaction) => (
               <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -416,7 +407,8 @@ export default function StaffWalletPettyCash() {
                   </Badge>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

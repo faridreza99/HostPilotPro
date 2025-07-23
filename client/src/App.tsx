@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 // Import existing pages
 import Dashboard from "@/pages/Dashboard";
+import RoleBasedDashboard from "@/components/RoleBasedDashboard";
 import Properties from "@/pages/Properties";
 import Tasks from "@/pages/Tasks";
 import Bookings from "@/pages/Bookings";
@@ -50,6 +51,7 @@ import AIFeatureDashboard from "./pages/AIFeatureDashboard";
 import StaffWalletPettyCash from "./pages/StaffWalletPettyCash";
 import StaffCashCollection from "./pages/StaffCashCollection";
 import StaffExpenseManagement from "./pages/StaffExpenseManagement";
+import StaffDashboard from "./pages/StaffDashboard";
 import MrPilot from "@/components/MrPilot";
 
 const queryClient = new QueryClient({
@@ -112,7 +114,7 @@ function AppRoutes() {
   return (
     <Layout>
       <Switch>
-        <Route path="/" component={Dashboard} />
+        <Route path="/" component={RoleBasedDashboard} />
         <Route path="/properties" component={Properties} />
         <Route path="/property/:id" component={PropertyDetailView} />
         <Route path="/tasks" component={Tasks} />
