@@ -391,241 +391,287 @@ export default function EnhancedAgentBookingDemo() {
 
             {/* Property Search Tab */}
             <TabsContent value="booking">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Search Filters */}
-                <Card className="lg:col-span-1">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Filter className="h-5 w-5" />
-                      Search Filters
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
+              {/* Modern Search Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-xl mb-8">
+                <h2 className="text-3xl font-bold mb-2">Find Your Perfect Property</h2>
+                <p className="text-blue-100 mb-6">Discover luxury vacation rentals with transparent commission rates</p>
+                
+                {/* Compact Search Bar */}
+                <Card className="bg-white/10 backdrop-blur border-white/20">
+                  <CardContent className="p-4">
                     <Form {...searchForm}>
-                      <form onSubmit={searchForm.handleSubmit(handleSearch)} className="space-y-4">
-                        <FormField
-                          control={searchForm.control}
-                          name="checkIn"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Check-in Date</FormLabel>
-                              <FormControl>
-                                <Input type="date" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={searchForm.control}
-                          name="checkOut"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Check-out Date</FormLabel>
-                              <FormControl>
-                                <Input type="date" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={searchForm.control}
-                          name="guests"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Guests</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min="1" 
-                                  {...field}
-                                  onChange={(e) => field.onChange(parseInt(e.target.value))}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={searchForm.control}
-                          name="bedrooms"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Min Bedrooms</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min="1" 
-                                  {...field}
-                                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={searchForm.control}
-                          name="location"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Location</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g., Koh Samui, Phuket" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="grid grid-cols-2 gap-2">
+                      <form onSubmit={searchForm.handleSubmit(handleSearch)}>
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                           <FormField
                             control={searchForm.control}
-                            name="priceMin"
+                            name="checkIn"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Min Price</FormLabel>
+                                <FormLabel className="text-white text-sm font-medium">Check-in</FormLabel>
                                 <FormControl>
                                   <Input 
-                                    type="number" 
-                                    placeholder="Min"
-                                    {...field}
-                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                    type="date" 
+                                    className="bg-white/20 border-white/30 text-white placeholder:text-white/70"
+                                    {...field} 
                                   />
                                 </FormControl>
-                                <FormMessage />
                               </FormItem>
                             )}
                           />
                           <FormField
                             control={searchForm.control}
-                            name="priceMax"
+                            name="checkOut"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Max Price</FormLabel>
+                                <FormLabel className="text-white text-sm font-medium">Check-out</FormLabel>
                                 <FormControl>
                                   <Input 
-                                    type="number" 
-                                    placeholder="Max"
-                                    {...field}
-                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                    type="date" 
+                                    className="bg-white/20 border-white/30 text-white placeholder:text-white/70"
+                                    {...field} 
                                   />
                                 </FormControl>
-                                <FormMessage />
                               </FormItem>
                             )}
                           />
+                          <FormField
+                            control={searchForm.control}
+                            name="guests"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-white text-sm font-medium">Guests</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    min="1" 
+                                    className="bg-white/20 border-white/30 text-white placeholder:text-white/70"
+                                    {...field}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={searchForm.control}
+                            name="location"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-white text-sm font-medium">Location</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="Thailand, Bali..." 
+                                    className="bg-white/20 border-white/30 text-white placeholder:text-white/70"
+                                    {...field} 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          <Button type="submit" className="bg-white text-blue-600 hover:bg-gray-100 font-medium h-10">
+                            <Search className="h-4 w-4 mr-2" />
+                            Search
+                          </Button>
                         </div>
-                        <Button type="submit" className="w-full">
-                          Search Properties
-                        </Button>
                       </form>
                     </Form>
                   </CardContent>
                 </Card>
+              </div>
 
-                {/* Available Properties */}
-                <div className="lg:col-span-2 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Available Properties ({filteredProperties.length})</h3>
-                    <Badge variant="secondary">Commission Visible</Badge>
+              {/* Advanced Filters */}
+              <div className="mb-8">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-medium text-gray-700">Filters:</span>
+                      <div className="flex gap-3">
+                        <FormField
+                          control={searchForm.control}
+                          name="bedrooms"
+                          render={({ field }) => (
+                            <div className="flex items-center gap-2">
+                              <label className="text-sm text-gray-600">Bedrooms:</label>
+                              <Input 
+                                type="number" 
+                                min="1" 
+                                placeholder="Any"
+                                className="w-20 h-8"
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                              />
+                            </div>
+                          )}
+                        />
+                        <FormField
+                          control={searchForm.control}
+                          name="priceMin"
+                          render={({ field }) => (
+                            <div className="flex items-center gap-2">
+                              <label className="text-sm text-gray-600">Min Price:</label>
+                              <Input 
+                                type="number" 
+                                placeholder="$0"
+                                className="w-20 h-8"
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                              />
+                            </div>
+                          )}
+                        />
+                        <FormField
+                          control={searchForm.control}
+                          name="priceMax"
+                          render={({ field }) => (
+                            <div className="flex items-center gap-2">
+                              <label className="text-sm text-gray-600">Max Price:</label>
+                              <Input 
+                                type="number" 
+                                placeholder="$1000+"
+                                className="w-20 h-8"
+                                {...field}
+                                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                              />
+                            </div>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Modern Property Grid */}
+              <div className="space-y-6">
+
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {filteredProperties.length} Properties Available
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Commission Visible
+                    </Badge>
+                    <Badge variant="outline">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+                      Live Pricing
+                    </Badge>
                   </div>
+                </div>
                   
+                {/* Modern Card Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredProperties.map((property) => (
-                    <Card key={property.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="text-xl font-semibold">{property.name}</h4>
-                              <div className="flex gap-2">
-                                <Badge className="bg-green-100 text-green-800">
-                                  {property.commission}% Commission
-                                </Badge>
-                                {property.otaConnected && (
-                                  <Badge variant="default" className="bg-blue-100 text-blue-800">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                                    API Synced
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4 text-gray-600 mb-3">
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {property.location}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-xs"
-                                onClick={() => window.open(property.googleMapsLink, '_blank')}
-                              >
-                                <MapPin className="h-3 w-3 mr-1" />
-                                View Map
-                              </Button>
-                              <span className="flex items-center gap-1">
-                                <Bed className="h-4 w-4" />
-                                {property.bedrooms} bed
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Bath className="h-4 w-4" />
-                                {property.bathrooms} bath
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Users className="h-4 w-4" />
-                                {property.maxGuests} guests
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="flex items-center gap-1">
-                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                <span className="font-medium">{property.rating}</span>
-                              </div>
-                              <span className="text-gray-500">({property.reviews} reviews)</span>
-                            </div>
-                            <p className="text-gray-700 mb-3">{property.description}</p>
-                            <div className="flex flex-wrap gap-1">
-                              {property.amenities.map((amenity) => (
-                                <Badge key={amenity} variant="outline" className="text-xs">
-                                  {amenity}
-                                </Badge>
-                              ))}
+                    <Card key={property.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
+                      {/* Property Image */}
+                      <div className="relative">
+                        <div className="aspect-[4/3] bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                          <span className="text-gray-500 text-sm">Premium Property Photo</span>
+                        </div>
+                        <div className="absolute top-3 left-3 flex gap-2">
+                          <Badge className="bg-green-500/90 text-white backdrop-blur">
+                            {property.commission}% Commission
+                          </Badge>
+                          {property.otaConnected && (
+                            <Badge className="bg-blue-500/90 text-white backdrop-blur">
+                              <span className="w-2 h-2 bg-white rounded-full mr-1"></span>
+                              Live Data
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="absolute top-3 right-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-white/90 backdrop-blur h-8 px-2"
+                            onClick={() => window.open(property.googleMapsLink, '_blank')}
+                          >
+                            <MapPin className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="absolute bottom-3 right-3">
+                          <div className="bg-white/90 backdrop-blur rounded-lg px-3 py-1">
+                            <div className="flex items-center gap-1">
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              <span className="text-sm font-medium">{property.rating}</span>
                             </div>
                           </div>
-                          <div className="text-right ml-6">
-                            <div className="bg-blue-50 p-3 rounded-lg mb-3">
-                              <div className="text-2xl font-bold text-blue-600">
+                        </div>
+                      </div>
+
+                      <CardContent className="p-6">
+                        {/* Property Title & Location */}
+                        <div className="mb-4">
+                          <h4 className="text-lg font-semibold text-gray-900 mb-1">{property.name}</h4>
+                          <p className="text-gray-600 text-sm flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {property.location} • {property.area}
+                          </p>
+                        </div>
+
+                        {/* Property Details */}
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+                          <span className="flex items-center gap-1">
+                            <Bed className="h-4 w-4" />
+                            {property.bedrooms} bed
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Bath className="h-4 w-4" />
+                            {property.bathrooms} bath
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="h-4 w-4" />
+                            {property.maxGuests} guests
+                          </span>
+                        </div>
+
+                        {/* Top Amenities */}
+                        <div className="flex flex-wrap gap-1 mb-4">
+                          {property.amenities.slice(0, 3).map((amenity) => (
+                            <Badge key={amenity} variant="outline" className="text-xs">
+                              {amenity}
+                            </Badge>
+                          ))}
+                          {property.amenities.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{property.amenities.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Pricing & Commission */}
+                        <div className="border-t pt-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <div className="text-2xl font-bold text-gray-900">
                                 ${property.pricePerNight}
                               </div>
-                              <div className="text-gray-500">per night</div>
-                              <div className="text-xs text-gray-400 mt-1">
-                                Last updated: {property.lastUpdated}
-                              </div>
+                              <div className="text-sm text-gray-500">per night</div>
                             </div>
-                            
                             {searchParams.checkIn && searchParams.checkOut && (
-                              <div className="p-3 bg-green-50 rounded-lg mb-3">
-                                <div className="text-sm text-gray-600">Your Commission ({property.commission}%)</div>
-                                <div className="font-semibold text-green-600">
+                              <div className="text-right">
+                                <div className="text-sm text-gray-600">Your Commission</div>
+                                <div className="text-lg font-semibold text-green-600">
                                   ${calculateCommission(
                                     property.pricePerNight * Math.ceil((new Date(searchParams.checkOut).getTime() - new Date(searchParams.checkIn).getTime()) / (1000 * 60 * 60 * 24)),
                                     property.commission
                                   ).toFixed(2)}
                                 </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  Total stay: {Math.ceil((new Date(searchParams.checkOut).getTime() - new Date(searchParams.checkIn).getTime()) / (1000 * 60 * 60 * 24))} nights
-                                </div>
                               </div>
                             )}
-                            
-                            <Button 
-                              className="w-full" 
-                              onClick={() => handleBookProperty(property)}
-                              disabled={!searchParams.checkIn || !searchParams.checkOut}
-                            >
-                              Book Now
-                            </Button>
+                          </div>
+                          
+                          <Button 
+                            className="w-full group-hover:bg-blue-700 transition-colors" 
+                            onClick={() => handleBookProperty(property)}
+                            disabled={!searchParams.checkIn || !searchParams.checkOut}
+                          >
+                            {!searchParams.checkIn || !searchParams.checkOut ? 'Select Dates to Book' : 'Book Now'}
+                          </Button>
+                          
+                          <div className="text-xs text-gray-400 mt-2 text-center">
+                            Updated: {property.lastUpdated}
                           </div>
                         </div>
                       </CardContent>
