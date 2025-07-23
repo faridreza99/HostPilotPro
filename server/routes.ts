@@ -2256,6 +2256,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Assistant endpoint with task context
+  app.post("/api/assistant", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { prompt } = req.body;
+      const { askAssistant } = await import("./aiHelper");
+      const result = await askAssistant(prompt);
+      res.json({ result });
+    } catch (error) {
+      console.error("AI Assistant Error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/ai/property-description", isDemoAuthenticated, async (req: any, res) => {
     try {
       const { propertyDetails } = req.body;

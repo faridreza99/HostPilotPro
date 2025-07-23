@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getUpcomingTasks } from "./services/taskService";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,10 +12,33 @@ export async function askAssistant(prompt: string) {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OpenAI API key not configured");
     }
+
+    // Fetch internal task data for context
+    const tasks = await getUpcomingTasks();
+    const taskSummary = tasks.length > 0 
+      ? tasks.map(t => `• ${t.title} (due: ${t.dueDate?.toDateString() || 'No date'}) - ${t.priority} priority`).join("\n")
+      : "No upcoming tasks in the next 7 days.";
+
+    const systemContext = `You're an AI assistant for HostPilotPro, a comprehensive property management platform. Here's a summary of upcoming tasks:
+
+${taskSummary}
+
+You help with property management, task scheduling, guest services, and financial tracking. Use the task context above to provide relevant assistance.
+
+Now answer the user's prompt: "${prompt}"`;
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        {
+          role: "system", 
+          content: systemContext
+        },
+        { 
+          role: "user", 
+          content: prompt 
+        }
+      ],
     });
 
     console.log("OpenAI response received:", {
