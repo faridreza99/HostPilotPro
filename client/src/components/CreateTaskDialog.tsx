@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Shield } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -32,9 +35,16 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: properties = [] } = useQuery({
     queryKey: ["/api/properties"],
+  });
+
+  // Check staff permissions for task creation
+  const { data: taskPermissionCheck } = useQuery({
+    queryKey: ["/api/staff/can-create-tasks"],
+    enabled: (user as any)?.role === 'staff',
   });
 
   const createMutation = useMutation({
@@ -44,6 +54,7 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/staff/can-create-tasks"] });
       toast({
         title: "Success",
         description: "Task created successfully",
@@ -64,10 +75,10 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
         recurringInterval: "1",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to create task",
+        description: error.message || "Failed to create task",
         variant: "destructive",
       });
     },
@@ -75,6 +86,16 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check permissions for staff users
+    if ((user as any)?.role === 'staff' && !taskPermissionCheck?.canCreateTasks) {
+      toast({
+        title: "Permission Denied",
+        description: taskPermissionCheck?.reason || "You do not have permission to create tasks",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const data = {
       ...formData,
@@ -97,6 +118,31 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
           <DialogTitle>Create New Task</DialogTitle>
         </DialogHeader>
         
+        {/* Permission Warning for Staff */}
+        {(user as any)?.role === 'staff' && !taskPermissionCheck?.canCreateTasks && (
+          <Alert className="border-red-200 bg-red-50">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800">
+              <strong>Permission Required:</strong> You need permission from an administrator to create tasks.
+              {taskPermissionCheck?.reason && ` Reason: ${taskPermissionCheck.reason}`}
+              <br />
+              <span className="text-sm">Contact your administrator to request task creation permissions.</span>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Daily Limit Warning for Staff */}
+        {(user as any)?.role === 'staff' && taskPermissionCheck?.hasPermission && !taskPermissionCheck?.withinDailyLimit && (
+          <Alert className="border-orange-200 bg-orange-50">
+            <AlertCircle className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-orange-800">
+              <strong>Daily Limit Reached:</strong> You have reached your daily task creation limit of {taskPermissionCheck.maxTasksPerDay} tasks.
+              <br />
+              <span className="text-sm">Try again tomorrow or contact your administrator for additional permissions.</span>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -275,7 +321,13 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
+            <Button 
+              type="submit" 
+              disabled={
+                createMutation.isPending || 
+                ((user as any)?.role === 'staff' && !taskPermissionCheck?.canCreateTasks)
+              }
+            >
               {createMutation.isPending ? "Creating..." : "Create Task"}
             </Button>
           </div>

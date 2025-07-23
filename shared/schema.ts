@@ -270,6 +270,30 @@ export const userPermissionOverrides = pgTable("user_permission_overrides", {
   index("IDX_perm_override_module").on(table.moduleCategory, table.moduleName),
 ]);
 
+// Staff-specific permissions for task creation and management
+export const staffTaskPermissions = pgTable("staff_task_permissions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffUserId: varchar("staff_user_id").references(() => users.id).notNull(),
+  canCreateTasks: boolean("can_create_tasks").default(false),
+  canEditOwnTasks: boolean("can_edit_own_tasks").default(true),
+  canDeleteOwnTasks: boolean("can_delete_own_tasks").default(false),
+  canViewAllTasks: boolean("can_view_all_tasks").default(true),
+  maxTasksPerDay: integer("max_tasks_per_day").default(5),
+  allowedDepartments: jsonb("allowed_departments"), // Array of departments staff can create tasks for
+  requiresApproval: boolean("requires_approval").default(true), // Whether staff-created tasks need admin approval
+  grantedBy: varchar("granted_by").references(() => users.id).notNull(),
+  reason: text("reason"), // Why this permission was granted
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_staff_task_perm_org").on(table.organizationId),
+  index("IDX_staff_task_perm_user").on(table.staffUserId),
+  index("IDX_staff_task_perm_active").on(table.isActive),
+]);
+
 // Permission presets/templates for quick role assignment
 export const permissionPresets = pgTable("permission_presets", {
   id: serial("id").primaryKey(),

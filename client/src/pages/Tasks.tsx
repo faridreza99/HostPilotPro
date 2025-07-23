@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 
 import TopBar from "@/components/TopBar";
 import TaskTable from "@/components/TaskTable";
@@ -8,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, AlertCircle, Shield } from "lucide-react";
 import GlobalFilters, { useGlobalFilters, applyGlobalFilters } from "@/components/GlobalFilters";
 
 // [MERGED] This module has been consolidated into MaintenanceTaskSystem.tsx
@@ -18,6 +20,7 @@ export default function Tasks() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [globalFilters, setGlobalFilters] = useGlobalFilters("tasks-filters");
+  const { user } = useAuth();
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["/api/tasks"],
@@ -25,6 +28,12 @@ export default function Tasks() {
 
   const { data: properties = [] } = useQuery({
     queryKey: ["/api/properties"],
+  });
+
+  // Check staff permissions for task creation
+  const { data: taskPermissionCheck } = useQuery({
+    queryKey: ["/api/staff/can-create-tasks"],
+    enabled: (user as any)?.role === 'staff',
   });
 
   // Apply global filters first, then local filters
@@ -47,14 +56,50 @@ export default function Tasks() {
         <TopBar 
           title="Task Management" 
           action={
-            <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Task
-            </Button>
+            (user as any)?.role !== 'staff' || taskPermissionCheck?.canCreateTasks ? (
+              <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-primary hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Task
+              </Button>
+            ) : (
+              <Button 
+                variant="outline" 
+                disabled
+                className="text-gray-400 border-gray-300"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Permission Required
+              </Button>
+            )
           }
         />
         
         <main className="flex-1 overflow-auto p-6">
+          {/* Permission Warning for Staff */}
+          {(user as any)?.role === 'staff' && !taskPermissionCheck?.canCreateTasks && (
+            <Alert className="mb-6 border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">
+                <strong>Task Creation Restricted:</strong> You need permission from an administrator to create new tasks.
+                {taskPermissionCheck?.reason && ` ${taskPermissionCheck.reason}`}
+                <br />
+                <span className="text-sm">Contact your administrator to request task creation permissions.</span>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Daily Limit Warning for Staff */}
+          {(user as any)?.role === 'staff' && taskPermissionCheck?.hasPermission && !taskPermissionCheck?.withinDailyLimit && (
+            <Alert className="mb-6 border-orange-200 bg-orange-50">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <strong>Daily Limit Reached:</strong> You have reached your daily task creation limit of {taskPermissionCheck.maxTasksPerDay} tasks.
+                <br />
+                <span className="text-sm">Try again tomorrow or contact your administrator for additional permissions.</span>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Global Filters */}
           <GlobalFilters
             filters={globalFilters}

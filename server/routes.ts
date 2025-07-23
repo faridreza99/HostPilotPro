@@ -14,6 +14,7 @@ import { seedVillaSamuiDemo } from "./seedVillaSamuiDemo";
 import { userManagementStorage } from "./userManagementStorage";
 import { userPermissionsStorage } from "./userPermissionsStorage";
 import { staffWalletStorage } from "./staffWalletStorage";
+import { staffPermissionStorage } from "./staffPermissionStorage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup demo authentication (for development/testing)
@@ -157,6 +158,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!['admin', 'portfolio-manager'].includes(req.user?.role)) {
       return res.status(403).json({ message: "Portfolio Manager or Admin access required" });
     }
+    next();
+  };
+
+  // Middleware to check staff task creation permissions
+  const requireStaffTaskPermission = (req: any, res: any, next: any) => {
+    if (req.user?.role !== 'staff') {
+      // Non-staff users bypass this check (admin/PM can create tasks)
+      return next();
+    }
+
+    const staffUserId = req.user.id;
+    
+    // Check if staff can create tasks
+    if (!staffPermissionStorage.canStaffCreateTasks(staffUserId)) {
+      return res.status(403).json({ 
+        message: "Task creation permission not granted. Contact your administrator to request permission." 
+      });
+    }
+
+    // Check daily limit
+    if (!staffPermissionStorage.canStaffCreateMoreTasks(staffUserId)) {
+      const permissions = staffPermissionStorage.getStaffPermissions(staffUserId);
+      return res.status(403).json({ 
+        message: `Daily task limit reached (${permissions?.maxTasksPerDay} tasks per day). Try again tomorrow.` 
+      });
+    }
+
     next();
   };
 
@@ -924,11 +952,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tasks", isDemoAuthenticated, async (req: any, res) => {
+  app.post("/api/tasks", isDemoAuthenticated, requireStaffTaskPermission, async (req: any, res) => {
     try {
       const userId = req.user.id;
+      const user = req.user;
       const taskData = insertTaskSchema.parse({ ...req.body, createdBy: userId });
       const task = await storage.createTask(taskData);
+      
+      // Increment task count for staff users
+      if (user?.role === 'staff') {
+        staffPermissionStorage.incrementTaskCount(userId);
+      }
       
       // Send notification to assigned user
       if (task.assignedTo && task.assignedTo !== userId) {
@@ -2445,6 +2479,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error reviewing expense:", error);
       res.status(500).json({ message: "Failed to review expense" });
+    }
+  });
+
+  // ===== STAFF PERMISSION MANAGEMENT API =====
+  
+  // Get staff task permissions (admin only)
+  app.get("/api/admin/staff-permissions", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const permissions = staffPermissionStorage.getAllStaffPermissions();
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching staff permissions:", error);
+      res.status(500).json({ message: "Failed to fetch staff permissions" });
+    }
+  });
+
+  // Get specific staff permissions
+  app.get("/api/admin/staff-permissions/:staffId", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { staffId } = req.params;
+      const permissions = staffPermissionStorage.getStaffPermissions(staffId);
+      
+      if (!permissions) {
+        return res.status(404).json({ message: "Staff permissions not found" });
+      }
+      
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching staff permissions:", error);
+      res.status(500).json({ message: "Failed to fetch staff permissions" });
+    }
+  });
+
+  // Grant task creation permission to staff
+  app.post("/api/admin/staff-permissions/:staffId/grant-task-creation", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { staffId } = req.params;
+      const { reason, departments = ['general'], maxTasksPerDay = 3, expiresAt } = req.body;
+      const adminId = req.user.id;
+      
+      const permissions = staffPermissionStorage.grantTaskCreationPermission(
+        staffId,
+        adminId,
+        reason,
+        departments,
+        maxTasksPerDay,
+        expiresAt ? new Date(expiresAt) : undefined
+      );
+      
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error granting task creation permission:", error);
+      res.status(500).json({ message: "Failed to grant permission" });
+    }
+  });
+
+  // Revoke task creation permission
+  app.post("/api/admin/staff-permissions/:staffId/revoke-task-creation", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { staffId } = req.params;
+      const { reason } = req.body;
+      const adminId = req.user.id;
+      
+      const permissions = staffPermissionStorage.revokeTaskCreationPermission(staffId, adminId, reason);
+      
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error revoking task creation permission:", error);
+      res.status(500).json({ message: "Failed to revoke permission" });
+    }
+  });
+
+  // Update staff permissions
+  app.put("/api/admin/staff-permissions/:staffId", isDemoAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { staffId } = req.params;
+      const adminId = req.user.id;
+      const updates = req.body;
+      
+      const permissions = staffPermissionStorage.updateStaffPermissions(staffId, updates, adminId);
+      
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error updating staff permissions:", error);
+      res.status(500).json({ message: "Failed to update permissions" });
+    }
+  });
+
+  // Check if staff can create tasks (for frontend validation)
+  app.get("/api/staff/can-create-tasks", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const userRole = req.user.role;
+      
+      if (userRole !== 'staff') {
+        // Non-staff users can always create tasks
+        return res.json({ canCreateTasks: true, reason: 'Non-staff user' });
+      }
+      
+      const canCreateTasks = staffPermissionStorage.canStaffCreateTasks(userId);
+      const canCreateMore = staffPermissionStorage.canStaffCreateMoreTasks(userId);
+      const permissions = staffPermissionStorage.getStaffPermissions(userId);
+      
+      res.json({
+        canCreateTasks: canCreateTasks && canCreateMore,
+        hasPermission: canCreateTasks,
+        withinDailyLimit: canCreateMore,
+        maxTasksPerDay: permissions?.maxTasksPerDay || 0,
+        allowedDepartments: permissions?.allowedDepartments || [],
+        reason: !canCreateTasks ? 'Permission not granted' : !canCreateMore ? 'Daily limit reached' : 'Allowed'
+      });
+    } catch (error) {
+      console.error("Error checking task creation permission:", error);
+      res.status(500).json({ message: "Failed to check permissions" });
     }
   });
 

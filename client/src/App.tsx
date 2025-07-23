@@ -52,6 +52,7 @@ import StaffWalletPettyCash from "./pages/StaffWalletPettyCash";
 import StaffCashCollection from "./pages/StaffCashCollection";
 import StaffExpenseManagement from "./pages/StaffExpenseManagement";
 import StaffDashboard from "./pages/StaffDashboard";
+import StaffPermissionManagement from "./pages/StaffPermissionManagement";
 import MrPilot from "@/components/MrPilot";
 
 const queryClient = new QueryClient({
@@ -153,6 +154,7 @@ function AppRoutes() {
         <Route path="/staff-wallet-petty-cash" component={StaffWalletPettyCash} />
         <Route path="/staff-cash-collection" component={StaffCashCollection} />
         <Route path="/staff-expense-management" component={StaffExpenseManagement} />
+        <Route path="/admin/staff-permission-management" component={StaffPermissionManagement} />
         <Route path="/system-wide-demo-integration" component={SystemWideDemoIntegration} />
         <Route path="/maintenance-log-warranty-tracker" component={MaintenanceLogWarrantyTracker} />
         <Route path="/staff-profile-payroll" component={StaffProfilePayroll} />
