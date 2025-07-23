@@ -1,11 +1,12 @@
 import OpenAI from "openai";
 import { getUpcomingTasks } from "./services/taskService";
+import { storage } from "./storage";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function askAssistant(prompt: string) {
+export async function askAssistant(prompt: string, organizationId = "default-org") {
   try {
     console.log("Making OpenAI API call with prompt:", prompt.substring(0, 100) + "...");
     
@@ -13,19 +14,30 @@ export async function askAssistant(prompt: string) {
       throw new Error("OpenAI API key not configured");
     }
 
+    // Fetch user's properties for context
+    const properties = await storage.getProperties(organizationId);
+    const propertyList = properties.length > 0 
+      ? properties.map(p => `• ${p.name} (${p.bedrooms}BR/${p.bathrooms}BA, ${p.status})`).join("\n")
+      : "No properties found.";
+
     // Fetch internal task data for context
     const tasks = await getUpcomingTasks();
     const taskSummary = tasks.length > 0 
-      ? tasks.map(t => `• ${t.title} (due: ${t.dueDate?.toDateString() || 'No date'}) - ${t.priority} priority`).join("\n")
+      ? tasks.map(t => `• ${t.title} at ${t.property || 'Unknown Property'} (due: ${t.dueDate?.toDateString() || 'No date'}) - ${t.priority} priority`).join("\n")
       : "No upcoming tasks in the next 7 days.";
 
-    const systemContext = `You're an AI assistant for HostPilotPro, a comprehensive property management platform. Here's a summary of upcoming tasks:
+    const systemContext = `You are Mr. Pilot, the AI assistant for HostPilotPro property management platform.
 
+Here are the user's properties:
+${propertyList}
+
+Here are current active tasks:
 ${taskSummary}
 
-You help with property management, task scheduling, guest services, and financial tracking. Use the task context above to provide relevant assistance.
+You help with property management, task scheduling, guest services, and financial tracking. Use the property and task context above to provide relevant, personalized assistance.
 
-Now answer the user's prompt: "${prompt}"`;
+Now answer this user query:
+${prompt}`;
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user

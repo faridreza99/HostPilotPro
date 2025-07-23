@@ -2260,8 +2260,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/assistant", isDemoAuthenticated, async (req: any, res) => {
     try {
       const { prompt } = req.body;
+      const user = req.user;
+      const organizationId = user?.organizationId || "default-org";
       const { askAssistant } = await import("./aiHelper");
-      const result = await askAssistant(prompt);
+      const result = await askAssistant(prompt, organizationId);
       res.json({ result });
     } catch (error) {
       console.error("AI Assistant Error:", error);
