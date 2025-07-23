@@ -230,7 +230,15 @@ export default function EnhancedAgentBookingDemo() {
   // Search form
   const searchForm = useForm<BookingSearchForm>({
     resolver: zodResolver(bookingSearchSchema),
-    defaultValues: searchParams,
+    defaultValues: {
+      checkIn: "",
+      checkOut: "",
+      guests: 2,
+      bedrooms: undefined,
+      priceMin: undefined,
+      priceMax: undefined,
+      location: "",
+    },
   });
 
   // Booking form with editable commission for retail agents
@@ -308,7 +316,12 @@ export default function EnhancedAgentBookingDemo() {
   };
 
   const handleSearch = (data: BookingSearchForm) => {
+    console.log("Search form submitted:", data);
     setSearchParams(data);
+    toast({ 
+      title: "Search Updated", 
+      description: `Searching for properties...` 
+    });
   };
 
   const handleBookProperty = (property: any) => {
@@ -415,6 +428,7 @@ export default function EnhancedAgentBookingDemo() {
                                     {...field} 
                                   />
                                 </FormControl>
+                                <FormMessage className="text-red-200" />
                               </FormItem>
                             )}
                           />
@@ -431,6 +445,7 @@ export default function EnhancedAgentBookingDemo() {
                                     {...field} 
                                   />
                                 </FormControl>
+                                <FormMessage className="text-red-200" />
                               </FormItem>
                             )}
                           />
@@ -446,9 +461,11 @@ export default function EnhancedAgentBookingDemo() {
                                     min="1" 
                                     className="bg-white/20 border-white/30 text-white placeholder:text-white/70"
                                     {...field}
-                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                    value={field.value || ""}
+                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                                   />
                                 </FormControl>
+                                <FormMessage className="text-red-200" />
                               </FormItem>
                             )}
                           />
@@ -465,6 +482,7 @@ export default function EnhancedAgentBookingDemo() {
                                     {...field} 
                                   />
                                 </FormControl>
+                                <FormMessage className="text-red-200" />
                               </FormItem>
                             )}
                           />
