@@ -11443,6 +11443,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Management Routes
+  app.get("/api/users", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      // Get all demo users for the user management interface
+      const users = [
+        { 
+          id: "demo-admin", 
+          email: "admin@test.com", 
+          name: "Demo Admin", 
+          role: "admin", 
+          status: "active",
+          organizationId 
+        },
+        { 
+          id: "demo-pm", 
+          email: "pm@test.com", 
+          name: "Demo Portfolio Manager", 
+          role: "portfolio-manager", 
+          status: "active",
+          organizationId 
+        },
+        { 
+          id: "demo-staff", 
+          email: "staff@test.com", 
+          name: "Demo Staff", 
+          role: "staff", 
+          status: "active",
+          organizationId 
+        },
+        { 
+          id: "demo-owner", 
+          email: "owner@test.com", 
+          name: "Demo Owner", 
+          role: "owner", 
+          status: "active",
+          organizationId 
+        }
+      ];
+      
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/users/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { name, email, role, status } = req.body;
+      
+      // For demo purposes, we'll just return the updated user data
+      // In a real implementation, you'd update the database
+      const updatedUser = {
+        id,
+        name,
+        email,
+        role,
+        status,
+        organizationId: req.user?.organizationId || "default-org",
+        updatedAt: new Date()
+      };
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
   app.get("/api/users/:role", isDemoAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.user?.organizationId || "default-org";

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,18 +7,100 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Users, Shield, Eye, Building, UserPlus, Search, Filter, Settings } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+const editUserSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  role: z.enum(["admin", "portfolio-manager", "staff", "owner", "guest"]),
+  status: z.enum(["active", "inactive"]),
+});
+
+type EditUserForm = z.infer<typeof editUserSchema>;
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const users = [
-    { id: 1, name: "John Admin", email: "admin@test.com", role: "admin", status: "active", lastLogin: "2025-01-21" },
-    { id: 2, name: "Jane Manager", email: "manager@test.com", role: "portfolio-manager", status: "active", lastLogin: "2025-01-20" },
-    { id: 3, name: "Bob Staff", email: "staff@test.com", role: "staff", status: "active", lastLogin: "2025-01-21" },
-    { id: 4, name: "Alice Owner", email: "owner@test.com", role: "owner", status: "inactive", lastLogin: "2025-01-15" },
-  ];
+  // Fetch users from API
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ["/api/users"],
+  });
+
+  const editForm = useForm<EditUserForm>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      role: "staff",
+      status: "active",
+    },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: async (data: EditUserForm & { id: string }) => {
+      const { id, ...updateData } = data;
+      return apiRequest(`/api/users/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(updateData),
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      editForm.reset();
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    editForm.reset({
+      name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      email: user.email,
+      role: user.role,
+      status: user.status || "active",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const onSubmitEdit = (data: EditUserForm) => {
+    if (editingUser) {
+      updateUserMutation.mutate({ ...data, id: editingUser.id });
+    }
+  };
+
+  const filteredUsers = users.filter((user: any) => {
+    const matchesSearch = !searchTerm || 
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = filterRole === "all" || user.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
 
   const roleColors = {
     admin: "bg-red-100 text-red-800",
@@ -93,31 +176,68 @@ export default function UserManagement() {
                 </Select>
               </div>
 
-              <div className="space-y-4">
-                {users.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                        {user.name.split(' ').map(n => n[0]).join('')}
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg animate-pulse">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 w-32 bg-gray-300 rounded"></div>
+                          <div className="h-3 w-48 bg-gray-200 rounded"></div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{user.name}</p>
-                        <p className="text-sm text-gray-600">{user.email}</p>
-                        <p className="text-xs text-gray-500">Last login: {user.lastLogin}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="h-6 w-16 bg-gray-300 rounded-full"></div>
+                        <div className="h-6 w-16 bg-gray-300 rounded-full"></div>
+                        <div className="h-8 w-16 bg-gray-300 rounded"></div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className={roleColors[user.role as keyof typeof roleColors]}>
-                        {user.role}
-                      </Badge>
-                      <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                        {user.status}
-                      </Badge>
-                      <Button variant="outline" size="sm">Edit</Button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredUsers.map((user: any) => {
+                    const displayName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+                    const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+                    
+                    return (
+                      <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                            {initials}
+                          </div>
+                          <div>
+                            <p className="font-medium">{displayName}</p>
+                            <p className="text-sm text-gray-600">{user.email}</p>
+                            <p className="text-xs text-gray-500">Role: {user.role}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge className={roleColors[user.role as keyof typeof roleColors]}>
+                            {user.role}
+                          </Badge>
+                          <Badge variant={(user.status || 'active') === 'active' ? 'default' : 'secondary'}>
+                            {user.status || 'active'}
+                          </Badge>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredUsers.length === 0 && !isLoading && (
+                    <div className="text-center py-8 text-gray-500">
+                      No users found matching your filters.
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -430,6 +550,109 @@ export default function UserManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onSubmitEdit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter user name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter email address" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="portfolio-manager">Portfolio Manager</SelectItem>
+                        <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="owner">Owner</SelectItem>
+                        <SelectItem value="guest">Guest</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-end gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateUserMutation.isPending}
+                >
+                  {updateUserMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
