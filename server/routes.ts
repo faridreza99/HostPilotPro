@@ -2311,7 +2311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Record cash collection from checkout
+  // Record cash collection from checkout (existing endpoint)
   app.post("/api/staff-wallet/cash-collection", isDemoAuthenticated, async (req: any, res) => {
     try {
       const { checkoutId, actualAmount, collectionMethod, notes, receiptPhoto } = req.body;
@@ -2332,6 +2332,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error recording cash collection:", error);
       res.status(500).json({ message: "Failed to record cash collection" });
+    }
+  });
+
+  // Record direct cash income (new endpoint for staff wallet)
+  app.post("/api/staff-wallet/:staffId/cash-income", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { staffId } = req.params;
+      const { amount, source, guestName, property, notes } = req.body;
+      
+      const transaction = staffWalletStorage.addTransaction({
+        staffId,
+        type: 'income',
+        amount: parseFloat(amount),
+        description: `Cash collection - ${source}`,
+        category: source,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+        guestName,
+        propertyName: property,
+        status: 'approved' // Cash collections are automatically approved
+      });
+      
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Error recording cash income:", error);
+      res.status(500).json({ message: "Failed to record cash income" });
     }
   });
 

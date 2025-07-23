@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,27 @@ export default function StaffWalletPettyCash() {
   const [isClearBalanceOpen, setIsClearBalanceOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Form for cash collection
+  const cashForm = useForm({
+    defaultValues: {
+      amount: "",
+      source: "",
+      guestName: "",
+      property: "",
+      notes: ""
+    }
+  });
+
+  // Form for expenses
+  const expenseForm = useForm({
+    defaultValues: {
+      amount: "",
+      description: "",
+      category: "",
+      receipt: ""
+    }
+  });
 
   // Fetch wallet data from backend
   const { data: walletData } = useQuery({
@@ -58,6 +80,7 @@ export default function StaffWalletPettyCash() {
     onSuccess: () => {
       toast({ title: "Expense added successfully" });
       setIsAddExpenseOpen(false);
+      expenseForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool"] });
       queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool/transactions"] });
     }
@@ -65,12 +88,12 @@ export default function StaffWalletPettyCash() {
 
   const addIncomeMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch(`/api/staff-wallet/cash-collection`, {
+      const response = await fetch(`/api/staff-wallet/staff-pool/cash-income`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...data, staffId: 'staff-pool' }),
+        body: JSON.stringify(data),
       });
       
       if (!response.ok) {
@@ -82,6 +105,7 @@ export default function StaffWalletPettyCash() {
     onSuccess: () => {
       toast({ title: "Cash collection recorded" });
       setIsAddIncomeOpen(false);
+      cashForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool"] });
       queryClient.invalidateQueries({ queryKey: ["/api/staff-wallet/staff-pool/transactions"] });
     }
@@ -195,14 +219,18 @@ export default function StaffWalletPettyCash() {
             <DialogHeader>
               <DialogTitle>Record Cash Collection</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <form onSubmit={cashForm.handleSubmit((data) => addIncomeMutation.mutate(data))} className="space-y-4">
               <div>
                 <Label>Amount Collected (THB)</Label>
-                <Input type="number" placeholder="Enter amount" />
+                <Input 
+                  type="number" 
+                  placeholder="Enter amount"
+                  {...cashForm.register("amount", { required: true })}
+                />
               </div>
               <div>
                 <Label>Source</Label>
-                <Select>
+                <Select onValueChange={(value) => cashForm.setValue("source", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select source" />
                   </SelectTrigger>
@@ -217,34 +245,40 @@ export default function StaffWalletPettyCash() {
               </div>
               <div>
                 <Label>Guest Name</Label>
-                <Input placeholder="Enter guest name" />
+                <Input 
+                  placeholder="Enter guest name"
+                  {...cashForm.register("guestName")}
+                />
               </div>
               <div>
                 <Label>Property</Label>
-                <Select>
+                <Select onValueChange={(value) => cashForm.setValue("property", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select property" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="villa-aruna">Villa Aruna</SelectItem>
-                    <SelectItem value="villa-breeze">Villa Samui Breeze</SelectItem>
-                    <SelectItem value="villa-paradise">Villa Paradise</SelectItem>
+                    <SelectItem value="Villa Aruna">Villa Aruna</SelectItem>
+                    <SelectItem value="Villa Samui Breeze">Villa Samui Breeze</SelectItem>
+                    <SelectItem value="Villa Paradise">Villa Paradise</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Notes</Label>
-                <Textarea placeholder="Additional details..." />
+                <Textarea 
+                  placeholder="Additional details..."
+                  {...cashForm.register("notes")}
+                />
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsAddIncomeOpen(false)}>
+                <Button variant="outline" type="button" onClick={() => setIsAddIncomeOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => addIncomeMutation.mutate({})}>
-                  Record Collection
+                <Button type="submit" disabled={addIncomeMutation.isPending}>
+                  {addIncomeMutation.isPending ? "Recording..." : "Record Collection"}
                 </Button>
               </div>
-            </div>
+            </form>
           </DialogContent>
         </Dialog>
 
@@ -259,14 +293,18 @@ export default function StaffWalletPettyCash() {
             <DialogHeader>
               <DialogTitle>Record Expense</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <form onSubmit={expenseForm.handleSubmit((data) => addExpenseMutation.mutate(data))} className="space-y-4">
               <div>
                 <Label>Amount Spent (THB)</Label>
-                <Input type="number" placeholder="Enter amount" />
+                <Input 
+                  type="number" 
+                  placeholder="Enter amount"
+                  {...expenseForm.register("amount", { required: true })}
+                />
               </div>
               <div>
                 <Label>Category</Label>
-                <Select>
+                <Select onValueChange={(value) => expenseForm.setValue("category", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -281,22 +319,27 @@ export default function StaffWalletPettyCash() {
               </div>
               <div>
                 <Label>Description</Label>
-                <Textarea placeholder="What was purchased/paid for?" />
+                <Textarea 
+                  placeholder="What was purchased/paid for?"
+                  {...expenseForm.register("description", { required: true })}
+                />
               </div>
               <div>
                 <Label>Receipt (Optional)</Label>
-                <Input type="file" accept="image/*,.pdf" />
-                <p className="text-xs text-gray-500 mt-1">Upload receipt photo or PDF</p>
+                <Input 
+                  placeholder="Receipt number or photo URL"
+                  {...expenseForm.register("receipt")}
+                />
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsAddExpenseOpen(false)}>
+                <Button variant="outline" type="button" onClick={() => setIsAddExpenseOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => addExpenseMutation.mutate({})}>
-                  Record Expense
+                <Button type="submit" disabled={addExpenseMutation.isPending}>
+                  {addExpenseMutation.isPending ? "Recording..." : "Record Expense"}
                 </Button>
               </div>
-            </div>
+            </form>
           </DialogContent>
         </Dialog>
 
