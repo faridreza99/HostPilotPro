@@ -213,12 +213,11 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         ]
       },
       {
-        title: "💰 My Finances & Payroll",
+        title: "💰 My Salary & Wallet",
         items: [
-          { label: "My Salary & Balance", icon: DollarSign, href: "/staff-profile-payroll", description: "View salary and balance reports" },
-          { label: "Salary & Overtime Tracker", icon: Clock, href: "/staff-advance-salary-overtime-tracker", description: "Track hours and overtime" },
-          { label: "Salary Invoice Generator", icon: FileText, href: "/staff-salary-invoice-generator", description: "Generate salary statements" },
-          { label: "My Wallet & Advances", icon: Calculator, href: "/staff-salary-overtime-tracker", description: "Request advances and view wallet" },
+          { label: "My Salary & Overtime", icon: Clock, href: "/staff-advance-salary-overtime-tracker", description: "Track my hours and overtime" },
+          { label: "My Wallet & Petty Cash", icon: Calculator, href: "/staff-wallet-petty-cash", description: "Manage petty cash and expenses", badge: "Cash" },
+          { label: "Cash Collection Tracker", icon: DollarSign, href: "/staff-cash-collection", description: "Track cash from check-outs", badge: "New" },
         ]
       }
     ],

@@ -47,6 +47,8 @@ import PropertyDetailView from "./pages/PropertyDetailView";
 import MultiPropertyCalendar from "./pages/MultiPropertyCalendar";
 import AITest from "./pages/AITest";
 import AIFeatureDashboard from "./pages/AIFeatureDashboard";
+import StaffWalletPettyCash from "./pages/StaffWalletPettyCash";
+import StaffCashCollection from "./pages/StaffCashCollection";
 import MrPilot from "@/components/MrPilot";
 
 const queryClient = new QueryClient({
@@ -145,6 +147,8 @@ function AppRoutes() {
         <Route path="/invoice-generator" component={InvoiceGenerator} />
         <Route path="/invoices" component={InvoiceGenerator} />
         <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
+        <Route path="/staff-wallet-petty-cash" component={StaffWalletPettyCash} />
+        <Route path="/staff-cash-collection" component={StaffCashCollection} />
         <Route path="/system-wide-demo-integration" component={SystemWideDemoIntegration} />
         <Route path="/maintenance-log-warranty-tracker" component={MaintenanceLogWarrantyTracker} />
         <Route path="/staff-profile-payroll" component={StaffProfilePayroll} />
