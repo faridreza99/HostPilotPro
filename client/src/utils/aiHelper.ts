@@ -4,7 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 export async function askAssistant(prompt: string): Promise<string> {
   try {
     const response = await apiRequest("POST", "/api/ai/test", { prompt });
-    return response.result || "No response received";
+    const data = await response.json();
+    return data.result || "No response received";
   } catch (error) {
     console.error("AI Assistant Error:", error);
     throw new Error(`AI Assistant failed: ${error.message}`);
@@ -22,7 +23,8 @@ export async function generatePropertyDescription(propertyDetails: {
     const response = await apiRequest("POST", "/api/ai/property-description", {
       propertyDetails
     });
-    return response.description || "No description generated";
+    const data = await response.json();
+    return data.description || "No description generated";
   } catch (error) {
     console.error("Property Description Error:", error);
     throw new Error(`Failed to generate property description: ${error.message}`);
@@ -34,7 +36,8 @@ export async function analyzeGuestReview(reviewText: string): Promise<any> {
     const response = await apiRequest("POST", "/api/ai/analyze-review", {
       reviewText
     });
-    return response.analysis || {};
+    const data = await response.json();
+    return data.analysis || {};
   } catch (error) {
     console.error("Review Analysis Error:", error);
     throw new Error(`Failed to analyze guest review: ${error.message}`);
@@ -50,7 +53,8 @@ export async function generateMaintenanceTaskSuggestion(
       propertyType,
       lastMaintenanceDate
     });
-    return response.suggestions || {};
+    const data = await response.json();
+    return data.suggestions || {};
   } catch (error) {
     console.error("Maintenance Suggestions Error:", error);
     throw new Error(`Failed to generate maintenance suggestions: ${error.message}`);
@@ -60,7 +64,8 @@ export async function generateMaintenanceTaskSuggestion(
 export async function sendCustomAIPrompt(prompt: string): Promise<string> {
   try {
     const response = await apiRequest("POST", "/api/ai/custom", { prompt });
-    return response.result || "No response received";
+    const data = await response.json();
+    return data.result || "No response received";
   } catch (error) {
     console.error("Custom AI Prompt Error:", error);
     throw new Error(`Failed to process custom prompt: ${error.message}`);
