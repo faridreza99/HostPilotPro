@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { 
   users, 
   properties, 
@@ -19,12 +20,18 @@ import { seedGuestAddonServices } from "./seedGuestAddonServices";
 import { storage } from "./storage";
 import type { Request } from "express";
 
-const DEMO_ORG_ID = 'demo';
+const DEMO_ORG_ID = 'default-org';
 
 export async function seedDemoData(): Promise<void> {
   console.log("Seeding comprehensive demo data...");
   
   try {
+    // Check if demo data already exists
+    const existingUsers = await db.select().from(users).where(eq(users.organizationId, DEMO_ORG_ID)).limit(1);
+    if (existingUsers.length > 0) {
+      console.log("Demo data already exists, skipping seed.");
+      return;
+    }
     // Create users: 3 owners, 4 staff, 2 agents
     console.log("Creating demo users...");
     
@@ -363,6 +370,7 @@ export async function seedDemoData(): Promise<void> {
         propertyId: createdProperties[0].id,
         type: 'income',
         source: 'guest_payment',
+        category: 'booking-payment',
         amount: 1200,
         currency: 'AUD',
         description: 'Direct booking payment - December stay',
@@ -375,6 +383,7 @@ export async function seedDemoData(): Promise<void> {
         propertyId: createdProperties[0].id,
         type: 'expense',
         source: 'company_expense',
+        category: 'commission',
         amount: 180,
         currency: 'AUD',
         description: 'Retail agent commission - December booking',
@@ -387,6 +396,7 @@ export async function seedDemoData(): Promise<void> {
         propertyId: createdProperties[1].id,
         type: 'expense',
         source: 'owner_charge',
+        category: 'maintenance',
         amount: 250,
         currency: 'AUD',
         description: 'Property maintenance - AC service',
@@ -399,6 +409,7 @@ export async function seedDemoData(): Promise<void> {
         propertyId: createdProperties[2].id,
         type: 'income',
         source: 'complimentary',
+        category: 'add-on-service',
         amount: 100,
         currency: 'AUD',
         description: 'Owner gift - Welcome basket upgrade',
@@ -411,6 +422,7 @@ export async function seedDemoData(): Promise<void> {
         propertyId: createdProperties[3].id,
         type: 'expense',
         source: 'company_expense',
+        category: 'commission',
         amount: 75,
         currency: 'AUD',
         description: 'Marketing campaign - Google Ads',
@@ -472,8 +484,8 @@ export async function seedHostawayData(): Promise<void> {
   }
 }
 
-// CLI script runner
-if (require.main === module) {
+// CLI script runner (disabled to avoid ES module issues)
+if (false && require.main === module) {
   const command = process.argv[2];
   
   switch (command) {
