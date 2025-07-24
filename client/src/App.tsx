@@ -31,6 +31,7 @@ import SimpleHelp from "./pages/SimpleHelp";
 import UserManagement from "./pages/UserManagement";
 import OwnerTargetUpgradeTracker from "./pages/OwnerTargetUpgradeTracker";
 import ActivityLogs from "./pages/ActivityLogs";
+import ApiConnections from "./pages/admin/ApiConnections";
 import AutoScheduleTaskGenerator from "./pages/AutoScheduleTaskGenerator";
 import OtaRevenueNetPayoutCalculation from "./pages/OtaRevenueNetPayoutCalculation";
 import LoyaltyGuestTracker from "./pages/LoyaltyGuestTracker";
@@ -151,6 +152,7 @@ function AppRoutes() {
         <Route path="/guest-activity-recommendations" component={GuestActivityRecommendations} />
         
         {/* Administration */}
+        <Route path="/admin/api-connections" component={ApiConnections} />
         <Route path="/admin/user-management" component={UserManagement} />
         <Route path="/user-management" component={UserManagement} />
         <Route path="/admin/activity-log" component={ActivityLogs} />

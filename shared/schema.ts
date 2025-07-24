@@ -55,6 +55,26 @@ export const organizationApiKeys = pgTable("organization_api_keys", {
   index("IDX_api_key_provider").on(table.provider),
 ]);
 
+// API connections configuration for SaaS multi-tenant
+export const apiConnections = pgTable("api_connections", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  service: varchar("service").notNull(), // stripe, hostaway, openai, twilio
+  name: varchar("name").notNull(),
+  status: varchar("status").default("disconnected"), // connected, disconnected, error
+  lastTested: timestamp("last_tested"),
+  lastError: text("last_error"),
+  isActive: boolean("is_active").default(true),
+  hasCredentials: boolean("has_credentials").default(false),
+  configuration: jsonb("configuration"), // service-specific settings
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_api_connections_org").on(table.organizationId),
+  index("IDX_api_connections_service").on(table.service),
+]);
+
 // Session storage table for Replit Auth with tenant isolation
 export const sessions = pgTable(
   "sessions",
@@ -3465,6 +3485,12 @@ export const insertGuestAddonServiceSchema = createInsertSchema(guestAddonServic
 });
 
 export const insertGuestAddonBookingSchema = createInsertSchema(guestAddonBookings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertApiConnectionSchema = createInsertSchema(apiConnections).omit({
   id: true,
   createdAt: true,
   updatedAt: true,

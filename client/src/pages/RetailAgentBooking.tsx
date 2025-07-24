@@ -46,6 +46,12 @@ const bookingFormSchema = z.object({
   netPrice: z.number().optional(),
   topupAmount: z.number().optional(),
   
+  // Booking Policy & Payment Fields
+  bookingPolicy: z.enum(["standard", "non_refundable"]).default("standard"),
+  paymentMethod: z.enum(["stripe_instant", "bank_transfer", "cash", "other"]).default("stripe_instant"),
+  paymentAmount: z.number().min(1, "Payment amount required"),
+  dueDate: z.string().optional(),
+  
   specialRequests: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -103,6 +109,10 @@ export default function RetailAgentBooking() {
       commissionType: "fixed_percentage",
       netPrice: 0,
       topupAmount: 0,
+      bookingPolicy: "standard",
+      paymentMethod: "stripe_instant",
+      paymentAmount: 0,
+      dueDate: "",
     },
   });
 
@@ -279,11 +289,16 @@ export default function RetailAgentBooking() {
     bookingForm.setValue("checkOut", searchParams.checkOut);
     bookingForm.setValue("guests", searchParams.guests);
     
-    // Calculate commission amount
+    // Calculate commission amount and payment
     const nights = new Date(searchParams.checkOut).getTime() - new Date(searchParams.checkIn).getTime();
     const nightsCount = Math.ceil(nights / (1000 * 60 * 60 * 24));
     const totalAmount = parseFloat(property.pricePerNight) * nightsCount;
     bookingForm.setValue("totalAmount", totalAmount);
+    
+    // Set default payment amount based on current policy
+    const currentPolicy = bookingForm.getValues("bookingPolicy") || "standard";
+    const paymentAmount = currentPolicy === "non_refundable" ? totalAmount : totalAmount * 0.3;
+    bookingForm.setValue("paymentAmount", paymentAmount);
     
     setBookingDialogOpen(true);
   };
@@ -1154,6 +1169,156 @@ export default function RetailAgentBooking() {
                   )}
                 </div>
               </Card>
+
+              {/* Booking Policy & Payment Section */}
+              <Card className="p-4 bg-green-50 border-green-200">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  Booking Policy & Payment
+                </h3>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <FormField
+                    control={bookingForm.control}
+                    name="bookingPolicy"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Booking Policy</FormLabel>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          // Auto-calculate payment amount based on policy
+                          const totalAmount = bookingForm.getValues("totalAmount") || 0;
+                          if (value === "non_refundable") {
+                            bookingForm.setValue("paymentAmount", totalAmount);
+                          } else {
+                            bookingForm.setValue("paymentAmount", totalAmount * 0.3);
+                          }
+                        }} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select booking policy" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="standard">Standard - 30% Deposit Required</SelectItem>
+                            <SelectItem value="non_refundable">Non-Refundable - Full Payment Required</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={bookingForm.control}
+                    name="paymentAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Amount (฿)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            {...field} 
+                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {bookingForm.watch("bookingPolicy") === "non_refundable" 
+                            ? "Non-refundable: Full payment required upfront" 
+                            : "Standard: 30% deposit required, remaining balance due at check-in"
+                          }
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={bookingForm.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Method</FormLabel>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          // Set due date for non-instant payments
+                          if (value !== "stripe_instant") {
+                            const dueDate = new Date();
+                            dueDate.setDate(dueDate.getDate() + 3); // 3 days from now
+                            bookingForm.setValue("dueDate", dueDate.toISOString().split('T')[0]);
+                          } else {
+                            bookingForm.setValue("dueDate", "");
+                          }
+                        }} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payment method" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="stripe_instant">💳 Stripe - Instant Payment</SelectItem>
+                            <SelectItem value="bank_transfer">🏦 Bank Transfer</SelectItem>
+                            <SelectItem value="cash">💵 Cash Payment</SelectItem>
+                            <SelectItem value="other">📄 Other (Manual Invoice)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {bookingForm.watch("paymentMethod") !== "stripe_instant" && (
+                    <FormField
+                      control={bookingForm.control}
+                      name="dueDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payment Due Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Invoice will be generated with this due date
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {/* Payment Summary */}
+                  <div className="p-3 bg-white rounded-lg border">
+                    <div className="text-sm space-y-2">
+                      <div className="flex justify-between">
+                        <span>Total Booking Amount:</span>
+                        <span className="font-medium">฿{bookingForm.watch("totalAmount") || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Payment Required Now:</span>
+                        <span className="font-medium text-green-600">฿{bookingForm.watch("paymentAmount") || 0}</span>
+                      </div>
+                      {bookingForm.watch("bookingPolicy") === "standard" && (
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Remaining Balance:</span>
+                          <span>฿{((bookingForm.watch("totalAmount") || 0) - (bookingForm.watch("paymentAmount") || 0)).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="pt-2 border-t">
+                        <div className="flex justify-between">
+                          <span>Your Commission:</span>
+                          <span className="font-medium text-blue-600">
+                            ฿{bookingForm.watch("commissionType") === "fixed_percentage" 
+                              ? ((bookingForm.watch("totalAmount") || 0) * 0.1).toFixed(2)
+                              : ((bookingForm.watch("totalAmount") || 0) - (bookingForm.watch("netPrice") || 0)).toFixed(2)
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
               
               <FormField
                 control={bookingForm.control}
@@ -1193,9 +1358,15 @@ export default function RetailAgentBooking() {
                 <Button type="button" variant="outline" onClick={() => setBookingDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createBookingMutation.isPending}>
-                  {createBookingMutation.isPending ? "Creating..." : "Create Booking"}
-                </Button>
+                {bookingForm.watch("paymentMethod") === "stripe_instant" ? (
+                  <Button type="submit" disabled={createBookingMutation.isPending} className="bg-purple-600 hover:bg-purple-700">
+                    {createBookingMutation.isPending ? "Processing..." : "💳 Pay Now with Stripe"}
+                  </Button>
+                ) : (
+                  <Button type="submit" disabled={createBookingMutation.isPending}>
+                    {createBookingMutation.isPending ? "Creating..." : "Create Booking & Generate Invoice"}
+                  </Button>
+                )}
               </div>
             </form>
           </Form>

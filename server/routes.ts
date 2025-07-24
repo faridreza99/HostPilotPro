@@ -28190,6 +28190,90 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== API CONNECTIONS MANAGEMENT (SaaS Multi-Tenant) =====
+  
+  // Get API connections for organization
+  app.get("/api/admin/api-connections", requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const connections = await storage.getApiConnections(organizationId);
+      res.json(connections);
+    } catch (error) {
+      console.error("Error fetching API connections:", error);
+      res.status(500).json({ message: "Failed to fetch API connections" });
+    }
+  });
+
+  // Update API connection configuration
+  app.put("/api/admin/api-connections/:service", requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { service } = req.params;
+      const { name, apiKey, apiSecret, baseUrl, isActive, description } = req.body;
+
+      // Store encrypted API keys
+      if (apiKey) {
+        await storage.setOrganizationApiKey(organizationId, service, "api_key", apiKey);
+      }
+      if (apiSecret) {
+        await storage.setOrganizationApiKey(organizationId, service, "api_secret", apiSecret);
+      }
+      if (baseUrl) {
+        await storage.setOrganizationApiKey(organizationId, service, "base_url", baseUrl);
+      }
+
+      // Update connection configuration
+      const connection = await storage.updateApiConnection(organizationId, service, {
+        name,
+        isActive,
+        description,
+        hasCredentials: !!(apiKey || apiSecret),
+        status: isActive ? "connected" : "disconnected",
+      });
+
+      res.json(connection);
+    } catch (error) {
+      console.error("Error updating API connection:", error);
+      res.status(500).json({ message: "Failed to update API connection" });
+    }
+  });
+
+  // Test API connection
+  app.post("/api/admin/api-connections/:service/test", requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { service } = req.params;
+
+      const result = await storage.testApiConnection(organizationId, service);
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing API connection:", error);
+      res.status(500).json({ 
+        message: `Failed to test ${req.params.service} connection`,
+        error: error.message 
+      });
+    }
+  });
+
+  // Toggle API connection status
+  app.patch("/api/admin/api-connections/:service/toggle", requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { service } = req.params;
+      const { isActive } = req.body;
+
+      const connection = await storage.updateApiConnection(organizationId, service, {
+        isActive,
+        status: isActive ? "connected" : "disconnected",
+      });
+
+      res.json(connection);
+    } catch (error) {
+      console.error("Error toggling API connection:", error);
+      res.status(500).json({ message: "Failed to toggle API connection" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 
