@@ -62,6 +62,10 @@ import Proposals from "@/pages/agent/Proposals";
 import MediaDownload from "@/pages/agent/MediaDownload";
 import Leaderboard from "@/pages/agent/Leaderboard";
 
+// Import agent dashboards
+import RetailAgentBooking from "@/pages/RetailAgentBooking";
+import ReferralAgentDashboard from "@/pages/ReferralAgentDashboard";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -173,6 +177,10 @@ function AppRoutes() {
         {/* AI Testing */}
         <Route path="/ai-test" component={AITest} />
         <Route path="/ai-features" component={AIFeatureDashboard} />
+        
+        {/* Agent Dashboards */}
+        <Route path="/retail-agent" component={RetailAgentBooking} />
+        <Route path="/referral-agent" component={ReferralAgentDashboard} />
         
         {/* Agent Pages */}
         <Route path="/agent/quote-generator" component={QuoteGenerator} />
