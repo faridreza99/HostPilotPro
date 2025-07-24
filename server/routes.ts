@@ -1124,6 +1124,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced bookings with source information (for admin/PM dashboards)
+  app.get("/api/bookings/with-source", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId } = req.query;
+      
+      const bookings = await storage.getBookingsWithSource(
+        organizationId, 
+        propertyId ? parseInt(propertyId) : undefined
+      );
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching bookings with source:", error);
+      res.status(500).json({ message: "Failed to fetch bookings with source information" });
+    }
+  });
+
   app.post("/api/bookings", isDemoAuthenticated, async (req, res) => {
     try {
       const bookingData = insertBookingSchema.parse(req.body);

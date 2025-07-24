@@ -657,6 +657,7 @@ export interface IStorage {
   // Booking operations
   getBookings(): Promise<Booking[]>;
   getBookingsByProperty(propertyId: number): Promise<Booking[]>;
+  getBookingsWithSource(organizationId: string, propertyId?: number): Promise<any[]>;
   getBooking(id: number): Promise<Booking | undefined>;
   getBookingByReferenceAndEmail(bookingReference: string, guestEmail: string): Promise<Booking | undefined>;
   createBooking(booking: InsertBooking): Promise<Booking>;
@@ -2234,6 +2235,52 @@ export class DatabaseStorage implements IStorage {
 
   async getBookingsByProperty(propertyId: number): Promise<Booking[]> {
     return await db.select().from(bookings).where(eq(bookings.propertyId, propertyId)).orderBy(asc(bookings.checkIn));
+  }
+
+  // Enhanced method to get bookings with source information for transparency
+  async getBookingsWithSource(organizationId: string, propertyId?: number): Promise<any[]> {
+    let query = db
+      .select({
+        id: bookings.id,
+        organizationId: bookings.organizationId,
+        propertyId: bookings.propertyId,
+        guestName: bookings.guestName,
+        guestEmail: bookings.guestEmail,
+        guestPhone: bookings.guestPhone,
+        checkIn: bookings.checkIn,
+        checkOut: bookings.checkOut,
+        guests: bookings.guests,
+        totalAmount: bookings.totalAmount,
+        currency: bookings.currency,
+        status: bookings.status,
+        bookingPlatform: bookings.bookingPlatform,
+        specialRequests: bookings.specialRequests,
+        createdAt: bookings.createdAt,
+        // Add source identification
+        source: sql`CASE 
+          WHEN ${bookings.bookingPlatform} = 'retail-agent' THEN 'Retail Agent'
+          WHEN ${bookings.bookingPlatform} = 'direct' THEN 'Direct Booking'
+          ELSE ${bookings.bookingPlatform}
+        END`.as('source'),
+        // Get agent information if it's an agent booking
+        agentInfo: sql`(
+          SELECT json_build_object(
+            'agentId', ${agentBookings.retailAgentId},
+            'commissionRate', ${agentBookings.commissionRate},
+            'commissionAmount', ${agentBookings.commissionAmount}
+          )
+          FROM ${agentBookings} 
+          WHERE ${agentBookings.bookingId} = ${bookings.id}
+        )`.as('agentInfo'),
+      })
+      .from(bookings)
+      .where(eq(bookings.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(bookings.propertyId, propertyId));
+    }
+
+    return query.orderBy(asc(bookings.checkIn));
   }
 
   async getBooking(id: number): Promise<Booking | undefined> {
@@ -6755,8 +6802,40 @@ export class DatabaseStorage implements IStorage {
 
   // Agent Bookings Operations  
   async createAgentBooking(booking: any): Promise<any> {
-    const [newBooking] = await db.insert(agentBookings).values(booking).returning();
-    return newBooking;
+    // First create the main booking record for calendar visibility
+    const mainBookingData = {
+      organizationId: booking.organizationId,
+      propertyId: booking.propertyId,
+      guestName: booking.guestName,
+      guestEmail: booking.guestEmail,
+      guestPhone: booking.guestPhone,
+      checkIn: booking.checkIn, // Already in date format
+      checkOut: booking.checkOut, // Already in date format
+      guests: booking.guests,
+      totalAmount: booking.totalAmount.toString(),
+      platformPayout: booking.totalAmount.toString(), // For dual pricing tracking
+      currency: booking.currency || 'THB',
+      status: 'confirmed', // Agent bookings are confirmed by default
+      bookingPlatform: 'retail-agent', // Mark as retail agent booking
+      specialRequests: booking.notes || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const [mainBooking] = await db.insert(bookings).values(mainBookingData).returning();
+
+    // Then create the agent booking record with reference to main booking
+    const agentBookingData = {
+      ...booking,
+      bookingId: mainBooking.id, // Link to main booking
+    };
+
+    const [newAgentBooking] = await db.insert(agentBookings).values(agentBookingData).returning();
+    
+    return {
+      ...newAgentBooking,
+      mainBookingId: mainBooking.id,
+    };
   }
 
   async getAgentBookings(organizationId: string, agentId?: string, filters?: {
