@@ -378,7 +378,7 @@ export default function RetailAgentBooking() {
       <Tabs defaultValue="booking-engine" className="space-y-4">
         <TabsList>
           <TabsTrigger value="booking-engine">Live Booking Engine</TabsTrigger>
-          <TabsTrigger value="my-bookings">My Bookings</TabsTrigger>
+          <TabsTrigger value="my-bookings">My Reservations</TabsTrigger>
           <TabsTrigger value="commission-tracker">Commission Tracker</TabsTrigger>
           <TabsTrigger value="payout-requests">Payout Requests</TabsTrigger>
         </TabsList>
@@ -591,8 +591,8 @@ export default function RetailAgentBooking() {
         <TabsContent value="my-bookings" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>My Bookings</CardTitle>
-              <CardDescription>Track all your agent bookings and their status</CardDescription>
+              <CardTitle>My Reservations</CardTitle>
+              <CardDescription>Track all your agent reservations and their status</CardDescription>
             </CardHeader>
             <CardContent>
               {agentBookings.length === 0 ? (
@@ -625,8 +625,8 @@ export default function RetailAgentBooking() {
                           
                           <div>
                             <p className="text-sm text-muted-foreground">Amount & Commission</p>
-                            <p className="font-medium">${booking.totalAmount}</p>
-                            <p className="text-sm text-green-600">Commission: ${booking.commissionAmount}</p>
+                            <p className="font-medium">฿{booking.totalAmount}</p>
+                            <p className="text-sm text-green-600">Commission: ฿{booking.commissionAmount}</p>
                           </div>
                           
                           <div className="flex items-center justify-between">
@@ -661,7 +661,7 @@ export default function RetailAgentBooking() {
                   <DollarSign className="h-5 w-5 text-green-600" />
                   <div>
                     <p className="text-sm text-muted-foreground">Total Earned</p>
-                    <p className="text-2xl font-bold">${commissionSummary?.totalEarned || 0}</p>
+                    <p className="text-2xl font-bold">฿{commissionSummary?.totalEarned || commissionSummary?.totalCommissionEarned || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -673,7 +673,7 @@ export default function RetailAgentBooking() {
                   <CheckCircle className="h-5 w-5 text-blue-600" />
                   <div>
                     <p className="text-sm text-muted-foreground">Total Paid</p>
-                    <p className="text-2xl font-bold">${commissionSummary?.totalPaid || 0}</p>
+                    <p className="text-2xl font-bold">฿{commissionSummary?.totalPaid || commissionSummary?.totalCommissionPaid || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -685,7 +685,7 @@ export default function RetailAgentBooking() {
                   <TrendingUp className="h-5 w-5 text-purple-600" />
                   <div>
                     <p className="text-sm text-muted-foreground">Current Balance</p>
-                    <p className="text-2xl font-bold">${commissionSummary?.currentBalance || 0}</p>
+                    <p className="text-2xl font-bold">฿{commissionSummary?.currentBalance || (commissionSummary?.totalCommissionEarned || 0) - (commissionSummary?.totalCommissionPaid || 0)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -697,7 +697,7 @@ export default function RetailAgentBooking() {
                   <Clock className="h-5 w-5 text-orange-600" />
                   <div>
                     <p className="text-sm text-muted-foreground">Pending</p>
-                    <p className="text-2xl font-bold">${commissionSummary?.pendingCommissions || 0}</p>
+                    <p className="text-2xl font-bold">฿{commissionSummary?.pendingCommissions || commissionSummary?.pendingCommission || 0}</p>
                   </div>
                 </div>
               </CardContent>
