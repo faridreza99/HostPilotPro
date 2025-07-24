@@ -865,9 +865,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.id;
       
       let properties;
-      if (user?.role === 'admin' || user?.role === 'portfolio-manager' || user?.role === 'retail-agent' || user?.role === 'referral-agent') {
-        // Admin, PM, and agents can see all properties for booking/management purposes
+      if (user?.role === 'admin' || user?.role === 'portfolio-manager') {
+        // Admin and PM can see all properties for management purposes
         properties = await storage.getProperties();
+      } else if (user?.role === 'retail-agent' || user?.role === 'referral-agent') {
+        // Agents can only see management company properties (like those from Hostaway API)
+        // Filter to show only properties owned by demo-owner (management company properties)
+        const allProperties = await storage.getProperties();
+        properties = allProperties.filter(prop => 
+          prop.ownerId === 'demo-owner' || 
+          prop.name.includes('Demo') || 
+          prop.name.includes('Villa Samui') ||
+          prop.name.includes('Villa Aruna')
+        );
       } else {
         // Owners and others only see their own properties
         properties = await storage.getPropertiesByOwner(userId);
