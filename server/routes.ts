@@ -865,9 +865,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.id;
       
       let properties;
-      if (user?.role === 'admin' || user?.role === 'portfolio-manager') {
+      if (user?.role === 'admin' || user?.role === 'portfolio-manager' || user?.role === 'retail-agent' || user?.role === 'referral-agent') {
+        // Admin, PM, and agents can see all properties for booking/management purposes
         properties = await storage.getProperties();
       } else {
+        // Owners and others only see their own properties
         properties = await storage.getPropertiesByOwner(userId);
       }
       
