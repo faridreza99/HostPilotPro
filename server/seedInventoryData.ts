@@ -1,304 +1,291 @@
-import { storage } from "./storage";
+import { db } from "./db";
+import { inventoryItems, inventoryUsageLogs } from "@shared/schema";
+
+// Demo inventory items for different categories
+const DEMO_INVENTORY_ITEMS = [
+  // Linens Category
+  {
+    organizationId: "default-org",
+    itemName: "Bath Towel",
+    itemType: "linens", 
+    unit: "piece",
+    defaultPrice: "150.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Bed Sheet Set",
+    itemType: "linens",
+    unit: "set", 
+    defaultPrice: "350.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Pillow Case",
+    itemType: "linens",
+    unit: "piece",
+    defaultPrice: "75.00", 
+    isActive: true
+  },
+
+  // Cleaning Supplies Category
+  {
+    organizationId: "default-org",
+    itemName: "All-Purpose Cleaner",
+    itemType: "cleaning-supplies",
+    unit: "bottle",
+    defaultPrice: "85.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org", 
+    itemName: "Toilet Paper",
+    itemType: "cleaning-supplies",
+    unit: "roll",
+    defaultPrice: "15.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Glass Cleaner",
+    itemType: "cleaning-supplies", 
+    unit: "bottle",
+    defaultPrice: "65.00",
+    isActive: true
+  },
+
+  // Toiletries Category  
+  {
+    organizationId: "default-org",
+    itemName: "Shampoo",
+    itemType: "toiletries",
+    unit: "bottle",
+    defaultPrice: "120.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Body Soap",
+    itemType: "toiletries", 
+    unit: "bar",
+    defaultPrice: "45.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Toothbrush",
+    itemType: "toiletries",
+    unit: "piece", 
+    defaultPrice: "25.00",
+    isActive: true
+  },
+
+  // Food & Beverage Category
+  {
+    organizationId: "default-org",
+    itemName: "Welcome Water Bottle",
+    itemType: "food-beverage",
+    unit: "bottle",
+    defaultPrice: "35.00", 
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Coffee Capsules",
+    itemType: "food-beverage",
+    unit: "pack",
+    defaultPrice: "180.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Welcome Fruit Basket", 
+    itemType: "food-beverage",
+    unit: "basket",
+    defaultPrice: "450.00",
+    isActive: true
+  },
+
+  // Maintenance Category
+  {
+    organizationId: "default-org",
+    itemName: "Light Bulb LED",
+    itemType: "maintenance",
+    unit: "piece",
+    defaultPrice: "120.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Pool Chlorine", 
+    itemType: "maintenance",
+    unit: "kg",
+    defaultPrice: "380.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "Air Filter",
+    itemType: "maintenance",
+    unit: "piece", 
+    defaultPrice: "250.00",
+    isActive: true
+  },
+
+  // Electronics Category
+  {
+    organizationId: "default-org",
+    itemName: "TV Remote Battery",
+    itemType: "electronics",
+    unit: "pack",
+    defaultPrice: "85.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "WiFi Router",
+    itemType: "electronics", 
+    unit: "unit",
+    defaultPrice: "2500.00",
+    isActive: true
+  },
+
+  // Welcome Packs Category  
+  {
+    organizationId: "default-org",
+    itemName: "Standard Welcome Pack",
+    itemType: "welcome-packs",
+    unit: "pack",
+    defaultPrice: "750.00",
+    isActive: true
+  },
+  {
+    organizationId: "default-org",
+    itemName: "VIP Welcome Pack",
+    itemType: "welcome-packs", 
+    unit: "pack",
+    defaultPrice: "1500.00",
+    isActive: true
+  }
+];
+
+// Demo usage logs for different scenarios
+const DEMO_USAGE_LOGS = [
+  // Recent checkout cleaning at Villa Aruna
+  {
+    organizationId: "default-org",
+    taskId: 1, // Cleaning task
+    propertyId: 1, // Villa Aruna
+    itemId: 1, // Bath Towel
+    quantityUsed: 4,
+    costTotal: "600.00", // 4 × 150
+    usedBy: "demo-staff",
+    usageType: "checkout-clean"
+  },
+  {
+    organizationId: "default-org", 
+    taskId: 1,
+    propertyId: 1,
+    itemId: 2, // Bed Sheet Set
+    quantityUsed: 2,
+    costTotal: "700.00", // 2 × 350
+    usedBy: "demo-staff",
+    usageType: "checkout-clean"
+  },
+  {
+    organizationId: "default-org",
+    taskId: 1, 
+    propertyId: 1,
+    itemId: 4, // All-Purpose Cleaner
+    quantityUsed: 1,
+    costTotal: "85.00",
+    usedBy: "demo-staff",
+    usageType: "checkout-clean"
+  },
+
+  // Maintenance work at Villa Samui Breeze
+  {
+    organizationId: "default-org",
+    taskId: 2, // Maintenance task
+    propertyId: 2, // Villa Samui Breeze  
+    itemId: 13, // Light Bulb LED
+    quantityUsed: 3,
+    costTotal: "360.00", // 3 × 120
+    usedBy: "demo-staff",
+    usageType: "maintenance"
+  },
+  {
+    organizationId: "default-org",
+    taskId: 2,
+    propertyId: 2,
+    itemId: 14, // Pool Chlorine
+    quantityUsed: 2,
+    costTotal: "760.00", // 2 × 380
+    usedBy: "demo-staff", 
+    usageType: "maintenance"
+  },
+
+  // Guest amenity at Villa Tropical Paradise
+  {
+    organizationId: "default-org",
+    taskId: null, // Not linked to a task
+    propertyId: 3, // Villa Tropical Paradise
+    itemId: 10, // Welcome Water Bottle
+    quantityUsed: 6,
+    costTotal: "210.00", // 6 × 35
+    usedBy: "demo-staff",
+    usageType: "guest-amenity"
+  },
+  {
+    organizationId: "default-org",
+    taskId: null,
+    propertyId: 3,
+    itemId: 18, // Standard Welcome Pack
+    quantityUsed: 1,
+    costTotal: "750.00",
+    usedBy: "demo-staff",
+    usageType: "welcome-pack"
+  },
+
+  // Emergency repair at Villa Gala
+  {
+    organizationId: "default-org",
+    taskId: 3, // Emergency repair task
+    propertyId: 4, // Villa Gala
+    itemId: 17, // WiFi Router
+    quantityUsed: 1,
+    costTotal: "2500.00",
+    usedBy: "demo-staff", 
+    usageType: "emergency"
+  }
+];
 
 export async function seedInventoryData() {
-  console.log("🏨 Seeding Inventory & Welcome Pack Tracker data...");
-
   try {
-    // Create inventory categories
-    const bathroomCategory = await storage.createInventoryCategory({
-      organizationId: "demo-org",
-      categoryName: "Bathroom Essentials",
-      description: "Toiletries and bathroom supplies for guest stays",
-      sortOrder: 1,
-    });
+    console.log("Seeding inventory data...");
 
-    const kitchenCategory = await storage.createInventoryCategory({
-      organizationId: "demo-org",
-      categoryName: "Kitchen & Dining",
-      description: "Kitchen supplies and welcome beverages",
-      sortOrder: 2,
-    });
-
-    const cleaningCategory = await storage.createInventoryCategory({
-      organizationId: "demo-org",
-      categoryName: "Cleaning Supplies",
-      description: "Cleaning materials and maintenance items",
-      sortOrder: 3,
-    });
-
-    const amenitiesCategory = await storage.createInventoryCategory({
-      organizationId: "demo-org",
-      categoryName: "Guest Amenities",
-      description: "Welcome gifts and comfort items",
-      sortOrder: 4,
-    });
-
-    // Create inventory items for Bathroom Essentials
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: bathroomCategory.id,
-      itemName: "Shampoo Bottles",
-      description: "High-quality shampoo for guest use",
-      unitType: "bottles",
-      defaultQuantityPerBedroom: 1,
-      costPerUnit: "25.00",
-      sortOrder: 1,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: bathroomCategory.id,
-      itemName: "Body Soap",
-      description: "Luxury body soap bars",
-      unitType: "bars",
-      defaultQuantityPerBedroom: 2,
-      costPerUnit: "15.00",
-      sortOrder: 2,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: bathroomCategory.id,
-      itemName: "Toilet Paper Rolls",
-      description: "Premium toilet paper",
-      unitType: "rolls",
-      defaultQuantityPerBedroom: 4,
-      costPerUnit: "8.00",
-      sortOrder: 3,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: bathroomCategory.id,
-      itemName: "Towel Set",
-      description: "Bath and hand towels",
-      unitType: "sets",
-      defaultQuantityPerBedroom: 1,
-      costPerUnit: "45.00",
-      sortOrder: 4,
-    });
-
-    // Create inventory items for Kitchen & Dining
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: kitchenCategory.id,
-      itemName: "Welcome Water Bottles",
-      description: "Complimentary water bottles",
-      unitType: "bottles",
-      defaultQuantityPerBedroom: 2,
-      costPerUnit: "5.00",
-      sortOrder: 1,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: kitchenCategory.id,
-      itemName: "Coffee Pods",
-      description: "Premium coffee pods",
-      unitType: "pods",
-      defaultQuantityPerBedroom: 6,
-      costPerUnit: "3.00",
-      sortOrder: 2,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: kitchenCategory.id,
-      itemName: "Tea Bags",
-      description: "Assorted tea selection",
-      unitType: "bags",
-      defaultQuantityPerBedroom: 8,
-      costPerUnit: "2.00",
-      sortOrder: 3,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: kitchenCategory.id,
-      itemName: "Sugar Packets",
-      description: "Individual sugar packets",
-      unitType: "packets",
-      defaultQuantityPerBedroom: 6,
-      costPerUnit: "1.00",
-      sortOrder: 4,
-    });
-
-    // Create inventory items for Cleaning Supplies
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: cleaningCategory.id,
-      itemName: "Disinfectant Spray",
-      description: "Surface disinfectant for checkout cleaning",
-      unitType: "bottles",
-      defaultQuantityPerBedroom: 1,
-      costPerUnit: "12.00",
-      sortOrder: 1,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: cleaningCategory.id,
-      itemName: "Laundry Detergent",
-      description: "Detergent for washing linens",
-      unitType: "scoops",
-      defaultQuantityPerBedroom: 2,
-      costPerUnit: "4.00",
-      sortOrder: 2,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: cleaningCategory.id,
-      itemName: "Trash Bags",
-      description: "Garbage bags for room bins",
-      unitType: "bags",
-      defaultQuantityPerBedroom: 3,
-      costPerUnit: "2.50",
-      sortOrder: 3,
-    });
-
-    // Create inventory items for Guest Amenities
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: amenitiesCategory.id,
-      itemName: "Welcome Snacks",
-      description: "Local snacks and treats",
-      unitType: "packages",
-      defaultQuantityPerBedroom: 1,
-      costPerUnit: "20.00",
-      sortOrder: 1,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: amenitiesCategory.id,
-      itemName: "Slippers",
-      description: "Disposable slippers",
-      unitType: "pairs",
-      defaultQuantityPerBedroom: 2,
-      costPerUnit: "8.00",
-      sortOrder: 2,
-    });
-
-    await storage.createInventoryItem({
-      organizationId: "demo-org",
-      categoryId: amenitiesCategory.id,
-      itemName: "Welcome Note",
-      description: "Personalized welcome card",
-      unitType: "cards",
-      defaultQuantityPerBedroom: 1,
-      costPerUnit: "3.00",
-      sortOrder: 3,
-    });
-
-    // Get all properties to create configs
-    const properties = await storage.getProperties("demo-org");
-
-    // Create welcome pack configs for each property
-    for (const property of properties) {
-      await storage.createPropertyWelcomePackConfig({
-        organizationId: "demo-org",
-        propertyId: property.id,
-        oneBrCost: "300.00",
-        twoBrCost: "350.00",
-        threePlusBrCost: "400.00",
-        defaultBillingRule: "owner",
-      });
+    // Check if inventory items already exist
+    const existingItems = await db.select().from(inventoryItems).limit(1);
+    
+    if (existingItems.length > 0) {
+      console.log("Inventory data already exists, skipping seed.");
+      return;
     }
 
-    // Create some demo usage logs
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const lastWeek = new Date(today);
-    lastWeek.setDate(lastWeek.getDate() - 7);
+    // Insert inventory items
+    console.log("Inserting demo inventory items...");
+    await db.insert(inventoryItems).values(DEMO_INVENTORY_ITEMS);
 
-    // Usage log 1 - Sunset Villa checkout
-    const usageLog1 = await storage.createInventoryUsageLog({
-      organizationId: "demo-org",
-      propertyId: properties[0]?.id || 1,
-      guestCount: 4,
-      stayNights: 3,
-      checkoutDate: yesterday.toISOString(),
-      totalPackCost: "350.00",
-      billingRule: "owner",
-      staffMemberId: "staff@test.com",
-      notes: "Standard checkout cleaning and restocking",
-    });
+    // Insert usage logs 
+    console.log("Inserting demo usage logs...");
+    await db.insert(inventoryUsageLogs).values(DEMO_USAGE_LOGS);
 
-    // Usage log 2 - Ocean Breeze Villa checkout
-    const usageLog2 = await storage.createInventoryUsageLog({
-      organizationId: "demo-org",
-      propertyId: properties[1]?.id || 2,
-      guestCount: 6,
-      stayNights: 5,
-      checkoutDate: lastWeek.toISOString(),
-      totalPackCost: "400.00",
-      billingRule: "guest",
-      billingReason: "Guest requested extra amenities",
-      staffMemberId: "staff@test.com",
-      isProcessed: true,
-      processedBy: "admin@test.com",
-      processedAt: lastWeek.toISOString(),
-      notes: "Extra cleaning required, guest party",
-    });
-
-    // Usage log 3 - Mountain View Cabin checkout
-    const usageLog3 = await storage.createInventoryUsageLog({
-      organizationId: "demo-org",
-      propertyId: properties[2]?.id || 3,
-      guestCount: 2,
-      stayNights: 2,
-      checkoutDate: today.toISOString(),
-      totalPackCost: "300.00",
-      billingRule: "complimentary",
-      billingReason: "VIP guest - complimentary stay",
-      staffMemberId: "staff@test.com",
-      notes: "VIP treatment with premium amenities",
-    });
-
-    // Create some stock levels
-    const items = await storage.getInventoryItems("demo-org");
-    for (const item of items.slice(0, 5)) {
-      const isLowStock = Math.random() > 0.7; // 30% chance of low stock
-      await storage.updateInventoryStockLevel(item.id, {
-        organizationId: "demo-org",
-        currentStock: isLowStock ? 5 : Math.floor(Math.random() * 50) + 20,
-        minimumStock: 10,
-        maxStock: 100,
-        isLowStock: isLowStock,
-        lastRestockDate: lastWeek.toISOString(),
-        lastRestockQuantity: 50,
-      });
-    }
-
-    // Create billing summary for last month
-    const lastMonth = new Date(today);
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    const monthYear = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
-
-    for (const property of properties.slice(0, 3)) {
-      await storage.createWelcomePackBillingSummary({
-        organizationId: "demo-org",
-        propertyId: property.id,
-        monthYear: monthYear,
-        totalUsages: Math.floor(Math.random() * 10) + 5,
-        totalCostOwner: (Math.random() * 2000 + 1000).toFixed(2),
-        totalCostGuest: (Math.random() * 500 + 200).toFixed(2),
-        totalCostCompany: (Math.random() * 300 + 100).toFixed(2),
-        totalCostComplimentary: (Math.random() * 200 + 50).toFixed(2),
-        isProcessed: true,
-        processedAt: today.toISOString(),
-      });
-    }
-
-    console.log("✅ Inventory & Welcome Pack Tracker data seeded successfully!");
-    console.log(`📦 Created ${items.length} inventory items in 4 categories`);
-    console.log(`🏠 Configured ${properties.length} properties with welcome pack settings`);
-    console.log("📊 Added demo usage logs and billing summaries");
+    console.log("✅ Inventory data seeded successfully!");
+    console.log(`- Created ${DEMO_INVENTORY_ITEMS.length} inventory items`);
+    console.log(`- Created ${DEMO_USAGE_LOGS.length} usage log entries`);
 
   } catch (error) {
     console.error("❌ Error seeding inventory data:", error);
-    throw error;
   }
 }

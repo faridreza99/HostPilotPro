@@ -722,6 +722,44 @@ export const propertyTimeline = pgTable("property_timeline", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ===== INVENTORY MANAGEMENT SYSTEM =====
+// Inventory Items - Master list of supplies and materials
+export const inventoryItems = pgTable("inventory_items", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  itemName: varchar("item_name").notNull(),
+  itemType: varchar("item_type"), // linens, cleaning-supplies, toiletries, food-beverage, maintenance, electronics, welcome-packs
+  unit: varchar("unit").notNull().default("unit"), // unit, bottle, liter, kg, meter, roll, pack
+  defaultPrice: decimal("default_price", { precision: 10, scale: 2 }).default("0"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_inventory_items_org").on(table.organizationId),
+  index("IDX_inventory_items_type").on(table.itemType),
+  index("IDX_inventory_items_active").on(table.isActive),
+]);
+
+// Inventory Usage Logs - Track usage of items during tasks
+export const inventoryUsageLogs = pgTable("inventory_usage_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  taskId: integer("task_id").references(() => tasks.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  itemId: integer("item_id").references(() => inventoryItems.id),
+  quantityUsed: integer("quantity_used").notNull(),
+  costTotal: decimal("cost_total", { precision: 10, scale: 2 }),
+  usedBy: varchar("used_by").references(() => users.id),
+  usageType: varchar("usage_type").default("checkout-clean"), // checkout-clean, maintenance, guest-amenity, welcome-pack, emergency
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_inventory_usage_org").on(table.organizationId),
+  index("IDX_inventory_usage_task").on(table.taskId),
+  index("IDX_inventory_usage_property").on(table.propertyId),
+  index("IDX_inventory_usage_item").on(table.itemId),
+  index("IDX_inventory_usage_user").on(table.usedBy),
+  index("IDX_inventory_usage_type").on(table.usageType),
+]);
+
 // Smart Notification Routing
 export const smartNotifications = pgTable("smart_notifications", {
   id: serial("id").primaryKey(),
@@ -13971,3 +14009,13 @@ export type InsertPropertyVisibilityMatrix = z.infer<typeof insertPropertyVisibi
 
 export type UserSessionPermissions = typeof userSessionPermissions.$inferSelect;
 export type InsertUserSessionPermissions = z.infer<typeof insertUserSessionPermissionsSchema>;
+
+// ===== INVENTORY MANAGEMENT TYPES =====
+export const insertInventoryItemSchema = createInsertSchema(inventoryItems);
+export const insertInventoryUsageLogSchema = createInsertSchema(inventoryUsageLogs);
+
+export type InventoryItem = typeof inventoryItems.$inferSelect;
+export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
+
+export type InventoryUsageLog = typeof inventoryUsageLogs.$inferSelect;
+export type InsertInventoryUsageLog = z.infer<typeof insertInventoryUsageLogSchema>;

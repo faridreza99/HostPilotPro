@@ -15,6 +15,8 @@ import { userManagementStorage } from "./userManagementStorage";
 import { userPermissionsStorage } from "./userPermissionsStorage";
 import { staffWalletStorage } from "./staffWalletStorage";
 import { staffPermissionStorage } from "./staffPermissionStorage";
+import { inventoryStorage } from "./inventoryStorage";
+import { insertInventoryItemSchema, insertInventoryUsageLogSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup demo authentication (for development/testing)
@@ -45,6 +47,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seed Extended Utilities demo data
   // const { seedExtendedUtilitiesDemo } = await import("./seedExtendedUtilitiesDemo");
   // await seedExtendedUtilitiesDemo();
+
+  // Seed Inventory Data
+  const { seedInventoryData } = await import("./seedInventoryData");
+  await seedInventoryData();
 
 
 
