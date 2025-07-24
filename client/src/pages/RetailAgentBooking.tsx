@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,18 @@ export default function RetailAgentBooking() {
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [readMeDialogOpen, setReadMeDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("booking-engine");
+  
+  const [location] = useLocation();
+  
+  // Check URL parameters to set active tab
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [location]);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -375,7 +388,7 @@ export default function RetailAgentBooking() {
         </Card>
       )}
 
-      <Tabs defaultValue="booking-engine" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="booking-engine">Live Booking Engine</TabsTrigger>
           <TabsTrigger value="my-bookings">My Reservations</TabsTrigger>

@@ -257,6 +257,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         title: "📊 Booking Dashboard",
         items: [
           { label: "Booking Engine", icon: Calendar, href: "/retail-agent", description: "Create bookings and track commissions" },
+          { label: "My Reservations", icon: BookOpen, href: "/retail-agent?tab=my-bookings", description: "View all my created reservations" },
         ]
       },
       {
