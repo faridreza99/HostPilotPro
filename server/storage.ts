@@ -7060,24 +7060,27 @@ export class DatabaseStorage implements IStorage {
         amenities: properties.amenities,
         images: properties.images,
       })
-      .from(properties)
-      .where(and(
-        eq(properties.organizationId, organizationId),
-        eq(properties.status, 'active')
-      ));
+      .from(properties);
+
+    const conditions = [
+      eq(properties.organizationId, organizationId),
+      eq(properties.status, 'active')
+    ];
 
     if (filters?.guests) {
-      query = query.where(gte(properties.maxGuests, filters.guests));
+      conditions.push(gte(properties.maxGuests, filters.guests));
     }
     if (filters?.bedrooms) {
-      query = query.where(gte(properties.bedrooms, filters.bedrooms));
+      conditions.push(gte(properties.bedrooms, filters.bedrooms));
     }
     if (filters?.priceMin) {
-      query = query.where(gte(properties.pricePerNight, filters.priceMin.toString()));
+      conditions.push(gte(properties.pricePerNight, filters.priceMin.toString()));
     }
     if (filters?.priceMax) {
-      query = query.where(lte(properties.pricePerNight, filters.priceMax.toString()));
+      conditions.push(lte(properties.pricePerNight, filters.priceMax.toString()));
     }
+
+    query = query.where(and(...conditions));
 
     const propertiesResult = await query.orderBy(properties.name);
 

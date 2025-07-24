@@ -5679,6 +5679,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Agent Available Properties (for booking engine) - Enhanced with robust error handling
   app.get("/api/agent/properties", isDemoAuthenticated, async (req: any, res) => {
     try {
+      console.log("Agent properties request - User:", req.user?.id, "Role:", req.user?.role, "OrgId:", req.user?.organizationId);
+      
       const { organizationId } = req.user;
       const { 
         checkIn, 
@@ -5690,8 +5692,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amenities 
       } = req.query;
 
+      console.log("Search filters:", { checkIn, checkOut, guests, bedrooms, priceMin, priceMax });
+
       // Allow retail-agent or demo-agent roles
       if (req.user.role !== 'retail-agent' && req.user.id !== 'demo-agent') {
+        console.log("Access denied for user:", req.user.id, "with role:", req.user.role);
         return res.status(403).json({ 
           message: "Access denied: Retail agent role required",
           fallbackData: []
@@ -5708,8 +5713,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amenities: amenities ? amenities.split(',') : undefined,
       });
 
+      console.log("Raw properties from storage:", properties?.length || 0);
+
       // Ensure properties is always an array
       const safeProperties = Array.isArray(properties) ? properties : [];
+      console.log("Safe properties count:", safeProperties.length);
       
       // Add default commission rate and ensure all required fields exist
       const enhancedProperties = safeProperties.map(property => ({
@@ -5731,6 +5739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: property.status || "active"
       }));
 
+      console.log("Enhanced properties count:", enhancedProperties.length);
       res.json(enhancedProperties);
     } catch (error) {
       console.error("Error fetching agent properties:", error);
