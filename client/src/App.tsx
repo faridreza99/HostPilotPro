@@ -56,6 +56,10 @@ import StaffPermissionManagement from "./pages/StaffPermissionManagement";
 import MrPilot from "@/components/MrPilot";
 import { InstantPageSwitcher } from "@/components/InstantPageSwitcher";
 
+// Import SaaS pages
+import SignupRequest from "@/pages/public/SignupRequest";
+import SaasManagement from "@/pages/admin/SaasManagement";
+
 // Import new agent pages
 import QuoteGenerator from "@/pages/agent/QuoteGenerator";
 import Commissions from "@/pages/agent/Commissions";
@@ -157,6 +161,10 @@ function AppRoutes() {
         <Route path="/agent/proposals" component={Proposals} />
         <Route path="/agent/media-download" component={MediaDownload} />
         <Route path="/agent/leaderboard" component={Leaderboard} />
+        
+        {/* SaaS Framework Routes */}
+        <Route path="/signup-request" component={SignupRequest} />
+        <Route path="/admin/saas-management" component={SaasManagement} />
         
         <Route component={NotFound} />
       </Switch>
