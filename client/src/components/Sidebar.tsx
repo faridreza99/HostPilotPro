@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -618,7 +618,7 @@ export default function Sidebar({ className }: SidebarProps) {
               <Menu className="h-4 w-4" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-80 p-0 flex flex-col" style={{ maxHeight: '100vh' }}>
+          <SheetContent side="left" className="w-80 sm:w-96 p-0 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
             <SheetHeader className="p-4 border-b flex-shrink-0">
               <SheetTitle className="flex items-center gap-2">
                 <RoleIcon className="h-5 w-5" />

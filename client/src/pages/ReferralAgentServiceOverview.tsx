@@ -6,7 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Building, DollarSign, Users, Star, Calendar, TrendingUp, FileText, Eye } from "lucide-react";
 
 const ReferralAgentServiceOverview = () => {
-  const [activeTab, setActiveTab] = useState("services");
+  // Get tab from URL or default to services
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = urlParams.get('tab') || 'services';
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   // Sample data for referred properties
   const referredProperties = [
@@ -124,7 +127,7 @@ const ReferralAgentServiceOverview = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="services">Service Overview</TabsTrigger>
           <TabsTrigger value="properties">Property Browse</TabsTrigger>
           <TabsTrigger value="referred">My Referrals</TabsTrigger>
@@ -194,7 +197,7 @@ const ReferralAgentServiceOverview = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {availableProperties.map((property) => (
                   <Card key={property.id} className="border border-gray-200 hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
