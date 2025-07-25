@@ -559,7 +559,18 @@ export default function Sidebar({ className }: SidebarProps) {
                         <Link 
                           key={itemIndex} 
                           href={item.href}
-                          onClick={() => setIsOpen(false)}
+                          onClick={(e) => {
+                            console.log('Sidebar link clicked:', item.href);
+                            setIsOpen(false);
+                            // Force navigation by updating window location as fallback
+                            setTimeout(() => {
+                              if (window.location.pathname + window.location.search !== item.href) {
+                                console.log('Fallback navigation to:', item.href);
+                                window.history.pushState({}, '', item.href);
+                                window.dispatchEvent(new PopStateEvent('popstate'));
+                              }
+                            }, 100);
+                          }}
                         >
                           <Button
                             variant={isActive ? "secondary" : "ghost"}

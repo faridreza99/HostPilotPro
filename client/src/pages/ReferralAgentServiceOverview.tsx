@@ -9,19 +9,41 @@ import { Download, Building, DollarSign, Users, Star, Calendar, TrendingUp, File
 const ReferralAgentServiceOverview = () => {
   const [location, setLocation] = useLocation();
   
-  // Get tab from URL or default to services
-  const activeTab = (() => {
+  // Use state to manage active tab
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    return urlParams.get('tab') || 'services';
+  });
+
+  // Listen for location changes to update active tab
+  useEffect(() => {
     const urlParams = new URLSearchParams(location.split('?')[1] || '');
     const tab = urlParams.get('tab') || 'services';
-    console.log('Current location:', location, 'Active tab:', tab);
-    return tab;
-  })();
+    console.log('Location changed to:', location, 'Setting active tab to:', tab);
+    setActiveTab(tab);
+  }, [location]);
+
+  // Listen for popstate events (browser back/forward or manual pushState)
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab') || 'services';
+      console.log('PopState event - updating tab to:', tab);
+      setActiveTab(tab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const handleTabChange = (tab: string) => {
-    // Update URL with new tab parameter using wouter navigation
+    console.log('Tab change requested:', tab);
+    setActiveTab(tab);
+    
+    // Update URL using wouter navigation
     const baseUrl = location.split('?')[0];
     const newUrl = tab === 'services' ? baseUrl : `${baseUrl}?tab=${tab}`;
-    console.log('Changing tab to:', tab, 'New URL:', newUrl);
+    console.log('Navigating to:', newUrl);
     setLocation(newUrl);
   };
 
