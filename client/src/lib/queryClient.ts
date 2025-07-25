@@ -1,4 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { fastCache } from "./fastCache";
+import { getInstantData } from "./instantData";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -29,7 +31,25 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    const cacheKey = queryKey[0] as string;
+    
+    // Check instant data first for immediate response
+    const instantData = getInstantData(cacheKey);
+    if (instantData) {
+      console.log(`Instant data served: ${cacheKey}`);
+      // Also cache it for consistency
+      fastCache.set(cacheKey, instantData, 60);
+      return instantData;
+    }
+    
+    // Check fast cache second
+    if (fastCache.has(cacheKey)) {
+      const cached = fastCache.get(cacheKey);
+      console.log(`Fast cache hit: ${cacheKey}`);
+      return cached;
+    }
+    
+    const res = await fetch(cacheKey, {
       credentials: "include",
     });
 
@@ -38,7 +58,12 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await res.json();
+    
+    // Store in fast cache for 30 minutes
+    fastCache.set(cacheKey, data, 30);
+    
+    return data;
   };
 
 export const queryClient = new QueryClient({
@@ -49,8 +74,8 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       refetchOnMount: false, // Don't refetch on mount if cache exists
-      staleTime: 20 * 60 * 1000, // Increase to 20 minutes for aggressive caching
-      gcTime: 60 * 60 * 1000, // Increase to 1 hour garbage collection  
+      staleTime: 1 * 60 * 60 * 1000, // 1 hour extreme caching
+      gcTime: 2 * 60 * 60 * 1000, // 2 hours garbage collection  
       retry: 0, // Disable retries completely for speed
       networkMode: 'online',
       notifyOnChangeProps: ['data', 'error'],

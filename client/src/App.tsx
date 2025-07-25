@@ -54,6 +54,7 @@ import StaffExpenseManagement from "./pages/StaffExpenseManagement";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffPermissionManagement from "./pages/StaffPermissionManagement";
 import MrPilot from "@/components/MrPilot";
+import { InstantPageSwitcher } from "@/components/InstantPageSwitcher";
 
 // Import new agent pages
 import QuoteGenerator from "@/pages/agent/QuoteGenerator";
@@ -167,6 +168,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <InstantPageSwitcher />
         <AppRoutes />
         <MrPilot />
         <Toaster />
