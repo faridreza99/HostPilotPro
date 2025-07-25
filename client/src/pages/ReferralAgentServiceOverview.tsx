@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation, useRoute } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,20 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Building, DollarSign, Users, Star, Calendar, TrendingUp, FileText, Eye } from "lucide-react";
 
 const ReferralAgentServiceOverview = () => {
+  const [location, setLocation] = useLocation();
+  
   // Get tab from URL or default to services
-  const [activeTab, setActiveTab] = useState(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+  const activeTab = (() => {
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
     return urlParams.get('tab') || 'services';
-  });
+  })();
 
-  // Listen for URL changes to update tab
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tab = urlParams.get('tab') || 'services';
-    if (tab !== activeTab) {
-      setActiveTab(tab);
-    }
-  }, [activeTab]);
+  const handleTabChange = (tab: string) => {
+    // Update URL with new tab parameter using wouter navigation
+    const baseUrl = location.split('?')[0];
+    const newUrl = tab === 'services' ? baseUrl : `${baseUrl}?tab=${tab}`;
+    setLocation(newUrl);
+  };
 
   // Sample data for referred properties
   const referredProperties = [
@@ -136,7 +137,7 @@ const ReferralAgentServiceOverview = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="services">Service Overview</TabsTrigger>
           <TabsTrigger value="properties">Property Browse</TabsTrigger>
