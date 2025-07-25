@@ -129,7 +129,32 @@ Returns all available finance categories.
 ]
 ```
 
-### 7. Finance Dashboard
+### 7. Villa-Specific Finance Query
+**GET** `/api/finance/villa/:villaId?dateStart=YYYY-MM-DD&dateEnd=YYYY-MM-DD`
+
+Retrieves revenue and commission data for a specific villa with optional date range filtering.
+
+**Path Parameters:**
+- `villaId` (required): Property/Villa ID
+
+**Query Parameters:**
+- `dateStart` (optional): Start date in YYYY-MM-DD format
+- `dateEnd` (optional): End date in YYYY-MM-DD format
+
+**Response:**
+```json
+{
+  "villaId": 17,
+  "dateStart": "2025-01-01",
+  "dateEnd": "2025-01-31",
+  "totalRevenue": 25000,
+  "totalCommission": 2500,
+  "bookingCount": 3,
+  "commissionRecords": 3
+}
+```
+
+### 8. Finance Dashboard
 **GET** `/api/finance/dashboard`
 
 Provides dashboard summary with current month metrics and recent transactions.
@@ -189,6 +214,10 @@ const newRecord = await fetch('/api/finance', {
     propertyId: 1
   })
 }).then(res => res.json());
+
+// Get villa-specific finance data with date range
+const villaFinances = await fetch('/api/finance/villa/17?dateStart=2025-01-01&dateEnd=2025-01-31')
+  .then(res => res.json());
 ```
 
 ### cURL Examples

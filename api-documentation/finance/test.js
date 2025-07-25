@@ -130,6 +130,27 @@ async function testFinanceAPI() {
       console.log('❌ Categories test failed:', categoriesResponse.status);
     }
 
+    // Test 7: Villa-Specific Finance Query
+    console.log('\n7. Testing Villa-Specific Finance Query...');
+    const villaId = 17; // Use a known villa ID
+    const dateStart = '2025-01-01';
+    const dateEnd = '2025-12-31';
+    
+    const villaResponse = await fetch(`${BASE_URL}/api/finance/villa/${villaId}?dateStart=${dateStart}&dateEnd=${dateEnd}`, { headers });
+    if (villaResponse.ok) {
+      const villaData = await villaResponse.json();
+      console.log('✅ Villa Finance Data:', {
+        villaId: villaData.villaId,
+        dateRange: `${villaData.dateStart} to ${villaData.dateEnd}`,
+        revenue: `฿${(villaData.totalRevenue || 0).toLocaleString()}`,
+        commission: `฿${(villaData.totalCommission || 0).toLocaleString()}`,
+        bookings: villaData.bookingCount,
+        commissionRecords: villaData.commissionRecords
+      });
+    } else {
+      console.log('❌ Villa finance test failed:', villaResponse.status);
+    }
+
     console.log('\n🎉 Finance API tests completed!');
 
   } catch (error) {

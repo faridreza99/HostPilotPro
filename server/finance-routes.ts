@@ -173,6 +173,65 @@ export function registerFinanceRoutes(app: Express) {
     }
   });
 
+  // Villa-specific Finance Query with Date Range
+  app.get("/api/finance/villa/:villaId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { villaId } = req.params;
+      const { dateStart, dateEnd } = req.query;
+      const organizationId = req.user?.organizationId || "default-org";
+
+      // Get bookings for the specific villa within date range
+      const bookings = await storage.getBookings();
+      const filteredBookings = bookings.filter(booking => {
+        const matchesVilla = booking.propertyId === parseInt(villaId);
+        if (!dateStart || !dateEnd) return matchesVilla;
+        
+        const checkIn = new Date(booking.checkIn);
+        const checkOut = new Date(booking.checkOut);
+        const startDate = new Date(dateStart as string);
+        const endDate = new Date(dateEnd as string);
+        
+        return matchesVilla && checkIn >= startDate && checkOut <= endDate;
+      });
+
+      // Calculate revenue and commission totals
+      const totalRevenue = filteredBookings.reduce((sum, booking) => {
+        const amount = typeof booking.totalAmount === 'number' ? booking.totalAmount : parseFloat(booking.totalAmount || '0');
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+
+      // Get commission data from finance records
+      const finances = await storage.getFinances();
+      const commissionRecords = finances.filter(f => 
+        f.propertyId === parseInt(villaId) && 
+        f.category === 'commission' &&
+        (!dateStart || !dateEnd || (
+          f.createdAt && 
+          new Date(f.createdAt) >= new Date(dateStart as string) && 
+          new Date(f.createdAt) <= new Date(dateEnd as string)
+        ))
+      );
+
+      const totalCommission = commissionRecords.reduce((sum, record) => {
+        const amount = typeof record.amount === 'number' ? record.amount : parseFloat(record.amount || '0');
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+
+      res.json({
+        villaId: parseInt(villaId),
+        dateStart: dateStart || null,
+        dateEnd: dateEnd || null,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        totalCommission: Math.round(totalCommission * 100) / 100,
+        bookingCount: filteredBookings.length,
+        commissionRecords: commissionRecords.length
+      });
+    } catch (error) {
+      console.error("Error fetching villa finance data:", error);
+      res.status(500).json({ error: "Finance endpoint error", details: error.message });
+    }
+  });
+
   // Finance Dashboard Summary
   app.get("/api/finance/dashboard", isDemoAuthenticated, async (req: any, res) => {
     try {
