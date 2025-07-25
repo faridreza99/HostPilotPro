@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { registerSaasRoutes } from "./saas-routes";
+import { registerFinanceRoutes } from "./finance-routes";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
@@ -65,6 +66,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register SaaS routes
   registerSaasRoutes(app);
+  
+  // Register Finance routes
+  registerFinanceRoutes(app);
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
