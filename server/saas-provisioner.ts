@@ -1,7 +1,7 @@
 import { saasStorage } from "./saas-storage";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import type { NewTenantOrganization, NewTenantDeployment, SignupRequest } from "../shared/saas-schema";
+import type { NewClientOrganization, NewClientDeployment, SignupRequest } from "../shared/saas-schema";
 
 export class SaasProvisioner {
   async provisionTenantEnvironment(

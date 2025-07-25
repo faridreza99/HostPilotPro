@@ -1,11 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
 import { saasStorage } from "./saas-storage";
 
-// Extend Express Request type to include tenant information
+// Extend Express Request type to include client information
 declare global {
   namespace Express {
     interface Request {
-      tenantContext?: {
+      clientContext?: {
         organizationId: string;
         subdomain: string;
         schemaName: string;
@@ -16,7 +16,7 @@ declare global {
   }
 }
 
-export async function tenantMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function clientMiddleware(req: Request, res: Response, next: NextFunction) {
   // Extract subdomain from request
   const host = req.get('host');
   const subdomain = extractSubdomain(host);

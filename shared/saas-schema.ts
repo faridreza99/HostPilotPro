@@ -23,7 +23,7 @@ export const signupRequests = pgTable("signup_requests", {
   rejectionReason: text("rejection_reason"),
 });
 
-export const tenantOrganizations = pgTable("tenant_organizations", {
+export const clientOrganizations = pgTable("client_organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: text("organization_id").notNull().unique(), // client_12345
   companyName: text("company_name").notNull(),
@@ -44,7 +44,7 @@ export const tenantOrganizations = pgTable("tenant_organizations", {
   billingEmail: text("billing_email"),
 });
 
-export const tenantApiKeys = pgTable("tenant_api_keys", {
+export const clientApiKeys = pgTable("client_api_keys", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: text("organization_id").notNull(),
   service: text("service").notNull(), // hostaway, stripe, twilio, openai
@@ -55,7 +55,7 @@ export const tenantApiKeys = pgTable("tenant_api_keys", {
   lastUsed: timestamp("last_used"),
 });
 
-export const tenantDeployments = pgTable("tenant_deployments", {
+export const clientDeployments = pgTable("client_deployments", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: text("organization_id").notNull(),
   deploymentStatus: text("deployment_status").notNull(), // provisioning, ready, failed
@@ -81,19 +81,19 @@ export const saasAuditLog = pgTable("saas_audit_log", {
 
 // Insert schemas
 export const insertSignupRequestSchema = createInsertSchema(signupRequests);
-export const insertTenantOrganizationSchema = createInsertSchema(tenantOrganizations);
-export const insertTenantApiKeySchema = createInsertSchema(tenantApiKeys);
-export const insertTenantDeploymentSchema = createInsertSchema(tenantDeployments);
+export const insertClientOrganizationSchema = createInsertSchema(clientOrganizations);
+export const insertClientApiKeySchema = createInsertSchema(clientApiKeys);
+export const insertClientDeploymentSchema = createInsertSchema(clientDeployments);
 export const insertSaasAuditLogSchema = createInsertSchema(saasAuditLog);
 
 // Types
 export type SignupRequest = typeof signupRequests.$inferSelect;
 export type NewSignupRequest = z.infer<typeof insertSignupRequestSchema>;
-export type TenantOrganization = typeof tenantOrganizations.$inferSelect;
-export type NewTenantOrganization = z.infer<typeof insertTenantOrganizationSchema>;
-export type TenantApiKey = typeof tenantApiKeys.$inferSelect;
-export type NewTenantApiKey = z.infer<typeof insertTenantApiKeySchema>;
-export type TenantDeployment = typeof tenantDeployments.$inferSelect;
-export type NewTenantDeployment = z.infer<typeof insertTenantDeploymentSchema>;
+export type ClientOrganization = typeof clientOrganizations.$inferSelect;
+export type NewClientOrganization = z.infer<typeof insertClientOrganizationSchema>;
+export type ClientApiKey = typeof clientApiKeys.$inferSelect;
+export type NewClientApiKey = z.infer<typeof insertClientApiKeySchema>;
+export type ClientDeployment = typeof clientDeployments.$inferSelect;
+export type NewClientDeployment = z.infer<typeof insertClientDeploymentSchema>;
 export type SaasAuditLog = typeof saasAuditLog.$inferSelect;
 export type NewSaasAuditLog = z.infer<typeof insertSaasAuditLogSchema>;
