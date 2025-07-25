@@ -115,10 +115,13 @@ export default function ApiConnections() {
   });
 
   // Fetch API connections
-  const { data: connections = [], isLoading } = useQuery({
+  const { data: connectionsData = [], isLoading } = useQuery({
     queryKey: ["/api/admin/api-connections"],
     queryFn: () => apiRequest("GET", "/api/admin/api-connections"),
   });
+
+  // Ensure connections is always an array
+  const connections = Array.isArray(connectionsData) ? connectionsData : [];
 
   // Update API connection
   const updateConnectionMutation = useMutation({
