@@ -28278,6 +28278,176 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== PROPERTY APPLIANCES MANAGEMENT API ENDPOINTS =====
+
+  // Property appliances routes
+  app.get("/api/appliances", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const { propertyId } = req.query;
+      
+      const appliances = await storage.getPropertyAppliances(
+        organizationId,
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      
+      res.json(appliances);
+    } catch (error) {
+      console.error("Error fetching appliances:", error);
+      res.status(500).json({ message: "Failed to fetch appliances" });
+    }
+  });
+
+  app.get("/api/appliances/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const appliance = await storage.getPropertyAppliance(parseInt(id));
+      
+      if (!appliance) {
+        return res.status(404).json({ message: "Appliance not found" });
+      }
+      
+      res.json(appliance);
+    } catch (error) {
+      console.error("Error fetching appliance:", error);
+      res.status(500).json({ message: "Failed to fetch appliance" });
+    }
+  });
+
+  app.post("/api/appliances", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const userData = req.user as any;
+      
+      const applianceData = {
+        ...req.body,
+        organizationId,
+        createdBy: userData.claims.sub,
+      };
+      
+      const appliance = await storage.createPropertyAppliance(applianceData);
+      res.status(201).json(appliance);
+    } catch (error) {
+      console.error("Error creating appliance:", error);
+      res.status(500).json({ message: "Failed to create appliance" });
+    }
+  });
+
+  app.patch("/api/appliances/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const appliance = await storage.updatePropertyAppliance(parseInt(id), req.body);
+      
+      if (!appliance) {
+        return res.status(404).json({ message: "Appliance not found" });
+      }
+      
+      res.json(appliance);
+    } catch (error) {
+      console.error("Error updating appliance:", error);
+      res.status(500).json({ message: "Failed to update appliance" });
+    }
+  });
+
+  app.delete("/api/appliances/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deletePropertyAppliance(parseInt(id));
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Appliance not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting appliance:", error);
+      res.status(500).json({ message: "Failed to delete appliance" });
+    }
+  });
+
+  // Appliance repairs routes
+  app.get("/api/appliance-repairs", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { organizationId } = getTenantContext(req);
+      const { applianceId } = req.query;
+      
+      const repairs = await storage.getApplianceRepairs(
+        organizationId,
+        applianceId ? parseInt(applianceId as string) : undefined
+      );
+      
+      res.json(repairs);
+    } catch (error) {
+      console.error("Error fetching appliance repairs:", error);
+      res.status(500).json({ message: "Failed to fetch appliance repairs" });
+    }
+  });
+
+  app.get("/api/appliance-repairs/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const repair = await storage.getApplianceRepair(parseInt(id));
+      
+      if (!repair) {
+        return res.status(404).json({ message: "Appliance repair not found" });
+      }
+      
+      res.json(repair);
+    } catch (error) {
+      console.error("Error fetching appliance repair:", error);
+      res.status(500).json({ message: "Failed to fetch appliance repair" });
+    }
+  });
+
+  app.post("/api/appliance-repairs", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const userData = req.user as any;
+      
+      const repairData = {
+        ...req.body,
+        reportedBy: userData.claims.sub,
+      };
+      
+      const repair = await storage.createApplianceRepair(repairData);
+      res.status(201).json(repair);
+    } catch (error) {
+      console.error("Error creating appliance repair:", error);
+      res.status(500).json({ message: "Failed to create appliance repair" });
+    }
+  });
+
+  app.patch("/api/appliance-repairs/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const repair = await storage.updateApplianceRepair(parseInt(id), req.body);
+      
+      if (!repair) {
+        return res.status(404).json({ message: "Appliance repair not found" });
+      }
+      
+      res.json(repair);
+    } catch (error) {
+      console.error("Error updating appliance repair:", error);
+      res.status(500).json({ message: "Failed to update appliance repair" });
+    }
+  });
+
+  app.delete("/api/appliance-repairs/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteApplianceRepair(parseInt(id));
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Appliance repair not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting appliance repair:", error);
+      res.status(500).json({ message: "Failed to delete appliance repair" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

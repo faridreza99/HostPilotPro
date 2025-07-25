@@ -98,6 +98,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Properties", icon: Building, href: "/properties", description: "Manage all properties" },
           { label: "Unified Calendar & Bookings", icon: Calendar, href: "/bookings", description: "All booking views and calendar management" },
           { label: "Tasks", icon: CheckSquare, href: "/tasks", description: "Track and assign tasks" },
+          { label: "Property Appliances", icon: Wrench, href: "/property-appliances-management", description: "Manage property appliances and repairs", badge: "New" },
           { label: "Check-in/Check-out Workflow", icon: CheckCircle, href: "/checkin-checkout-workflow" },
           { label: "Daily Operations", icon: Clock, href: "/daily-operations", badge: "New" },
         ]
@@ -168,6 +169,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Properties", icon: Building, href: "/properties", description: "Manage portfolio properties" },
           { label: "Unified Calendar & Bookings", icon: Calendar, href: "/bookings", description: "All booking views and calendar management" },
           { label: "Tasks", icon: CheckSquare, href: "/tasks", description: "Track and assign tasks" },
+          { label: "Property Appliances", icon: Wrench, href: "/property-appliances-management", description: "Manage property appliances and repairs", badge: "New" },
           { label: "Check-in/Check-out Workflow", icon: CheckCircle, href: "/checkin-checkout-workflow" },
           { label: "Daily Operations", icon: Clock, href: "/daily-operations", badge: "New" },
         ]
@@ -217,6 +219,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Check-in/Check-out", icon: CheckCircle, href: "/checkin-checkout-workflow" },
           { label: "Maintenance Requests", icon: Wrench, href: "/maintenance-log-warranty-tracker" },
+          { label: "Property Appliances", icon: Wrench, href: "/property-appliances-management", description: "Report appliance issues", badge: "New" },
           { label: "Guest Services", icon: MessageSquare, href: "/guest-portal-smart-requests" },
         ]
       },

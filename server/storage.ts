@@ -119,6 +119,8 @@ import {
   // propertyAttachments,
   // taskGuideTemplates,
   // attachmentAccessLogs,
+  propertyAppliances,
+  applianceRepairs,
   type User,
   type UpsertUser,
   type Property,
@@ -590,6 +592,13 @@ import {
   type InsertServiceReview,
   type ServiceAnalytics,
   type InsertServiceAnalytics,
+  // Property appliances tables
+  propertyAppliances,
+  applianceRepairs,
+  type PropertyAppliance,
+  type InsertPropertyAppliance,
+  type ApplianceRepair,
+  type InsertApplianceRepair,
 } from "@shared/schema";
 
 // Guest Portal Smart Requests & AI Chat imports
@@ -771,6 +780,20 @@ export interface IStorage {
   approveOwnerPayout(id: number, approvedBy: string, approvalNotes?: string): Promise<OwnerPayout | undefined>;
   markOwnerPayoutPaid(id: number, paidBy: string, paymentMethod: string, paymentReference?: string): Promise<OwnerPayout | undefined>;
   uploadOwnerPayoutReceipt(id: number, receiptUrl: string, uploadedBy: string): Promise<OwnerPayout | undefined>;
+
+  // Property appliances operations
+  getPropertyAppliances(organizationId: string, propertyId?: number): Promise<PropertyAppliance[]>;
+  getPropertyAppliance(id: number): Promise<PropertyAppliance | undefined>;
+  createPropertyAppliance(appliance: InsertPropertyAppliance): Promise<PropertyAppliance>;
+  updatePropertyAppliance(id: number, appliance: Partial<InsertPropertyAppliance>): Promise<PropertyAppliance | undefined>;
+  deletePropertyAppliance(id: number): Promise<boolean>;
+
+  // Appliance repairs operations
+  getApplianceRepairs(organizationId: string, applianceId?: number): Promise<ApplianceRepair[]>;
+  getApplianceRepair(id: number): Promise<ApplianceRepair | undefined>;
+  createApplianceRepair(repair: InsertApplianceRepair): Promise<ApplianceRepair>;
+  updateApplianceRepair(id: number, repair: Partial<InsertApplianceRepair>): Promise<ApplianceRepair | undefined>;
+  deleteApplianceRepair(id: number): Promise<boolean>;
   confirmOwnerPayoutReceived(id: number, confirmedBy: string): Promise<OwnerPayout | undefined>;
   calculateOwnerBalance(ownerId: string, propertyId?: number, startDate?: string, endDate?: string): Promise<{
     totalIncome: number;
@@ -32987,6 +33010,104 @@ Plant Care:
 
     // In real implementation, decrypt the value
     return result.encryptedValue.replace("encrypted_", ""); // Simple demo decryption
+  }
+
+  // ===== PROPERTY APPLIANCES MANAGEMENT =====
+
+  // Property appliances operations
+  async getPropertyAppliances(organizationId: string, propertyId?: number): Promise<PropertyAppliance[]> {
+    let query = db
+      .select()
+      .from(propertyAppliances)
+      .where(eq(propertyAppliances.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(propertyAppliances.propertyId, propertyId));
+    }
+
+    return await query.orderBy(propertyAppliances.applianceType, propertyAppliances.brand);
+  }
+
+  async getPropertyAppliance(id: number): Promise<PropertyAppliance | undefined> {
+    const [appliance] = await db
+      .select()
+      .from(propertyAppliances)
+      .where(eq(propertyAppliances.id, id));
+    return appliance;
+  }
+
+  async createPropertyAppliance(appliance: InsertPropertyAppliance): Promise<PropertyAppliance> {
+    const [newAppliance] = await db
+      .insert(propertyAppliances)
+      .values(appliance)
+      .returning();
+    return newAppliance;
+  }
+
+  async updatePropertyAppliance(id: number, appliance: Partial<InsertPropertyAppliance>): Promise<PropertyAppliance | undefined> {
+    const [updated] = await db
+      .update(propertyAppliances)
+      .set(appliance)
+      .where(eq(propertyAppliances.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyAppliance(id: number): Promise<boolean> {
+    const result = await db
+      .delete(propertyAppliances)
+      .where(eq(propertyAppliances.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Appliance repairs operations
+  async getApplianceRepairs(organizationId: string, applianceId?: number): Promise<ApplianceRepair[]> {
+    let query = db
+      .select()
+      .from(applianceRepairs);
+
+    if (applianceId) {
+      query = query.where(eq(applianceRepairs.applianceId, applianceId));
+    } else {
+      // Filter by organization through appliance relationship
+      query = query
+        .leftJoin(propertyAppliances, eq(applianceRepairs.applianceId, propertyAppliances.id))
+        .where(eq(propertyAppliances.organizationId, organizationId));
+    }
+
+    return await query.orderBy(desc(applianceRepairs.createdAt));
+  }
+
+  async getApplianceRepair(id: number): Promise<ApplianceRepair | undefined> {
+    const [repair] = await db
+      .select()
+      .from(applianceRepairs)
+      .where(eq(applianceRepairs.id, id));
+    return repair;
+  }
+
+  async createApplianceRepair(repair: InsertApplianceRepair): Promise<ApplianceRepair> {
+    const [newRepair] = await db
+      .insert(applianceRepairs)
+      .values(repair)
+      .returning();
+    return newRepair;
+  }
+
+  async updateApplianceRepair(id: number, repair: Partial<InsertApplianceRepair>): Promise<ApplianceRepair | undefined> {
+    const [updated] = await db
+      .update(applianceRepairs)
+      .set(repair)
+      .where(eq(applianceRepairs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteApplianceRepair(id: number): Promise<boolean> {
+    const result = await db
+      .delete(applianceRepairs)
+      .where(eq(applianceRepairs.id, id));
+    return (result.rowCount || 0) > 0;
   }
 }
 

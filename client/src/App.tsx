@@ -60,6 +60,9 @@ import { InstantPageSwitcher } from "@/components/InstantPageSwitcher";
 import SignupRequest from "@/pages/public/SignupRequest";
 import SaasManagement from "@/pages/admin/SaasManagement";
 
+// Import Property Appliances Management
+import PropertyAppliancesManagement from "@/pages/PropertyAppliancesManagement";
+
 // Import new agent pages
 import QuoteGenerator from "@/pages/agent/QuoteGenerator";
 import Commissions from "@/pages/agent/Commissions";
@@ -146,6 +149,9 @@ function AppRoutes() {
         <Route path="/utility-tracker" component={UtilityTracker} />
         <Route path="/ai-notifications-reminders" component={AiNotificationsReminders} />
         <Route path="/finance-engine" component={FinanceEngine} />
+        
+        {/* Property Management */}
+        <Route path="/property-appliances-management" component={PropertyAppliancesManagement} />
         
         {/* AI Testing */}
         <Route path="/ai-test" component={AITest} />

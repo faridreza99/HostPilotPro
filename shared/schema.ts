@@ -11652,3 +11652,58 @@ export type InsertRecurringTaskAnalytics = z.infer<typeof insertRecurringTaskAna
 
 export type TaskSchedulingAlert = typeof taskSchedulingAlerts.$inferSelect;
 export type InsertTaskSchedulingAlert = z.infer<typeof insertTaskSchedulingAlertSchema>;
+
+// ===== PROPERTY APPLIANCES MANAGEMENT =====
+
+export const propertyAppliances = pgTable("property_appliances", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  applianceType: varchar("appliance_type").notNull(), // refrigerator, washing_machine, air_conditioner, etc.
+  brand: varchar("brand"),
+  model: varchar("model"),
+  serialNumber: varchar("serial_number"),
+  installDate: date("install_date"),
+  warrantyExpiry: date("warranty_expiry"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_appliances_property").on(table.propertyId),
+  index("IDX_appliances_type").on(table.applianceType),
+  index("IDX_appliances_warranty").on(table.warrantyExpiry),
+]);
+
+export const applianceRepairs = pgTable("appliance_repairs", {
+  id: serial("id").primaryKey(),
+  applianceId: integer("appliance_id").references(() => propertyAppliances.id),
+  issueReported: text("issue_reported").notNull(),
+  fixDescription: text("fix_description"),
+  technicianName: varchar("technician_name"),
+  repairCost: decimal("repair_cost", { precision: 10, scale: 2 }),
+  receiptUrl: text("receipt_url"),
+  repairedAt: timestamp("repaired_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_repairs_appliance").on(table.applianceId),
+  index("IDX_repairs_date").on(table.repairedAt),
+]);
+
+// ===== APPLIANCES INSERT SCHEMAS =====
+
+export const insertPropertyApplianceSchema = createInsertSchema(propertyAppliances).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertApplianceRepairSchema = createInsertSchema(applianceRepairs).omit({
+  id: true,
+  createdAt: true,
+});
+
+// ===== APPLIANCES TYPE DEFINITIONS =====
+
+export type PropertyAppliance = typeof propertyAppliances.$inferSelect;
+export type InsertPropertyAppliance = z.infer<typeof insertPropertyApplianceSchema>;
+
+export type ApplianceRepair = typeof applianceRepairs.$inferSelect;
+export type InsertApplianceRepair = z.infer<typeof insertApplianceRepairSchema>;
