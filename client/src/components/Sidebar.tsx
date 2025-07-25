@@ -274,19 +274,18 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
     ],
     "referral-agent": [
       {
-        title: "📊 Referral Dashboard",
+        title: "🏠 Property Management Services",
         items: [
-          { label: "Referral Dashboard", icon: UserPlus, href: "/referral-agent", description: "Track referrals and commissions" },
+          { label: "Service Overview", icon: FileText, href: "/referral-agent", description: "Our management services and downloadable PDF" },
+          { label: "Property Browse", icon: Building, href: "/referral-agent?tab=properties", description: "Browse available properties" },
         ]
       },
       {
-        title: "🔧 Agent Tools",
+        title: "📊 My Referrals",
         items: [
-          { label: "Quote Generator", icon: Calculator, href: "/agent/quote-generator", description: "Generate property quotes for clients" },
-          { label: "Commission Tracker", icon: DollarSign, href: "/agent/commissions", description: "Track commission earnings" },
-          { label: "Proposals", icon: FileText, href: "/agent/proposals", description: "Manage client proposals" },
-          { label: "Media Download", icon: Camera, href: "/agent/media-download", description: "Download property photos and videos" },
-          { label: "Leaderboard", icon: Star, href: "/agent/leaderboard", description: "View agent performance rankings" },
+          { label: "Referred Properties", icon: UserPlus, href: "/referral-agent?tab=referred", description: "Track your referred properties" },
+          { label: "Financial Updates", icon: DollarSign, href: "/referral-agent?tab=finances", description: "10% commission tracking" },
+          { label: "Performance Reports", icon: BarChart3, href: "/referral-agent?tab=reports", description: "Occupancy, bookings, reviews" },
         ]
       }
     ]
