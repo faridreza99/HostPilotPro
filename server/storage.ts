@@ -599,6 +599,13 @@ import {
   type InsertPropertyAppliance,
   type ApplianceRepair,
   type InsertApplianceRepair,
+  // Alert management tables
+  alertRules,
+  alertLogs,
+  type AlertRule,
+  type InsertAlertRule,
+  type AlertLog,
+  type InsertAlertLog,
 } from "@shared/schema";
 
 // Guest Portal Smart Requests & AI Chat imports
@@ -794,6 +801,21 @@ export interface IStorage {
   createApplianceRepair(repair: InsertApplianceRepair): Promise<ApplianceRepair>;
   updateApplianceRepair(id: number, repair: Partial<InsertApplianceRepair>): Promise<ApplianceRepair | undefined>;
   deleteApplianceRepair(id: number): Promise<boolean>;
+
+  // Alert management operations
+  getAlertRules(organizationId: string, filters?: { triggerType?: string; isActive?: boolean; alertLevel?: string; }): Promise<AlertRule[]>;
+  getAlertRule(id: number): Promise<AlertRule | undefined>;
+  createAlertRule(data: InsertAlertRule): Promise<AlertRule>;
+  updateAlertRule(id: number, updates: Partial<InsertAlertRule>): Promise<AlertRule | undefined>;
+  deleteAlertRule(id: number): Promise<boolean>;
+  getAlertLogs(organizationId: string, filters?: { ruleId?: number; status?: string; alertLevel?: string; limit?: number; offset?: number; }): Promise<(AlertLog & { ruleName?: string; triggerType?: string })[]>;
+  getAlertLog(id: number): Promise<AlertLog | undefined>;
+  createAlertLog(data: InsertAlertLog): Promise<AlertLog>;
+  acknowledgeAlertLog(id: number, acknowledgedBy: string): Promise<AlertLog | undefined>;
+  resolveAlertLog(id: number, resolvedBy: string): Promise<AlertLog | undefined>;
+  dismissAlertLog(id: number, dismissedBy: string): Promise<AlertLog | undefined>;
+  getAlertAnalytics(organizationId: string): Promise<{ totalRules: number; activeRules: number; totalAlerts: number; openAlerts: number; acknowledgedAlerts: number; resolvedAlerts: number; alertsByLevel: Record<string, number>; alertsByTriggerType: Record<string, number>; recentAlerts: (AlertLog & { ruleName?: string; triggerType?: string })[]; }>;
+  evaluateAlertRules(organizationId: string): Promise<AlertLog[]>;
   confirmOwnerPayoutReceived(id: number, confirmedBy: string): Promise<OwnerPayout | undefined>;
   calculateOwnerBalance(ownerId: string, propertyId?: number, startDate?: string, endDate?: string): Promise<{
     totalIncome: number;
@@ -33108,6 +33130,342 @@ Plant Care:
       .delete(applianceRepairs)
       .where(eq(applianceRepairs.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  // ===== ALERT MANAGEMENT SYSTEM METHODS =====
+
+  // Alert Rules methods
+  async getAlertRules(organizationId: string, filters?: {
+    triggerType?: string;
+    isActive?: boolean;
+    alertLevel?: string;
+  }): Promise<AlertRule[]> {
+    let query = db.select().from(alertRules).where(eq(alertRules.organizationId, organizationId));
+    
+    if (filters?.triggerType) {
+      query = query.where(eq(alertRules.triggerType, filters.triggerType));
+    }
+    if (filters?.isActive !== undefined) {
+      query = query.where(eq(alertRules.isActive, filters.isActive));
+    }
+    if (filters?.alertLevel) {
+      query = query.where(eq(alertRules.alertLevel, filters.alertLevel));
+    }
+    
+    return await query;
+  }
+
+  async getAlertRule(id: number): Promise<AlertRule | undefined> {
+    const [rule] = await db.select().from(alertRules).where(eq(alertRules.id, id));
+    return rule;
+  }
+
+  async createAlertRule(data: InsertAlertRule): Promise<AlertRule> {
+    const [rule] = await db.insert(alertRules).values(data).returning();
+    return rule;
+  }
+
+  async updateAlertRule(id: number, updates: Partial<InsertAlertRule>): Promise<AlertRule | undefined> {
+    const [updated] = await db.update(alertRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(alertRules.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAlertRule(id: number): Promise<boolean> {
+    const result = await db.delete(alertRules).where(eq(alertRules.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Alert Logs methods
+  async getAlertLogs(organizationId: string, filters?: {
+    ruleId?: number;
+    status?: string;
+    alertLevel?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<(AlertLog & { ruleName?: string; triggerType?: string })[]> {
+    let query = db.select({
+      id: alertLogs.id,
+      ruleId: alertLogs.ruleId,
+      triggeredAt: alertLogs.triggeredAt,
+      message: alertLogs.message,
+      status: alertLogs.status,
+      acknowledgedBy: alertLogs.acknowledgedBy,
+      acknowledgedAt: alertLogs.acknowledgedAt,
+      resolvedAt: alertLogs.resolvedAt,
+      resolvedBy: alertLogs.resolvedBy,
+      metadataJson: alertLogs.metadataJson,
+      alertLevel: alertLogs.alertLevel,
+      createdAt: alertLogs.createdAt,
+      // Include rule details
+      ruleName: alertRules.name,
+      triggerType: alertRules.triggerType,
+    })
+    .from(alertLogs)
+    .innerJoin(alertRules, eq(alertLogs.ruleId, alertRules.id))
+    .where(eq(alertRules.organizationId, organizationId))
+    .orderBy(desc(alertLogs.triggeredAt));
+    
+    if (filters?.ruleId) {
+      query = query.where(eq(alertLogs.ruleId, filters.ruleId));
+    }
+    if (filters?.status) {
+      query = query.where(eq(alertLogs.status, filters.status));
+    }
+    if (filters?.alertLevel) {
+      query = query.where(eq(alertLogs.alertLevel, filters.alertLevel));
+    }
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset) {
+      query = query.offset(filters.offset);
+    }
+    
+    return await query;
+  }
+
+  async getAlertLog(id: number): Promise<AlertLog | undefined> {
+    const [log] = await db.select().from(alertLogs).where(eq(alertLogs.id, id));
+    return log;
+  }
+
+  async createAlertLog(data: InsertAlertLog): Promise<AlertLog> {
+    const [log] = await db.insert(alertLogs).values(data).returning();
+    return log;
+  }
+
+  async acknowledgeAlertLog(id: number, acknowledgedBy: string): Promise<AlertLog | undefined> {
+    const [updated] = await db.update(alertLogs)
+      .set({
+        status: "acknowledged",
+        acknowledgedBy,
+        acknowledgedAt: new Date(),
+      })
+      .where(eq(alertLogs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async resolveAlertLog(id: number, resolvedBy: string): Promise<AlertLog | undefined> {
+    const [updated] = await db.update(alertLogs)
+      .set({
+        status: "resolved",
+        resolvedBy,
+        resolvedAt: new Date(),
+      })
+      .where(eq(alertLogs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async dismissAlertLog(id: number, dismissedBy: string): Promise<AlertLog | undefined> {
+    const [updated] = await db.update(alertLogs)
+      .set({
+        status: "dismissed",
+        acknowledgedBy: dismissedBy,
+        acknowledgedAt: new Date(),
+      })
+      .where(eq(alertLogs.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Alert Analytics methods
+  async getAlertAnalytics(organizationId: string): Promise<{
+    totalRules: number;
+    activeRules: number;
+    totalAlerts: number;
+    openAlerts: number;
+    acknowledgedAlerts: number;
+    resolvedAlerts: number;
+    alertsByLevel: Record<string, number>;
+    alertsByTriggerType: Record<string, number>;
+    recentAlerts: (AlertLog & { ruleName?: string; triggerType?: string })[];
+  }> {
+    // Get rules count
+    const rulesStats = await db.select({
+      total: count(),
+      active: sum(sql`CASE WHEN ${alertRules.isActive} THEN 1 ELSE 0 END`),
+    }).from(alertRules).where(eq(alertRules.organizationId, organizationId));
+
+    // Get alert logs with rule data for analytics
+    const alertLogsWithRules = await db.select({
+      status: alertLogs.status,
+      alertLevel: alertLogs.alertLevel,
+      triggerType: alertRules.triggerType,
+      triggeredAt: alertLogs.triggeredAt,
+    })
+    .from(alertLogs)
+    .innerJoin(alertRules, eq(alertLogs.ruleId, alertRules.id))
+    .where(eq(alertRules.organizationId, organizationId));
+
+    // Calculate analytics
+    const totalAlerts = alertLogsWithRules.length;
+    const openAlerts = alertLogsWithRules.filter(a => a.status === 'open').length;
+    const acknowledgedAlerts = alertLogsWithRules.filter(a => a.status === 'acknowledged').length;
+    const resolvedAlerts = alertLogsWithRules.filter(a => a.status === 'resolved').length;
+
+    const alertsByLevel: Record<string, number> = {};
+    const alertsByTriggerType: Record<string, number> = {};
+
+    alertLogsWithRules.forEach(alert => {
+      alertsByLevel[alert.alertLevel || 'warning'] = (alertsByLevel[alert.alertLevel || 'warning'] || 0) + 1;
+      alertsByTriggerType[alert.triggerType] = (alertsByTriggerType[alert.triggerType] || 0) + 1;
+    });
+
+    // Get recent alerts
+    const recentAlerts = await this.getAlertLogs(organizationId, { limit: 10 });
+
+    return {
+      totalRules: Number(rulesStats[0]?.total || 0),
+      activeRules: Number(rulesStats[0]?.active || 0),
+      totalAlerts,
+      openAlerts,
+      acknowledgedAlerts,
+      resolvedAlerts,
+      alertsByLevel,
+      alertsByTriggerType,
+      recentAlerts,
+    };
+  }
+
+  // Trigger alert evaluation (for system to call periodically)
+  async evaluateAlertRules(organizationId: string): Promise<AlertLog[]> {
+    const activeRules = await this.getAlertRules(organizationId, { isActive: true });
+    const triggeredAlerts: AlertLog[] = [];
+
+    for (const rule of activeRules) {
+      try {
+        const condition = rule.conditionJson as any;
+        let shouldTrigger = false;
+
+        switch (rule.triggerType) {
+          case 'warranty_expiration':
+            shouldTrigger = await this.checkWarrantyExpiration(organizationId, condition);
+            break;
+          case 'repair_overdue':
+            shouldTrigger = await this.checkRepairOverdue(organizationId, condition);
+            break;
+          case 'cost_threshold':
+            shouldTrigger = await this.checkCostThreshold(organizationId, condition);
+            break;
+          case 'maintenance_due':
+            shouldTrigger = await this.checkMaintenanceDue(organizationId, condition);
+            break;
+        }
+
+        if (shouldTrigger) {
+          const alertLog = await this.createAlertLog({
+            ruleId: rule.id,
+            message: this.generateAlertMessage(rule, condition),
+            alertLevel: rule.alertLevel,
+            metadataJson: condition,
+          });
+          triggeredAlerts.push(alertLog);
+        }
+      } catch (error) {
+        console.error(`Error evaluating alert rule ${rule.id}:`, error);
+      }
+    }
+
+    return triggeredAlerts;
+  }
+
+  // Helper methods for alert rule evaluation
+  private async checkWarrantyExpiration(organizationId: string, condition: any): Promise<boolean> {
+    const daysBeforeExpiration = condition.daysBeforeExpiration || 30;
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + daysBeforeExpiration);
+
+    const expiringAppliances = await db.select()
+      .from(propertyAppliances)
+      .where(
+        and(
+          eq(propertyAppliances.organizationId, organizationId),
+          lte(propertyAppliances.warrantyExpiration, targetDate)
+        )
+      );
+
+    return expiringAppliances.length > 0;
+  }
+
+  private async checkRepairOverdue(organizationId: string, condition: any): Promise<boolean> {
+    const daysPastDue = condition.daysPastDue || 7;
+    const overdueDate = new Date();
+    overdueDate.setDate(overdueDate.getDate() - daysPastDue);
+
+    const overdueRepairs = await db.select()
+      .from(applianceRepairs)
+      .innerJoin(propertyAppliances, eq(applianceRepairs.applianceId, propertyAppliances.id))
+      .where(
+        and(
+          eq(propertyAppliances.organizationId, organizationId),
+          eq(applianceRepairs.repairStatus, 'in_progress'),
+          lte(applianceRepairs.scheduledDate, overdueDate)
+        )
+      );
+
+    return overdueRepairs.length > 0;
+  }
+
+  private async checkCostThreshold(organizationId: string, condition: any): Promise<boolean> {
+    const threshold = condition.threshold || 1000;
+    const timeframeDays = condition.timeframeDays || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - timeframeDays);
+
+    const recentRepairs = await db.select({
+      totalCost: sum(applianceRepairs.repairCost)
+    })
+    .from(applianceRepairs)
+    .innerJoin(propertyAppliances, eq(applianceRepairs.applianceId, propertyAppliances.id))
+    .where(
+      and(
+        eq(propertyAppliances.organizationId, organizationId),
+        gte(applianceRepairs.completedDate, startDate)
+      )
+    );
+
+    const totalCost = parseFloat(String(recentRepairs[0]?.totalCost || '0'));
+    return totalCost > threshold;
+  }
+
+  private async checkMaintenanceDue(organizationId: string, condition: any): Promise<boolean> {
+    const daysSinceLastService = condition.daysSinceLastService || 90;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() - daysSinceLastService);
+
+    const appliancesDue = await db.select()
+      .from(propertyAppliances)
+      .where(
+        and(
+          eq(propertyAppliances.organizationId, organizationId),
+          or(
+            isNull(propertyAppliances.lastServiced),
+            lte(propertyAppliances.lastServiced, dueDate)
+          )
+        )
+      );
+
+    return appliancesDue.length > 0;
+  }
+
+  private generateAlertMessage(rule: AlertRule, condition: any): string {
+    switch (rule.triggerType) {
+      case 'warranty_expiration':
+        return `Appliance warranties expiring within ${condition.daysBeforeExpiration || 30} days`;
+      case 'repair_overdue':
+        return `Repairs overdue by ${condition.daysPastDue || 7} days`;
+      case 'cost_threshold':
+        return `Repair costs exceeded ฿${condition.threshold || 1000} in the last ${condition.timeframeDays || 30} days`;
+      case 'maintenance_due':
+        return `Appliances require maintenance (${condition.daysSinceLastService || 90} days since last service)`;
+      default:
+        return rule.name;
+    }
   }
 }
 

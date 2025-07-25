@@ -28448,6 +28448,215 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== ALERT MANAGEMENT ROUTES =====
+
+  // Get all alert rules
+  app.get("/api/alert-rules", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const organizationId = (req as any).organizationId;
+      const { triggerType, isActive, alertLevel } = req.query;
+      
+      const filters: any = {};
+      if (triggerType) filters.triggerType = triggerType as string;
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      if (alertLevel) filters.alertLevel = alertLevel as string;
+      
+      const rules = await storage.getAlertRules(organizationId, filters);
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching alert rules:", error);
+      res.status(500).json({ error: "Failed to fetch alert rules" });
+    }
+  });
+
+  // Get specific alert rule by ID
+  app.get("/api/alert-rules/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rule = await storage.getAlertRule(id);
+      
+      if (!rule) {
+        return res.status(404).json({ error: "Alert rule not found" });
+      }
+      
+      res.json(rule);
+    } catch (error) {
+      console.error("Error fetching alert rule:", error);
+      res.status(500).json({ error: "Failed to fetch alert rule" });
+    }
+  });
+
+  // Create new alert rule
+  app.post("/api/alert-rules", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const organizationId = (req as any).organizationId;
+      
+      const ruleData = {
+        ...req.body,
+        organizationId,
+      };
+      
+      const rule = await storage.createAlertRule(ruleData);
+      res.status(201).json(rule);
+    } catch (error) {
+      console.error("Error creating alert rule:", error);
+      res.status(500).json({ error: "Failed to create alert rule" });
+    }
+  });
+
+  // Update alert rule
+  app.patch("/api/alert-rules/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rule = await storage.updateAlertRule(id, req.body);
+      
+      if (!rule) {
+        return res.status(404).json({ error: "Alert rule not found" });
+      }
+      
+      res.json(rule);
+    } catch (error) {
+      console.error("Error updating alert rule:", error);
+      res.status(500).json({ error: "Failed to update alert rule" });
+    }
+  });
+
+  // Delete alert rule
+  app.delete("/api/alert-rules/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteAlertRule(id);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Alert rule not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting alert rule:", error);
+      res.status(500).json({ error: "Failed to delete alert rule" });
+    }
+  });
+
+  // Get all alert logs
+  app.get("/api/alert-logs", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const organizationId = (req as any).organizationId;
+      const { ruleId, status, alertLevel, limit, offset } = req.query;
+      
+      const filters: any = {};
+      if (ruleId) filters.ruleId = parseInt(ruleId as string);
+      if (status) filters.status = status as string;
+      if (alertLevel) filters.alertLevel = alertLevel as string;
+      if (limit) filters.limit = parseInt(limit as string);
+      if (offset) filters.offset = parseInt(offset as string);
+      
+      const logs = await storage.getAlertLogs(organizationId, filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching alert logs:", error);
+      res.status(500).json({ error: "Failed to fetch alert logs" });
+    }
+  });
+
+  // Get specific alert log by ID
+  app.get("/api/alert-logs/:id", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const log = await storage.getAlertLog(id);
+      
+      if (!log) {
+        return res.status(404).json({ error: "Alert log not found" });
+      }
+      
+      res.json(log);
+    } catch (error) {
+      console.error("Error fetching alert log:", error);
+      res.status(500).json({ error: "Failed to fetch alert log" });
+    }
+  });
+
+  // Acknowledge alert log
+  app.patch("/api/alert-logs/:id/acknowledge", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
+      
+      const log = await storage.acknowledgeAlertLog(id, userId);
+      
+      if (!log) {
+        return res.status(404).json({ error: "Alert log not found" });
+      }
+      
+      res.json(log);
+    } catch (error) {
+      console.error("Error acknowledging alert log:", error);
+      res.status(500).json({ error: "Failed to acknowledge alert log" });
+    }
+  });
+
+  // Resolve alert log
+  app.patch("/api/alert-logs/:id/resolve", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
+      
+      const log = await storage.resolveAlertLog(id, userId);
+      
+      if (!log) {
+        return res.status(404).json({ error: "Alert log not found" });
+      }
+      
+      res.json(log);
+    } catch (error) {
+      console.error("Error resolving alert log:", error);
+      res.status(500).json({ error: "Failed to resolve alert log" });
+    }
+  });
+
+  // Dismiss alert log
+  app.patch("/api/alert-logs/:id/dismiss", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as any).user.id;
+      
+      const log = await storage.dismissAlertLog(id, userId);
+      
+      if (!log) {
+        return res.status(404).json({ error: "Alert log not found" });
+      }
+      
+      res.json(log);
+    } catch (error) {
+      console.error("Error dismissing alert log:", error);
+      res.status(500).json({ error: "Failed to dismiss alert log" });
+    }
+  });
+
+  // Get alert analytics
+  app.get("/api/alert-analytics", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const organizationId = (req as any).organizationId;
+      const analytics = await storage.getAlertAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching alert analytics:", error);
+      res.status(500).json({ error: "Failed to fetch alert analytics" });
+    }
+  });
+
+  // Evaluate and trigger alert rules (system endpoint)
+  app.post("/api/alert-rules/evaluate", authenticatedTenantMiddleware, async (req, res) => {
+    try {
+      const organizationId = (req as any).organizationId;
+      const triggeredAlerts = await storage.evaluateAlertRules(organizationId);
+      res.json({ triggeredAlerts, count: triggeredAlerts.length });
+    } catch (error) {
+      console.error("Error evaluating alert rules:", error);
+      res.status(500).json({ error: "Failed to evaluate alert rules" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

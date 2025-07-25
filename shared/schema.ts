@@ -11707,3 +11707,63 @@ export type InsertPropertyAppliance = z.infer<typeof insertPropertyApplianceSche
 
 export type ApplianceRepair = typeof applianceRepairs.$inferSelect;
 export type InsertApplianceRepair = z.infer<typeof insertApplianceRepairSchema>;
+
+// ===== ALERT MANAGEMENT SYSTEM TABLES =====
+
+export const alertRules = pgTable("alert_rules", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  name: varchar("name").notNull(),
+  triggerType: varchar("trigger_type").notNull(), // warranty_expiration, repair_overdue, cost_threshold, maintenance_due, etc.
+  conditionJson: json("condition_json").notNull(), // JSON configuration for alert conditions
+  alertLevel: varchar("alert_level").default("warning"), // info, warning, critical, urgent
+  sendTo: varchar("send_to").array(), // array of user IDs or email addresses
+  isActive: boolean("is_active").default(true),
+  description: text("description"), // Human-readable description of the alert rule
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_alert_rules_org").on(table.organizationId),
+  index("IDX_alert_rules_trigger").on(table.triggerType),
+  index("IDX_alert_rules_active").on(table.isActive),
+]);
+
+export const alertLogs = pgTable("alert_logs", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("rule_id").references(() => alertRules.id),
+  triggeredAt: timestamp("triggered_at").defaultNow(),
+  message: text("message"),
+  status: varchar("status").default("open"), // open, acknowledged, resolved, dismissed
+  acknowledgedBy: varchar("acknowledged_by"),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by"),
+  metadataJson: json("metadata_json"), // Additional context data (property ID, appliance ID, etc.)
+  alertLevel: varchar("alert_level").default("warning"), // Copied from rule for historical tracking
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_alert_logs_rule").on(table.ruleId),
+  index("IDX_alert_logs_status").on(table.status),
+  index("IDX_alert_logs_triggered").on(table.triggeredAt),
+]);
+
+// ===== ALERT MANAGEMENT INSERT SCHEMAS =====
+
+export const insertAlertRuleSchema = createInsertSchema(alertRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAlertLogSchema = createInsertSchema(alertLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+// ===== ALERT MANAGEMENT TYPE DEFINITIONS =====
+
+export type AlertRule = typeof alertRules.$inferSelect;
+export type InsertAlertRule = z.infer<typeof insertAlertRuleSchema>;
+
+export type AlertLog = typeof alertLogs.$inferSelect;
+export type InsertAlertLog = z.infer<typeof insertAlertLogSchema>;
