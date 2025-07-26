@@ -1,42 +1,53 @@
-// Ultra-fast in-memory cache for instant page navigation
+// Ultra-fast in-memory cache for React Query
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+  ttl: number;
+}
+
 class FastCache {
-  private cache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
-  
-  set(key: string, data: any, ttlMinutes: number = 30) {
+  private cache = new Map<string, CacheEntry>();
+
+  set(key: string, data: any, ttlMinutes: number = 30): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
       ttl: ttlMinutes * 60 * 1000
     });
   }
-  
-  get(key: string) {
-    const item = this.cache.get(key);
-    if (!item) return null;
-    
-    if (Date.now() - item.timestamp > item.ttl) {
+
+  get(key: string): any | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+
+    if (Date.now() - entry.timestamp > entry.ttl) {
       this.cache.delete(key);
       return null;
     }
-    
-    return item.data;
+
+    return entry.data;
   }
-  
-  clear() {
+
+  has(key: string): boolean {
+    return this.get(key) !== null;
+  }
+
+  clear(): void {
     this.cache.clear();
   }
-  
-  has(key: string): boolean {
-    const item = this.cache.get(key);
-    if (!item) return false;
-    
-    if (Date.now() - item.timestamp > item.ttl) {
-      this.cache.delete(key);
-      return false;
+
+  // Auto-cleanup expired entries
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
+        this.cache.delete(key);
+      }
     }
-    
-    return true;
   }
 }
 
 export const fastCache = new FastCache();
+
+// Cleanup every 5 minutes
+setInterval(() => fastCache.cleanup(), 5 * 60 * 1000);

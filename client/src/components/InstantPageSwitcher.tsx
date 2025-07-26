@@ -1,41 +1,24 @@
-import { useEffect } from "react";
-import { useLocation } from "wouter";
-import { fastCache } from "@/lib/fastCache";
+import { useEffect } from 'react';
+import { queryClient } from '../lib/queryClient';
 
-// Pre-cache critical data for instant page switching
-const CRITICAL_ENDPOINTS = [
-  "/api/properties",
-  "/api/tasks", 
-  "/api/bookings",
-  "/api/dashboard/stats",
-  "/api/auth/user"
-];
-
+// Pre-cache critical endpoints on app start for instant navigation
 export function InstantPageSwitcher() {
-  const [location] = useLocation();
-  
   useEffect(() => {
-    // Pre-cache critical data on app start
-    const preCacheData = async () => {
-      for (const endpoint of CRITICAL_ENDPOINTS) {
-        if (!fastCache.has(endpoint)) {
-          try {
-            const res = await fetch(endpoint, { credentials: "include" });
-            if (res.ok) {
-              const data = await res.json();
-              fastCache.set(endpoint, data, 60); // Cache for 1 hour
-              console.log(`Pre-cached: ${endpoint}`);
-            }
-          } catch (error) {
-            console.log(`Failed to pre-cache: ${endpoint}`);
-          }
-        }
-      }
-    };
-    
-    // Pre-cache after a short delay to not block initial render
-    setTimeout(preCacheData, 100);
+    const preCacheEndpoints = [
+      '/api/properties',
+      '/api/tasks', 
+      '/api/bookings',
+      '/api/dashboard/stats'
+    ];
+
+    // Pre-cache in background without triggering UI updates
+    preCacheEndpoints.forEach(endpoint => {
+      queryClient.prefetchQuery({
+        queryKey: [endpoint],
+        staleTime: 60 * 60 * 1000, // 1 hour
+      });
+    });
   }, []);
-  
-  return null;
+
+  return null; // This component has no UI
 }

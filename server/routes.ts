@@ -79,6 +79,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register Finance routes
   registerFinanceRoutes(app);
+  
+  // Register Fast routes for performance
+  const { registerFastRoutes } = await import("./fastRoutes");
+  registerFastRoutes(app);
+  
+  // Apply ultra-fast middleware to critical endpoints
+  const { ultraFastCache } = await import("./ultraFastMiddleware");
+  app.use("/api/properties", ultraFastCache(15));
+  app.use("/api/tasks", ultraFastCache(5));
+  app.use("/api/bookings", ultraFastCache(10));
+  app.use("/api/dashboard/stats", ultraFastCache(30));
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
@@ -880,36 +891,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Property routes
+  // Property routes with performance optimization
   app.get("/api/properties", isDemoAuthenticated, async (req: any, res) => {
-    try {
-      const user = req.user;
-      const userId = req.user?.id;
-      
-      let properties;
-      if (user?.role === 'admin' || user?.role === 'portfolio-manager') {
-        // Admin and PM can see all properties for management purposes
-        properties = await storage.getProperties();
-      } else if (user?.role === 'retail-agent' || user?.role === 'referral-agent') {
-        // Agents can only see management company properties (like those from Hostaway API)
-        // Filter to show only properties owned by demo-owner (management company properties)
-        const allProperties = await storage.getProperties();
-        properties = allProperties.filter(prop => 
-          prop.ownerId === 'demo-owner' || 
-          prop.name.includes('Demo') || 
-          prop.name.includes('Villa Samui') ||
-          prop.name.includes('Villa Aruna')
-        );
-      } else {
-        // Owners and others only see their own properties
-        properties = await storage.getPropertiesByOwner(userId);
-      }
-      
-      res.json(properties);
-    } catch (error) {
-      console.error("Error fetching properties:", error);
-      res.status(500).json({ message: "Failed to fetch properties" });
-    }
+    const { sendCachedOrFetch } = await import("./performanceOptimizer");
+    const user = req.user;
+    const userId = req.user?.id;
+    const cacheKey = `properties-${user?.role}-${userId}`;
+    
+    return sendCachedOrFetch(
+      cacheKey,
+      async () => {
+        let properties;
+        if (user?.role === 'admin' || user?.role === 'portfolio-manager') {
+          properties = await storage.getProperties();
+        } else if (user?.role === 'retail-agent' || user?.role === 'referral-agent') {
+          const allProperties = await storage.getProperties();
+          properties = allProperties.filter(prop => 
+            prop.ownerId === 'demo-owner' || 
+            prop.name.includes('Demo') || 
+            prop.name.includes('Villa Samui') ||
+            prop.name.includes('Villa Aruna')
+          );
+        } else {
+          properties = await storage.getPropertiesByOwner(userId);
+        }
+        return properties;
+      },
+      res,
+      15 // 15 minute cache
+    );
   });
 
   app.get("/api/properties/:id", isDemoAuthenticated, async (req, res) => {
@@ -976,24 +986,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Task routes
+  // Task routes with caching
   app.get("/api/tasks", isDemoAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.id;
-      const user = await storage.getUser(userId);
-      
-      let tasks;
-      if (user?.role === 'staff') {
-        tasks = await storage.getTasksByAssignee(userId);
-      } else {
-        tasks = await storage.getTasks();
-      }
-      
-      res.json(tasks);
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-      res.status(500).json({ message: "Failed to fetch tasks" });
-    }
+    const { sendCachedOrFetch } = await import("./performanceOptimizer");
+    const userId = req.user.id;
+    const user = req.user;
+    const cacheKey = `tasks-${user?.role}-${userId}`;
+    
+    return sendCachedOrFetch(
+      cacheKey,
+      async () => {
+        let tasks;
+        if (user?.role === 'staff') {
+          tasks = await storage.getTasksByAssignee(userId);
+        } else {
+          tasks = await storage.getTasks();
+        }
+        return tasks;
+      },
+      res,
+      5 // 5 minute cache for tasks
+    );
   });
 
   app.post("/api/tasks", isDemoAuthenticated, requireStaffTaskPermission, async (req: any, res) => {
@@ -1147,15 +1160,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Booking routes
-  app.get("/api/bookings", isDemoAuthenticated, async (req, res) => {
-    try {
-      const bookings = await storage.getBookings();
-      res.json(bookings);
-    } catch (error) {
-      console.error("Error fetching bookings:", error);
-      res.status(500).json({ message: "Failed to fetch bookings" });
-    }
+  // Booking routes with caching
+  app.get("/api/bookings", isDemoAuthenticated, async (req: any, res) => {
+    const { sendCachedOrFetch } = await import("./performanceOptimizer");
+    const organizationId = req.user?.organizationId || "default-org";
+    const cacheKey = `bookings-${organizationId}`;
+    
+    return sendCachedOrFetch(
+      cacheKey,
+      () => storage.getBookings(organizationId),
+      res,
+      10 // 10 minute cache for bookings
+    );
   });
 
   // Enhanced bookings with source information (for admin/PM dashboards)
@@ -1431,31 +1447,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard stats
-  app.get("/api/dashboard/stats", isDemoAuthenticated, async (req, res) => {
-    try {
-      const properties = await storage.getProperties();
-      const bookings = await storage.getBookings();
-      const tasks = await storage.getTasks();
-      const finances = await storage.getFinances();
+  // Dashboard stats with aggressive caching
+  app.get("/api/dashboard/stats", isDemoAuthenticated, async (req: any, res) => {
+    const { sendCachedOrFetch } = await import("./performanceOptimizer");
+    const organizationId = req.user?.organizationId || "default-org";
+    const cacheKey = `dashboard-stats-${organizationId}`;
+    
+    return sendCachedOrFetch(
+      cacheKey,
+      async () => {
+        const properties = await storage.getProperties(organizationId);
+        const bookings = await storage.getBookings(organizationId);
+        const tasks = await storage.getTasks(organizationId);
+        const finances = await storage.getFinances(organizationId);
 
-      const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in');
-      const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in-progress');
-      
-      const monthlyRevenue = finances
-        .filter(f => f.type === 'income' && new Date(f.date).getMonth() === new Date().getMonth())
-        .reduce((sum, f) => sum + parseFloat(f.amount || '0'), 0);
+        const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in');
+        const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in-progress');
+        
+        const monthlyRevenue = finances
+          .filter(f => f.type === 'income' && new Date(f.date).getMonth() === new Date().getMonth())
+          .reduce((sum, f) => sum + parseFloat(f.amount || '0'), 0);
 
-      res.json({
-        totalProperties: properties.length,
-        activeBookings: activeBookings.length,
-        pendingTasks: pendingTasks.length,
-        monthlyRevenue: monthlyRevenue,
-      });
-    } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
-      res.status(500).json({ message: "Failed to fetch dashboard stats" });
-    }
+        return {
+          totalProperties: properties.length,
+          activeBookings: activeBookings.length,
+          pendingTasks: pendingTasks.length,
+          monthlyRevenue: monthlyRevenue,
+        };
+      },
+      res,
+      30 // 30 minute cache for dashboard stats
+    );
   });
 
   // Platform Settings routes (Admin only)
