@@ -3692,6 +3692,35 @@ export const insertPropertyChatMessageSchema = createInsertSchema(propertyChatMe
 export type InsertPropertyChatMessage = z.infer<typeof insertPropertyChatMessageSchema>;
 export type PropertyChatMessage = typeof propertyChatMessages.$inferSelect;
 
+// ===== PROPERTY DOCUMENTS SYSTEM =====
+
+// Property documents for comprehensive document management
+export const propertyDocuments = pgTable("property_documents", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  docType: varchar("doc_type").notNull(), // contract, license, invoice, insurance, warranty, maintenance, other
+  fileUrl: text("file_url").notNull(),
+  expiryDate: date("expiry_date"),
+  uploadedBy: varchar("uploaded_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_docs_org").on(table.organizationId),
+  index("IDX_property_docs_property").on(table.propertyId),
+  index("IDX_property_docs_type").on(table.docType),
+  index("IDX_property_docs_expiry").on(table.expiryDate),
+  index("IDX_property_docs_created").on(table.createdAt),
+]);
+
+// Property documents schemas
+export const insertPropertyDocumentSchema = createInsertSchema(propertyDocuments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPropertyDocument = z.infer<typeof insertPropertyDocumentSchema>;
+export type PropertyDocument = typeof propertyDocuments.$inferSelect;
+
 // Financial & Invoice Toolkit schemas and types
 
 export const insertCommissionEarningSchema = createInsertSchema(commissionEarnings).omit({

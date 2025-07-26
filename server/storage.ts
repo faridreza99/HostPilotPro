@@ -68,6 +68,8 @@ import {
   dynamicPricingRecommendations,
   // Property Chat Messages
   propertyChatMessages,
+  // Property Documents
+  propertyDocuments,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -35066,6 +35068,365 @@ Plant Care:
       return await query.orderBy(desc(propertyChatMessages.createdAt));
     } catch (error) {
       console.error("Error searching chat messages:", error);
+      throw error;
+    }
+  }
+
+  // ===== PROPERTY DOCUMENTS METHODS =====
+
+  async getPropertyDocuments(organizationId: string, filters?: { propertyId?: number; docType?: string; uploadedBy?: string; expiringWithinDays?: number; startDate?: Date; endDate?: Date }) {
+    try {
+      let query = this.db
+        .select({
+          id: propertyDocuments.id,
+          organizationId: propertyDocuments.organizationId,
+          propertyId: propertyDocuments.propertyId,
+          docType: propertyDocuments.docType,
+          fileUrl: propertyDocuments.fileUrl,
+          expiryDate: propertyDocuments.expiryDate,
+          uploadedBy: propertyDocuments.uploadedBy,
+          createdAt: propertyDocuments.createdAt,
+          propertyName: properties.name,
+          uploaderName: sql<string>`COALESCE(uploader_users.username, ${propertyDocuments.uploadedBy})`,
+          daysUntilExpiry: sql<number>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN DATE_PART('day', ${propertyDocuments.expiryDate} - CURRENT_DATE) ELSE NULL END`,
+          isExpired: sql<boolean>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN ${propertyDocuments.expiryDate} < CURRENT_DATE ELSE FALSE END`,
+          isExpiringSoon: sql<boolean>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN ${propertyDocuments.expiryDate} <= CURRENT_DATE + INTERVAL '30 days' ELSE FALSE END`,
+        })
+        .from(propertyDocuments)
+        .leftJoin(properties, eq(propertyDocuments.propertyId, properties.id))
+        .leftJoin(users.as('uploader_users'), eq(propertyDocuments.uploadedBy, users.id))
+        .where(eq(propertyDocuments.organizationId, organizationId));
+
+      if (filters?.propertyId) {
+        query = query.where(eq(propertyDocuments.propertyId, filters.propertyId));
+      }
+
+      if (filters?.docType) {
+        query = query.where(eq(propertyDocuments.docType, filters.docType));
+      }
+
+      if (filters?.uploadedBy) {
+        query = query.where(eq(propertyDocuments.uploadedBy, filters.uploadedBy));
+      }
+
+      if (filters?.expiringWithinDays) {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + filters.expiringWithinDays);
+        query = query.where(
+          and(
+            isNotNull(propertyDocuments.expiryDate),
+            lte(propertyDocuments.expiryDate, futureDate.toISOString().split('T')[0])
+          )
+        );
+      }
+
+      if (filters?.startDate) {
+        query = query.where(gte(propertyDocuments.createdAt, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(propertyDocuments.createdAt, filters.endDate));
+      }
+
+      return await query.orderBy(desc(propertyDocuments.createdAt));
+    } catch (error) {
+      console.error("Error fetching property documents:", error);
+      throw error;
+    }
+  }
+
+  async createPropertyDocument(organizationId: string, documentData: any) {
+    try {
+      // Verify property belongs to organization if propertyId provided
+      if (documentData.propertyId) {
+        const [property] = await this.db
+          .select()
+          .from(properties)
+          .where(
+            and(
+              eq(properties.id, documentData.propertyId),
+              eq(properties.organizationId, organizationId)
+            )
+          );
+
+        if (!property) {
+          throw new Error("Property not found or unauthorized");
+        }
+      }
+
+      const [created] = await this.db
+        .insert(propertyDocuments)
+        .values({
+          organizationId,
+          propertyId: documentData.propertyId,
+          docType: documentData.docType,
+          fileUrl: documentData.fileUrl,
+          expiryDate: documentData.expiryDate,
+          uploadedBy: documentData.uploadedBy,
+        })
+        .returning();
+
+      return created;
+    } catch (error) {
+      console.error("Error creating property document:", error);
+      throw error;
+    }
+  }
+
+  async updatePropertyDocument(organizationId: string, documentId: number, updateData: any) {
+    try {
+      // Verify document belongs to organization
+      const [existingDoc] = await this.db
+        .select()
+        .from(propertyDocuments)
+        .where(
+          and(
+            eq(propertyDocuments.id, documentId),
+            eq(propertyDocuments.organizationId, organizationId)
+          )
+        );
+
+      if (!existingDoc) {
+        throw new Error("Document not found or unauthorized");
+      }
+
+      // Verify property belongs to organization if propertyId is being updated
+      if (updateData.propertyId && updateData.propertyId !== existingDoc.propertyId) {
+        const [property] = await this.db
+          .select()
+          .from(properties)
+          .where(
+            and(
+              eq(properties.id, updateData.propertyId),
+              eq(properties.organizationId, organizationId)
+            )
+          );
+
+        if (!property) {
+          throw new Error("Property not found or unauthorized");
+        }
+      }
+
+      const [updated] = await this.db
+        .update(propertyDocuments)
+        .set({
+          docType: updateData.docType || existingDoc.docType,
+          fileUrl: updateData.fileUrl || existingDoc.fileUrl,
+          expiryDate: updateData.expiryDate !== undefined ? updateData.expiryDate : existingDoc.expiryDate,
+          propertyId: updateData.propertyId || existingDoc.propertyId,
+        })
+        .where(eq(propertyDocuments.id, documentId))
+        .returning();
+
+      return updated;
+    } catch (error) {
+      console.error("Error updating property document:", error);
+      throw error;
+    }
+  }
+
+  async deletePropertyDocument(organizationId: string, documentId: number) {
+    try {
+      // Verify document belongs to organization
+      const [existingDoc] = await this.db
+        .select()
+        .from(propertyDocuments)
+        .where(
+          and(
+            eq(propertyDocuments.id, documentId),
+            eq(propertyDocuments.organizationId, organizationId)
+          )
+        );
+
+      if (!existingDoc) {
+        throw new Error("Document not found or unauthorized");
+      }
+
+      await this.db
+        .delete(propertyDocuments)
+        .where(eq(propertyDocuments.id, documentId));
+
+      return { success: true, message: "Document deleted successfully" };
+    } catch (error) {
+      console.error("Error deleting property document:", error);
+      throw error;
+    }
+  }
+
+  async getDocumentsByProperty(organizationId: string, propertyId: number) {
+    try {
+      return await this.db
+        .select({
+          id: propertyDocuments.id,
+          docType: propertyDocuments.docType,
+          fileUrl: propertyDocuments.fileUrl,
+          expiryDate: propertyDocuments.expiryDate,
+          uploadedBy: propertyDocuments.uploadedBy,
+          createdAt: propertyDocuments.createdAt,
+          uploaderName: sql<string>`COALESCE(uploader_users.username, ${propertyDocuments.uploadedBy})`,
+          daysUntilExpiry: sql<number>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN DATE_PART('day', ${propertyDocuments.expiryDate} - CURRENT_DATE) ELSE NULL END`,
+          isExpired: sql<boolean>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN ${propertyDocuments.expiryDate} < CURRENT_DATE ELSE FALSE END`,
+          isExpiringSoon: sql<boolean>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN ${propertyDocuments.expiryDate} <= CURRENT_DATE + INTERVAL '30 days' ELSE FALSE END`,
+        })
+        .from(propertyDocuments)
+        .leftJoin(users.as('uploader_users'), eq(propertyDocuments.uploadedBy, users.id))
+        .where(
+          and(
+            eq(propertyDocuments.organizationId, organizationId),
+            eq(propertyDocuments.propertyId, propertyId)
+          )
+        )
+        .orderBy(desc(propertyDocuments.createdAt));
+    } catch (error) {
+      console.error("Error fetching documents by property:", error);
+      throw error;
+    }
+  }
+
+  async getDocumentAnalytics(organizationId: string, filters?: { propertyId?: number; startDate?: Date; endDate?: Date }) {
+    try {
+      let query = this.db
+        .select({
+          totalDocuments: sql<number>`COUNT(*)`,
+          documentsByType: sql<any>`json_object_agg(${propertyDocuments.docType}, COUNT(*))`,
+          expiredCount: sql<number>`SUM(CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL AND ${propertyDocuments.expiryDate} < CURRENT_DATE THEN 1 ELSE 0 END)`,
+          expiringSoonCount: sql<number>`SUM(CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL AND ${propertyDocuments.expiryDate} <= CURRENT_DATE + INTERVAL '30 days' THEN 1 ELSE 0 END)`,
+          documentsWithExpiry: sql<number>`SUM(CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN 1 ELSE 0 END)`,
+          uniqueProperties: sql<number>`COUNT(DISTINCT ${propertyDocuments.propertyId})`,
+          uniqueUploaders: sql<number>`COUNT(DISTINCT ${propertyDocuments.uploadedBy})`,
+          avgDocumentsPerProperty: sql<number>`ROUND(COUNT(*)::numeric / GREATEST(COUNT(DISTINCT ${propertyDocuments.propertyId}), 1), 2)`,
+        })
+        .from(propertyDocuments)
+        .where(eq(propertyDocuments.organizationId, organizationId));
+
+      if (filters?.propertyId) {
+        query = query.where(eq(propertyDocuments.propertyId, filters.propertyId));
+      }
+
+      if (filters?.startDate) {
+        query = query.where(gte(propertyDocuments.createdAt, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(propertyDocuments.createdAt, filters.endDate));
+      }
+
+      const [result] = await query;
+      return result || {
+        totalDocuments: 0,
+        documentsByType: {},
+        expiredCount: 0,
+        expiringSoonCount: 0,
+        documentsWithExpiry: 0,
+        uniqueProperties: 0,
+        uniqueUploaders: 0,
+        avgDocumentsPerProperty: 0,
+      };
+    } catch (error) {
+      console.error("Error fetching document analytics:", error);
+      throw error;
+    }
+  }
+
+  async getExpiringDocuments(organizationId: string, days: number = 30) {
+    try {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + days);
+
+      return await this.db
+        .select({
+          id: propertyDocuments.id,
+          propertyId: propertyDocuments.propertyId,
+          docType: propertyDocuments.docType,
+          fileUrl: propertyDocuments.fileUrl,
+          expiryDate: propertyDocuments.expiryDate,
+          uploadedBy: propertyDocuments.uploadedBy,
+          createdAt: propertyDocuments.createdAt,
+          propertyName: properties.name,
+          uploaderName: sql<string>`COALESCE(uploader_users.username, ${propertyDocuments.uploadedBy})`,
+          daysUntilExpiry: sql<number>`DATE_PART('day', ${propertyDocuments.expiryDate} - CURRENT_DATE)`,
+          isExpired: sql<boolean>`${propertyDocuments.expiryDate} < CURRENT_DATE`,
+        })
+        .from(propertyDocuments)
+        .leftJoin(properties, eq(propertyDocuments.propertyId, properties.id))
+        .leftJoin(users.as('uploader_users'), eq(propertyDocuments.uploadedBy, users.id))
+        .where(
+          and(
+            eq(propertyDocuments.organizationId, organizationId),
+            isNotNull(propertyDocuments.expiryDate),
+            lte(propertyDocuments.expiryDate, futureDate.toISOString().split('T')[0])
+          )
+        )
+        .orderBy(propertyDocuments.expiryDate);
+    } catch (error) {
+      console.error("Error fetching expiring documents:", error);
+      throw error;
+    }
+  }
+
+  async getDocumentTypes(organizationId: string) {
+    try {
+      const results = await this.db
+        .select({
+          docType: propertyDocuments.docType,
+          documentCount: sql<number>`COUNT(*)`,
+          expiredCount: sql<number>`SUM(CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL AND ${propertyDocuments.expiryDate} < CURRENT_DATE THEN 1 ELSE 0 END)`,
+          expiringSoonCount: sql<number>`SUM(CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL AND ${propertyDocuments.expiryDate} <= CURRENT_DATE + INTERVAL '30 days' THEN 1 ELSE 0 END)`,
+          documentsWithExpiry: sql<number>`SUM(CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN 1 ELSE 0 END)`,
+        })
+        .from(propertyDocuments)
+        .where(eq(propertyDocuments.organizationId, organizationId))
+        .groupBy(propertyDocuments.docType)
+        .orderBy(desc(sql<number>`COUNT(*)`));
+
+      return results;
+    } catch (error) {
+      console.error("Error fetching document types:", error);
+      throw error;
+    }
+  }
+
+  async searchDocuments(organizationId: string, searchTerm: string, filters?: { propertyId?: number; docType?: string }) {
+    try {
+      let query = this.db
+        .select({
+          id: propertyDocuments.id,
+          propertyId: propertyDocuments.propertyId,
+          docType: propertyDocuments.docType,
+          fileUrl: propertyDocuments.fileUrl,
+          expiryDate: propertyDocuments.expiryDate,
+          uploadedBy: propertyDocuments.uploadedBy,
+          createdAt: propertyDocuments.createdAt,
+          propertyName: properties.name,
+          uploaderName: sql<string>`COALESCE(uploader_users.username, ${propertyDocuments.uploadedBy})`,
+          daysUntilExpiry: sql<number>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN DATE_PART('day', ${propertyDocuments.expiryDate} - CURRENT_DATE) ELSE NULL END`,
+          isExpired: sql<boolean>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN ${propertyDocuments.expiryDate} < CURRENT_DATE ELSE FALSE END`,
+        })
+        .from(propertyDocuments)
+        .leftJoin(properties, eq(propertyDocuments.propertyId, properties.id))
+        .leftJoin(users.as('uploader_users'), eq(propertyDocuments.uploadedBy, users.id))
+        .where(
+          and(
+            eq(propertyDocuments.organizationId, organizationId),
+            or(
+              sql`${propertyDocuments.docType} ILIKE ${`%${searchTerm}%`}`,
+              sql`${propertyDocuments.fileUrl} ILIKE ${`%${searchTerm}%`}`,
+              sql`${properties.name} ILIKE ${`%${searchTerm}%`}`
+            )
+          )
+        );
+
+      if (filters?.propertyId) {
+        query = query.where(eq(propertyDocuments.propertyId, filters.propertyId));
+      }
+
+      if (filters?.docType) {
+        query = query.where(eq(propertyDocuments.docType, filters.docType));
+      }
+
+      return await query.orderBy(desc(propertyDocuments.createdAt));
+    } catch (error) {
+      console.error("Error searching documents:", error);
       throw error;
     }
   }

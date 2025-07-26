@@ -29542,6 +29542,179 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== PROPERTY DOCUMENTS ENDPOINTS =====
+
+  // Get property documents with optional filtering
+  app.get("/api/property-documents", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { propertyId, docType, uploadedBy, expiringWithinDays, startDate, endDate } = req.query;
+      
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        docType: docType as string,
+        uploadedBy: uploadedBy as string,
+        expiringWithinDays: expiringWithinDays ? parseInt(expiringWithinDays as string) : undefined,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      
+      const documents = await storage.getPropertyDocuments(organizationId, filters);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching property documents:", error);
+      res.status(500).json({ message: "Failed to fetch property documents" });
+    }
+  });
+
+  // Create new property document
+  app.post("/api/property-documents", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const documentData = req.body;
+      
+      if (!documentData.docType || !documentData.fileUrl || !documentData.uploadedBy) {
+        return res.status(400).json({ message: "Document type, file URL, and uploader are required" });
+      }
+
+      const created = await storage.createPropertyDocument(organizationId, documentData);
+      res.json(created);
+    } catch (error) {
+      console.error("Error creating property document:", error);
+      res.status(500).json({ message: "Failed to create property document" });
+    }
+  });
+
+  // Update property document
+  app.put("/api/property-documents/:documentId", async (req, res) => {
+    try {
+      const { documentId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      const updateData = req.body;
+      
+      const updated = await storage.updatePropertyDocument(
+        organizationId, 
+        parseInt(documentId), 
+        updateData
+      );
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating property document:", error);
+      res.status(500).json({ message: "Failed to update property document" });
+    }
+  });
+
+  // Delete property document
+  app.delete("/api/property-documents/:documentId", requireAdmin, async (req, res) => {
+    try {
+      const { documentId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const result = await storage.deletePropertyDocument(
+        organizationId, 
+        parseInt(documentId)
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Error deleting property document:", error);
+      res.status(500).json({ message: "Failed to delete property document" });
+    }
+  });
+
+  // Get documents for a specific property
+  app.get("/api/property-documents/property/:propertyId", async (req, res) => {
+    try {
+      const { propertyId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const documents = await storage.getDocumentsByProperty(
+        organizationId, 
+        parseInt(propertyId)
+      );
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching documents by property:", error);
+      res.status(500).json({ message: "Failed to fetch documents by property" });
+    }
+  });
+
+  // Get document analytics
+  app.get("/api/property-documents/analytics", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { propertyId, startDate, endDate } = req.query;
+      
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      
+      const analytics = await storage.getDocumentAnalytics(organizationId, filters);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching document analytics:", error);
+      res.status(500).json({ message: "Failed to fetch document analytics" });
+    }
+  });
+
+  // Get expiring documents
+  app.get("/api/property-documents/expiring", async (req, res) => {
+    try {
+      const { days } = req.query;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const expiringDocuments = await storage.getExpiringDocuments(
+        organizationId,
+        days ? parseInt(days as string) : 30
+      );
+      res.json(expiringDocuments);
+    } catch (error) {
+      console.error("Error fetching expiring documents:", error);
+      res.status(500).json({ message: "Failed to fetch expiring documents" });
+    }
+  });
+
+  // Get document types summary
+  app.get("/api/property-documents/types", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const documentTypes = await storage.getDocumentTypes(organizationId);
+      res.json(documentTypes);
+    } catch (error) {
+      console.error("Error fetching document types:", error);
+      res.status(500).json({ message: "Failed to fetch document types" });
+    }
+  });
+
+  // Search documents
+  app.get("/api/property-documents/search", async (req, res) => {
+    try {
+      const { q, propertyId, docType } = req.query;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      if (!q) {
+        return res.status(400).json({ message: "Search term is required" });
+      }
+
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        docType: docType as string,
+      };
+      
+      const searchResults = await storage.searchDocuments(
+        organizationId, 
+        q as string, 
+        filters
+      );
+      res.json(searchResults);
+    } catch (error) {
+      console.error("Error searching documents:", error);
+      res.status(500).json({ message: "Failed to search documents" });
+    }
+  });
+
   // ===== CURRENCY AND TAX MANAGEMENT ENDPOINTS =====
 
   // Get all currency rates
