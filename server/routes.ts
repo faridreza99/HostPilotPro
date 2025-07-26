@@ -10011,6 +10011,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== AI ROI PREDICTIONS SYSTEM API =====
+
+  // Get all AI ROI predictions
+  app.get("/api/ai-roi-predictions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const predictions = await storage.getAiRoiPredictions(organizationId);
+      res.json(predictions);
+    } catch (error) {
+      console.error("Error fetching AI ROI predictions:", error);
+      res.status(500).json({ message: "Failed to fetch AI ROI predictions" });
+    }
+  });
+
+  // Create AI ROI prediction
+  app.post("/api/ai-roi-predictions", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const prediction = await storage.createAiRoiPrediction(organizationId, req.body);
+      res.status(201).json(prediction);
+    } catch (error) {
+      console.error("Error creating AI ROI prediction:", error);
+      res.status(500).json({ message: "Failed to create AI ROI prediction" });
+    }
+  });
+
+  // Get AI ROI prediction by ID
+  app.get("/api/ai-roi-predictions/:predictionId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const predictionId = parseInt(req.params.predictionId);
+      const prediction = await storage.getAiRoiPredictionById(organizationId, predictionId);
+      
+      if (!prediction) {
+        return res.status(404).json({ message: "AI ROI prediction not found" });
+      }
+      
+      res.json(prediction);
+    } catch (error) {
+      console.error("Error fetching AI ROI prediction:", error);
+      res.status(500).json({ message: "Failed to fetch AI ROI prediction" });
+    }
+  });
+
+  // Update AI ROI prediction
+  app.put("/api/ai-roi-predictions/:predictionId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const predictionId = parseInt(req.params.predictionId);
+      const prediction = await storage.updateAiRoiPrediction(organizationId, predictionId, req.body);
+      
+      if (!prediction) {
+        return res.status(404).json({ message: "AI ROI prediction not found" });
+      }
+      
+      res.json(prediction);
+    } catch (error) {
+      console.error("Error updating AI ROI prediction:", error);
+      res.status(500).json({ message: "Failed to update AI ROI prediction" });
+    }
+  });
+
+  // Delete AI ROI prediction
+  app.delete("/api/ai-roi-predictions/:predictionId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const predictionId = parseInt(req.params.predictionId);
+      const success = await storage.deleteAiRoiPrediction(organizationId, predictionId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "AI ROI prediction not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting AI ROI prediction:", error);
+      res.status(500).json({ message: "Failed to delete AI ROI prediction" });
+    }
+  });
+
+  // Get AI ROI predictions by property
+  app.get("/api/ai-roi-predictions/property/:propertyId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const propertyId = parseInt(req.params.propertyId);
+      const predictions = await storage.getAiRoiPredictionsByProperty(organizationId, propertyId);
+      res.json(predictions);
+    } catch (error) {
+      console.error("Error fetching AI ROI predictions by property:", error);
+      res.status(500).json({ message: "Failed to fetch AI ROI predictions for property" });
+    }
+  });
+
+  // Get AI ROI predictions analytics
+  app.get("/api/ai-roi-predictions/analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const analytics = await storage.getAiRoiPredictionsAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching AI ROI predictions analytics:", error);
+      res.status(500).json({ message: "Failed to fetch AI ROI predictions analytics" });
+    }
+  });
+
+  // Generate AI ROI prediction for property
+  app.post("/api/ai-roi-predictions/generate", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user.organizationId || "default-org";
+      const { propertyId, forecastMonths = 12 } = req.body;
+      
+      if (!propertyId) {
+        return res.status(400).json({ message: "Property ID is required" });
+      }
+      
+      const forecasts = await storage.generateAiRoiPrediction(organizationId, propertyId, forecastMonths);
+      
+      // Save generated forecasts to database
+      const savedForecasts = [];
+      for (const forecast of forecasts) {
+        const saved = await storage.createAiRoiPrediction(organizationId, forecast);
+        savedForecasts.push(saved);
+      }
+      
+      res.status(201).json({
+        generated: savedForecasts.length,
+        forecasts: savedForecasts
+      });
+    } catch (error) {
+      console.error("Error generating AI ROI predictions:", error);
+      res.status(500).json({ message: "Failed to generate AI ROI predictions" });
+    }
+  });
+
   // ===== AI VIRTUAL MANAGERS SYSTEM API =====
 
   // Get all AI virtual managers

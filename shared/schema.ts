@@ -3606,6 +3606,41 @@ export type AiOpsAnomaly = typeof aiOpsAnomalies.$inferSelect;
 // ===== AI VIRTUAL MANAGERS SYSTEM =====
 
 // AI Virtual Managers for property-specific AI assistants
+// ============== AI ROI PREDICTIONS ==============
+export const aiRoiPredictions = pgTable("ai_roi_predictions", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  
+  // Forecast Period
+  forecastStart: date("forecast_start").notNull(),
+  forecastEnd: date("forecast_end").notNull(),
+  
+  // AI Predictions
+  predictedRoi: decimal("predicted_roi", { precision: 6, scale: 2 }).notNull(), // Return on Investment percentage
+  predictedOccupancy: decimal("predicted_occupancy", { precision: 6, scale: 2 }).notNull(), // Occupancy percentage
+  
+  // AI Analysis
+  aiNotes: text("ai_notes"),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_ai_roi_predictions_org_property").on(table.organizationId, table.propertyId),
+  index("IDX_ai_roi_predictions_forecast_dates").on(table.forecastStart, table.forecastEnd),
+]);
+
+// AI ROI Predictions Insert Schema
+export const insertAiRoiPredictionSchema = createInsertSchema(aiRoiPredictions).omit({
+  id: true,
+  createdAt: true,
+});
+
+// AI ROI Predictions Types
+export type InsertAiRoiPrediction = z.infer<typeof insertAiRoiPredictionSchema>;
+export type AiRoiPrediction = typeof aiRoiPredictions.$inferSelect;
+
+// ============== AI VIRTUAL MANAGERS ==============
 export const aiVirtualManagers = pgTable("ai_virtual_managers", {
   id: serial("id").primaryKey(),
   propertyId: integer("property_id").references(() => properties.id),

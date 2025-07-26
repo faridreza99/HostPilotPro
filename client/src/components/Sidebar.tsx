@@ -148,6 +148,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Marketing Pack Management", icon: FileText, href: "/admin/marketing-pack-management", description: "AI-powered marketing content generation and management", badge: "New" },
           { label: "AI Operations Anomalies", icon: Activity, href: "/admin/ai-ops-anomalies", description: "Monitor and auto-fix system anomalies with AI detection", badge: "AI" },
           { label: "AI Virtual Managers", icon: Bot, href: "/admin/ai-virtual-managers", description: "Property-specific AI assistants with knowledge bases", badge: "New" },
+          { label: "AI ROI Predictions", icon: Target, href: "/admin/ai-roi-predictions", description: "AI-powered investment return forecasting", badge: "Advanced" },
           { label: "SaaS Management", icon: Building2, href: "/admin/saas-management", description: "Manage signup requests and client organizations", badge: "Framework" },
           { label: "User Management", icon: Users, href: "/admin/user-management", description: "Manage users & permissions" },
           { label: "Staff Permissions", icon: Shield, href: "/admin/staff-permission-management", description: "Manage staff task creation permissions" },

@@ -64,6 +64,7 @@ import {
   marketingPacks,
   aiOpsAnomalies,
   aiVirtualManagers,
+  aiRoiPredictions,
   // Shared Costs Management
   sharedCosts,
   sharedCostSplits,
@@ -676,6 +677,8 @@ import {
   // AI Virtual Managers types
   type AiVirtualManager,
   type InsertAiVirtualManager,
+  type AiRoiPrediction,
+  type InsertAiRoiPrediction,
 } from "@shared/schema";
 
 // Guest Portal Smart Requests & AI Chat imports
@@ -40272,6 +40275,270 @@ The ${packType} approach focuses on highlighting the property's strengths while 
 
   // Bulk generate marketing packs for multiple properties
   
+  // ===== AI ROI PREDICTIONS SYSTEM =====
+
+  async getAiRoiPredictions(organizationId: string) {
+    return await db
+      .select()
+      .from(aiRoiPredictions)
+      .where(eq(aiRoiPredictions.organizationId, organizationId))
+      .orderBy(desc(aiRoiPredictions.createdAt));
+  }
+
+  async createAiRoiPrediction(organizationId: string, predictionData: any) {
+    const [prediction] = await db
+      .insert(aiRoiPredictions)
+      .values({
+        organizationId,
+        ...predictionData,
+      })
+      .returning();
+    return prediction;
+  }
+
+  async getAiRoiPredictionById(organizationId: string, predictionId: number) {
+    const [prediction] = await db
+      .select()
+      .from(aiRoiPredictions)
+      .where(
+        and(
+          eq(aiRoiPredictions.organizationId, organizationId),
+          eq(aiRoiPredictions.id, predictionId)
+        )
+      );
+    return prediction;
+  }
+
+  async updateAiRoiPrediction(organizationId: string, predictionId: number, updates: any) {
+    const [prediction] = await db
+      .update(aiRoiPredictions)
+      .set(updates)
+      .where(
+        and(
+          eq(aiRoiPredictions.organizationId, organizationId),
+          eq(aiRoiPredictions.id, predictionId)
+        )
+      )
+      .returning();
+    return prediction;
+  }
+
+  async deleteAiRoiPrediction(organizationId: string, predictionId: number) {
+    const result = await db
+      .delete(aiRoiPredictions)
+      .where(
+        and(
+          eq(aiRoiPredictions.organizationId, organizationId),
+          eq(aiRoiPredictions.id, predictionId)
+        )
+      );
+    return result.rowCount > 0;
+  }
+
+  async getAiRoiPredictionsByProperty(organizationId: string, propertyId: number) {
+    return await db
+      .select()
+      .from(aiRoiPredictions)
+      .where(
+        and(
+          eq(aiRoiPredictions.organizationId, organizationId),
+          eq(aiRoiPredictions.propertyId, propertyId)
+        )
+      )
+      .orderBy(desc(aiRoiPredictions.forecastStart));
+  }
+
+  async getAiRoiPredictionsAnalytics(organizationId: string) {
+    // Get all predictions for analytics
+    const predictions = await this.getAiRoiPredictions(organizationId);
+    
+    // Calculate analytics
+    const totalPredictions = predictions.length;
+    const avgRoi = predictions.length > 0 
+      ? predictions.reduce((sum, p) => sum + parseFloat(p.predictedRoi || '0'), 0) / predictions.length
+      : 0;
+    const avgOccupancy = predictions.length > 0
+      ? predictions.reduce((sum, p) => sum + parseFloat(p.predictedOccupancy || '0'), 0) / predictions.length
+      : 0;
+
+    // ROI distribution
+    const roiRanges = {
+      'Under 5%': predictions.filter(p => parseFloat(p.predictedRoi || '0') < 5).length,
+      '5-10%': predictions.filter(p => {
+        const roi = parseFloat(p.predictedRoi || '0');
+        return roi >= 5 && roi < 10;
+      }).length,
+      '10-15%': predictions.filter(p => {
+        const roi = parseFloat(p.predictedRoi || '0');
+        return roi >= 10 && roi < 15;
+      }).length,
+      'Over 15%': predictions.filter(p => parseFloat(p.predictedRoi || '0') >= 15).length,
+    };
+
+    // Occupancy distribution
+    const occupancyRanges = {
+      'Under 50%': predictions.filter(p => parseFloat(p.predictedOccupancy || '0') < 50).length,
+      '50-70%': predictions.filter(p => {
+        const occ = parseFloat(p.predictedOccupancy || '0');
+        return occ >= 50 && occ < 70;
+      }).length,
+      '70-85%': predictions.filter(p => {
+        const occ = parseFloat(p.predictedOccupancy || '0');
+        return occ >= 70 && occ < 85;
+      }).length,
+      'Over 85%': predictions.filter(p => parseFloat(p.predictedOccupancy || '0') >= 85).length,
+    };
+
+    return {
+      totalPredictions,
+      avgRoi: Math.round(avgRoi * 100) / 100,
+      avgOccupancy: Math.round(avgOccupancy * 100) / 100,
+      roiDistribution: roiRanges,
+      occupancyDistribution: occupancyRanges,
+      recentPredictions: predictions.slice(0, 5),
+    };
+  }
+
+  async generateAiRoiPrediction(organizationId: string, propertyId: number, forecastMonths: number = 12) {
+    // Get property details
+    const property = await this.getProperty(organizationId, propertyId);
+    if (!property) {
+      throw new Error('Property not found');
+    }
+
+    // Get historical booking data for analysis
+    const bookings = await this.getBookings(organizationId);
+    const propertyBookings = bookings.filter(b => b.propertyId === propertyId);
+
+    // Calculate base metrics
+    const avgOccupancy = propertyBookings.length > 0 ? 65 + Math.random() * 25 : 60; // 60-90%
+    const baseRoi = 8 + (Math.random() * 10); // 8-18% base ROI
+
+    // Property-specific adjustments
+    let roiMultiplier = 1.0;
+    let occupancyMultiplier = 1.0;
+
+    // Bedroom count impact
+    const bedrooms = property.bedrooms || 2;
+    if (bedrooms >= 4) {
+      roiMultiplier *= 1.2;
+      occupancyMultiplier *= 0.95; // Luxury properties may have slightly lower occupancy
+    } else if (bedrooms <= 2) {
+      roiMultiplier *= 0.9;
+      occupancyMultiplier *= 1.1; // Smaller properties easier to book
+    }
+
+    // Location impact (simulate based on property name)
+    const propertyName = property.name?.toLowerCase() || '';
+    if (propertyName.includes('ocean') || propertyName.includes('beach')) {
+      roiMultiplier *= 1.15;
+      occupancyMultiplier *= 1.1;
+    }
+    if (propertyName.includes('samui') || propertyName.includes('phuket')) {
+      roiMultiplier *= 1.1;
+      occupancyMultiplier *= 1.05;
+    }
+
+    // Generate forecast periods
+    const forecasts = [];
+    const startDate = new Date();
+    
+    for (let i = 0; i < forecastMonths; i++) {
+      const forecastStart = new Date(startDate);
+      forecastStart.setMonth(forecastStart.getMonth() + i);
+      forecastStart.setDate(1);
+      
+      const forecastEnd = new Date(forecastStart);
+      forecastEnd.setMonth(forecastEnd.getMonth() + 1);
+      forecastEnd.setDate(0);
+
+      // Seasonal adjustments
+      const month = forecastStart.getMonth() + 1;
+      let seasonalMultiplier = 1.0;
+      
+      // Thai high season (Dec-Mar)
+      if (month >= 12 || month <= 3) {
+        seasonalMultiplier = 1.2;
+      }
+      // Shoulder season (Apr-May, Oct-Nov)
+      else if ((month >= 4 && month <= 5) || (month >= 10 && month <= 11)) {
+        seasonalMultiplier = 1.0;
+      }
+      // Low season (Jun-Sep)
+      else {
+        seasonalMultiplier = 0.8;
+      }
+
+      const finalRoi = Math.round((baseRoi * roiMultiplier * seasonalMultiplier + (Math.random() - 0.5) * 2) * 100) / 100;
+      const finalOccupancy = Math.round((avgOccupancy * occupancyMultiplier * seasonalMultiplier + (Math.random() - 0.5) * 5) * 100) / 100;
+
+      // Generate AI notes
+      const aiNotes = this.generateRoiPredictionNotes(property, finalRoi, finalOccupancy, month, seasonalMultiplier);
+
+      forecasts.push({
+        organizationId,
+        propertyId,
+        forecastStart: forecastStart.toISOString().split('T')[0],
+        forecastEnd: forecastEnd.toISOString().split('T')[0],
+        predictedRoi: Math.max(finalRoi, 2), // Minimum 2% ROI
+        predictedOccupancy: Math.min(Math.max(finalOccupancy, 20), 95), // 20-95% occupancy range
+        aiNotes,
+      });
+    }
+
+    return forecasts;
+  }
+
+  private generateRoiPredictionNotes(property: any, roi: number, occupancy: number, month: number, seasonalMultiplier: number): string {
+    const propertyName = property.name || 'Property';
+    const bedrooms = property.bedrooms || 2;
+    
+    let seasonName = 'shoulder season';
+    let seasonNote = 'moderate demand expected';
+    
+    if (month >= 12 || month <= 3) {
+      seasonName = 'high season';
+      seasonNote = 'peak tourism period with strong demand';
+    } else if (month >= 6 && month <= 9) {
+      seasonName = 'low season';
+      seasonNote = 'rainy season with reduced tourist activity';
+    }
+
+    let performanceNote = 'average performance';
+    if (roi >= 15) {
+      performanceNote = 'excellent ROI potential';
+    } else if (roi >= 12) {
+      performanceNote = 'strong performance expected';
+    } else if (roi <= 6) {
+      performanceNote = 'below-average returns predicted';
+    }
+
+    let occupancyNote = 'standard occupancy levels';
+    if (occupancy >= 80) {
+      occupancyNote = 'high occupancy expected';
+    } else if (occupancy >= 60) {
+      occupancyNote = 'good occupancy rates';
+    } else {
+      occupancyNote = 'lower occupancy anticipated';
+    }
+
+    const strategies = [];
+    if (roi < 10) {
+      strategies.push('consider pricing optimization');
+    }
+    if (occupancy < 60) {
+      strategies.push('enhance marketing efforts');
+    }
+    if (seasonalMultiplier < 1.0) {
+      strategies.push('focus on maintenance and renovations');
+    }
+    if (bedrooms >= 4) {
+      strategies.push('target luxury family market');
+    }
+
+    return `${propertyName} forecast for ${seasonName}: ${performanceNote} with ${occupancyNote}. ${seasonNote}. Recommendations: ${strategies.join(', ')}.`;
+  }
+
   // ===== AI VIRTUAL MANAGERS SYSTEM =====
 
   // Get all AI virtual managers for organization

@@ -16,6 +16,7 @@ import {
 } from "@shared/schema";
 import { seedAiDemoData } from "./seedAiDemoData";
 import { seedAiVirtualManagersData } from "./seedAiVirtualManagersData";
+import { seedAiRoiPredictionsData } from "./seedAiRoiPredictionsData";
 import { syncHostawayData } from "./hostaway";
 import { seedGuestAddonServices } from "./seedGuestAddonServices";
 import { storage } from "./storage";
@@ -372,6 +373,9 @@ export async function seedDemoData(): Promise<void> {
     
     // Seed AI Virtual Managers data
     await seedAiVirtualManagersData(storage, DEMO_ORG_ID);
+    
+    // Seed AI ROI Predictions data
+    await seedAiRoiPredictionsData();
     
     // Skip Guest Add-On Services for now to prevent conflicts
     // await seedGuestAddonServices(DEMO_ORG_ID);
