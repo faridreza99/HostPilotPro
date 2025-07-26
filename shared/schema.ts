@@ -3721,6 +3721,36 @@ export const insertPropertyDocumentSchema = createInsertSchema(propertyDocuments
 export type InsertPropertyDocument = z.infer<typeof insertPropertyDocumentSchema>;
 export type PropertyDocument = typeof propertyDocuments.$inferSelect;
 
+// ===== UPSELL RECOMMENDATIONS SYSTEM =====
+
+// Upsell recommendations for guest service enhancement and revenue optimization
+export const upsellRecommendations = pgTable("upsell_recommendations", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  guestId: varchar("guest_id"),
+  propertyId: integer("property_id").references(() => properties.id),
+  recommendationType: varchar("recommendation_type"), // extra_cleaning, private_chef, spa_service, tour_guide, grocery_delivery, laundry_service, transportation, other
+  message: text("message"),
+  status: varchar("status").default("pending"), // pending, sent, accepted, declined, expired
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_upsell_org").on(table.organizationId),
+  index("IDX_upsell_guest").on(table.guestId),
+  index("IDX_upsell_property").on(table.propertyId),
+  index("IDX_upsell_type").on(table.recommendationType),
+  index("IDX_upsell_status").on(table.status),
+  index("IDX_upsell_created").on(table.createdAt),
+]);
+
+// Upsell recommendations schemas
+export const insertUpsellRecommendationSchema = createInsertSchema(upsellRecommendations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUpsellRecommendation = z.infer<typeof insertUpsellRecommendationSchema>;
+export type UpsellRecommendation = typeof upsellRecommendations.$inferSelect;
+
 // Financial & Invoice Toolkit schemas and types
 
 export const insertCommissionEarningSchema = createInsertSchema(commissionEarnings).omit({

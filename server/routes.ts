@@ -3274,6 +3274,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== UPSELL RECOMMENDATIONS SYSTEM API ENDPOINTS =====
+
+  // Get upsell recommendations with filters
+  app.get("/api/upsell-recommendations", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { propertyId, recommendationType, status } = req.query;
+      
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId as string);
+      if (recommendationType) filters.recommendationType = recommendationType as string;
+      if (status) filters.status = status as string;
+      
+      const recommendations = await storage.getUpsellRecommendations(organizationId, filters);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching upsell recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch upsell recommendations" });
+    }
+  });
+
+  // Search upsell recommendations
+  app.get("/api/upsell-recommendations/search", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { q, propertyId, recommendationType, status } = req.query;
+      
+      if (!q) {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+      
+      const results = await storage.searchUpsellRecommendations(organizationId, q as string);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching upsell recommendations:", error);
+      res.status(500).json({ message: "Failed to search upsell recommendations" });
+    }
+  });
+
+  // Get upsell recommendations analytics
+  app.get("/api/upsell-recommendations/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const analytics = await storage.getUpsellRecommendationAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching upsell analytics:", error);
+      res.status(500).json({ message: "Failed to fetch upsell analytics" });
+    }
+  });
+
+  // Get upsell recommendation types summary
+  app.get("/api/upsell-recommendations/types", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const types = await storage.getUpsellRecommendationTypes(organizationId);
+      res.json(types);
+    } catch (error) {
+      console.error("Error fetching upsell recommendation types:", error);
+      res.status(500).json({ message: "Failed to fetch upsell recommendation types" });
+    }
+  });
+
+  // Create new upsell recommendation
+  app.post("/api/upsell-recommendations", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const recommendationData = {
+        ...req.body,
+        organizationId
+      };
+      
+      const recommendation = await storage.createUpsellRecommendation(recommendationData);
+      res.status(201).json(recommendation);
+    } catch (error) {
+      console.error("Error creating upsell recommendation:", error);
+      res.status(500).json({ message: "Failed to create upsell recommendation" });
+    }
+  });
+
+  // Update upsell recommendation
+  app.put("/api/upsell-recommendations/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const recommendation = await storage.updateUpsellRecommendation(parseInt(id), req.body);
+      
+      if (!recommendation) {
+        return res.status(404).json({ message: "Upsell recommendation not found" });
+      }
+      
+      res.json(recommendation);
+    } catch (error) {
+      console.error("Error updating upsell recommendation:", error);
+      res.status(500).json({ message: "Failed to update upsell recommendation" });
+    }
+  });
+
+  // Delete upsell recommendation
+  app.delete("/api/upsell-recommendations/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteUpsellRecommendation(parseInt(id));
+      
+      if (!success) {
+        return res.status(404).json({ message: "Upsell recommendation not found" });
+      }
+      
+      res.json({ message: "Upsell recommendation deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting upsell recommendation:", error);
+      res.status(500).json({ message: "Failed to delete upsell recommendation" });
+    }
+  });
+
+  // Generate smart upsell recommendations for a guest
+  app.post("/api/upsell-recommendations/generate", isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { guestId, propertyId } = req.body;
+      
+      if (!guestId || !propertyId) {
+        return res.status(400).json({ message: "guestId and propertyId are required" });
+      }
+      
+      const result = await storage.generateSmartUpsellRecommendations(organizationId, guestId, propertyId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating smart upsell recommendations:", error);
+      res.status(500).json({ message: "Failed to generate smart upsell recommendations" });
+    }
+  });
+
   app.put("/api/guest-activity-preferences/:reservationId", async (req, res) => {
     try {
       const reservationId = req.params.reservationId;
@@ -29712,6 +29845,202 @@ async function processGuestIssueForAI(issueReport: any) {
     } catch (error) {
       console.error("Error searching documents:", error);
       res.status(500).json({ message: "Failed to search documents" });
+    }
+  });
+
+  // ===== UPSELL RECOMMENDATIONS ENDPOINTS =====
+
+  // Get upsell recommendations with optional filtering
+  app.get("/api/upsell-recommendations", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { guestId, propertyId, recommendationType, status, startDate, endDate } = req.query;
+      
+      const filters = {
+        guestId: guestId as string,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        recommendationType: recommendationType as string,
+        status: status as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      
+      const recommendations = await storage.getUpsellRecommendations(organizationId, filters);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching upsell recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch upsell recommendations" });
+    }
+  });
+
+  // Create new upsell recommendation
+  app.post("/api/upsell-recommendations", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const recommendationData = req.body;
+      
+      if (!recommendationData.recommendationType || !recommendationData.message) {
+        return res.status(400).json({ message: "Recommendation type and message are required" });
+      }
+
+      const created = await storage.createUpsellRecommendation(organizationId, recommendationData);
+      res.json(created);
+    } catch (error) {
+      console.error("Error creating upsell recommendation:", error);
+      res.status(500).json({ message: "Failed to create upsell recommendation" });
+    }
+  });
+
+  // Update upsell recommendation
+  app.put("/api/upsell-recommendations/:recommendationId", async (req, res) => {
+    try {
+      const { recommendationId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      const updateData = req.body;
+      
+      const updated = await storage.updateUpsellRecommendation(
+        organizationId, 
+        parseInt(recommendationId), 
+        updateData
+      );
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating upsell recommendation:", error);
+      res.status(500).json({ message: "Failed to update upsell recommendation" });
+    }
+  });
+
+  // Delete upsell recommendation
+  app.delete("/api/upsell-recommendations/:recommendationId", requireAdmin, async (req, res) => {
+    try {
+      const { recommendationId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const result = await storage.deleteUpsellRecommendation(
+        organizationId, 
+        parseInt(recommendationId)
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Error deleting upsell recommendation:", error);
+      res.status(500).json({ message: "Failed to delete upsell recommendation" });
+    }
+  });
+
+  // Get recommendations for a specific guest
+  app.get("/api/upsell-recommendations/guest/:guestId", async (req, res) => {
+    try {
+      const { guestId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const recommendations = await storage.getUpsellRecommendationsByGuest(
+        organizationId, 
+        guestId
+      );
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching recommendations by guest:", error);
+      res.status(500).json({ message: "Failed to fetch recommendations by guest" });
+    }
+  });
+
+  // Get recommendations for a specific property
+  app.get("/api/upsell-recommendations/property/:propertyId", async (req, res) => {
+    try {
+      const { propertyId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const recommendations = await storage.getUpsellRecommendationsByProperty(
+        organizationId, 
+        parseInt(propertyId)
+      );
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching recommendations by property:", error);
+      res.status(500).json({ message: "Failed to fetch recommendations by property" });
+    }
+  });
+
+  // Get upsell analytics
+  app.get("/api/upsell-recommendations/analytics", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { propertyId, startDate, endDate } = req.query;
+      
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      
+      const analytics = await storage.getUpsellAnalytics(organizationId, filters);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching upsell analytics:", error);
+      res.status(500).json({ message: "Failed to fetch upsell analytics" });
+    }
+  });
+
+  // Get recommendation types summary
+  app.get("/api/upsell-recommendations/types", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const recommendationTypes = await storage.getUpsellRecommendationTypes(organizationId);
+      res.json(recommendationTypes);
+    } catch (error) {
+      console.error("Error fetching recommendation types:", error);
+      res.status(500).json({ message: "Failed to fetch recommendation types" });
+    }
+  });
+
+  // Search upsell recommendations
+  app.get("/api/upsell-recommendations/search", async (req, res) => {
+    try {
+      const { q, propertyId, recommendationType, status } = req.query;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      if (!q) {
+        return res.status(400).json({ message: "Search term is required" });
+      }
+
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        recommendationType: recommendationType as string,
+        status: status as string,
+      };
+      
+      const searchResults = await storage.searchUpsellRecommendations(
+        organizationId, 
+        q as string, 
+        filters
+      );
+      res.json(searchResults);
+    } catch (error) {
+      console.error("Error searching upsell recommendations:", error);
+      res.status(500).json({ message: "Failed to search upsell recommendations" });
+    }
+  });
+
+  // Generate smart upsell recommendations for a guest
+  app.post("/api/upsell-recommendations/generate", async (req, res) => {
+    try {
+      const { guestId, propertyId } = req.body;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      if (!guestId || !propertyId) {
+        return res.status(400).json({ message: "Guest ID and Property ID are required" });
+      }
+
+      const result = await storage.generateSmartUpsellRecommendations(
+        organizationId, 
+        guestId, 
+        propertyId
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating smart upsell recommendations:", error);
+      res.status(500).json({ message: "Failed to generate smart upsell recommendations" });
     }
   });
 

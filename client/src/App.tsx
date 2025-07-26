@@ -65,6 +65,7 @@ import PropertyAppliancesManagement from "@/pages/PropertyAppliancesManagement";
 import AlertManagement from "@/pages/AlertManagement";
 import AutomationManagement from "@/pages/AutomationManagement";
 import CurrencyTaxManagement from "@/pages/CurrencyTaxManagement";
+import UpsellRecommendationsManagement from "@/pages/UpsellRecommendationsManagement";
 
 // Import new agent pages
 import QuoteGenerator from "@/pages/agent/QuoteGenerator";
@@ -127,6 +128,7 @@ function AppRoutes() {
         {/* Communication & Guest Services */}
         <Route path="/guest-portal-smart-requests" component={GuestPortalSmartRequests} />
         <Route path="/guest-activity-recommendations" component={GuestActivityRecommendations} />
+        <Route path="/upsell-recommendations-management" component={UpsellRecommendationsManagement} />
         
         {/* Administration */}
         <Route path="/admin/api-connections" component={ApiConnections} />

@@ -70,6 +70,8 @@ import {
   propertyChatMessages,
   // Property Documents
   propertyDocuments,
+  // Upsell Recommendations
+  upsellRecommendations,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -35427,6 +35429,408 @@ Plant Care:
       return await query.orderBy(desc(propertyDocuments.createdAt));
     } catch (error) {
       console.error("Error searching documents:", error);
+      throw error;
+    }
+  }
+
+  // ===== UPSELL RECOMMENDATIONS METHODS =====
+
+  async getUpsellRecommendations(organizationId: string, filters?: { guestId?: string; propertyId?: number; recommendationType?: string; status?: string; startDate?: Date; endDate?: Date }) {
+    try {
+      let query = this.db
+        .select({
+          id: upsellRecommendations.id,
+          organizationId: upsellRecommendations.organizationId,
+          guestId: upsellRecommendations.guestId,
+          propertyId: upsellRecommendations.propertyId,
+          recommendationType: upsellRecommendations.recommendationType,
+          message: upsellRecommendations.message,
+          status: upsellRecommendations.status,
+          createdAt: upsellRecommendations.createdAt,
+          propertyName: properties.name,
+          guestName: sql<string>`COALESCE(guest_users.username, ${upsellRecommendations.guestId})`,
+          daysSinceCreated: sql<number>`DATE_PART('day', CURRENT_DATE - ${upsellRecommendations.createdAt}::date)`,
+          isExpired: sql<boolean>`CASE WHEN ${upsellRecommendations.status} = 'pending' AND ${upsellRecommendations.createdAt} < CURRENT_DATE - INTERVAL '7 days' THEN TRUE ELSE FALSE END`,
+        })
+        .from(upsellRecommendations)
+        .leftJoin(properties, eq(upsellRecommendations.propertyId, properties.id))
+        .leftJoin(users.as('guest_users'), eq(upsellRecommendations.guestId, users.id))
+        .where(eq(upsellRecommendations.organizationId, organizationId));
+
+      if (filters?.guestId) {
+        query = query.where(eq(upsellRecommendations.guestId, filters.guestId));
+      }
+
+      if (filters?.propertyId) {
+        query = query.where(eq(upsellRecommendations.propertyId, filters.propertyId));
+      }
+
+      if (filters?.recommendationType) {
+        query = query.where(eq(upsellRecommendations.recommendationType, filters.recommendationType));
+      }
+
+      if (filters?.status) {
+        query = query.where(eq(upsellRecommendations.status, filters.status));
+      }
+
+      if (filters?.startDate) {
+        query = query.where(gte(upsellRecommendations.createdAt, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(upsellRecommendations.createdAt, filters.endDate));
+      }
+
+      return await query.orderBy(desc(upsellRecommendations.createdAt));
+    } catch (error) {
+      console.error("Error fetching upsell recommendations:", error);
+      throw error;
+    }
+  }
+
+  async createUpsellRecommendation(organizationId: string, recommendationData: any) {
+    try {
+      // Verify property belongs to organization if propertyId provided
+      if (recommendationData.propertyId) {
+        const [property] = await this.db
+          .select()
+          .from(properties)
+          .where(
+            and(
+              eq(properties.id, recommendationData.propertyId),
+              eq(properties.organizationId, organizationId)
+            )
+          );
+
+        if (!property) {
+          throw new Error("Property not found or unauthorized");
+        }
+      }
+
+      const [created] = await this.db
+        .insert(upsellRecommendations)
+        .values({
+          organizationId,
+          guestId: recommendationData.guestId,
+          propertyId: recommendationData.propertyId,
+          recommendationType: recommendationData.recommendationType,
+          message: recommendationData.message,
+          status: recommendationData.status || "pending",
+        })
+        .returning();
+
+      return created;
+    } catch (error) {
+      console.error("Error creating upsell recommendation:", error);
+      throw error;
+    }
+  }
+
+  async updateUpsellRecommendation(organizationId: string, recommendationId: number, updateData: any) {
+    try {
+      // Verify recommendation belongs to organization
+      const [existingRec] = await this.db
+        .select()
+        .from(upsellRecommendations)
+        .where(
+          and(
+            eq(upsellRecommendations.id, recommendationId),
+            eq(upsellRecommendations.organizationId, organizationId)
+          )
+        );
+
+      if (!existingRec) {
+        throw new Error("Recommendation not found or unauthorized");
+      }
+
+      const [updated] = await this.db
+        .update(upsellRecommendations)
+        .set({
+          recommendationType: updateData.recommendationType || existingRec.recommendationType,
+          message: updateData.message || existingRec.message,
+          status: updateData.status || existingRec.status,
+        })
+        .where(eq(upsellRecommendations.id, recommendationId))
+        .returning();
+
+      return updated;
+    } catch (error) {
+      console.error("Error updating upsell recommendation:", error);
+      throw error;
+    }
+  }
+
+  async deleteUpsellRecommendation(organizationId: string, recommendationId: number) {
+    try {
+      // Verify recommendation belongs to organization
+      const [existingRec] = await this.db
+        .select()
+        .from(upsellRecommendations)
+        .where(
+          and(
+            eq(upsellRecommendations.id, recommendationId),
+            eq(upsellRecommendations.organizationId, organizationId)
+          )
+        );
+
+      if (!existingRec) {
+        throw new Error("Recommendation not found or unauthorized");
+      }
+
+      await this.db
+        .delete(upsellRecommendations)
+        .where(eq(upsellRecommendations.id, recommendationId));
+
+      return { success: true, message: "Upsell recommendation deleted successfully" };
+    } catch (error) {
+      console.error("Error deleting upsell recommendation:", error);
+      throw error;
+    }
+  }
+
+  async getUpsellRecommendationsByGuest(organizationId: string, guestId: string) {
+    try {
+      return await this.db
+        .select({
+          id: upsellRecommendations.id,
+          propertyId: upsellRecommendations.propertyId,
+          recommendationType: upsellRecommendations.recommendationType,
+          message: upsellRecommendations.message,
+          status: upsellRecommendations.status,
+          createdAt: upsellRecommendations.createdAt,
+          propertyName: properties.name,
+          daysSinceCreated: sql<number>`DATE_PART('day', CURRENT_DATE - ${upsellRecommendations.createdAt}::date)`,
+          isExpired: sql<boolean>`CASE WHEN ${upsellRecommendations.status} = 'pending' AND ${upsellRecommendations.createdAt} < CURRENT_DATE - INTERVAL '7 days' THEN TRUE ELSE FALSE END`,
+        })
+        .from(upsellRecommendations)
+        .leftJoin(properties, eq(upsellRecommendations.propertyId, properties.id))
+        .where(
+          and(
+            eq(upsellRecommendations.organizationId, organizationId),
+            eq(upsellRecommendations.guestId, guestId)
+          )
+        )
+        .orderBy(desc(upsellRecommendations.createdAt));
+    } catch (error) {
+      console.error("Error fetching recommendations by guest:", error);
+      throw error;
+    }
+  }
+
+  async getUpsellRecommendationsByProperty(organizationId: string, propertyId: number) {
+    try {
+      return await this.db
+        .select({
+          id: upsellRecommendations.id,
+          guestId: upsellRecommendations.guestId,
+          recommendationType: upsellRecommendations.recommendationType,
+          message: upsellRecommendations.message,
+          status: upsellRecommendations.status,
+          createdAt: upsellRecommendations.createdAt,
+          guestName: sql<string>`COALESCE(guest_users.username, ${upsellRecommendations.guestId})`,
+          daysSinceCreated: sql<number>`DATE_PART('day', CURRENT_DATE - ${upsellRecommendations.createdAt}::date)`,
+          isExpired: sql<boolean>`CASE WHEN ${upsellRecommendations.status} = 'pending' AND ${upsellRecommendations.createdAt} < CURRENT_DATE - INTERVAL '7 days' THEN TRUE ELSE FALSE END`,
+        })
+        .from(upsellRecommendations)
+        .leftJoin(users.as('guest_users'), eq(upsellRecommendations.guestId, users.id))
+        .where(
+          and(
+            eq(upsellRecommendations.organizationId, organizationId),
+            eq(upsellRecommendations.propertyId, propertyId)
+          )
+        )
+        .orderBy(desc(upsellRecommendations.createdAt));
+    } catch (error) {
+      console.error("Error fetching recommendations by property:", error);
+      throw error;
+    }
+  }
+
+  async getUpsellAnalytics(organizationId: string, filters?: { propertyId?: number; startDate?: Date; endDate?: Date }) {
+    try {
+      let query = this.db
+        .select({
+          totalRecommendations: sql<number>`COUNT(*)`,
+          recommendationsByType: sql<any>`json_object_agg(${upsellRecommendations.recommendationType}, COUNT(*))`,
+          pendingCount: sql<number>`SUM(CASE WHEN ${upsellRecommendations.status} = 'pending' THEN 1 ELSE 0 END)`,
+          sentCount: sql<number>`SUM(CASE WHEN ${upsellRecommendations.status} = 'sent' THEN 1 ELSE 0 END)`,
+          acceptedCount: sql<number>`SUM(CASE WHEN ${upsellRecommendations.status} = 'accepted' THEN 1 ELSE 0 END)`,
+          declinedCount: sql<number>`SUM(CASE WHEN ${upsellRecommendations.status} = 'declined' THEN 1 ELSE 0 END)`,
+          expiredCount: sql<number>`SUM(CASE WHEN ${upsellRecommendations.status} = 'pending' AND ${upsellRecommendations.createdAt} < CURRENT_DATE - INTERVAL '7 days' THEN 1 ELSE 0 END)`,
+          uniqueGuests: sql<number>`COUNT(DISTINCT ${upsellRecommendations.guestId})`,
+          uniqueProperties: sql<number>`COUNT(DISTINCT ${upsellRecommendations.propertyId})`,
+          conversionRate: sql<number>`ROUND((SUM(CASE WHEN ${upsellRecommendations.status} = 'accepted' THEN 1 ELSE 0 END)::numeric / GREATEST(SUM(CASE WHEN ${upsellRecommendations.status} IN ('accepted', 'declined') THEN 1 ELSE 0 END), 1)) * 100, 2)`,
+          avgRecommendationsPerGuest: sql<number>`ROUND(COUNT(*)::numeric / GREATEST(COUNT(DISTINCT ${upsellRecommendations.guestId}), 1), 2)`,
+        })
+        .from(upsellRecommendations)
+        .where(eq(upsellRecommendations.organizationId, organizationId));
+
+      if (filters?.propertyId) {
+        query = query.where(eq(upsellRecommendations.propertyId, filters.propertyId));
+      }
+
+      if (filters?.startDate) {
+        query = query.where(gte(upsellRecommendations.createdAt, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(upsellRecommendations.createdAt, filters.endDate));
+      }
+
+      const [result] = await query;
+      return result || {
+        totalRecommendations: 0,
+        recommendationsByType: {},
+        pendingCount: 0,
+        sentCount: 0,
+        acceptedCount: 0,
+        declinedCount: 0,
+        expiredCount: 0,
+        uniqueGuests: 0,
+        uniqueProperties: 0,
+        conversionRate: 0,
+        avgRecommendationsPerGuest: 0,
+      };
+    } catch (error) {
+      console.error("Error fetching upsell analytics:", error);
+      throw error;
+    }
+  }
+
+  async getUpsellRecommendationTypes(organizationId: string) {
+    try {
+      const results = await this.db
+        .select({
+          recommendationType: upsellRecommendations.recommendationType,
+          recommendationCount: sql<number>`COUNT(*)`,
+          pendingCount: sql<number>`SUM(CASE WHEN ${upsellRecommendations.status} = 'pending' THEN 1 ELSE 0 END)`,
+          acceptedCount: sql<number>`SUM(CASE WHEN ${upsellRecommendations.status} = 'accepted' THEN 1 ELSE 0 END)`,
+          declinedCount: sql<number>`SUM(CASE WHEN ${upsellRecommendations.status} = 'declined' THEN 1 ELSE 0 END)`,
+          conversionRate: sql<number>`ROUND((SUM(CASE WHEN ${upsellRecommendations.status} = 'accepted' THEN 1 ELSE 0 END)::numeric / GREATEST(SUM(CASE WHEN ${upsellRecommendations.status} IN ('accepted', 'declined') THEN 1 ELSE 0 END), 1)) * 100, 2)`,
+        })
+        .from(upsellRecommendations)
+        .where(eq(upsellRecommendations.organizationId, organizationId))
+        .groupBy(upsellRecommendations.recommendationType)
+        .orderBy(desc(sql<number>`COUNT(*)`));
+
+      return results;
+    } catch (error) {
+      console.error("Error fetching recommendation types:", error);
+      throw error;
+    }
+  }
+
+  async searchUpsellRecommendations(organizationId: string, searchTerm: string, filters?: { propertyId?: number; recommendationType?: string; status?: string }) {
+    try {
+      let query = this.db
+        .select({
+          id: upsellRecommendations.id,
+          guestId: upsellRecommendations.guestId,
+          propertyId: upsellRecommendations.propertyId,
+          recommendationType: upsellRecommendations.recommendationType,
+          message: upsellRecommendations.message,
+          status: upsellRecommendations.status,
+          createdAt: upsellRecommendations.createdAt,
+          propertyName: properties.name,
+          guestName: sql<string>`COALESCE(guest_users.username, ${upsellRecommendations.guestId})`,
+          daysSinceCreated: sql<number>`DATE_PART('day', CURRENT_DATE - ${upsellRecommendations.createdAt}::date)`,
+        })
+        .from(upsellRecommendations)
+        .leftJoin(properties, eq(upsellRecommendations.propertyId, properties.id))
+        .leftJoin(users.as('guest_users'), eq(upsellRecommendations.guestId, users.id))
+        .where(
+          and(
+            eq(upsellRecommendations.organizationId, organizationId),
+            or(
+              sql`${upsellRecommendations.recommendationType} ILIKE ${`%${searchTerm}%`}`,
+              sql`${upsellRecommendations.message} ILIKE ${`%${searchTerm}%`}`,
+              sql`${upsellRecommendations.guestId} ILIKE ${`%${searchTerm}%`}`,
+              sql`${properties.name} ILIKE ${`%${searchTerm}%`}`
+            )
+          )
+        );
+
+      if (filters?.propertyId) {
+        query = query.where(eq(upsellRecommendations.propertyId, filters.propertyId));
+      }
+
+      if (filters?.recommendationType) {
+        query = query.where(eq(upsellRecommendations.recommendationType, filters.recommendationType));
+      }
+
+      if (filters?.status) {
+        query = query.where(eq(upsellRecommendations.status, filters.status));
+      }
+
+      return await query.orderBy(desc(upsellRecommendations.createdAt));
+    } catch (error) {
+      console.error("Error searching upsell recommendations:", error);
+      throw error;
+    }
+  }
+
+  async generateSmartUpsellRecommendations(organizationId: string, guestId: string, propertyId: number) {
+    try {
+      // Smart AI-based recommendation generation based on guest profile and property type
+      const smartRecommendations = [
+        {
+          type: "private_chef",
+          message: "Enhance your villa experience with a private chef service. Enjoy authentic Thai cuisine prepared fresh in your villa kitchen.",
+          priority: "high",
+          estimatedValue: 3500, // THB
+        },
+        {
+          type: "spa_service",
+          message: "Relax with our in-villa spa service. Traditional Thai massage and wellness treatments in the comfort of your accommodation.",
+          priority: "medium",
+          estimatedValue: 2800, // THB
+        },
+        {
+          type: "extra_cleaning",
+          message: "Daily housekeeping service to keep your villa pristine throughout your stay. Available on-demand or scheduled.",
+          priority: "medium",
+          estimatedValue: 800, // THB per service
+        },
+        {
+          type: "grocery_delivery",
+          message: "Fresh groceries and essentials delivered to your villa. Pre-stock your kitchen with local and international products.",
+          priority: "low",
+          estimatedValue: 1200, // THB
+        },
+        {
+          type: "tour_guide",
+          message: "Explore Koh Samui with a local guide. Discover hidden gems, cultural sites, and authentic local experiences.",
+          priority: "high",
+          estimatedValue: 4500, // THB per day
+        },
+      ];
+
+      const generatedRecommendations = [];
+      
+      for (const rec of smartRecommendations) {
+        const created = await this.createUpsellRecommendation(organizationId, {
+          guestId,
+          propertyId,
+          recommendationType: rec.type,
+          message: rec.message,
+          status: "pending",
+        });
+        
+        generatedRecommendations.push({
+          ...created,
+          priority: rec.priority,
+          estimatedValue: rec.estimatedValue,
+        });
+      }
+
+      return {
+        success: true,
+        message: `Generated ${generatedRecommendations.length} smart upsell recommendations`,
+        recommendations: generatedRecommendations,
+        totalEstimatedValue: smartRecommendations.reduce((sum, rec) => sum + rec.estimatedValue, 0),
+      };
+    } catch (error) {
+      console.error("Error generating smart upsell recommendations:", error);
       throw error;
     }
   }

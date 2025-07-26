@@ -24,6 +24,7 @@ import {
   Shield,
   Activity,
   Database,
+  TrendingUp,
   Home,
   Building,
   Building2,
@@ -118,6 +119,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Guest Portal Smart Requests", icon: MessageSquare, href: "/guest-portal-smart-requests", badge: "AI" },
           { label: "Guest Activity Recommendations", icon: Star, href: "/guest-activity-recommendations", badge: "AI" },
+          { label: "Upsell Recommendations", icon: TrendingUp, href: "/upsell-recommendations-management", badge: "New" },
           { label: "Loyalty Guest Tracker", icon: Users, href: "/loyalty-tracker", badge: "New" },
         ]
       },
@@ -191,6 +193,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Guest Portal Smart Requests", icon: MessageSquare, href: "/guest-portal-smart-requests", badge: "AI" },
           { label: "Guest Activity Recommendations", icon: Star, href: "/guest-activity-recommendations", badge: "AI" },
+          { label: "Upsell Recommendations", icon: TrendingUp, href: "/upsell-recommendations-management", badge: "New" },
           { label: "Loyalty Guest Tracker", icon: Users, href: "/loyalty-tracker", badge: "New" },
         ]
       },
