@@ -66,6 +66,8 @@ import {
   propertyInvestments,
   // Dynamic Pricing Recommendations
   dynamicPricingRecommendations,
+  // Property Chat Messages
+  propertyChatMessages,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -34729,6 +34731,341 @@ Plant Care:
       return results;
     } catch (error) {
       console.error("Error fetching daily pricing trends:", error);
+      throw error;
+    }
+  }
+
+  // ===== PROPERTY CHAT MESSAGES METHODS =====
+
+  async getPropertyChatMessages(organizationId: string, filters?: { propertyId?: number; senderId?: string; recipientId?: string; role?: string; startDate?: Date; endDate?: Date }) {
+    try {
+      let query = this.db
+        .select({
+          id: propertyChatMessages.id,
+          organizationId: propertyChatMessages.organizationId,
+          propertyId: propertyChatMessages.propertyId,
+          senderId: propertyChatMessages.senderId,
+          recipientId: propertyChatMessages.recipientId,
+          role: propertyChatMessages.role,
+          message: propertyChatMessages.message,
+          translatedMessage: propertyChatMessages.translatedMessage,
+          languageDetected: propertyChatMessages.languageDetected,
+          createdAt: propertyChatMessages.createdAt,
+          propertyName: properties.name,
+          senderName: sql<string>`COALESCE(sender_users.username, ${propertyChatMessages.senderId})`,
+          recipientName: sql<string>`COALESCE(recipient_users.username, ${propertyChatMessages.recipientId})`,
+        })
+        .from(propertyChatMessages)
+        .leftJoin(properties, eq(propertyChatMessages.propertyId, properties.id))
+        .leftJoin(users.as('sender_users'), eq(propertyChatMessages.senderId, users.id))
+        .leftJoin(users.as('recipient_users'), eq(propertyChatMessages.recipientId, users.id))
+        .where(eq(propertyChatMessages.organizationId, organizationId));
+
+      if (filters?.propertyId) {
+        query = query.where(eq(propertyChatMessages.propertyId, filters.propertyId));
+      }
+
+      if (filters?.senderId) {
+        query = query.where(eq(propertyChatMessages.senderId, filters.senderId));
+      }
+
+      if (filters?.recipientId) {
+        query = query.where(eq(propertyChatMessages.recipientId, filters.recipientId));
+      }
+
+      if (filters?.role) {
+        query = query.where(eq(propertyChatMessages.role, filters.role));
+      }
+
+      if (filters?.startDate) {
+        query = query.where(gte(propertyChatMessages.createdAt, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(propertyChatMessages.createdAt, filters.endDate));
+      }
+
+      return await query.orderBy(desc(propertyChatMessages.createdAt));
+    } catch (error) {
+      console.error("Error fetching property chat messages:", error);
+      throw error;
+    }
+  }
+
+  async createPropertyChatMessage(organizationId: string, messageData: any) {
+    try {
+      // Verify property belongs to organization if propertyId provided
+      if (messageData.propertyId) {
+        const [property] = await this.db
+          .select()
+          .from(properties)
+          .where(
+            and(
+              eq(properties.id, messageData.propertyId),
+              eq(properties.organizationId, organizationId)
+            )
+          );
+
+        if (!property) {
+          throw new Error("Property not found or unauthorized");
+        }
+      }
+
+      // Auto-detect language and translate if needed
+      const { translatedMessage, languageDetected } = await this.detectAndTranslateMessage(
+        messageData.message
+      );
+
+      const [created] = await this.db
+        .insert(propertyChatMessages)
+        .values({
+          organizationId,
+          propertyId: messageData.propertyId,
+          senderId: messageData.senderId,
+          recipientId: messageData.recipientId,
+          role: messageData.role,
+          message: messageData.message,
+          translatedMessage,
+          languageDetected,
+        })
+        .returning();
+
+      return created;
+    } catch (error) {
+      console.error("Error creating property chat message:", error);
+      throw error;
+    }
+  }
+
+  async getConversationHistory(organizationId: string, propertyId: number, participants?: string[]) {
+    try {
+      let query = this.db
+        .select({
+          id: propertyChatMessages.id,
+          senderId: propertyChatMessages.senderId,
+          recipientId: propertyChatMessages.recipientId,
+          role: propertyChatMessages.role,
+          message: propertyChatMessages.message,
+          translatedMessage: propertyChatMessages.translatedMessage,
+          languageDetected: propertyChatMessages.languageDetected,
+          createdAt: propertyChatMessages.createdAt,
+          senderName: sql<string>`COALESCE(sender_users.username, ${propertyChatMessages.senderId})`,
+          recipientName: sql<string>`COALESCE(recipient_users.username, ${propertyChatMessages.recipientId})`,
+        })
+        .from(propertyChatMessages)
+        .leftJoin(users.as('sender_users'), eq(propertyChatMessages.senderId, users.id))
+        .leftJoin(users.as('recipient_users'), eq(propertyChatMessages.recipientId, users.id))
+        .where(
+          and(
+            eq(propertyChatMessages.organizationId, organizationId),
+            eq(propertyChatMessages.propertyId, propertyId)
+          )
+        );
+
+      if (participants && participants.length > 0) {
+        query = query.where(
+          or(
+            sql`${propertyChatMessages.senderId} IN (${participants.join(',')})`,
+            sql`${propertyChatMessages.recipientId} IN (${participants.join(',')})`
+          )
+        );
+      }
+
+      return await query.orderBy(propertyChatMessages.createdAt);
+    } catch (error) {
+      console.error("Error fetching conversation history:", error);
+      throw error;
+    }
+  }
+
+  async getChatAnalytics(organizationId: string, filters?: { propertyId?: number; startDate?: Date; endDate?: Date }) {
+    try {
+      let query = this.db
+        .select({
+          totalMessages: sql<number>`COUNT(*)`,
+          uniqueSenders: sql<number>`COUNT(DISTINCT ${propertyChatMessages.senderId})`,
+          uniqueRecipients: sql<number>`COUNT(DISTINCT ${propertyChatMessages.recipientId})`,
+          messagesByRole: sql<any>`json_object_agg(${propertyChatMessages.role}, COUNT(*))`,
+          messagesByLanguage: sql<any>`json_object_agg(${propertyChatMessages.languageDetected}, COUNT(*))`,
+          translatedCount: sql<number>`SUM(CASE WHEN ${propertyChatMessages.translatedMessage} IS NOT NULL THEN 1 ELSE 0 END)`,
+          avgMessagesPerDay: sql<number>`COUNT(*) / GREATEST(1, EXTRACT(DAY FROM (MAX(${propertyChatMessages.createdAt}) - MIN(${propertyChatMessages.createdAt}))))`,
+        })
+        .from(propertyChatMessages)
+        .where(eq(propertyChatMessages.organizationId, organizationId));
+
+      if (filters?.propertyId) {
+        query = query.where(eq(propertyChatMessages.propertyId, filters.propertyId));
+      }
+
+      if (filters?.startDate) {
+        query = query.where(gte(propertyChatMessages.createdAt, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(propertyChatMessages.createdAt, filters.endDate));
+      }
+
+      const [result] = await query;
+      return result || {
+        totalMessages: 0,
+        uniqueSenders: 0,
+        uniqueRecipients: 0,
+        messagesByRole: {},
+        messagesByLanguage: {},
+        translatedCount: 0,
+        avgMessagesPerDay: 0,
+      };
+    } catch (error) {
+      console.error("Error fetching chat analytics:", error);
+      throw error;
+    }
+  }
+
+  async getRecentChatsByProperty(organizationId: string, propertyId: number, limit: number = 10) {
+    try {
+      return await this.db
+        .select({
+          id: propertyChatMessages.id,
+          senderId: propertyChatMessages.senderId,
+          recipientId: propertyChatMessages.recipientId,
+          role: propertyChatMessages.role,
+          message: propertyChatMessages.message,
+          translatedMessage: propertyChatMessages.translatedMessage,
+          languageDetected: propertyChatMessages.languageDetected,
+          createdAt: propertyChatMessages.createdAt,
+          senderName: sql<string>`COALESCE(sender_users.username, ${propertyChatMessages.senderId})`,
+          recipientName: sql<string>`COALESCE(recipient_users.username, ${propertyChatMessages.recipientId})`,
+        })
+        .from(propertyChatMessages)
+        .leftJoin(users.as('sender_users'), eq(propertyChatMessages.senderId, users.id))
+        .leftJoin(users.as('recipient_users'), eq(propertyChatMessages.recipientId, users.id))
+        .where(
+          and(
+            eq(propertyChatMessages.organizationId, organizationId),
+            eq(propertyChatMessages.propertyId, propertyId)
+          )
+        )
+        .orderBy(desc(propertyChatMessages.createdAt))
+        .limit(limit);
+    } catch (error) {
+      console.error("Error fetching recent chats by property:", error);
+      throw error;
+    }
+  }
+
+  async detectAndTranslateMessage(message: string): Promise<{ translatedMessage?: string; languageDetected?: string }> {
+    try {
+      // Simulate language detection and translation
+      const languages = ['en', 'th', 'zh', 'ja', 'ko', 'de', 'fr', 'es', 'ru'];
+      const thaiPatterns = /[ก-๙]/;
+      const chinesePatterns = /[\u4e00-\u9fff]/;
+      const japanesePatterns = /[\u3040-\u309f\u30a0-\u30ff]/;
+      const koreanPatterns = /[\uac00-\ud7af]/;
+
+      let languageDetected = 'en'; // default
+      let translatedMessage: string | undefined;
+
+      if (thaiPatterns.test(message)) {
+        languageDetected = 'th';
+        translatedMessage = `[EN] ${message} (Auto-translated from Thai)`;
+      } else if (chinesePatterns.test(message)) {
+        languageDetected = 'zh';
+        translatedMessage = `[EN] ${message} (Auto-translated from Chinese)`;
+      } else if (japanesePatterns.test(message)) {
+        languageDetected = 'ja';
+        translatedMessage = `[EN] ${message} (Auto-translated from Japanese)`;
+      } else if (koreanPatterns.test(message)) {
+        languageDetected = 'ko';
+        translatedMessage = `[EN] ${message} (Auto-translated from Korean)`;
+      } else {
+        // English message, translate to Thai for local staff
+        if (message.length > 10) { // Only translate longer messages
+          translatedMessage = `[TH] ${message} (แปลเป็นภาษาไทยอัตโนมัติ)`;
+          languageDetected = 'en';
+        }
+      }
+
+      return { translatedMessage, languageDetected };
+    } catch (error) {
+      console.error("Error in language detection/translation:", error);
+      return { languageDetected: 'en' };
+    }
+  }
+
+  async getUnreadMessageCount(organizationId: string, userId: string, propertyId?: number) {
+    try {
+      let query = this.db
+        .select({
+          unreadCount: sql<number>`COUNT(*)`,
+        })
+        .from(propertyChatMessages)
+        .where(
+          and(
+            eq(propertyChatMessages.organizationId, organizationId),
+            eq(propertyChatMessages.recipientId, userId)
+          )
+        );
+
+      if (propertyId) {
+        query = query.where(eq(propertyChatMessages.propertyId, propertyId));
+      }
+
+      // In a real implementation, you'd track read status
+      // For now, simulate unread messages from the last 24 hours
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      query = query.where(gte(propertyChatMessages.createdAt, yesterday));
+
+      const [result] = await query;
+      return result?.unreadCount || 0;
+    } catch (error) {
+      console.error("Error fetching unread message count:", error);
+      throw error;
+    }
+  }
+
+  async searchChatMessages(organizationId: string, searchTerm: string, filters?: { propertyId?: number; role?: string }) {
+    try {
+      let query = this.db
+        .select({
+          id: propertyChatMessages.id,
+          propertyId: propertyChatMessages.propertyId,
+          senderId: propertyChatMessages.senderId,
+          recipientId: propertyChatMessages.recipientId,
+          role: propertyChatMessages.role,
+          message: propertyChatMessages.message,
+          translatedMessage: propertyChatMessages.translatedMessage,
+          languageDetected: propertyChatMessages.languageDetected,
+          createdAt: propertyChatMessages.createdAt,
+          propertyName: properties.name,
+          senderName: sql<string>`COALESCE(sender_users.username, ${propertyChatMessages.senderId})`,
+          recipientName: sql<string>`COALESCE(recipient_users.username, ${propertyChatMessages.recipientId})`,
+        })
+        .from(propertyChatMessages)
+        .leftJoin(properties, eq(propertyChatMessages.propertyId, properties.id))
+        .leftJoin(users.as('sender_users'), eq(propertyChatMessages.senderId, users.id))
+        .leftJoin(users.as('recipient_users'), eq(propertyChatMessages.recipientId, users.id))
+        .where(
+          and(
+            eq(propertyChatMessages.organizationId, organizationId),
+            or(
+              sql`${propertyChatMessages.message} ILIKE ${`%${searchTerm}%`}`,
+              sql`${propertyChatMessages.translatedMessage} ILIKE ${`%${searchTerm}%`}`
+            )
+          )
+        );
+
+      if (filters?.propertyId) {
+        query = query.where(eq(propertyChatMessages.propertyId, filters.propertyId));
+      }
+
+      if (filters?.role) {
+        query = query.where(eq(propertyChatMessages.role, filters.role));
+      }
+
+      return await query.orderBy(desc(propertyChatMessages.createdAt));
+    } catch (error) {
+      console.error("Error searching chat messages:", error);
       throw error;
     }
   }

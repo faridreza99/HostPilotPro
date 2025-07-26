@@ -3661,6 +3661,37 @@ export const insertDynamicPricingRecommendationSchema = createInsertSchema(dynam
 export type InsertDynamicPricingRecommendation = z.infer<typeof insertDynamicPricingRecommendationSchema>;
 export type DynamicPricingRecommendation = typeof dynamicPricingRecommendations.$inferSelect;
 
+// ===== PROPERTY CHAT MESSAGES SYSTEM =====
+
+// Property chat messages for multi-language communication
+export const propertyChatMessages = pgTable("property_chat_messages", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  senderId: varchar("sender_id").notNull(),
+  recipientId: varchar("recipient_id"),
+  role: varchar("role").notNull(), // owner, staff, admin
+  message: text("message").notNull(),
+  translatedMessage: text("translated_message"),
+  languageDetected: varchar("language_detected", { length: 5 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_chat_org").on(table.organizationId),
+  index("IDX_property_chat_property").on(table.propertyId),
+  index("IDX_property_chat_sender").on(table.senderId),
+  index("IDX_property_chat_recipient").on(table.recipientId),
+  index("IDX_property_chat_created").on(table.createdAt),
+]);
+
+// Property chat messages schemas
+export const insertPropertyChatMessageSchema = createInsertSchema(propertyChatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPropertyChatMessage = z.infer<typeof insertPropertyChatMessageSchema>;
+export type PropertyChatMessage = typeof propertyChatMessages.$inferSelect;
+
 // Financial & Invoice Toolkit schemas and types
 
 export const insertCommissionEarningSchema = createInsertSchema(commissionEarnings).omit({

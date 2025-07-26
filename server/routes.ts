@@ -29393,6 +29393,155 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== PROPERTY CHAT MESSAGES ENDPOINTS =====
+
+  // Get property chat messages with optional filtering
+  app.get("/api/property-chat-messages", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { propertyId, senderId, recipientId, role, startDate, endDate } = req.query;
+      
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        senderId: senderId as string,
+        recipientId: recipientId as string,
+        role: role as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      
+      const messages = await storage.getPropertyChatMessages(organizationId, filters);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching property chat messages:", error);
+      res.status(500).json({ message: "Failed to fetch property chat messages" });
+    }
+  });
+
+  // Create new property chat message
+  app.post("/api/property-chat-messages", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const messageData = req.body;
+      
+      if (!messageData.senderId || !messageData.role || !messageData.message) {
+        return res.status(400).json({ message: "Sender ID, role, and message are required" });
+      }
+
+      const created = await storage.createPropertyChatMessage(organizationId, messageData);
+      res.json(created);
+    } catch (error) {
+      console.error("Error creating property chat message:", error);
+      res.status(500).json({ message: "Failed to create property chat message" });
+    }
+  });
+
+  // Get conversation history for a property
+  app.get("/api/property-chat-messages/conversation/:propertyId", async (req, res) => {
+    try {
+      const { propertyId } = req.params;
+      const { participants } = req.query;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const participantList = participants ? (participants as string).split(',') : undefined;
+      
+      const conversation = await storage.getConversationHistory(
+        organizationId, 
+        parseInt(propertyId),
+        participantList
+      );
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error fetching conversation history:", error);
+      res.status(500).json({ message: "Failed to fetch conversation history" });
+    }
+  });
+
+  // Get chat analytics
+  app.get("/api/property-chat-messages/analytics", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { propertyId, startDate, endDate } = req.query;
+      
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      
+      const analytics = await storage.getChatAnalytics(organizationId, filters);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching chat analytics:", error);
+      res.status(500).json({ message: "Failed to fetch chat analytics" });
+    }
+  });
+
+  // Get recent chats for a specific property
+  app.get("/api/property-chat-messages/recent/:propertyId", async (req, res) => {
+    try {
+      const { propertyId } = req.params;
+      const { limit } = req.query;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const recentChats = await storage.getRecentChatsByProperty(
+        organizationId, 
+        parseInt(propertyId),
+        limit ? parseInt(limit as string) : 10
+      );
+      res.json(recentChats);
+    } catch (error) {
+      console.error("Error fetching recent chats:", error);
+      res.status(500).json({ message: "Failed to fetch recent chats" });
+    }
+  });
+
+  // Get unread message count for a user
+  app.get("/api/property-chat-messages/unread/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { propertyId } = req.query;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const unreadCount = await storage.getUnreadMessageCount(
+        organizationId, 
+        userId,
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      res.json({ unreadCount });
+    } catch (error) {
+      console.error("Error fetching unread message count:", error);
+      res.status(500).json({ message: "Failed to fetch unread message count" });
+    }
+  });
+
+  // Search chat messages
+  app.get("/api/property-chat-messages/search", async (req, res) => {
+    try {
+      const { q, propertyId, role } = req.query;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      if (!q) {
+        return res.status(400).json({ message: "Search term is required" });
+      }
+
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        role: role as string,
+      };
+      
+      const searchResults = await storage.searchChatMessages(
+        organizationId, 
+        q as string, 
+        filters
+      );
+      res.json(searchResults);
+    } catch (error) {
+      console.error("Error searching chat messages:", error);
+      res.status(500).json({ message: "Failed to search chat messages" });
+    }
+  });
+
   // ===== CURRENCY AND TAX MANAGEMENT ENDPOINTS =====
 
   // Get all currency rates
