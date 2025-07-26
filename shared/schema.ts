@@ -12392,3 +12392,26 @@ export const insertGuestIdScanSchema = createInsertSchema(guestIdScans).omit({
 
 export type GuestIdScan = typeof guestIdScans.$inferSelect;
 export type InsertGuestIdScan = z.infer<typeof insertGuestIdScanSchema>;
+
+// ===== MAINTENANCE BUDGET FORECASTING SYSTEM =====
+
+export const maintenanceBudgetForecasts = pgTable("maintenance_budget_forecasts", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").references(() => properties.id),
+  forecastYear: integer("forecast_year").notNull(),
+  expectedCost: decimal("expected_cost", { precision: 12, scale: 2 }),
+  aiNotes: text("ai_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_maintenance_budget_property").on(table.propertyId),
+  index("IDX_maintenance_budget_year").on(table.forecastYear),
+  index("IDX_maintenance_budget_created").on(table.createdAt),
+]);
+
+export const insertMaintenanceBudgetForecastSchema = createInsertSchema(maintenanceBudgetForecasts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type MaintenanceBudgetForecast = typeof maintenanceBudgetForecasts.$inferSelect;
+export type InsertMaintenanceBudgetForecast = z.infer<typeof insertMaintenanceBudgetForecastSchema>;

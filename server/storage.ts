@@ -98,6 +98,8 @@ import {
   portfolioHealthScores,
   // Guest ID Verification
   guestIdScans,
+  // Maintenance Budget Forecasting
+  maintenanceBudgetForecasts,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -38483,6 +38485,385 @@ Plant Care:
       pendingScans: pendingScans.length,
       failedScans: failedScans.length,
       recommendations,
+    };
+  }
+
+  // ===== Maintenance Budget Forecasting Methods =====
+  
+  async getMaintenanceBudgetForecasts(propertyId?: number, forecastYear?: number): Promise<any[]> {
+    let query = db.select({
+      id: maintenanceBudgetForecasts.id,
+      propertyId: maintenanceBudgetForecasts.propertyId,
+      forecastYear: maintenanceBudgetForecasts.forecastYear,
+      expectedCost: maintenanceBudgetForecasts.expectedCost,
+      aiNotes: maintenanceBudgetForecasts.aiNotes,
+      createdAt: maintenanceBudgetForecasts.createdAt,
+      propertyName: properties.name,
+      propertyType: properties.propertyType,
+      bedrooms: properties.bedrooms,
+    })
+    .from(maintenanceBudgetForecasts)
+    .leftJoin(properties, eq(maintenanceBudgetForecasts.propertyId, properties.id));
+
+    const conditions = [];
+    if (propertyId) conditions.push(eq(maintenanceBudgetForecasts.propertyId, propertyId));
+    if (forecastYear) conditions.push(eq(maintenanceBudgetForecasts.forecastYear, forecastYear));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return query.orderBy(desc(maintenanceBudgetForecasts.forecastYear), desc(maintenanceBudgetForecasts.createdAt));
+  }
+
+  async createMaintenanceBudgetForecast(forecastData: any): Promise<any> {
+    const [created] = await db.insert(maintenanceBudgetForecasts).values({
+      ...forecastData,
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async getMaintenanceBudgetForecastById(id: number): Promise<any> {
+    const [forecast] = await db.select({
+      id: maintenanceBudgetForecasts.id,
+      propertyId: maintenanceBudgetForecasts.propertyId,
+      forecastYear: maintenanceBudgetForecasts.forecastYear,
+      expectedCost: maintenanceBudgetForecasts.expectedCost,
+      aiNotes: maintenanceBudgetForecasts.aiNotes,
+      createdAt: maintenanceBudgetForecasts.createdAt,
+      propertyName: properties.name,
+      propertyType: properties.propertyType,
+      bedrooms: properties.bedrooms,
+    })
+    .from(maintenanceBudgetForecasts)
+    .leftJoin(properties, eq(maintenanceBudgetForecasts.propertyId, properties.id))
+    .where(eq(maintenanceBudgetForecasts.id, id));
+    return forecast;
+  }
+
+  async updateMaintenanceBudgetForecast(id: number, updates: any): Promise<any> {
+    const [updated] = await db.update(maintenanceBudgetForecasts)
+      .set(updates)
+      .where(eq(maintenanceBudgetForecasts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMaintenanceBudgetForecast(id: number): Promise<boolean> {
+    const result = await db.delete(maintenanceBudgetForecasts).where(eq(maintenanceBudgetForecasts.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getMaintenanceBudgetAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalForecasts: sql<number>`count(*)`,
+      avgForecastCost: sql<number>`round(avg(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      totalBudgetAmount: sql<number>`round(sum(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      uniqueProperties: sql<number>`count(DISTINCT ${maintenanceBudgetForecasts.propertyId})`,
+      uniqueYears: sql<number>`count(DISTINCT ${maintenanceBudgetForecasts.forecastYear})`,
+      minYear: sql<number>`min(${maintenanceBudgetForecasts.forecastYear})`,
+      maxYear: sql<number>`max(${maintenanceBudgetForecasts.forecastYear})`,
+    }).from(maintenanceBudgetForecasts);
+
+    const byProperty = await db.select({
+      propertyId: maintenanceBudgetForecasts.propertyId,
+      propertyName: properties.name,
+      propertyType: properties.propertyType,
+      forecastCount: sql<number>`count(*)`,
+      avgCost: sql<number>`round(avg(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      totalBudget: sql<number>`round(sum(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      minYear: sql<number>`min(${maintenanceBudgetForecasts.forecastYear})`,
+      maxYear: sql<number>`max(${maintenanceBudgetForecasts.forecastYear})`,
+    })
+    .from(maintenanceBudgetForecasts)
+    .leftJoin(properties, eq(maintenanceBudgetForecasts.propertyId, properties.id))
+    .groupBy(maintenanceBudgetForecasts.propertyId, properties.name, properties.propertyType)
+    .orderBy(sql<number>`sum(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)) DESC`);
+
+    const byYear = await db.select({
+      forecastYear: maintenanceBudgetForecasts.forecastYear,
+      forecastCount: sql<number>`count(*)`,
+      avgCost: sql<number>`round(avg(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      totalBudget: sql<number>`round(sum(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      propertyCount: sql<number>`count(DISTINCT ${maintenanceBudgetForecasts.propertyId})`,
+    })
+    .from(maintenanceBudgetForecasts)
+    .groupBy(maintenanceBudgetForecasts.forecastYear)
+    .orderBy(maintenanceBudgetForecasts.forecastYear);
+
+    const costDistribution = await db.select({
+      costRange: sql<string>`
+        CASE 
+          WHEN CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL) < 50000 THEN 'Under ฿50K'
+          WHEN CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL) < 100000 THEN '฿50K-฿100K'
+          WHEN CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL) < 200000 THEN '฿100K-฿200K'
+          WHEN CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL) < 500000 THEN '฿200K-฿500K'
+          ELSE 'Over ฿500K'
+        END
+      `,
+      count: sql<number>`count(*)`,
+      percentage: sql<number>`round((count(*) * 100.0 / (select count(*) from ${maintenanceBudgetForecasts})), 1)`,
+      avgCost: sql<number>`round(avg(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+    })
+    .from(maintenanceBudgetForecasts)
+    .groupBy(sql`
+      CASE 
+        WHEN CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL) < 50000 THEN 'Under ฿50K'
+        WHEN CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL) < 100000 THEN '฿50K-฿100K'
+        WHEN CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL) < 200000 THEN '฿100K-฿200K'
+        WHEN CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL) < 500000 THEN '฿200K-฿500K'
+        ELSE 'Over ฿500K'
+      END
+    `)
+    .orderBy(sql<number>`min(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL))`);
+
+    return {
+      overall: overallStats[0] || { totalForecasts: 0, avgForecastCost: 0, totalBudgetAmount: 0, uniqueProperties: 0, uniqueYears: 0, minYear: null, maxYear: null },
+      byProperty,
+      byYear,
+      costDistribution,
+    };
+  }
+
+  async getForecastsByProperty(propertyId: number): Promise<any[]> {
+    return db.select({
+      id: maintenanceBudgetForecasts.id,
+      forecastYear: maintenanceBudgetForecasts.forecastYear,
+      expectedCost: maintenanceBudgetForecasts.expectedCost,
+      aiNotes: maintenanceBudgetForecasts.aiNotes,
+      createdAt: maintenanceBudgetForecasts.createdAt,
+    })
+    .from(maintenanceBudgetForecasts)
+    .where(eq(maintenanceBudgetForecasts.propertyId, propertyId))
+    .orderBy(maintenanceBudgetForecasts.forecastYear);
+  }
+
+  async generateAIMaintenanceForecast(propertyId: number, forecastYear: number): Promise<any> {
+    // Get property details
+    const [property] = await db.select().from(properties).where(eq(properties.id, propertyId));
+    if (!property) {
+      throw new Error('Property not found');
+    }
+
+    // Calculate base maintenance cost based on property characteristics
+    let baseCost = 50000; // Base ฿50,000 for Thai villas
+
+    // Adjust for property size (bedrooms as proxy)
+    const bedroomMultiplier = Math.max(1, property.bedrooms || 2);
+    baseCost *= (0.5 + (bedroomMultiplier * 0.25)); // ฿25,000-฿37,500 per bedroom
+
+    // Adjust for property type
+    const propertyTypeMultipliers = {
+      'villa': 1.5,
+      'condo': 0.8,
+      'apartment': 0.7,
+      'house': 1.0,
+      'townhouse': 0.9,
+    };
+    const typeMultiplier = propertyTypeMultipliers[property.propertyType as keyof typeof propertyTypeMultipliers] || 1.0;
+    baseCost *= typeMultiplier;
+
+    // Apply yearly inflation and wear factors
+    const currentYear = new Date().getFullYear();
+    const yearsAhead = forecastYear - currentYear;
+    
+    // 3% annual inflation + 2% wear factor for each year ahead
+    const inflationRate = Math.pow(1.05, yearsAhead);
+    baseCost *= inflationRate;
+
+    // Add randomization for market conditions (-10% to +20%)
+    const marketVariation = 0.9 + (Math.random() * 0.3);
+    baseCost *= marketVariation;
+
+    // Round to nearest 1,000 THB
+    const expectedCost = Math.round(baseCost / 1000) * 1000;
+
+    // Generate AI notes based on forecast factors
+    const notes = this.generateMaintenanceAINotes(property, forecastYear, expectedCost, yearsAhead);
+
+    return {
+      propertyId,
+      forecastYear,
+      expectedCost,
+      aiNotes: notes,
+    };
+  }
+
+  private generateMaintenanceAINotes(property: any, forecastYear: number, expectedCost: number, yearsAhead: number): string {
+    const notes = [];
+    
+    // Property assessment
+    notes.push(`AI Forecast for ${property.name} (${forecastYear}):`);
+    notes.push(`Property Type: ${property.propertyType || 'Villa'} with ${property.bedrooms || 2} bedrooms`);
+    
+    // Cost breakdown reasoning
+    if (expectedCost > 150000) {
+      notes.push('🔴 High maintenance forecast due to:');
+      if (property.bedrooms >= 4) notes.push('• Large property size requiring extensive upkeep');
+      if (property.propertyType === 'villa') notes.push('• Villa properties typically need pool, garden, and exterior maintenance');
+      if (yearsAhead >= 3) notes.push('• Long-term forecast includes major system replacements');
+    } else if (expectedCost > 80000) {
+      notes.push('🟡 Moderate maintenance forecast includes:');
+      notes.push('• Regular HVAC servicing and minor repairs');
+      notes.push('• Pool maintenance and chemical treatments');
+      notes.push('• Garden upkeep and exterior cleaning');
+    } else {
+      notes.push('🟢 Conservative maintenance forecast covers:');
+      notes.push('• Basic preventive maintenance');
+      notes.push('• Emergency repair buffer');
+      notes.push('• Regular cleaning and upkeep');
+    }
+
+    // Year-specific recommendations
+    if (yearsAhead <= 1) {
+      notes.push('Near-term priorities: AC servicing, pool pump inspection, painting touch-ups');
+    } else if (yearsAhead <= 3) {
+      notes.push('Medium-term planning: Appliance replacements, roof maintenance, electrical upgrades');
+    } else {
+      notes.push('Long-term planning: Major renovations, system overhauls, structural maintenance');
+    }
+
+    // Thai market context
+    notes.push('Forecast includes Thailand market factors:');
+    notes.push('• Tropical climate impact on materials and systems');
+    notes.push('• Local labor and material cost trends');
+    notes.push('• Tourism industry maintenance standards');
+
+    // Risk factors
+    const riskFactors = [];
+    if (property.propertyType === 'villa') riskFactors.push('Pool equipment aging');
+    if (property.bedrooms >= 3) riskFactors.push('Multiple AC units requiring service');
+    if (yearsAhead >= 2) riskFactors.push('Electronic systems approaching replacement cycle');
+    
+    if (riskFactors.length > 0) {
+      notes.push('Risk factors to monitor: ' + riskFactors.join(', '));
+    }
+
+    // Budget optimization suggestions
+    notes.push('Cost optimization strategies:');
+    notes.push('• Schedule major work during low season (May-September)');
+    notes.push('• Bundle maintenance tasks to reduce service call fees');
+    notes.push('• Consider preventive maintenance contracts for 10-15% savings');
+
+    return notes.join('\n');
+  }
+
+  async bulkGenerateForecasts(propertyIds: number[], years: number[]): Promise<any[]> {
+    const results = [];
+    
+    for (const propertyId of propertyIds) {
+      for (const year of years) {
+        try {
+          // Check if forecast already exists
+          const [existing] = await db.select()
+            .from(maintenanceBudgetForecasts)
+            .where(and(
+              eq(maintenanceBudgetForecasts.propertyId, propertyId),
+              eq(maintenanceBudgetForecasts.forecastYear, year)
+            ));
+
+          if (existing) {
+            results.push({ propertyId, year, status: 'exists', id: existing.id });
+            continue;
+          }
+
+          // Generate new forecast
+          const forecastData = await this.generateAIMaintenanceForecast(propertyId, year);
+          const created = await this.createMaintenanceBudgetForecast(forecastData);
+          results.push({ propertyId, year, status: 'created', id: created.id, expectedCost: created.expectedCost });
+        } catch (error) {
+          console.error(`Error generating forecast for property ${propertyId}, year ${year}:`, error);
+          results.push({ propertyId, year, status: 'error', error: error.message });
+        }
+      }
+    }
+    
+    return results;
+  }
+
+  async getBudgetTrends(propertyId?: number): Promise<any> {
+    let query = db.select({
+      forecastYear: maintenanceBudgetForecasts.forecastYear,
+      avgCost: sql<number>`round(avg(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      totalCost: sql<number>`round(sum(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      forecastCount: sql<number>`count(*)`,
+      minCost: sql<number>`min(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL))`,
+      maxCost: sql<number>`max(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL))`,
+    })
+    .from(maintenanceBudgetForecasts);
+
+    if (propertyId) {
+      query = query.where(eq(maintenanceBudgetForecasts.propertyId, propertyId));
+    }
+
+    const trends = await query
+      .groupBy(maintenanceBudgetForecasts.forecastYear)
+      .orderBy(maintenanceBudgetForecasts.forecastYear);
+
+    // Calculate year-over-year changes
+    const trendsWithChanges = trends.map((trend, index) => {
+      const prevTrend = index > 0 ? trends[index - 1] : null;
+      const avgCostChange = prevTrend ? 
+        ((trend.avgCost - prevTrend.avgCost) / prevTrend.avgCost) * 100 : 0;
+      const totalCostChange = prevTrend ? 
+        ((trend.totalCost - prevTrend.totalCost) / prevTrend.totalCost) * 100 : 0;
+
+      return {
+        ...trend,
+        avgCostChange: Math.round(avgCostChange * 100) / 100,
+        totalCostChange: Math.round(totalCostChange * 100) / 100,
+        changeDirection: avgCostChange > 0 ? 'increase' : avgCostChange < 0 ? 'decrease' : 'stable',
+      };
+    });
+
+    return trendsWithChanges;
+  }
+
+  async getMaintenanceBudgetSummary(propertyId?: number, year?: number): Promise<any> {
+    let query = db.select({
+      totalBudget: sql<number>`round(sum(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      avgBudget: sql<number>`round(avg(CAST(${maintenanceBudgetForecasts.expectedCost} AS DECIMAL)), 2)`,
+      forecastCount: sql<number>`count(*)`,
+      propertyCount: sql<number>`count(DISTINCT ${maintenanceBudgetForecasts.propertyId})`,
+    })
+    .from(maintenanceBudgetForecasts);
+
+    const conditions = [];
+    if (propertyId) conditions.push(eq(maintenanceBudgetForecasts.propertyId, propertyId));
+    if (year) conditions.push(eq(maintenanceBudgetForecasts.forecastYear, year));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    const [summary] = await query;
+
+    // Get highest and lowest cost forecasts
+    let detailQuery = db.select({
+      id: maintenanceBudgetForecasts.id,
+      propertyName: properties.name,
+      forecastYear: maintenanceBudgetForecasts.forecastYear,
+      expectedCost: maintenanceBudgetForecasts.expectedCost,
+    })
+    .from(maintenanceBudgetForecasts)
+    .leftJoin(properties, eq(maintenanceBudgetForecasts.propertyId, properties.id));
+
+    if (conditions.length > 0) {
+      detailQuery = detailQuery.where(and(...conditions));
+    }
+
+    const allForecasts = await detailQuery.orderBy(desc(maintenanceBudgetForecasts.expectedCost));
+    
+    const highestCostForecast = allForecasts[0] || null;
+    const lowestCostForecast = allForecasts[allForecasts.length - 1] || null;
+
+    return {
+      ...summary,
+      highestCostForecast,
+      lowestCostForecast,
+      costRange: highestCostForecast && lowestCostForecast ? 
+        highestCostForecast.expectedCost - lowestCostForecast.expectedCost : 0,
     };
   }
 }

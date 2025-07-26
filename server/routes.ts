@@ -31687,6 +31687,142 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Maintenance Budget Forecasting Routes =====
+  
+  app.get("/api/maintenance-budget-forecasts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, forecastYear } = req.query;
+      const forecasts = await storage.getMaintenanceBudgetForecasts(
+        propertyId ? parseInt(propertyId as string) : undefined,
+        forecastYear ? parseInt(forecastYear as string) : undefined
+      );
+      res.json(forecasts);
+    } catch (error) {
+      console.error("Error fetching maintenance budget forecasts:", error);
+      res.status(500).json({ error: "Failed to fetch maintenance budget forecasts" });
+    }
+  });
+
+  app.get("/api/maintenance-budget-forecasts/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const forecast = await storage.getMaintenanceBudgetForecastById(id);
+      if (!forecast) {
+        return res.status(404).json({ error: "Maintenance budget forecast not found" });
+      }
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error fetching maintenance budget forecast:", error);
+      res.status(500).json({ error: "Failed to fetch maintenance budget forecast" });
+    }
+  });
+
+  app.post("/api/maintenance-budget-forecasts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const forecast = await storage.createMaintenanceBudgetForecast(req.body);
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error creating maintenance budget forecast:", error);
+      res.status(500).json({ error: "Failed to create maintenance budget forecast" });
+    }
+  });
+
+  app.put("/api/maintenance-budget-forecasts/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const forecast = await storage.updateMaintenanceBudgetForecast(id, req.body);
+      if (!forecast) {
+        return res.status(404).json({ error: "Maintenance budget forecast not found" });
+      }
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error updating maintenance budget forecast:", error);
+      res.status(500).json({ error: "Failed to update maintenance budget forecast" });
+    }
+  });
+
+  app.delete("/api/maintenance-budget-forecasts/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteMaintenanceBudgetForecast(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting maintenance budget forecast:", error);
+      res.status(500).json({ error: "Failed to delete maintenance budget forecast" });
+    }
+  });
+
+  app.get("/api/maintenance-budget-forecasts/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getMaintenanceBudgetAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching maintenance budget analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/maintenance-budget-forecasts/property/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const forecasts = await storage.getForecastsByProperty(propertyId);
+      res.json(forecasts);
+    } catch (error) {
+      console.error("Error fetching forecasts by property:", error);
+      res.status(500).json({ error: "Failed to fetch forecasts by property" });
+    }
+  });
+
+  app.post("/api/maintenance-budget-forecasts/generate-ai", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, forecastYear } = req.body;
+      const forecast = await storage.generateAIMaintenanceForecast(propertyId, forecastYear);
+      const created = await storage.createMaintenanceBudgetForecast(forecast);
+      res.json(created);
+    } catch (error) {
+      console.error("Error generating AI maintenance forecast:", error);
+      res.status(500).json({ error: "Failed to generate AI maintenance forecast" });
+    }
+  });
+
+  app.post("/api/maintenance-budget-forecasts/bulk-generate", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyIds, years } = req.body;
+      const results = await storage.bulkGenerateForecasts(propertyIds, years);
+      res.json({ generatedCount: results.filter(r => r.status === 'created').length, results });
+    } catch (error) {
+      console.error("Error bulk generating forecasts:", error);
+      res.status(500).json({ error: "Failed to bulk generate forecasts" });
+    }
+  });
+
+  app.get("/api/maintenance-budget-forecasts/trends", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId } = req.query;
+      const trends = await storage.getBudgetTrends(
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching budget trends:", error);
+      res.status(500).json({ error: "Failed to fetch budget trends" });
+    }
+  });
+
+  app.get("/api/maintenance-budget-forecasts/summary", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, year } = req.query;
+      const summary = await storage.getMaintenanceBudgetSummary(
+        propertyId ? parseInt(propertyId as string) : undefined,
+        year ? parseInt(year as string) : undefined
+      );
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching maintenance budget summary:", error);
+      res.status(500).json({ error: "Failed to fetch maintenance budget summary" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 
