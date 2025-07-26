@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HostPilotPro - Working Application</title>
+  <title>HostPilotPro - Login</title>
   <style>
     body {
       margin: 0;
@@ -97,17 +97,17 @@
       <p class="subtitle">Multi-Tenant Property Management Platform</p>
       
       <div class="login-grid">
-        <button class="login-btn admin" onclick="quickLogin('admin@test.com', 'admin123', 'Admin')">
-          🔧 Admin
+        <button type="button" class="login-btn admin" onclick="doLogin('admin')">
+          🔧 Admin Login
         </button>
-        <button class="login-btn manager" onclick="quickLogin('manager@test.com', 'manager123', 'Manager')">
-          📊 Manager
+        <button type="button" class="login-btn manager" onclick="doLogin('manager')">
+          📊 Manager Login
         </button>
-        <button class="login-btn owner" onclick="quickLogin('owner@test.com', 'owner123', 'Owner')">
-          🏠 Owner
+        <button type="button" class="login-btn owner" onclick="doLogin('owner')">
+          🏠 Owner Login
         </button>
-        <button class="login-btn staff" onclick="quickLogin('staff@test.com', 'staff123', 'Staff')">
-          👨‍💼 Staff
+        <button type="button" class="login-btn staff" onclick="doLogin('staff')">
+          👨‍💼 Staff Login
         </button>
       </div>
 
@@ -132,73 +132,65 @@
   </div>
 
   <script>
-    async function quickLogin(email, password, role) {
+    function doLogin(role) {
+      console.log('Login clicked for:', role);
+      
+      const credentials = {
+        admin: { email: 'admin@test.com', password: 'admin123' },
+        manager: { email: 'manager@test.com', password: 'manager123' },
+        owner: { email: 'owner@test.com', password: 'owner123' },
+        staff: { email: 'staff@test.com', password: 'staff123' }
+      };
+
       const btn = event.target;
       const originalText = btn.innerHTML;
-      btn.innerHTML = 'Signing in...';
+      btn.innerHTML = 'Logging in...';
       btn.disabled = true;
 
-      try {
-        // Use demo auth endpoint that actually works
-        const response = await fetch('/api/demo-auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-
+      const { email, password } = credentials[role];
+      
+      fetch('/api/demo-auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      .then(response => {
         if (response.ok) {
           document.getElementById('success-msg').style.display = 'block';
-          document.getElementById('success-msg').innerHTML = `Welcome ${role}! Loading dashboard...`;
+          document.getElementById('success-msg').innerHTML = `${role.toUpperCase()} login successful! Loading your dashboard...`;
           
-          // Redirect to main app after successful login
           setTimeout(() => {
             window.location.href = '/';
-          }, 1000);
+          }, 1500);
         } else {
-          // Try alternative login method
-          const altResponse = await fetch('/api/auth/demo-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, role })
-          });
-          
-          if (altResponse.ok) {
-            document.getElementById('success-msg').style.display = 'block';
-            document.getElementById('success-msg').innerHTML = `Login successful! Welcome ${role}`;
-            setTimeout(() => window.location.href = '/', 1000);
-          } else {
-            alert(`Login system needs setup. Using demo mode for ${role}.`);
-            // Force demo login
-            document.getElementById('success-msg').style.display = 'block';
-            document.getElementById('success-msg').innerHTML = `Demo login active for ${role}`;
-            setTimeout(() => window.location.href = '/', 1500);
-          }
+          throw new Error('Login failed');
         }
-      } catch (error) {
+      })
+      .catch(error => {
         console.error('Login error:', error);
-        // Fallback: Just proceed to main app
-        alert(`Using demo mode for ${role}. Main app will load.`);
-        setTimeout(() => window.location.href = '/', 1000);
-      }
-      
-      btn.innerHTML = originalText;
-      btn.disabled = false;
+        alert(`Login issue for ${role}. Going to main app anyway.`);
+        window.location.href = '/';
+      })
+      .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      });
     }
 
-    // Auto-test server and provide feedback
-    window.addEventListener('load', () => {
+    // Test if already logged in
+    window.onload = function() {
       fetch('/api/auth/user')
         .then(response => {
-          console.log('Server status:', response.status);
-          if (response.status === 200) {
-            console.log('✅ Already logged in - redirecting to dashboard');
-            setTimeout(() => window.location.href = '/', 2000);
+          if (response.ok) {
+            document.getElementById('success-msg').style.display = 'block';
+            document.getElementById('success-msg').innerHTML = 'Already logged in! Redirecting...';
+            setTimeout(() => window.location.href = '/', 1000);
           }
         })
-        .catch(error => {
-          console.log('Ready for login');
+        .catch(() => {
+          console.log('Ready for new login');
         });
-    });
+    };
   </script>
 </body>
 </html>
