@@ -31411,6 +31411,144 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Portfolio Health Scoring Routes =====
+  
+  app.get("/api/portfolio-health-scores", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, startDate, endDate } = req.query;
+      const scores = await storage.getPortfolioHealthScores(
+        propertyId ? parseInt(propertyId as string) : undefined,
+        startDate as string,
+        endDate as string
+      );
+      res.json(scores);
+    } catch (error) {
+      console.error("Error fetching portfolio health scores:", error);
+      res.status(500).json({ error: "Failed to fetch portfolio health scores" });
+    }
+  });
+
+  app.get("/api/portfolio-health-scores/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const score = await storage.getPortfolioHealthScoreById(id);
+      if (!score) {
+        return res.status(404).json({ error: "Portfolio health score not found" });
+      }
+      res.json(score);
+    } catch (error) {
+      console.error("Error fetching portfolio health score:", error);
+      res.status(500).json({ error: "Failed to fetch portfolio health score" });
+    }
+  });
+
+  app.post("/api/portfolio-health-scores", isDemoAuthenticated, async (req, res) => {
+    try {
+      const score = await storage.createPortfolioHealthScore(req.body);
+      res.json(score);
+    } catch (error) {
+      console.error("Error creating portfolio health score:", error);
+      res.status(500).json({ error: "Failed to create portfolio health score" });
+    }
+  });
+
+  app.put("/api/portfolio-health-scores/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const score = await storage.updatePortfolioHealthScore(id, req.body);
+      if (!score) {
+        return res.status(404).json({ error: "Portfolio health score not found" });
+      }
+      res.json(score);
+    } catch (error) {
+      console.error("Error updating portfolio health score:", error);
+      res.status(500).json({ error: "Failed to update portfolio health score" });
+    }
+  });
+
+  app.delete("/api/portfolio-health-scores/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deletePortfolioHealthScore(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting portfolio health score:", error);
+      res.status(500).json({ error: "Failed to delete portfolio health score" });
+    }
+  });
+
+  app.get("/api/portfolio-health-scores/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getPortfolioHealthAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching portfolio health analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/portfolio-health-scores/property/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { limit } = req.query;
+      const scores = await storage.getScoresByProperty(
+        propertyId,
+        limit ? parseInt(limit as string) : 10
+      );
+      res.json(scores);
+    } catch (error) {
+      console.error("Error fetching scores by property:", error);
+      res.status(500).json({ error: "Failed to fetch scores by property" });
+    }
+  });
+
+  app.post("/api/portfolio-health-scores/calculate", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId } = req.body;
+      const calculation = await storage.calculatePortfolioHealthScore(propertyId);
+      res.json(calculation);
+    } catch (error) {
+      console.error("Error calculating portfolio health score:", error);
+      res.status(500).json({ error: "Failed to calculate portfolio health score" });
+    }
+  });
+
+  app.get("/api/portfolio-health-scores/trends/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { months } = req.query;
+      const trends = await storage.getHealthScoreTrends(
+        propertyId,
+        months ? parseInt(months as string) : 6
+      );
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching health score trends:", error);
+      res.status(500).json({ error: "Failed to fetch health score trends" });
+    }
+  });
+
+  app.get("/api/portfolio-health-scores/overview", isDemoAuthenticated, async (req, res) => {
+    try {
+      const overview = await storage.getPortfolioOverview();
+      res.json(overview);
+    } catch (error) {
+      console.error("Error fetching portfolio overview:", error);
+      res.status(500).json({ error: "Failed to fetch portfolio overview" });
+    }
+  });
+
+  app.post("/api/portfolio-health-scores/bulk-calculate", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyIds } = req.body;
+      const results = await storage.bulkCalculateHealthScores(propertyIds);
+      res.json({ calculatedCount: results.length, results });
+    } catch (error) {
+      console.error("Error bulk calculating health scores:", error);
+      res.status(500).json({ error: "Failed to bulk calculate health scores" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

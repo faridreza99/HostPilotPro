@@ -12323,3 +12323,35 @@ export const insertSustainabilityMetricSchema = createInsertSchema(sustainabilit
 
 export type SustainabilityMetric = typeof sustainabilityMetrics.$inferSelect;
 export type InsertSustainabilityMetric = z.infer<typeof insertSustainabilityMetricSchema>;
+
+// ===== PORTFOLIO HEALTH SCORING SYSTEM =====
+
+export const portfolioHealthScores = pgTable("portfolio_health_scores", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").references(() => properties.id),
+  score: decimal("score", { precision: 5, scale: 2 }),
+  factors: json("factors").$type<{
+    occupancyRate?: number;
+    revenueGrowth?: number;
+    maintenanceScore?: number;
+    guestRating?: number;
+    sustainabilityScore?: number;
+    bookingTrends?: number;
+    financialHealth?: number;
+    operationalEfficiency?: number;
+    marketPosition?: number;
+  }>(),
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+}, (table) => [
+  index("IDX_portfolio_health_property").on(table.propertyId),
+  index("IDX_portfolio_health_calculated").on(table.calculatedAt),
+  index("IDX_portfolio_health_score").on(table.score),
+]);
+
+export const insertPortfolioHealthScoreSchema = createInsertSchema(portfolioHealthScores).omit({
+  id: true,
+  calculatedAt: true,
+});
+
+export type PortfolioHealthScore = typeof portfolioHealthScores.$inferSelect;
+export type InsertPortfolioHealthScore = z.infer<typeof insertPortfolioHealthScoreSchema>;
