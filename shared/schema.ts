@@ -4566,7 +4566,7 @@ export type InsertPropertyAlert = z.infer<typeof insertPropertyAlertSchema>;
 export const documentAccessLogs = pgTable("document_access_logs", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  documentId: integer("document_id").references(() => ownerDocuments.id).notNull(),
+  documentId: integer("document_id").references(() => propertyDocuments.id).notNull(),
   userId: varchar("user_id").references(() => users.id).notNull(),
   
   // Access Details
@@ -12059,3 +12059,21 @@ export type InsertAlertRule = z.infer<typeof insertAlertRuleSchema>;
 
 export type AlertLog = typeof alertLogs.$inferSelect;
 export type InsertAlertLog = z.infer<typeof insertAlertLogSchema>;
+
+// ===== LEGAL TEMPLATES SYSTEM =====
+
+export const legalTemplates = pgTable("legal_templates", {
+  id: serial("id").primaryKey(),
+  countryCode: varchar("country_code", { length: 3 }).notNull(),
+  docType: varchar("doc_type", { length: 100 }).notNull(), // contract, deposit_rules, terms_conditions
+  templateText: text("template_text").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLegalTemplateSchema = createInsertSchema(legalTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type LegalTemplate = typeof legalTemplates.$inferSelect;
+export type InsertLegalTemplate = z.infer<typeof insertLegalTemplateSchema>;

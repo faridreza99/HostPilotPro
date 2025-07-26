@@ -72,6 +72,10 @@ import {
   propertyDocuments,
   // Upsell Recommendations
   upsellRecommendations,
+  // Organizations
+  organizations,
+  // Legal Templates
+  legalTemplates,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -35461,6 +35465,121 @@ Plant Care:
       return updatedOrg;
     } catch (error) {
       console.error("Error updating organization branding:", error);
+      throw error;
+    }
+  }
+
+  // ===== LEGAL TEMPLATES STORAGE METHODS =====
+
+  async getLegalTemplates(filters?: { countryCode?: string; docType?: string }) {
+    try {
+      let query = db.select().from(legalTemplates);
+
+      if (filters?.countryCode) {
+        query = query.where(eq(legalTemplates.countryCode, filters.countryCode));
+      }
+
+      if (filters?.docType) {
+        query = query.where(eq(legalTemplates.docType, filters.docType));
+      }
+
+      return await query.orderBy(desc(legalTemplates.createdAt));
+    } catch (error) {
+      console.error("Error fetching legal templates:", error);
+      throw error;
+    }
+  }
+
+  async createLegalTemplate(template: { countryCode: string; docType: string; templateText: string }) {
+    try {
+      const [newTemplate] = await db
+        .insert(legalTemplates)
+        .values(template)
+        .returning();
+      return newTemplate;
+    } catch (error) {
+      console.error("Error creating legal template:", error);
+      throw error;
+    }
+  }
+
+  async updateLegalTemplate(id: number, updates: { countryCode?: string; docType?: string; templateText?: string }) {
+    try {
+      const [updatedTemplate] = await db
+        .update(legalTemplates)
+        .set(updates)
+        .where(eq(legalTemplates.id, id))
+        .returning();
+      return updatedTemplate;
+    } catch (error) {
+      console.error("Error updating legal template:", error);
+      throw error;
+    }
+  }
+
+  async deleteLegalTemplate(id: number) {
+    try {
+      await db.delete(legalTemplates).where(eq(legalTemplates.id, id));
+      return { success: true };
+    } catch (error) {
+      console.error("Error deleting legal template:", error);
+      throw error;
+    }
+  }
+
+  async getLegalTemplateById(id: number) {
+    try {
+      const [template] = await db
+        .select()
+        .from(legalTemplates)
+        .where(eq(legalTemplates.id, id));
+      return template;
+    } catch (error) {
+      console.error("Error fetching legal template by ID:", error);
+      throw error;
+    }
+  }
+
+  async getTemplatesByCountryAndType(countryCode: string, docType: string) {
+    try {
+      return await db
+        .select()
+        .from(legalTemplates)
+        .where(
+          and(
+            eq(legalTemplates.countryCode, countryCode),
+            eq(legalTemplates.docType, docType)
+          )
+        )
+        .orderBy(desc(legalTemplates.createdAt));
+    } catch (error) {
+      console.error("Error fetching templates by country and type:", error);
+      throw error;
+    }
+  }
+
+  async getAvailableCountries() {
+    try {
+      const countries = await db
+        .selectDistinct({ countryCode: legalTemplates.countryCode })
+        .from(legalTemplates)
+        .orderBy(legalTemplates.countryCode);
+      return countries.map(c => c.countryCode);
+    } catch (error) {
+      console.error("Error fetching available countries:", error);
+      throw error;
+    }
+  }
+
+  async getAvailableDocTypes() {
+    try {
+      const docTypes = await db
+        .selectDistinct({ docType: legalTemplates.docType })
+        .from(legalTemplates)
+        .orderBy(legalTemplates.docType);
+      return docTypes.map(d => d.docType);
+    } catch (error) {
+      console.error("Error fetching available document types:", error);
       throw error;
     }
   }

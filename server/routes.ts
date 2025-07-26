@@ -3324,6 +3324,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== LEGAL TEMPLATES SYSTEM API ENDPOINTS =====
+
+  // Get all legal templates with optional filtering
+  app.get("/api/legal-templates", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { countryCode, docType } = req.query;
+      
+      const templates = await storage.getLegalTemplates({
+        countryCode: countryCode as string,
+        docType: docType as string,
+      });
+
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Error fetching legal templates:", error);
+      res.status(500).json({ message: "Failed to fetch legal templates" });
+    }
+  });
+
+  // Create a new legal template (admin only)
+  app.post("/api/legal-templates", isDemoAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      // Only admins can create legal templates
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "Only administrators can create legal templates" });
+      }
+
+      const { countryCode, docType, templateText } = req.body;
+
+      if (!countryCode || !docType || !templateText) {
+        return res.status(400).json({ message: "Country code, document type, and template text are required" });
+      }
+
+      const newTemplate = await storage.createLegalTemplate({
+        countryCode,
+        docType,
+        templateText,
+      });
+
+      res.status(201).json(newTemplate);
+    } catch (error: any) {
+      console.error("Error creating legal template:", error);
+      res.status(500).json({ message: "Failed to create legal template" });
+    }
+  });
+
+  // Update a legal template (admin only)
+  app.put("/api/legal-templates/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      // Only admins can update legal templates
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "Only administrators can update legal templates" });
+      }
+
+      const id = parseInt(req.params.id);
+      const { countryCode, docType, templateText } = req.body;
+
+      const updatedTemplate = await storage.updateLegalTemplate(id, {
+        countryCode,
+        docType,
+        templateText,
+      });
+
+      if (!updatedTemplate) {
+        return res.status(404).json({ message: "Legal template not found" });
+      }
+
+      res.json(updatedTemplate);
+    } catch (error: any) {
+      console.error("Error updating legal template:", error);
+      res.status(500).json({ message: "Failed to update legal template" });
+    }
+  });
+
+  // Delete a legal template (admin only)
+  app.delete("/api/legal-templates/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      // Only admins can delete legal templates
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "Only administrators can delete legal templates" });
+      }
+
+      const id = parseInt(req.params.id);
+
+      await storage.deleteLegalTemplate(id);
+
+      res.json({ message: "Legal template deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting legal template:", error);
+      res.status(500).json({ message: "Failed to delete legal template" });
+    }
+  });
+
+  // Get a specific legal template by ID
+  app.get("/api/legal-templates/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const template = await storage.getLegalTemplateById(id);
+
+      if (!template) {
+        return res.status(404).json({ message: "Legal template not found" });
+      }
+
+      res.json(template);
+    } catch (error: any) {
+      console.error("Error fetching legal template:", error);
+      res.status(500).json({ message: "Failed to fetch legal template" });
+    }
+  });
+
+  // Get templates by country and document type
+  app.get("/api/legal-templates/country/:countryCode/type/:docType", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { countryCode, docType } = req.params;
+      
+      const templates = await storage.getTemplatesByCountryAndType(countryCode, docType);
+
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Error fetching templates by country and type:", error);
+      res.status(500).json({ message: "Failed to fetch templates" });
+    }
+  });
+
+  // Get available countries
+  app.get("/api/legal-templates/countries", isDemoAuthenticated, async (req, res) => {
+    try {
+      const countries = await storage.getAvailableCountries();
+      res.json(countries);
+    } catch (error: any) {
+      console.error("Error fetching available countries:", error);
+      res.status(500).json({ message: "Failed to fetch available countries" });
+    }
+  });
+
+  // Get available document types
+  app.get("/api/legal-templates/doc-types", isDemoAuthenticated, async (req, res) => {
+    try {
+      const docTypes = await storage.getAvailableDocTypes();
+      res.json(docTypes);
+    } catch (error: any) {
+      console.error("Error fetching available document types:", error);
+      res.status(500).json({ message: "Failed to fetch available document types" });
+    }
+  });
+
   // ===== UPSELL RECOMMENDATIONS SYSTEM API ENDPOINTS =====
 
   // Get upsell recommendations with filters
