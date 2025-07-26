@@ -3489,6 +3489,29 @@ export const offlineTaskCache = pgTable("offline_task_cache", {
   index("IDX_offline_task_cache_synced").on(table.synced),
 ]);
 
+// ===== MARKETING PACK GENERATION SYSTEM =====
+
+// Marketing Packs for AI-powered property marketing materials
+export const marketingPacks = pgTable("marketing_packs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull().default("default-org"),
+  propertyId: integer("property_id").references(() => properties.id),
+  generatedBy: varchar("generated_by"),
+  pdfUrl: text("pdf_url"),
+  aiSummary: text("ai_summary"),
+  packType: varchar("pack_type").default("standard"), // standard, premium, luxury, agent-focused
+  targetAudience: varchar("target_audience").default("general"), // general, families, couples, business, luxury
+  language: varchar("language").default("en"), // en, th, zh, ja, ko
+  status: varchar("status").default("draft"), // draft, generated, published, archived
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_marketing_packs_org").on(table.organizationId),
+  index("IDX_marketing_packs_property").on(table.propertyId),
+  index("IDX_marketing_packs_status").on(table.status),
+  index("IDX_marketing_packs_type").on(table.packType),
+]);
+
 // Task History schemas and types
 export const insertTaskHistorySchema = createInsertSchema(taskHistory);
 export type InsertTaskHistory = z.infer<typeof insertTaskHistorySchema>;
@@ -3536,6 +3559,16 @@ export const insertOfflineTaskCacheSchema = createInsertSchema(offlineTaskCache)
 
 export type InsertOfflineTaskCache = z.infer<typeof insertOfflineTaskCacheSchema>;
 export type OfflineTaskCache = typeof offlineTaskCache.$inferSelect;
+
+// Marketing Packs schemas
+export const insertMarketingPackSchema = createInsertSchema(marketingPacks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMarketingPack = z.infer<typeof insertMarketingPackSchema>;
+export type MarketingPack = typeof marketingPacks.$inferSelect;
 
 // ===== SHARED COSTS MANAGEMENT SYSTEM =====
 

@@ -33,6 +33,7 @@ import ActivityLogs from "./pages/ActivityLogs";
 import ApiConnections from "./pages/admin/ApiConnections";
 import OrganizationBranding from "./pages/admin/OrganizationBranding";
 import LegalTemplatesManagement from "./pages/admin/LegalTemplatesManagement";
+import MarketingPackManagement from "./pages/admin/MarketingPackManagement";
 import AutoScheduleTaskGenerator from "./pages/AutoScheduleTaskGenerator";
 import OtaRevenueNetPayoutCalculation from "./pages/OtaRevenueNetPayoutCalculation";
 import LoyaltyGuestTracker from "./pages/LoyaltyGuestTracker";
@@ -136,6 +137,7 @@ function AppRoutes() {
         <Route path="/admin/api-connections" component={ApiConnections} />
         <Route path="/admin/organization-branding" component={OrganizationBranding} />
         <Route path="/admin/legal-templates" component={LegalTemplatesManagement} />
+        <Route path="/admin/marketing-pack-management" component={MarketingPackManagement} />
         <Route path="/admin/user-management" component={UserManagement} />
         <Route path="/user-management" component={UserManagement} />
         <Route path="/admin/activity-log" component={ActivityLogs} />

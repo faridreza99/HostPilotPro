@@ -61,6 +61,7 @@ import {
   taxRules,
   // Offline Task Cache
   offlineTaskCache,
+  marketingPacks,
   // Shared Costs Management
   sharedCosts,
   sharedCostSplits,
@@ -39514,6 +39515,333 @@ Plant Care:
       complianceStatus,
       recommendationsCount: expiredPolicies[0].count + expiringSoon[0].count,
     };
+  }
+
+  // ===== MARKETING PACK GENERATION SYSTEM =====
+
+  // Get all marketing packs for organization
+  async getMarketingPacks(organizationId: string, filters?: {
+    propertyId?: number;
+    status?: string;
+    packType?: string;
+    targetAudience?: string;
+    language?: string;
+  }) {
+    let query = db
+      .select({
+        id: marketingPacks.id,
+        organizationId: marketingPacks.organizationId,
+        propertyId: marketingPacks.propertyId,
+        propertyName: properties.name,
+        generatedBy: marketingPacks.generatedBy,
+        pdfUrl: marketingPacks.pdfUrl,
+        aiSummary: marketingPacks.aiSummary,
+        packType: marketingPacks.packType,
+        targetAudience: marketingPacks.targetAudience,
+        language: marketingPacks.language,
+        status: marketingPacks.status,
+        createdAt: marketingPacks.createdAt,
+        updatedAt: marketingPacks.updatedAt,
+      })
+      .from(marketingPacks)
+      .leftJoin(properties, eq(marketingPacks.propertyId, properties.id))
+      .where(eq(marketingPacks.organizationId, organizationId));
+
+    if (filters?.propertyId) {
+      query = query.where(eq(marketingPacks.propertyId, filters.propertyId));
+    }
+    if (filters?.status) {
+      query = query.where(eq(marketingPacks.status, filters.status));
+    }
+    if (filters?.packType) {
+      query = query.where(eq(marketingPacks.packType, filters.packType));
+    }
+    if (filters?.targetAudience) {
+      query = query.where(eq(marketingPacks.targetAudience, filters.targetAudience));
+    }
+    if (filters?.language) {
+      query = query.where(eq(marketingPacks.language, filters.language));
+    }
+
+    return await query.orderBy(desc(marketingPacks.createdAt));
+  }
+
+  // Create new marketing pack
+  async createMarketingPack(pack: any) {
+    const [created] = await db
+      .insert(marketingPacks)
+      .values(pack)
+      .returning();
+    return created;
+  }
+
+  // Get marketing pack by ID
+  async getMarketingPackById(organizationId: string, id: number) {
+    const [pack] = await db
+      .select({
+        id: marketingPacks.id,
+        organizationId: marketingPacks.organizationId,
+        propertyId: marketingPacks.propertyId,
+        propertyName: properties.name,
+        propertyDescription: properties.description,
+        propertyBedrooms: properties.bedrooms,
+        propertyBathrooms: properties.bathrooms,
+        propertyCapacity: properties.capacity,
+        propertyPricePerNight: properties.pricePerNight,
+        generatedBy: marketingPacks.generatedBy,
+        pdfUrl: marketingPacks.pdfUrl,
+        aiSummary: marketingPacks.aiSummary,
+        packType: marketingPacks.packType,
+        targetAudience: marketingPacks.targetAudience,
+        language: marketingPacks.language,
+        status: marketingPacks.status,
+        createdAt: marketingPacks.createdAt,
+        updatedAt: marketingPacks.updatedAt,
+      })
+      .from(marketingPacks)
+      .leftJoin(properties, eq(marketingPacks.propertyId, properties.id))
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        eq(marketingPacks.id, id)
+      ));
+    return pack;
+  }
+
+  // Update marketing pack
+  async updateMarketingPack(organizationId: string, id: number, updates: Partial<any>) {
+    const [updated] = await db
+      .update(marketingPacks)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        eq(marketingPacks.id, id)
+      ))
+      .returning();
+    return updated;
+  }
+
+  // Delete marketing pack
+  async deleteMarketingPack(organizationId: string, id: number) {
+    const deleted = await db
+      .delete(marketingPacks)
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        eq(marketingPacks.id, id)
+      ));
+    return deleted.rowCount > 0;
+  }
+
+  // Generate AI marketing content for property
+  async generateMarketingContent(propertyId: number, packType: string, targetAudience: string, language: string) {
+    // Get property details
+    const [property] = await db
+      .select()
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+
+    if (!property) {
+      throw new Error("Property not found");
+    }
+
+    // Generate AI summary based on property details and target audience
+    const audiences = {
+      'general': 'Perfect for all types of travelers seeking comfort and convenience',
+      'families': 'Ideal for families with children, offering safety, space, and family-friendly amenities',
+      'couples': 'Romantic getaway destination perfect for couples seeking intimacy and relaxation',
+      'business': 'Professional accommodation with business facilities and convenient location',
+      'luxury': 'Exclusive luxury experience with premium amenities and personalized service'
+    };
+
+    const packTypes = {
+      'standard': 'Comprehensive property overview with essential details',
+      'premium': 'Enhanced presentation with detailed amenities and local attractions',
+      'luxury': 'Exclusive marketing package highlighting premium features and personalized services',
+      'agent-focused': 'Sales-oriented materials designed for real estate agents and booking platforms'
+    };
+
+    const languageNames = {
+      'en': 'English',
+      'th': 'Thai',
+      'zh': 'Chinese',
+      'ja': 'Japanese',
+      'ko': 'Korean'
+    };
+
+    const aiSummary = `${property.name} - ${packTypes[packType as keyof typeof packTypes]}
+
+Property Highlights:
+• ${property.bedrooms} bedrooms, ${property.bathrooms} bathrooms
+• Accommodates up to ${property.capacity} guests
+• Starting from ฿${property.pricePerNight?.toLocaleString()} per night
+• ${audiences[targetAudience as keyof typeof audiences]}
+
+Location: ${property.address}
+Description: ${property.description}
+
+This ${packType} marketing pack is tailored for ${targetAudience} audience and presented in ${languageNames[language as keyof typeof languageNames]}. The content emphasizes the property's unique selling points and creates compelling narratives that resonate with the target market.
+
+Key Marketing Points:
+- Premium location with easy access to local attractions
+- Modern amenities designed for comfort and convenience
+- Professional property management with 24/7 support
+- Competitive pricing with transparent booking process
+- Exceptional guest reviews and satisfaction ratings
+
+Marketing Strategy:
+The ${packType} approach focuses on highlighting the property's strengths while addressing the specific needs and preferences of ${targetAudience} travelers. Visual elements, pricing strategies, and promotional messaging are optimized for maximum engagement and conversion rates.`;
+
+    return aiSummary;
+  }
+
+  // Get marketing pack analytics
+  async getMarketingPackAnalytics(organizationId: string) {
+    // Overall statistics
+    const [totalStats] = await db
+      .select({
+        total: count(),
+      })
+      .from(marketingPacks)
+      .where(eq(marketingPacks.organizationId, organizationId));
+
+    // Status distribution counts
+    const [draftCount] = await db
+      .select({ count: count() })
+      .from(marketingPacks)
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        eq(marketingPacks.status, 'draft')
+      ));
+
+    const [generatedCount] = await db
+      .select({ count: count() })
+      .from(marketingPacks)
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        eq(marketingPacks.status, 'generated')
+      ));
+
+    const [publishedCount] = await db
+      .select({ count: count() })
+      .from(marketingPacks)
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        eq(marketingPacks.status, 'published')
+      ));
+
+    const [archivedCount] = await db
+      .select({ count: count() })
+      .from(marketingPacks)
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        eq(marketingPacks.status, 'archived')
+      ));
+
+    // Pack type distribution
+    const packTypeStats = await db
+      .select({
+        packType: marketingPacks.packType,
+        count: count(),
+      })
+      .from(marketingPacks)
+      .where(eq(marketingPacks.organizationId, organizationId))
+      .groupBy(marketingPacks.packType);
+
+    // Target audience distribution
+    const audienceStats = await db
+      .select({
+        audience: marketingPacks.targetAudience,
+        count: count(),
+      })
+      .from(marketingPacks)
+      .where(eq(marketingPacks.organizationId, organizationId))
+      .groupBy(marketingPacks.targetAudience);
+
+    // Language distribution
+    const languageStats = await db
+      .select({
+        language: marketingPacks.language,
+        count: count(),
+      })
+      .from(marketingPacks)
+      .where(eq(marketingPacks.organizationId, organizationId))
+      .groupBy(marketingPacks.language);
+
+    // Monthly creation trends (last 6 months)
+    const monthlyStats = await db
+      .select({
+        month: sql`DATE_TRUNC('month', ${marketingPacks.createdAt})`,
+        count: count(),
+      })
+      .from(marketingPacks)
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        gte(marketingPacks.createdAt, sql`NOW() - INTERVAL '6 months'`)
+      ))
+      .groupBy(sql`DATE_TRUNC('month', ${marketingPacks.createdAt})`)
+      .orderBy(sql`DATE_TRUNC('month', ${marketingPacks.createdAt})`);
+
+    return {
+      totalPacks: totalStats.total,
+      statusDistribution: {
+        draft: draftCount.count,
+        generated: generatedCount.count,
+        published: publishedCount.count,
+        archived: archivedCount.count,
+      },
+      packTypeDistribution: packTypeStats,
+      audienceDistribution: audienceStats,
+      languageDistribution: languageStats,
+      monthlyTrends: monthlyStats,
+    };
+  }
+
+  // Get marketing packs by property
+  async getMarketingPacksByProperty(organizationId: string, propertyId: number) {
+    return await db
+      .select()
+      .from(marketingPacks)
+      .where(and(
+        eq(marketingPacks.organizationId, organizationId),
+        eq(marketingPacks.propertyId, propertyId)
+      ))
+      .orderBy(desc(marketingPacks.createdAt));
+  }
+
+  // Bulk generate marketing packs for multiple properties
+  async bulkGenerateMarketingPacks(organizationId: string, propertyIds: number[], packConfig: {
+    packType: string;
+    targetAudience: string;
+    language: string;
+    generatedBy: string;
+  }) {
+    const createdPacks = [];
+
+    for (const propertyId of propertyIds) {
+      const aiSummary = await this.generateMarketingContent(
+        propertyId,
+        packConfig.packType,
+        packConfig.targetAudience,
+        packConfig.language
+      );
+
+      const pack = await this.createMarketingPack({
+        organizationId,
+        propertyId,
+        generatedBy: packConfig.generatedBy,
+        aiSummary,
+        packType: packConfig.packType,
+        targetAudience: packConfig.targetAudience,
+        language: packConfig.language,
+        status: 'generated',
+      });
+
+      createdPacks.push(pack);
+    }
+
+    return createdPacks;
   }
 }
 

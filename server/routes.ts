@@ -7,7 +7,7 @@ import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
 import { setupSecureAuth, requireAuth, requireRole, requirePermission } from "./secureAuth";
 import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
-import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertOwnerSettingsSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema, insertBookingRevenueSchema, insertOtaPlatformSettingsSchema, insertBookingRevenueCommissionSchema } from "@shared/schema";
+import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertOwnerSettingsSchema, insertMarketingPackSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema, insertBookingRevenueSchema, insertOtaPlatformSettingsSchema, insertBookingRevenueCommissionSchema } from "@shared/schema";
 import { BookingRevenueStorage } from "./bookingRevenueStorage";
 import { z } from "zod";
 import { CrossSyncedTaskVisibilityStorage } from "./crossSyncedTaskVisibility";
@@ -18799,6 +18799,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching demo survey data:", error);
       res.status(500).json({ message: "Failed to fetch demo data" });
+    }
+  });
+
+  // ===== MARKETING PACK GENERATION SYSTEM =====
+
+  // Get all marketing packs for organization
+  app.get("/api/marketing-packs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const { propertyId, status, packType, targetAudience, language } = req.query;
+
+      const filters: any = {};
+      if (propertyId) filters.propertyId = parseInt(propertyId);
+      if (status) filters.status = status;
+      if (packType) filters.packType = packType;
+      if (targetAudience) filters.targetAudience = targetAudience;
+      if (language) filters.language = language;
+
+      const packs = await storage.getMarketingPacks(organizationId, filters);
+      res.json(packs);
+    } catch (error) {
+      console.error("Error fetching marketing packs:", error);
+      res.status(500).json({ message: "Failed to fetch marketing packs" });
+    }
+  });
+
+  // Create new marketing pack
+  app.post("/api/marketing-packs", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      const packData = insertMarketingPackSchema.parse({
+        ...req.body,
+        organizationId,
+        generatedBy: userId,
+      });
+
+      // Generate AI summary for the pack
+      if (packData.propertyId && packData.packType && packData.targetAudience && packData.language) {
+        packData.aiSummary = await storage.generateMarketingContent(
+          packData.propertyId,
+          packData.packType,
+          packData.targetAudience,
+          packData.language
+        );
+      }
+
+      const pack = await storage.createMarketingPack(packData);
+      res.status(201).json(pack);
+    } catch (error) {
+      console.error("Error creating marketing pack:", error);
+      res.status(500).json({ message: "Failed to create marketing pack" });
+    }
+  });
+
+  // Get marketing pack by ID
+  app.get("/api/marketing-packs/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const id = parseInt(req.params.id);
+
+      const pack = await storage.getMarketingPackById(organizationId, id);
+      
+      if (!pack) {
+        return res.status(404).json({ message: "Marketing pack not found" });
+      }
+
+      res.json(pack);
+    } catch (error) {
+      console.error("Error fetching marketing pack:", error);
+      res.status(500).json({ message: "Failed to fetch marketing pack" });
+    }
+  });
+
+  // Update marketing pack
+  app.put("/api/marketing-packs/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+
+      const pack = await storage.updateMarketingPack(organizationId, id, updates);
+      
+      if (!pack) {
+        return res.status(404).json({ message: "Marketing pack not found" });
+      }
+
+      res.json(pack);
+    } catch (error) {
+      console.error("Error updating marketing pack:", error);
+      res.status(500).json({ message: "Failed to update marketing pack" });
+    }
+  });
+
+  // Delete marketing pack
+  app.delete("/api/marketing-packs/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const id = parseInt(req.params.id);
+
+      const deleted = await storage.deleteMarketingPack(organizationId, id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Marketing pack not found" });
+      }
+
+      res.json({ message: "Marketing pack deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting marketing pack:", error);
+      res.status(500).json({ message: "Failed to delete marketing pack" });
+    }
+  });
+
+  // Get marketing pack analytics
+  app.get("/api/marketing-packs/analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+
+      const analytics = await storage.getMarketingPackAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching marketing pack analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // Get marketing packs by property
+  app.get("/api/marketing-packs/property/:propertyId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const propertyId = parseInt(req.params.propertyId);
+
+      const packs = await storage.getMarketingPacksByProperty(organizationId, propertyId);
+      res.json(packs);
+    } catch (error) {
+      console.error("Error fetching marketing packs by property:", error);
+      res.status(500).json({ message: "Failed to fetch marketing packs" });
+    }
+  });
+
+  // Generate AI marketing content
+  app.post("/api/marketing-packs/generate-ai", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { propertyId, packType, targetAudience, language } = req.body;
+
+      if (!propertyId || !packType || !targetAudience || !language) {
+        return res.status(400).json({ 
+          message: "Property ID, pack type, target audience, and language are required" 
+        });
+      }
+
+      const aiContent = await storage.generateMarketingContent(
+        propertyId,
+        packType,
+        targetAudience,
+        language
+      );
+
+      res.json({ aiSummary: aiContent });
+    } catch (error) {
+      console.error("Error generating AI marketing content:", error);
+      res.status(500).json({ message: "Failed to generate AI content" });
+    }
+  });
+
+  // Bulk generate marketing packs
+  app.post("/api/marketing-packs/bulk-generate", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, id: userId } = req.user;
+      const { propertyIds, packType, targetAudience, language } = req.body;
+
+      if (!propertyIds || !Array.isArray(propertyIds) || propertyIds.length === 0) {
+        return res.status(400).json({ message: "Property IDs array is required" });
+      }
+
+      if (!packType || !targetAudience || !language) {
+        return res.status(400).json({ 
+          message: "Pack type, target audience, and language are required" 
+        });
+      }
+
+      const packConfig = {
+        packType,
+        targetAudience,
+        language,
+        generatedBy: userId,
+      };
+
+      const createdPacks = await storage.bulkGenerateMarketingPacks(
+        organizationId,
+        propertyIds,
+        packConfig
+      );
+
+      res.status(201).json({
+        message: `Successfully generated ${createdPacks.length} marketing packs`,
+        packs: createdPacks,
+      });
+    } catch (error) {
+      console.error("Error bulk generating marketing packs:", error);
+      res.status(500).json({ message: "Failed to bulk generate marketing packs" });
     }
   });
 

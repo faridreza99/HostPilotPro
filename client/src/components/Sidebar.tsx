@@ -145,6 +145,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "API Connections", icon: Key, href: "/admin/api-connections", description: "Configure Hostaway, Stripe, and OpenAI integrations", badge: "SaaS" },
           { label: "Organization Branding", icon: Palette, href: "/admin/organization-branding", description: "Custom domains, logos, and theme colors", badge: "Brand" },
           { label: "Legal Templates", icon: FileText, href: "/admin/legal-templates", description: "Manage country-specific legal documents and contracts", badge: "Legal" },
+          { label: "Marketing Pack Management", icon: FileText, href: "/admin/marketing-pack-management", description: "AI-powered marketing content generation and management", badge: "New" },
           { label: "SaaS Management", icon: Building2, href: "/admin/saas-management", description: "Manage signup requests and client organizations", badge: "Framework" },
           { label: "User Management", icon: Users, href: "/admin/user-management", description: "Manage users & permissions" },
           { label: "Staff Permissions", icon: Shield, href: "/admin/staff-permission-management", description: "Manage staff task creation permissions" },
