@@ -12154,3 +12154,52 @@ export const insertPropertyReviewSchema = createInsertSchema(propertyReviews).om
 
 export type PropertyReview = typeof propertyReviews.$inferSelect;
 export type InsertPropertyReview = z.infer<typeof insertPropertyReviewSchema>;
+
+// ===== SECURITY DEPOSITS & DAMAGE MANAGEMENT =====
+
+export const securityDeposits = pgTable("security_deposits", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  guestId: varchar("guest_id"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").default("held"), // held, released, partial-deducted
+  createdAt: timestamp("created_at").defaultNow(),
+  releasedAt: timestamp("released_at"),
+}, (table) => [
+  index("IDX_security_deposits_booking").on(table.bookingId),
+  index("IDX_security_deposits_property").on(table.propertyId),
+  index("IDX_security_deposits_guest").on(table.guestId),
+  index("IDX_security_deposits_status").on(table.status),
+]);
+
+export const damageReports = pgTable("damage_reports", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").references(() => bookings.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  description: text("description"),
+  photoUrl: text("photo_url"),
+  repairCost: decimal("repair_cost", { precision: 10, scale: 2 }),
+  chargedToGuest: boolean("charged_to_guest").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_damage_reports_booking").on(table.bookingId),
+  index("IDX_damage_reports_property").on(table.propertyId),
+  index("IDX_damage_reports_charged").on(table.chargedToGuest),
+  index("IDX_damage_reports_created").on(table.createdAt),
+]);
+
+export const insertSecurityDepositSchema = createInsertSchema(securityDeposits).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDamageReportSchema = createInsertSchema(damageReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SecurityDeposit = typeof securityDeposits.$inferSelect;
+export type InsertSecurityDeposit = z.infer<typeof insertSecurityDepositSchema>;
+export type DamageReport = typeof damageReports.$inferSelect;
+export type InsertDamageReport = z.infer<typeof insertDamageReportSchema>;

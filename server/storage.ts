@@ -82,6 +82,9 @@ import {
   staffSkills,
   // Property Reviews
   propertyReviews,
+  // Security Deposits & Damage Management
+  securityDeposits,
+  damageReports,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -36500,6 +36503,275 @@ Plant Care:
     return {
       summary: summary.trim(),
       sentimentScore: Math.round(sentimentScore * 100) / 100
+    };
+  }
+
+  // ===== Security Deposits Management Methods =====
+  
+  async getSecurityDeposits(bookingId?: number, propertyId?: number): Promise<any[]> {
+    let query = db.select({
+      id: securityDeposits.id,
+      bookingId: securityDeposits.bookingId,
+      propertyId: securityDeposits.propertyId,
+      guestId: securityDeposits.guestId,
+      amount: securityDeposits.amount,
+      status: securityDeposits.status,
+      createdAt: securityDeposits.createdAt,
+      releasedAt: securityDeposits.releasedAt,
+      propertyName: properties.name,
+      guestName: bookings.guestName,
+    })
+    .from(securityDeposits)
+    .leftJoin(properties, eq(securityDeposits.propertyId, properties.id))
+    .leftJoin(bookings, eq(securityDeposits.bookingId, bookings.id));
+    
+    if (bookingId) {
+      query = query.where(eq(securityDeposits.bookingId, bookingId));
+    } else if (propertyId) {
+      query = query.where(eq(securityDeposits.propertyId, propertyId));
+    }
+    
+    return query.orderBy(desc(securityDeposits.createdAt));
+  }
+
+  async getSecurityDepositById(id: number): Promise<any> {
+    const [deposit] = await db.select({
+      id: securityDeposits.id,
+      bookingId: securityDeposits.bookingId,
+      propertyId: securityDeposits.propertyId,
+      guestId: securityDeposits.guestId,
+      amount: securityDeposits.amount,
+      status: securityDeposits.status,
+      createdAt: securityDeposits.createdAt,
+      releasedAt: securityDeposits.releasedAt,
+      propertyName: properties.name,
+      guestName: bookings.guestName,
+    })
+    .from(securityDeposits)
+    .leftJoin(properties, eq(securityDeposits.propertyId, properties.id))
+    .leftJoin(bookings, eq(securityDeposits.bookingId, bookings.id))
+    .where(eq(securityDeposits.id, id));
+    return deposit;
+  }
+
+  async createSecurityDeposit(depositData: any): Promise<any> {
+    const [created] = await db.insert(securityDeposits).values({
+      ...depositData,
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async updateSecurityDepositStatus(id: number, status: string, releasedAt?: Date): Promise<any> {
+    const updates: any = { status };
+    if (releasedAt) {
+      updates.releasedAt = releasedAt;
+    }
+    
+    const [updated] = await db.update(securityDeposits)
+      .set(updates)
+      .where(eq(securityDeposits.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSecurityDeposit(id: number): Promise<boolean> {
+    const result = await db.delete(securityDeposits).where(eq(securityDeposits.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getSecurityDepositsAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalDeposits: sql<number>`count(*)`,
+      totalAmount: sql<number>`sum(amount)`,
+      heldDeposits: sql<number>`count(CASE WHEN status = 'held' THEN 1 END)`,
+      releasedDeposits: sql<number>`count(CASE WHEN status = 'released' THEN 1 END)`,
+      partialDeductions: sql<number>`count(CASE WHEN status = 'partial-deducted' THEN 1 END)`,
+    }).from(securityDeposits);
+
+    const byProperty = await db.select({
+      propertyId: securityDeposits.propertyId,
+      propertyName: properties.name,
+      count: sql<number>`count(*)`,
+      totalAmount: sql<number>`sum(${securityDeposits.amount})`,
+      averageAmount: sql<number>`round(avg(${securityDeposits.amount}), 2)`,
+    })
+    .from(securityDeposits)
+    .leftJoin(properties, eq(securityDeposits.propertyId, properties.id))
+    .groupBy(securityDeposits.propertyId, properties.name)
+    .orderBy(sql<number>`count(*) DESC`);
+
+    const byStatus = await db.select({
+      status: securityDeposits.status,
+      count: sql<number>`count(*)`,
+      totalAmount: sql<number>`sum(${securityDeposits.amount})`,
+    })
+    .from(securityDeposits)
+    .groupBy(securityDeposits.status);
+
+    return {
+      overall: overallStats[0] || { totalDeposits: 0, totalAmount: 0, heldDeposits: 0, releasedDeposits: 0, partialDeductions: 0 },
+      byProperty,
+      byStatus,
+    };
+  }
+
+  // ===== Damage Reports Management Methods =====
+  
+  async getDamageReports(bookingId?: number, propertyId?: number): Promise<any[]> {
+    let query = db.select({
+      id: damageReports.id,
+      bookingId: damageReports.bookingId,
+      propertyId: damageReports.propertyId,
+      description: damageReports.description,
+      photoUrl: damageReports.photoUrl,
+      repairCost: damageReports.repairCost,
+      chargedToGuest: damageReports.chargedToGuest,
+      createdAt: damageReports.createdAt,
+      propertyName: properties.name,
+      guestName: bookings.guestName,
+    })
+    .from(damageReports)
+    .leftJoin(properties, eq(damageReports.propertyId, properties.id))
+    .leftJoin(bookings, eq(damageReports.bookingId, bookings.id));
+    
+    if (bookingId) {
+      query = query.where(eq(damageReports.bookingId, bookingId));
+    } else if (propertyId) {
+      query = query.where(eq(damageReports.propertyId, propertyId));
+    }
+    
+    return query.orderBy(desc(damageReports.createdAt));
+  }
+
+  async getDamageReportById(id: number): Promise<any> {
+    const [report] = await db.select({
+      id: damageReports.id,
+      bookingId: damageReports.bookingId,
+      propertyId: damageReports.propertyId,
+      description: damageReports.description,
+      photoUrl: damageReports.photoUrl,
+      repairCost: damageReports.repairCost,
+      chargedToGuest: damageReports.chargedToGuest,
+      createdAt: damageReports.createdAt,
+      propertyName: properties.name,
+      guestName: bookings.guestName,
+    })
+    .from(damageReports)
+    .leftJoin(properties, eq(damageReports.propertyId, properties.id))
+    .leftJoin(bookings, eq(damageReports.bookingId, bookings.id))
+    .where(eq(damageReports.id, id));
+    return report;
+  }
+
+  async createDamageReport(reportData: any): Promise<any> {
+    const [created] = await db.insert(damageReports).values({
+      ...reportData,
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async updateDamageReport(id: number, updates: any): Promise<any> {
+    const [updated] = await db.update(damageReports)
+      .set(updates)
+      .where(eq(damageReports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDamageReport(id: number): Promise<boolean> {
+    const result = await db.delete(damageReports).where(eq(damageReports.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getDamageReportsAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalReports: sql<number>`count(*)`,
+      totalRepairCost: sql<number>`sum(repair_cost)`,
+      chargedToGuests: sql<number>`count(CASE WHEN charged_to_guest = true THEN 1 END)`,
+      companyAbsorbed: sql<number>`count(CASE WHEN charged_to_guest = false THEN 1 END)`,
+      averageRepairCost: sql<number>`round(avg(repair_cost), 2)`,
+    }).from(damageReports);
+
+    const byProperty = await db.select({
+      propertyId: damageReports.propertyId,
+      propertyName: properties.name,
+      count: sql<number>`count(*)`,
+      totalRepairCost: sql<number>`sum(${damageReports.repairCost})`,
+      chargedToGuests: sql<number>`count(CASE WHEN ${damageReports.chargedToGuest} = true THEN 1 END)`,
+    })
+    .from(damageReports)
+    .leftJoin(properties, eq(damageReports.propertyId, properties.id))
+    .groupBy(damageReports.propertyId, properties.name)
+    .orderBy(sql<number>`count(*) DESC`);
+
+    const monthlyCosts = await db.select({
+      month: sql<string>`to_char(created_at, 'YYYY-MM')`,
+      totalReports: sql<number>`count(*)`,
+      totalCost: sql<number>`sum(${damageReports.repairCost})`,
+      guestCharges: sql<number>`sum(CASE WHEN ${damageReports.chargedToGuest} = true THEN ${damageReports.repairCost} ELSE 0 END)`,
+      companyAbsorbed: sql<number>`sum(CASE WHEN ${damageReports.chargedToGuest} = false THEN ${damageReports.repairCost} ELSE 0 END)`,
+    })
+    .from(damageReports)
+    .groupBy(sql`to_char(created_at, 'YYYY-MM')`)
+    .orderBy(sql`to_char(created_at, 'YYYY-MM') DESC`)
+    .limit(12);
+
+    return {
+      overall: overallStats[0] || { totalReports: 0, totalRepairCost: 0, chargedToGuests: 0, companyAbsorbed: 0, averageRepairCost: 0 },
+      byProperty,
+      monthlyCosts,
+    };
+  }
+
+  async processDepositDeduction(depositId: number, damageReportIds: number[]): Promise<any> {
+    // Calculate total damage costs
+    const damageReports = await db.select({
+      id: damageReports.id,
+      repairCost: damageReports.repairCost,
+    })
+    .from(damageReports)
+    .where(sql`${damageReports.id} = ANY(${damageReportIds})`);
+
+    const totalDamageCost = damageReports.reduce((sum, report) => {
+      return sum + parseFloat(report.repairCost?.toString() || '0');
+    }, 0);
+
+    // Get deposit information
+    const deposit = await this.getSecurityDepositById(depositId);
+    if (!deposit) {
+      throw new Error('Security deposit not found');
+    }
+
+    const depositAmount = parseFloat(deposit.amount?.toString() || '0');
+    let newStatus = 'released';
+    
+    if (totalDamageCost > 0) {
+      if (totalDamageCost >= depositAmount) {
+        newStatus = 'partial-deducted';
+      } else {
+        newStatus = 'partial-deducted';
+      }
+    }
+
+    // Update deposit status
+    await this.updateSecurityDepositStatus(depositId, newStatus, new Date());
+
+    // Mark damage reports as charged to guest
+    if (damageReportIds.length > 0) {
+      await db.update(damageReports)
+        .set({ chargedToGuest: true })
+        .where(sql`${damageReports.id} = ANY(${damageReportIds})`);
+    }
+
+    return {
+      depositId,
+      originalAmount: depositAmount,
+      totalDamageCost,
+      refundAmount: Math.max(0, depositAmount - totalDamageCost),
+      status: newStatus,
+      processedAt: new Date(),
     };
   }
 }

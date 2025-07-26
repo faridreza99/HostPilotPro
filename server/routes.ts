@@ -30711,6 +30711,173 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Security Deposits Management Routes =====
+  
+  app.get("/api/security-deposits", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { bookingId, propertyId } = req.query;
+      const deposits = await storage.getSecurityDeposits(
+        bookingId ? parseInt(bookingId as string) : undefined,
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      res.json(deposits);
+    } catch (error) {
+      console.error("Error fetching security deposits:", error);
+      res.status(500).json({ error: "Failed to fetch security deposits" });
+    }
+  });
+
+  app.get("/api/security-deposits/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deposit = await storage.getSecurityDepositById(id);
+      if (!deposit) {
+        return res.status(404).json({ error: "Security deposit not found" });
+      }
+      res.json(deposit);
+    } catch (error) {
+      console.error("Error fetching security deposit:", error);
+      res.status(500).json({ error: "Failed to fetch security deposit" });
+    }
+  });
+
+  app.post("/api/security-deposits", isDemoAuthenticated, async (req, res) => {
+    try {
+      const deposit = await storage.createSecurityDeposit(req.body);
+      res.json(deposit);
+    } catch (error) {
+      console.error("Error creating security deposit:", error);
+      res.status(500).json({ error: "Failed to create security deposit" });
+    }
+  });
+
+  app.put("/api/security-deposits/:id/status", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, releasedAt } = req.body;
+      const deposit = await storage.updateSecurityDepositStatus(
+        id, 
+        status, 
+        releasedAt ? new Date(releasedAt) : undefined
+      );
+      if (!deposit) {
+        return res.status(404).json({ error: "Security deposit not found" });
+      }
+      res.json(deposit);
+    } catch (error) {
+      console.error("Error updating security deposit status:", error);
+      res.status(500).json({ error: "Failed to update security deposit status" });
+    }
+  });
+
+  app.delete("/api/security-deposits/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteSecurityDeposit(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting security deposit:", error);
+      res.status(500).json({ error: "Failed to delete security deposit" });
+    }
+  });
+
+  app.get("/api/security-deposits/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getSecurityDepositsAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching security deposits analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // ===== Damage Reports Management Routes =====
+  
+  app.get("/api/damage-reports", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { bookingId, propertyId } = req.query;
+      const reports = await storage.getDamageReports(
+        bookingId ? parseInt(bookingId as string) : undefined,
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching damage reports:", error);
+      res.status(500).json({ error: "Failed to fetch damage reports" });
+    }
+  });
+
+  app.get("/api/damage-reports/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const report = await storage.getDamageReportById(id);
+      if (!report) {
+        return res.status(404).json({ error: "Damage report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Error fetching damage report:", error);
+      res.status(500).json({ error: "Failed to fetch damage report" });
+    }
+  });
+
+  app.post("/api/damage-reports", isDemoAuthenticated, async (req, res) => {
+    try {
+      const report = await storage.createDamageReport(req.body);
+      res.json(report);
+    } catch (error) {
+      console.error("Error creating damage report:", error);
+      res.status(500).json({ error: "Failed to create damage report" });
+    }
+  });
+
+  app.put("/api/damage-reports/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const report = await storage.updateDamageReport(id, req.body);
+      if (!report) {
+        return res.status(404).json({ error: "Damage report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Error updating damage report:", error);
+      res.status(500).json({ error: "Failed to update damage report" });
+    }
+  });
+
+  app.delete("/api/damage-reports/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteDamageReport(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting damage report:", error);
+      res.status(500).json({ error: "Failed to delete damage report" });
+    }
+  });
+
+  app.get("/api/damage-reports/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getDamageReportsAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching damage reports analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.post("/api/security-deposits/:id/process-deduction", isDemoAuthenticated, async (req, res) => {
+    try {
+      const depositId = parseInt(req.params.id);
+      const { damageReportIds } = req.body;
+      const result = await storage.processDepositDeduction(depositId, damageReportIds);
+      res.json(result);
+    } catch (error) {
+      console.error("Error processing deposit deduction:", error);
+      res.status(500).json({ error: "Failed to process deposit deduction" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 
