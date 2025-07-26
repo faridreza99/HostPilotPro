@@ -30606,6 +30606,111 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Property Reviews Management Routes =====
+  
+  app.get("/api/property-reviews", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId } = req.query;
+      const reviews = await storage.getPropertyReviews(propertyId ? parseInt(propertyId as string) : undefined);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching property reviews:", error);
+      res.status(500).json({ error: "Failed to fetch property reviews" });
+    }
+  });
+
+  app.get("/api/property-reviews/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const review = await storage.getPropertyReviewById(id);
+      if (!review) {
+        return res.status(404).json({ error: "Property review not found" });
+      }
+      res.json(review);
+    } catch (error) {
+      console.error("Error fetching property review:", error);
+      res.status(500).json({ error: "Failed to fetch property review" });
+    }
+  });
+
+  app.post("/api/property-reviews", isDemoAuthenticated, async (req, res) => {
+    try {
+      const review = await storage.createPropertyReview(req.body);
+      res.json(review);
+    } catch (error) {
+      console.error("Error creating property review:", error);
+      res.status(500).json({ error: "Failed to create property review" });
+    }
+  });
+
+  app.put("/api/property-reviews/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const review = await storage.updatePropertyReview(id, req.body);
+      if (!review) {
+        return res.status(404).json({ error: "Property review not found" });
+      }
+      res.json(review);
+    } catch (error) {
+      console.error("Error updating property review:", error);
+      res.status(500).json({ error: "Failed to update property review" });
+    }
+  });
+
+  app.delete("/api/property-reviews/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deletePropertyReview(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting property review:", error);
+      res.status(500).json({ error: "Failed to delete property review" });
+    }
+  });
+
+  app.get("/api/property-reviews/source/:source", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { source } = req.params;
+      const reviews = await storage.getReviewsBySource(source);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching reviews by source:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  app.get("/api/property-reviews/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getReviewsAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching reviews analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/property-reviews/recent/:limit", isDemoAuthenticated, async (req, res) => {
+    try {
+      const limit = parseInt(req.params.limit) || 10;
+      const reviews = await storage.getRecentReviews(limit);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching recent reviews:", error);
+      res.status(500).json({ error: "Failed to fetch recent reviews" });
+    }
+  });
+
+  app.get("/api/property-reviews/search/:searchTerm", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { searchTerm } = req.params;
+      const reviews = await storage.searchReviews(searchTerm);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error searching reviews:", error);
+      res.status(500).json({ error: "Failed to search reviews" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

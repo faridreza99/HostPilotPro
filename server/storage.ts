@@ -80,6 +80,8 @@ import {
   propertyStatus,
   // Staff Skills
   staffSkills,
+  // Property Reviews
+  propertyReviews,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -36244,6 +36246,261 @@ Plant Care:
     .orderBy(sql<number>`count(*) DESC`);
     
     return analytics;
+  }
+
+  // ===== Property Reviews Management Methods =====
+  
+  async getPropertyReviews(propertyId?: number): Promise<any[]> {
+    let query = db.select({
+      id: propertyReviews.id,
+      propertyId: propertyReviews.propertyId,
+      source: propertyReviews.source,
+      reviewerName: propertyReviews.reviewerName,
+      rating: propertyReviews.rating,
+      reviewText: propertyReviews.reviewText,
+      aiSummary: propertyReviews.aiSummary,
+      sentimentScore: propertyReviews.sentimentScore,
+      createdAt: propertyReviews.createdAt,
+      propertyName: properties.name,
+    })
+    .from(propertyReviews)
+    .leftJoin(properties, eq(propertyReviews.propertyId, properties.id));
+    
+    if (propertyId) {
+      query = query.where(eq(propertyReviews.propertyId, propertyId));
+    }
+    
+    return query.orderBy(desc(propertyReviews.createdAt));
+  }
+
+  async getPropertyReviewById(id: number): Promise<any> {
+    const [review] = await db.select({
+      id: propertyReviews.id,
+      propertyId: propertyReviews.propertyId,
+      source: propertyReviews.source,
+      reviewerName: propertyReviews.reviewerName,
+      rating: propertyReviews.rating,
+      reviewText: propertyReviews.reviewText,
+      aiSummary: propertyReviews.aiSummary,
+      sentimentScore: propertyReviews.sentimentScore,
+      createdAt: propertyReviews.createdAt,
+      propertyName: properties.name,
+    })
+    .from(propertyReviews)
+    .leftJoin(properties, eq(propertyReviews.propertyId, properties.id))
+    .where(eq(propertyReviews.id, id));
+    return review;
+  }
+
+  async createPropertyReview(reviewData: any): Promise<any> {
+    // Generate AI summary and sentiment analysis
+    const aiAnalysis = this.analyzeReviewWithAI(reviewData.reviewText);
+    
+    const [created] = await db.insert(propertyReviews).values({
+      ...reviewData,
+      aiSummary: aiAnalysis.summary,
+      sentimentScore: aiAnalysis.sentimentScore,
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async updatePropertyReview(id: number, updates: any): Promise<any> {
+    // If review text is updated, regenerate AI analysis
+    if (updates.reviewText) {
+      const aiAnalysis = this.analyzeReviewWithAI(updates.reviewText);
+      updates.aiSummary = aiAnalysis.summary;
+      updates.sentimentScore = aiAnalysis.sentimentScore;
+    }
+    
+    const [updated] = await db.update(propertyReviews)
+      .set(updates)
+      .where(eq(propertyReviews.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyReview(id: number): Promise<boolean> {
+    const result = await db.delete(propertyReviews).where(eq(propertyReviews.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getReviewsBySource(source: string): Promise<any[]> {
+    return db.select({
+      id: propertyReviews.id,
+      propertyId: propertyReviews.propertyId,
+      source: propertyReviews.source,
+      reviewerName: propertyReviews.reviewerName,
+      rating: propertyReviews.rating,
+      reviewText: propertyReviews.reviewText,
+      aiSummary: propertyReviews.aiSummary,
+      sentimentScore: propertyReviews.sentimentScore,
+      createdAt: propertyReviews.createdAt,
+      propertyName: properties.name,
+    })
+    .from(propertyReviews)
+    .leftJoin(properties, eq(propertyReviews.propertyId, properties.id))
+    .where(eq(propertyReviews.source, source))
+    .orderBy(desc(propertyReviews.createdAt));
+  }
+
+  async getReviewsAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalReviews: sql<number>`count(*)`,
+      averageRating: sql<number>`round(avg(rating), 2)`,
+      averageSentiment: sql<number>`round(avg(sentiment_score), 2)`,
+    }).from(propertyReviews);
+
+    const bySource = await db.select({
+      source: propertyReviews.source,
+      count: sql<number>`count(*)`,
+      averageRating: sql<number>`round(avg(rating), 2)`,
+      averageSentiment: sql<number>`round(avg(sentiment_score), 2)`,
+    })
+    .from(propertyReviews)
+    .groupBy(propertyReviews.source)
+    .orderBy(sql<number>`count(*) DESC`);
+
+    const byProperty = await db.select({
+      propertyId: propertyReviews.propertyId,
+      propertyName: properties.name,
+      count: sql<number>`count(*)`,
+      averageRating: sql<number>`round(avg(${propertyReviews.rating}), 2)`,
+      averageSentiment: sql<number>`round(avg(${propertyReviews.sentimentScore}), 2)`,
+    })
+    .from(propertyReviews)
+    .leftJoin(properties, eq(propertyReviews.propertyId, properties.id))
+    .groupBy(propertyReviews.propertyId, properties.name)
+    .orderBy(sql<number>`count(*) DESC`);
+
+    const sentimentDistribution = await db.select({
+      sentimentRange: sql<string>`
+        CASE 
+          WHEN sentiment_score >= 0.7 THEN 'Very Positive (0.7+)'
+          WHEN sentiment_score >= 0.3 THEN 'Positive (0.3-0.7)'
+          WHEN sentiment_score >= -0.3 THEN 'Neutral (-0.3-0.3)'
+          WHEN sentiment_score >= -0.7 THEN 'Negative (-0.7--0.3)'
+          ELSE 'Very Negative (<-0.7)'
+        END
+      `,
+      count: sql<number>`count(*)`,
+    })
+    .from(propertyReviews)
+    .where(isNotNull(propertyReviews.sentimentScore))
+    .groupBy(sql`
+      CASE 
+        WHEN sentiment_score >= 0.7 THEN 'Very Positive (0.7+)'
+        WHEN sentiment_score >= 0.3 THEN 'Positive (0.3-0.7)'
+        WHEN sentiment_score >= -0.3 THEN 'Neutral (-0.3-0.3)'
+        WHEN sentiment_score >= -0.7 THEN 'Negative (-0.7--0.3)'
+        ELSE 'Very Negative (<-0.7)'
+      END
+    `);
+
+    return {
+      overall: overallStats[0] || { totalReviews: 0, averageRating: 0, averageSentiment: 0 },
+      bySource,
+      byProperty,
+      sentimentDistribution,
+    };
+  }
+
+  async getRecentReviews(limit: number = 10): Promise<any[]> {
+    return db.select({
+      id: propertyReviews.id,
+      propertyId: propertyReviews.propertyId,
+      source: propertyReviews.source,
+      reviewerName: propertyReviews.reviewerName,
+      rating: propertyReviews.rating,
+      reviewText: propertyReviews.reviewText,
+      aiSummary: propertyReviews.aiSummary,
+      sentimentScore: propertyReviews.sentimentScore,
+      createdAt: propertyReviews.createdAt,
+      propertyName: properties.name,
+    })
+    .from(propertyReviews)
+    .leftJoin(properties, eq(propertyReviews.propertyId, properties.id))
+    .orderBy(desc(propertyReviews.createdAt))
+    .limit(limit);
+  }
+
+  async searchReviews(searchTerm: string): Promise<any[]> {
+    const searchPattern = `%${searchTerm.toLowerCase()}%`;
+    
+    return db.select({
+      id: propertyReviews.id,
+      propertyId: propertyReviews.propertyId,
+      source: propertyReviews.source,
+      reviewerName: propertyReviews.reviewerName,
+      rating: propertyReviews.rating,
+      reviewText: propertyReviews.reviewText,
+      aiSummary: propertyReviews.aiSummary,
+      sentimentScore: propertyReviews.sentimentScore,
+      createdAt: propertyReviews.createdAt,
+      propertyName: properties.name,
+    })
+    .from(propertyReviews)
+    .leftJoin(properties, eq(propertyReviews.propertyId, properties.id))
+    .where(or(
+      sql`LOWER(${propertyReviews.reviewText}) LIKE ${searchPattern}`,
+      sql`LOWER(${propertyReviews.aiSummary}) LIKE ${searchPattern}`,
+      sql`LOWER(${propertyReviews.reviewerName}) LIKE ${searchPattern}`,
+      sql`LOWER(${properties.name}) LIKE ${searchPattern}`
+    ))
+    .orderBy(desc(propertyReviews.createdAt));
+  }
+
+  private analyzeReviewWithAI(reviewText: string): { summary: string; sentimentScore: number } {
+    if (!reviewText) {
+      return { summary: "", sentimentScore: 0 };
+    }
+
+    // Simulate AI analysis based on keywords and patterns
+    const text = reviewText.toLowerCase();
+    
+    // Positive keywords
+    const positiveWords = ['excellent', 'amazing', 'wonderful', 'perfect', 'beautiful', 'clean', 'comfortable', 'recommend', 'loved', 'fantastic', 'great', 'good', 'nice', 'pleasant', 'enjoyable'];
+    const negativeWords = ['terrible', 'awful', 'dirty', 'uncomfortable', 'broken', 'noisy', 'disappointing', 'poor', 'bad', 'worst', 'horrible', 'disgusting', 'unacceptable'];
+    
+    let positiveScore = 0;
+    let negativeScore = 0;
+    
+    positiveWords.forEach(word => {
+      if (text.includes(word)) positiveScore += 1;
+    });
+    
+    negativeWords.forEach(word => {
+      if (text.includes(word)) negativeScore += 1;
+    });
+    
+    // Calculate sentiment score (-1 to +1)
+    const totalWords = positiveScore + negativeScore;
+    let sentimentScore = 0;
+    
+    if (totalWords > 0) {
+      sentimentScore = (positiveScore - negativeScore) / Math.max(totalWords, 3);
+      sentimentScore = Math.max(-1, Math.min(1, sentimentScore));
+    }
+    
+    // Generate AI summary based on content
+    let summary = "";
+    if (text.includes('clean')) summary += "Mentions cleanliness. ";
+    if (text.includes('location')) summary += "Comments on location. ";
+    if (text.includes('staff') || text.includes('service')) summary += "Reviews staff service. ";
+    if (text.includes('pool')) summary += "Discusses pool facilities. ";
+    if (text.includes('bed') || text.includes('room')) summary += "Comments on accommodation. ";
+    if (text.includes('view')) summary += "Mentions property views. ";
+    if (text.includes('wifi') || text.includes('internet')) summary += "Reviews internet connectivity. ";
+    if (text.includes('noise') || text.includes('quiet')) summary += "Discusses noise levels. ";
+    
+    if (summary === "") {
+      summary = `${sentimentScore > 0.3 ? 'Positive' : sentimentScore < -0.3 ? 'Negative' : 'Mixed'} guest feedback.`;
+    }
+    
+    return {
+      summary: summary.trim(),
+      sentimentScore: Math.round(sentimentScore * 100) / 100
+    };
   }
 }
 

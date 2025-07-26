@@ -12126,3 +12126,31 @@ export const insertStaffSkillSchema = createInsertSchema(staffSkills).omit({
 
 export type StaffSkill = typeof staffSkills.$inferSelect;
 export type InsertStaffSkill = z.infer<typeof insertStaffSkillSchema>;
+
+// ===== PROPERTY REVIEWS SYSTEM =====
+
+export const propertyReviews = pgTable("property_reviews", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").references(() => properties.id),
+  source: varchar("source").notNull(), // Airbnb, Booking.com, VRBO, Direct
+  reviewerName: varchar("reviewer_name"),
+  rating: decimal("rating", { precision: 3, scale: 2 }),
+  reviewText: text("review_text"),
+  aiSummary: text("ai_summary"),
+  sentimentScore: decimal("sentiment_score", { precision: 4, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_reviews_property").on(table.propertyId),
+  index("IDX_property_reviews_source").on(table.source),
+  index("IDX_property_reviews_rating").on(table.rating),
+  index("IDX_property_reviews_sentiment").on(table.sentimentScore),
+  index("IDX_property_reviews_created").on(table.createdAt),
+]);
+
+export const insertPropertyReviewSchema = createInsertSchema(propertyReviews).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PropertyReview = typeof propertyReviews.$inferSelect;
+export type InsertPropertyReview = z.infer<typeof insertPropertyReviewSchema>;
