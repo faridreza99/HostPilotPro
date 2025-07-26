@@ -7,7 +7,7 @@ import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
 import { setupSecureAuth, requireAuth, requireRole, requirePermission } from "./secureAuth";
 import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
-import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema, insertBookingRevenueSchema, insertOtaPlatformSettingsSchema, insertBookingRevenueCommissionSchema } from "@shared/schema";
+import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertOwnerSettingsSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema, insertBookingRevenueSchema, insertOtaPlatformSettingsSchema, insertBookingRevenueCommissionSchema } from "@shared/schema";
 import { BookingRevenueStorage } from "./bookingRevenueStorage";
 import { z } from "zod";
 import { CrossSyncedTaskVisibilityStorage } from "./crossSyncedTaskVisibility";
@@ -19850,6 +19850,97 @@ async function processGuestIssueForAI(issueReport: any) {
     } catch (error) {
       console.error("Error updating payout request:", error);
       res.status(500).json({ message: "Failed to update payout request" });
+    }
+  });
+
+  // ===== OWNER SETTINGS & BRANDING MANAGEMENT =====
+
+  // Get owner settings with branding
+  app.get("/api/owner-settings/:ownerId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { ownerId } = req.params;
+
+      // Only owners can access their own settings, or admin/PM for management
+      if (role === 'owner' && req.user.id !== ownerId) {
+        return res.status(403).json({ message: "Can only access your own settings" });
+      } else if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Unauthorized access to owner settings" });
+      }
+
+      const settings = await storage.getOwnerSettings(organizationId, ownerId);
+      res.json(settings || {});
+    } catch (error) {
+      console.error("Error fetching owner settings:", error);
+      res.status(500).json({ message: "Failed to fetch owner settings" });
+    }
+  });
+
+  // Create or update owner settings
+  app.put("/api/owner-settings/:ownerId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { ownerId } = req.params;
+
+      // Only owners can update their own settings, or admin/PM for management
+      if (role === 'owner' && req.user.id !== ownerId) {
+        return res.status(403).json({ message: "Can only update your own settings" });
+      } else if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Unauthorized to update owner settings" });
+      }
+
+      const validatedData = insertOwnerSettingsSchema.parse({
+        ...req.body,
+        organizationId,
+        ownerId,
+      });
+
+      const settings = await storage.upsertOwnerSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating owner settings:", error);
+      res.status(500).json({ message: "Failed to update owner settings" });
+    }
+  });
+
+  // Update owner custom branding
+  app.patch("/api/owner-settings/:ownerId/branding", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { ownerId } = req.params;
+
+      // Only owners can update their own branding, or admin/PM for management
+      if (role === 'owner' && req.user.id !== ownerId) {
+        return res.status(403).json({ message: "Can only update your own branding" });
+      } else if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
+        return res.status(403).json({ message: "Unauthorized to update branding" });
+      }
+
+      const settings = await storage.updateOwnerBranding(organizationId, ownerId, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating owner branding:", error);
+      res.status(500).json({ message: "Failed to update owner branding" });
+    }
+  });
+
+  // Update owner transparency mode
+  app.patch("/api/owner-settings/:ownerId/transparency", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId, role } = req.user;
+      const { ownerId } = req.params;
+      const { mode } = req.body;
+
+      // Only admin/PM can update transparency settings
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Only admin and portfolio managers can update transparency settings" });
+      }
+
+      const settings = await storage.updateOwnerTransparencyMode(organizationId, ownerId, mode);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating transparency mode:", error);
+      res.status(500).json({ message: "Failed to update transparency mode" });
     }
   });
 

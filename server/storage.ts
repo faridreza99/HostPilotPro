@@ -16,6 +16,10 @@ import {
   welcomePackTemplates,
   welcomePackUsage,
   ownerPayouts,
+  ownerPreferences,
+  ownerSettings,
+  ownerActivityTimeline,
+  ownerInvoices,
   staffProfiles,
   monthlyPayrollRecords,
   taskPerformanceLogs,
@@ -205,6 +209,14 @@ import {
   type InsertWelcomePackUsage,
   type OwnerPayout,
   type InsertOwnerPayout,
+  type OwnerPreferences,
+  type InsertOwnerPreferences,
+  type OwnerSettings,
+  type InsertOwnerSettings,
+  type OwnerActivityTimeline,
+  type InsertOwnerActivityTimeline,
+  type OwnerInvoice,
+  type InsertOwnerInvoice,
   type TaskHistory,
   type InsertTaskHistory,
   type Notification,
@@ -6299,6 +6311,69 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return result;
+  }
+
+  // Owner Settings Operations (with Custom Branding)
+  async getOwnerSettings(organizationId: string, ownerId: string): Promise<OwnerSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(ownerSettings)
+      .where(and(
+        eq(ownerSettings.organizationId, organizationId),
+        eq(ownerSettings.ownerId, ownerId)
+      ));
+    return settings;
+  }
+
+  async upsertOwnerSettings(settings: InsertOwnerSettings): Promise<OwnerSettings> {
+    const [result] = await db
+      .insert(ownerSettings)
+      .values(settings)
+      .onConflictDoUpdate({
+        target: ownerSettings.ownerId,
+        set: {
+          ...settings,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  async updateOwnerBranding(organizationId: string, ownerId: string, branding: {
+    logoUrl?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    reportTheme?: string;
+    customDomain?: string;
+  }): Promise<OwnerSettings | undefined> {
+    const [updated] = await db
+      .update(ownerSettings)
+      .set({
+        customBranding: branding,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(ownerSettings.organizationId, organizationId),
+        eq(ownerSettings.ownerId, ownerId)
+      ))
+      .returning();
+    return updated;
+  }
+
+  async updateOwnerTransparencyMode(organizationId: string, ownerId: string, mode: string): Promise<OwnerSettings | undefined> {
+    const [updated] = await db
+      .update(ownerSettings)
+      .set({
+        transparencyMode: mode,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(ownerSettings.organizationId, organizationId),
+        eq(ownerSettings.ownerId, ownerId)
+      ))
+      .returning();
+    return updated;
   }
 
   // Owner Dashboard Analytics

@@ -6143,6 +6143,30 @@ export const ownerPreferences = pgTable("owner_preferences", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Owner Settings with Branding Controls
+export const ownerSettings = pgTable("owner_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id).notNull(),
+  taskApprovalRequired: boolean("task_approval_required").default(false),
+  maintenanceAlerts: boolean("maintenance_alerts").default(true),
+  guestAddonNotifications: boolean("guest_addon_notifications").default(true),
+  financialNotifications: boolean("financial_notifications").default(true),
+  weeklyReports: boolean("weekly_reports").default(true),
+  preferredCurrency: varchar("preferred_currency").default("AUD"),
+  notificationEmail: varchar("notification_email"),
+  transparencyMode: varchar("transparency_mode").default("summary"), // summary, detailed, full
+  customBranding: jsonb("custom_branding").$type<{
+    logoUrl?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    reportTheme?: string;
+    customDomain?: string;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas for owner dashboard
 export const insertOwnerActivityTimelineSchema = createInsertSchema(ownerActivityTimeline).omit({
   id: true,
@@ -6158,6 +6182,12 @@ export const insertOwnerInvoiceSchema = createInsertSchema(ownerInvoices).omit({
 });
 
 export const insertOwnerPreferencesSchema = createInsertSchema(ownerPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOwnerSettingsSchema = createInsertSchema(ownerSettings).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -6497,6 +6527,9 @@ export type TaskNotificationRule = typeof taskNotificationRules.$inferSelect;
 export type InsertTaskNotificationRule = z.infer<typeof insertTaskNotificationRuleSchema>;
 export type OwnerPreferences = typeof ownerPreferences.$inferSelect;
 export type InsertOwnerPreferences = z.infer<typeof insertOwnerPreferencesSchema>;
+
+export type OwnerSettings = typeof ownerSettings.$inferSelect;
+export type InsertOwnerSettings = z.infer<typeof insertOwnerSettingsSchema>;
 
 // ===== REFERRAL AGENT SCHEMA RELATIONS =====
 
