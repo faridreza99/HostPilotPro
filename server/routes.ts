@@ -31051,6 +31051,120 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== WhatsApp Bot Logging Routes =====
+  
+  app.get("/api/whatsapp-bot-logs", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { userId, command, limit } = req.query;
+      const logs = await storage.getWhatsappBotLogs(
+        userId as string,
+        command as string,
+        limit ? parseInt(limit as string) : 100
+      );
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching WhatsApp bot logs:", error);
+      res.status(500).json({ error: "Failed to fetch WhatsApp bot logs" });
+    }
+  });
+
+  app.get("/api/whatsapp-bot-logs/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const log = await storage.getWhatsappBotLogById(id);
+      if (!log) {
+        return res.status(404).json({ error: "WhatsApp bot log not found" });
+      }
+      res.json(log);
+    } catch (error) {
+      console.error("Error fetching WhatsApp bot log:", error);
+      res.status(500).json({ error: "Failed to fetch WhatsApp bot log" });
+    }
+  });
+
+  app.post("/api/whatsapp-bot-logs", isDemoAuthenticated, async (req, res) => {
+    try {
+      const log = await storage.createWhatsappBotLog(req.body);
+      res.json(log);
+    } catch (error) {
+      console.error("Error creating WhatsApp bot log:", error);
+      res.status(500).json({ error: "Failed to create WhatsApp bot log" });
+    }
+  });
+
+  app.delete("/api/whatsapp-bot-logs/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteWhatsappBotLog(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting WhatsApp bot log:", error);
+      res.status(500).json({ error: "Failed to delete WhatsApp bot log" });
+    }
+  });
+
+  app.get("/api/whatsapp-bot-logs/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getWhatsappBotAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching WhatsApp bot analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/whatsapp-bot-logs/user/:userId/history", isDemoAuthenticated, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const { limit } = req.query;
+      const history = await storage.getUserCommandHistory(
+        userId,
+        limit ? parseInt(limit as string) : 50
+      );
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching user command history:", error);
+      res.status(500).json({ error: "Failed to fetch user command history" });
+    }
+  });
+
+  app.get("/api/whatsapp-bot-logs/commands/stats", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { timeframe } = req.query;
+      const stats = await storage.getCommandUsageStats(timeframe as string || '7 days');
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching command usage stats:", error);
+      res.status(500).json({ error: "Failed to fetch command usage stats" });
+    }
+  });
+
+  app.post("/api/whatsapp-bot-logs/interaction", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { organizationId, userId, command, response } = req.body;
+      const log = await storage.logWhatsappBotInteraction(organizationId, userId, command, response);
+      res.json(log);
+    } catch (error) {
+      console.error("Error logging WhatsApp bot interaction:", error);
+      res.status(500).json({ error: "Failed to log WhatsApp bot interaction" });
+    }
+  });
+
+  app.get("/api/whatsapp-bot-logs/search/:searchTerm", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { searchTerm } = req.params;
+      const { limit } = req.query;
+      const results = await storage.searchWhatsappBotLogs(
+        searchTerm,
+        limit ? parseInt(limit as string) : 100
+      );
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching WhatsApp bot logs:", error);
+      res.status(500).json({ error: "Failed to search WhatsApp bot logs" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

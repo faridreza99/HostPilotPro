@@ -88,6 +88,8 @@ import {
   // Vendor Management & Supply Ordering
   vendors,
   supplyOrders,
+  // WhatsApp Bot Logging
+  whatsappBotLogs,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -36997,6 +36999,178 @@ Plant Care:
       .set({ status })
       .where(sql`${supplyOrders.id} = ANY(${orderIds})`);
     return result.rowCount;
+  }
+
+  // ===== WhatsApp Bot Logging Methods =====
+  
+  async getWhatsappBotLogs(userId?: string, command?: string, limit: number = 100): Promise<any[]> {
+    let query = db.select({
+      id: whatsappBotLogs.id,
+      organizationId: whatsappBotLogs.organizationId,
+      userId: whatsappBotLogs.userId,
+      command: whatsappBotLogs.command,
+      response: whatsappBotLogs.response,
+      createdAt: whatsappBotLogs.createdAt,
+    })
+    .from(whatsappBotLogs);
+
+    const conditions = [];
+    if (userId) conditions.push(eq(whatsappBotLogs.userId, userId));
+    if (command) conditions.push(eq(whatsappBotLogs.command, command));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return query
+      .orderBy(desc(whatsappBotLogs.createdAt))
+      .limit(limit);
+  }
+
+  async createWhatsappBotLog(logData: any): Promise<any> {
+    const [created] = await db.insert(whatsappBotLogs).values({
+      ...logData,
+      organizationId: logData.organizationId || 'default-org',
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async getWhatsappBotLogById(id: number): Promise<any> {
+    const [log] = await db.select({
+      id: whatsappBotLogs.id,
+      organizationId: whatsappBotLogs.organizationId,
+      userId: whatsappBotLogs.userId,
+      command: whatsappBotLogs.command,
+      response: whatsappBotLogs.response,
+      createdAt: whatsappBotLogs.createdAt,
+    })
+    .from(whatsappBotLogs)
+    .where(eq(whatsappBotLogs.id, id));
+    return log;
+  }
+
+  async deleteWhatsappBotLog(id: number): Promise<boolean> {
+    const result = await db.delete(whatsappBotLogs).where(eq(whatsappBotLogs.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getWhatsappBotAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalLogs: sql<number>`count(*)`,
+      uniqueUsers: sql<number>`count(DISTINCT user_id)`,
+      uniqueCommands: sql<number>`count(DISTINCT command)`,
+    }).from(whatsappBotLogs);
+
+    const topCommands = await db.select({
+      command: whatsappBotLogs.command,
+      count: sql<number>`count(*)`,
+      uniqueUsers: sql<number>`count(DISTINCT ${whatsappBotLogs.userId})`,
+    })
+    .from(whatsappBotLogs)
+    .groupBy(whatsappBotLogs.command)
+    .orderBy(sql<number>`count(*) DESC`)
+    .limit(10);
+
+    const topUsers = await db.select({
+      userId: whatsappBotLogs.userId,
+      commandCount: sql<number>`count(*)`,
+      uniqueCommands: sql<number>`count(DISTINCT ${whatsappBotLogs.command})`,
+      lastActivity: sql<string>`max(${whatsappBotLogs.createdAt})`,
+    })
+    .from(whatsappBotLogs)
+    .where(sql`${whatsappBotLogs.userId} IS NOT NULL`)
+    .groupBy(whatsappBotLogs.userId)
+    .orderBy(sql<number>`count(*) DESC`)
+    .limit(10);
+
+    const dailyActivity = await db.select({
+      date: sql<string>`date(created_at)`,
+      totalCommands: sql<number>`count(*)`,
+      uniqueUsers: sql<number>`count(DISTINCT ${whatsappBotLogs.userId})`,
+      uniqueCommands: sql<number>`count(DISTINCT ${whatsappBotLogs.command})`,
+    })
+    .from(whatsappBotLogs)
+    .groupBy(sql`date(created_at)`)
+    .orderBy(sql`date(created_at) DESC`)
+    .limit(30);
+
+    const commandResponseTime = await db.select({
+      command: whatsappBotLogs.command,
+      avgResponseLength: sql<number>`round(avg(length(${whatsappBotLogs.response})), 2)`,
+      maxResponseLength: sql<number>`max(length(${whatsappBotLogs.response}))`,
+      minResponseLength: sql<number>`min(length(${whatsappBotLogs.response}))`,
+    })
+    .from(whatsappBotLogs)
+    .where(sql`${whatsappBotLogs.response} IS NOT NULL`)
+    .groupBy(whatsappBotLogs.command)
+    .orderBy(sql<number>`avg(length(${whatsappBotLogs.response})) DESC`)
+    .limit(10);
+
+    return {
+      overall: overallStats[0] || { totalLogs: 0, uniqueUsers: 0, uniqueCommands: 0 },
+      topCommands,
+      topUsers,
+      dailyActivity,
+      commandResponseTime,
+    };
+  }
+
+  async getUserCommandHistory(userId: string, limit: number = 50): Promise<any[]> {
+    return db.select({
+      id: whatsappBotLogs.id,
+      command: whatsappBotLogs.command,
+      response: whatsappBotLogs.response,
+      createdAt: whatsappBotLogs.createdAt,
+    })
+    .from(whatsappBotLogs)
+    .where(eq(whatsappBotLogs.userId, userId))
+    .orderBy(desc(whatsappBotLogs.createdAt))
+    .limit(limit);
+  }
+
+  async getCommandUsageStats(timeframe: string = '7 days'): Promise<any[]> {
+    return db.select({
+      command: whatsappBotLogs.command,
+      count: sql<number>`count(*)`,
+      uniqueUsers: sql<number>`count(DISTINCT ${whatsappBotLogs.userId})`,
+      firstUsed: sql<string>`min(${whatsappBotLogs.createdAt})`,
+      lastUsed: sql<string>`max(${whatsappBotLogs.createdAt})`,
+    })
+    .from(whatsappBotLogs)
+    .where(sql`created_at >= NOW() - INTERVAL '${timeframe}'`)
+    .groupBy(whatsappBotLogs.command)
+    .orderBy(sql<number>`count(*) DESC`);
+  }
+
+  async logWhatsappBotInteraction(organizationId: string, userId: string, command: string, response: string): Promise<any> {
+    return this.createWhatsappBotLog({
+      organizationId,
+      userId,
+      command,
+      response,
+    });
+  }
+
+  async searchWhatsappBotLogs(searchTerm: string, limit: number = 100): Promise<any[]> {
+    return db.select({
+      id: whatsappBotLogs.id,
+      organizationId: whatsappBotLogs.organizationId,
+      userId: whatsappBotLogs.userId,
+      command: whatsappBotLogs.command,
+      response: whatsappBotLogs.response,
+      createdAt: whatsappBotLogs.createdAt,
+    })
+    .from(whatsappBotLogs)
+    .where(
+      or(
+        sql`${whatsappBotLogs.command} ILIKE ${'%' + searchTerm + '%'}`,
+        sql`${whatsappBotLogs.response} ILIKE ${'%' + searchTerm + '%'}`,
+        sql`${whatsappBotLogs.userId} ILIKE ${'%' + searchTerm + '%'}`
+      )
+    )
+    .orderBy(desc(whatsappBotLogs.createdAt))
+    .limit(limit);
   }
 }
 

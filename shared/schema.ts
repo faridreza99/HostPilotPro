@@ -12248,3 +12248,27 @@ export type Vendor = typeof vendors.$inferSelect;
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type SupplyOrder = typeof supplyOrders.$inferSelect;
 export type InsertSupplyOrder = z.infer<typeof insertSupplyOrderSchema>;
+
+// ===== WHATSAPP BOT LOGGING SYSTEM =====
+
+export const whatsappBotLogs = pgTable("whatsapp_bot_logs", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  userId: varchar("user_id"),
+  command: varchar("command").notNull(),
+  response: text("response"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_whatsapp_bot_logs_organization").on(table.organizationId),
+  index("IDX_whatsapp_bot_logs_user").on(table.userId),
+  index("IDX_whatsapp_bot_logs_command").on(table.command),
+  index("IDX_whatsapp_bot_logs_created").on(table.createdAt),
+]);
+
+export const insertWhatsappBotLogSchema = createInsertSchema(whatsappBotLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type WhatsappBotLog = typeof whatsappBotLogs.$inferSelect;
+export type InsertWhatsappBotLog = z.infer<typeof insertWhatsappBotLogSchema>;
