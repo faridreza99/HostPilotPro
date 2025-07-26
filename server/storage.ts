@@ -33467,6 +33467,191 @@ Plant Care:
         return rule.name;
     }
   }
+  // ===== COMMISSION AUTOMATION METHODS =====
+  
+  async createCommissionLog(data: any): Promise<any> {
+    return {
+      id: Math.floor(Math.random() * 1000) + 1,
+      ...data,
+      createdAt: new Date(),
+    };
+  }
+
+  async createReferralCommissionLog(data: any): Promise<any> {
+    return {
+      id: Math.floor(Math.random() * 1000) + 1,
+      ...data,
+      createdAt: new Date(),
+    };
+  }
+
+  async getAgentBalance(agentId: string, organizationId: string): Promise<any> {
+    return {
+      agentId,
+      organizationId,
+      totalEarned: 5000,
+      totalPaid: 3000,
+      currentBalance: 2000,
+      pendingCommissions: 1500
+    };
+  }
+
+  async createAgentBalance(data: any): Promise<any> {
+    return {
+      id: Math.floor(Math.random() * 1000) + 1,
+      ...data,
+      createdAt: new Date(),
+    };
+  }
+
+  async updateAgentBalance(agentId: string, organizationId: string, updates: any): Promise<any> {
+    return {
+      agentId,
+      organizationId,
+      ...updates,
+      updatedAt: new Date(),
+    };
+  }
+
+  async getAgentsAboveThreshold(organizationId: string, threshold: number): Promise<any[]> {
+    return [
+      {
+        agentId: 'demo-retail',
+        organizationId,
+        currentBalance: 1200,
+        agentType: 'retail-agent'
+      }
+    ];
+  }
+
+  async createAgentPayout(data: any): Promise<any> {
+    return {
+      id: Math.floor(Math.random() * 1000) + 1,
+      ...data,
+      createdAt: new Date(),
+    };
+  }
+
+  async getPropertyReferralAgent(propertyId: number, organizationId: string): Promise<any> {
+    return {
+      agentId: 'demo-referral',
+      propertyId,
+      organizationId
+    };
+  }
+
+  // ===== UTILITY AUTOMATION METHODS =====
+
+  async getAllOrganizations(): Promise<any[]> {
+    return [
+      {
+        id: 'default-org',
+        name: 'Default Organization',
+        domain: 'default.hostpilotpro.com'
+      }
+    ];
+  }
+
+  async getPropertiesWithUtilitySettings(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 17,
+        organizationId,
+        name: 'Villa Samui Breeze',
+        ownerId: 'demo-owner'
+      },
+      {
+        id: 18,
+        organizationId,
+        name: 'Villa Ocean View',
+        ownerId: 'demo-owner'
+      }
+    ];
+  }
+
+  async getPropertyUtilities(propertyId: number, organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        propertyId,
+        organizationId,
+        utilityType: 'electricity',
+        dueDay: 15,
+        provider: 'PEA',
+        accountNumber: 'PEA123456'
+      },
+      {
+        id: 2,
+        propertyId,
+        organizationId,
+        utilityType: 'water',
+        dueDay: 20,
+        provider: 'Local Waterworks',
+        accountNumber: 'WATER789'
+      },
+      {
+        id: 3,
+        propertyId,
+        organizationId,
+        utilityType: 'internet',
+        dueDay: 5,
+        provider: 'AIS',
+        accountNumber: 'AIS456789'
+      }
+    ];
+  }
+
+  async hasUtilityReceiptForMonth(
+    propertyId: number, 
+    utilityId: number, 
+    month: number, 
+    year: number, 
+    organizationId: string
+  ): Promise<boolean> {
+    return Math.random() > 0.7;
+  }
+
+  async createUtilityBillAlert(data: any): Promise<any> {
+    return {
+      id: Math.floor(Math.random() * 1000) + 1,
+      ...data,
+      createdAt: new Date(),
+    };
+  }
+
+  async getUsersByRole(role: string, organizationId: string): Promise<any[]> {
+    const users = [
+      { id: 'demo-admin', role: 'admin', email: 'admin@test.com', organizationId },
+      { id: 'demo-pm', role: 'portfolio-manager', email: 'pm@test.com', organizationId },
+      { id: 'demo-owner', role: 'owner', email: 'owner@test.com', organizationId }
+    ];
+    
+    return users.filter(user => user.role === role);
+  }
+
+  async createNotification(data: any): Promise<any> {
+    return {
+      id: Math.floor(Math.random() * 1000) + 1,
+      ...data,
+      createdAt: new Date(),
+    };
+  }
+
+  async getOverdueUtilityBills(organizationId: string): Promise<any[]> {
+    return [
+      {
+        id: 1,
+        organizationId,
+        propertyId: 17,
+        propertyName: 'Villa Samui Breeze',
+        utilityType: 'electricity',
+        utilityId: 1,
+        dueDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        amount: 1200,
+        currency: 'THB'
+      }
+    ];
+  }
 }
 
 export const storage = new DatabaseStorage();

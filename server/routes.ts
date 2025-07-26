@@ -19,6 +19,8 @@ import { staffWalletStorage } from "./staffWalletStorage";
 import { staffPermissionStorage } from "./staffPermissionStorage";
 import { inventoryStorage } from "./inventoryStorage";
 import { insertInventoryItemSchema, insertInventoryUsageLogSchema } from "@shared/schema";
+import { handleBookingConfirmation, CommissionAutomation } from './commission-automation';
+import { UtilityAlertAutomation, initializeUtilityAutomation } from './utility-alert-automation';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup demo authentication (for development/testing)
@@ -61,6 +63,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seed Inventory Data
   const { seedInventoryData } = await import("./seedInventoryData");
   await seedInventoryData();
+
+  // Initialize automation systems
+  initializeUtilityAutomation();
+  console.log("✅ Automation systems initialized successfully");
 
 
 
@@ -28658,6 +28664,133 @@ async function processGuestIssueForAI(issueReport: any) {
     } catch (error) {
       console.error("Error evaluating alert rules:", error);
       res.status(500).json({ error: "Failed to evaluate alert rules" });
+    }
+  });
+
+  // ===== COMMISSION AUTOMATION API ENDPOINTS =====
+
+  // Manual trigger for booking commission calculation
+  app.post("/api/automation/process-booking-commission", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { bookingId } = req.body;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      await handleBookingConfirmation(bookingId, organizationId);
+      
+      res.json({ 
+        success: true, 
+        message: `Commission processing completed for booking ${bookingId}` 
+      });
+    } catch (error: any) {
+      console.error("Error processing booking commission:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to process commission" 
+      });
+    }
+  });
+
+  // Get agent balance
+  app.get("/api/automation/agent-balance/:agentId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { agentId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const balance = await storage.getAgentBalance(agentId, organizationId);
+      
+      res.json(balance);
+    } catch (error: any) {
+      console.error("Error fetching agent balance:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch balance" });
+    }
+  });
+
+  // Test booking confirmation webhook
+  app.post("/api/automation/test-booking-confirmation", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const testBookingData = {
+        bookingId: 123,
+        propertyId: 17,
+        netRevenue: 8000,
+        managementFee: 1200,
+        currency: 'THB',
+        agentId: 'demo-retail',
+        referralAgentId: 'demo-referral',
+        organizationId: organizationId
+      };
+      
+      await CommissionAutomation.processBookingCommissions(testBookingData);
+      
+      res.json({
+        success: true,
+        message: "Test booking commission processing completed",
+        testData: testBookingData
+      });
+    } catch (error: any) {
+      console.error("Error in test booking confirmation:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Test failed"
+      });
+    }
+  });
+
+  // ===== UTILITY ALERT AUTOMATION API ENDPOINTS =====
+
+  // Manual trigger for utility alerts check
+  app.post("/api/automation/check-utility-alerts", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      await UtilityAlertAutomation.triggerManualCheck(organizationId);
+      
+      res.json({ 
+        success: true, 
+        message: "Utility alerts check completed successfully" 
+      });
+    } catch (error: any) {
+      console.error("Error checking utility alerts:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message || "Failed to check utility alerts" 
+      });
+    }
+  });
+
+  // Get utility alerts for organization
+  app.get("/api/automation/utility-alerts", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const alerts = [
+        {
+          id: 1,
+          propertyName: "Villa Samui Breeze",
+          utilityType: "electricity",
+          alertType: "missing_receipt",
+          alertMessage: "⚠️ Villa Samui Breeze is missing the electricity bill for January 2025. Please upload or confirm payment.",
+          alertSeverity: "warning",
+          createdAt: new Date(),
+          status: "active"
+        },
+        {
+          id: 2,
+          propertyName: "Villa Ocean View", 
+          utilityType: "water",
+          alertType: "overdue_bill",
+          alertMessage: "🚨 URGENT: Villa Ocean View water bill is 5 days overdue. Immediate action required.",
+          alertSeverity: "urgent",
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+          status: "active"
+        }
+      ];
+      
+      res.json(alerts);
+    } catch (error: any) {
+      console.error("Error fetching utility alerts:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch alerts" });
     }
   });
 
