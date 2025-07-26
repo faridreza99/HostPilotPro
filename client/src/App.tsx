@@ -32,6 +32,10 @@ import HostawayUserManagement from "./pages/HostawayUserManagement";
 import OwnerTargetUpgradeTracker from "./pages/OwnerTargetUpgradeTracker";
 import ActivityLogs from "./pages/ActivityLogs";
 import ApiConnections from "./pages/admin/ApiConnections";
+import FinanceRevenuePayouts from "./pages/FinanceRevenuePayouts";
+import FinanceInvoicesIncome from "./pages/FinanceInvoicesIncome";
+import SystemSettings from "./pages/SystemSettings";
+import PropertiesWithTabs from "./pages/PropertiesWithTabs";
 import OrganizationBranding from "./pages/admin/OrganizationBranding";
 import LegalTemplatesManagement from "./pages/admin/LegalTemplatesManagement";
 import MarketingPackManagement from "./pages/admin/MarketingPackManagement";
@@ -145,6 +149,10 @@ function AppRoutes() {
         <Route path="/user-management" component={HostawayUserManagement} />
         <Route path="/user-management/edit" component={HostawayUserManagement} />
         <Route path="/legacy-user-management" component={UserManagement} />
+        <Route path="/finance-revenue-payouts" component={FinanceRevenuePayouts} />
+        <Route path="/finance-invoices-income" component={FinanceInvoicesIncome} />
+        <Route path="/system-settings" component={SystemSettings} />
+        <Route path="/properties-with-tabs" component={PropertiesWithTabs} />
         <Route path="/admin/activity-log" component={ActivityLogs} />
         <Route path="/owner-target-upgrade-tracker" component={OwnerTargetUpgradeTracker} />
         <Route path="/auto-scheduling-recurring-task-generator" component={AutoScheduleTaskGenerator} />
