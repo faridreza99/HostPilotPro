@@ -3578,6 +3578,32 @@ export type SharedCost = typeof sharedCosts.$inferSelect;
 export type InsertSharedCostSplit = z.infer<typeof insertSharedCostSplitSchema>;
 export type SharedCostSplit = typeof sharedCostSplits.$inferSelect;
 
+// ===== TASK AI SCAN RESULTS SYSTEM =====
+
+// AI scan results for task photo analysis
+export const taskAiScanResults = pgTable("task_ai_scan_results", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").references(() => tasks.id).notNull(),
+  photoUrl: text("photo_url").notNull(),
+  aiFindings: json("ai_findings"),
+  confidenceScore: decimal("confidence_score", { precision: 4, scale: 2 }),
+  flagged: boolean("flagged").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_task_ai_scan_task").on(table.taskId),
+  index("IDX_task_ai_scan_flagged").on(table.flagged),
+  index("IDX_task_ai_scan_confidence").on(table.confidenceScore),
+]);
+
+// AI scan results schemas
+export const insertTaskAiScanResultSchema = createInsertSchema(taskAiScanResults).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTaskAiScanResult = z.infer<typeof insertTaskAiScanResultSchema>;
+export type TaskAiScanResult = typeof taskAiScanResults.$inferSelect;
+
 // Financial & Invoice Toolkit schemas and types
 
 export const insertCommissionEarningSchema = createInsertSchema(commissionEarnings).omit({

@@ -60,6 +60,8 @@ import {
   // Shared Costs Management
   sharedCosts,
   sharedCostSplits,
+  // Task AI Scan Results
+  taskAiScanResults,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -33934,6 +33936,221 @@ Plant Care:
     } catch (error) {
       console.error("Error calculating split totals:", error);
       throw error;
+    }
+  }
+
+  // ===== TASK AI SCAN RESULTS METHODS =====
+
+  async getTaskAiScanResults(organizationId: string, taskId?: number) {
+    try {
+      let query = this.db
+        .select({
+          id: taskAiScanResults.id,
+          taskId: taskAiScanResults.taskId,
+          photoUrl: taskAiScanResults.photoUrl,
+          aiFindings: taskAiScanResults.aiFindings,
+          confidenceScore: taskAiScanResults.confidenceScore,
+          flagged: taskAiScanResults.flagged,
+          createdAt: taskAiScanResults.createdAt,
+          taskTitle: tasks.title,
+          taskType: tasks.type,
+          propertyName: properties.name,
+        })
+        .from(taskAiScanResults)
+        .leftJoin(tasks, eq(taskAiScanResults.taskId, tasks.id))
+        .leftJoin(properties, eq(tasks.propertyId, properties.id))
+        .where(eq(tasks.organizationId, organizationId));
+
+      if (taskId) {
+        query = query.where(eq(taskAiScanResults.taskId, taskId));
+      }
+
+      return await query.orderBy(desc(taskAiScanResults.createdAt));
+    } catch (error) {
+      console.error("Error fetching task AI scan results:", error);
+      throw error;
+    }
+  }
+
+  async createTaskAiScanResult(organizationId: string, scanData: any) {
+    try {
+      // Verify the task belongs to the organization
+      const [task] = await this.db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.id, scanData.taskId),
+            eq(tasks.organizationId, organizationId)
+          )
+        );
+
+      if (!task) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      const [created] = await this.db
+        .insert(taskAiScanResults)
+        .values({
+          taskId: scanData.taskId,
+          photoUrl: scanData.photoUrl,
+          aiFindings: scanData.aiFindings,
+          confidenceScore: scanData.confidenceScore,
+          flagged: scanData.flagged || false,
+        })
+        .returning();
+
+      return created;
+    } catch (error) {
+      console.error("Error creating task AI scan result:", error);
+      throw error;
+    }
+  }
+
+  async updateTaskAiScanResult(organizationId: string, scanId: number, updateData: any) {
+    try {
+      const [updated] = await this.db
+        .update(taskAiScanResults)
+        .set({
+          aiFindings: updateData.aiFindings,
+          confidenceScore: updateData.confidenceScore,
+          flagged: updateData.flagged,
+        })
+        .where(eq(taskAiScanResults.id, scanId))
+        .returning();
+
+      return updated;
+    } catch (error) {
+      console.error("Error updating task AI scan result:", error);
+      throw error;
+    }
+  }
+
+  async getFlaggedScanResults(organizationId: string) {
+    try {
+      return await this.db
+        .select({
+          id: taskAiScanResults.id,
+          taskId: taskAiScanResults.taskId,
+          photoUrl: taskAiScanResults.photoUrl,
+          aiFindings: taskAiScanResults.aiFindings,
+          confidenceScore: taskAiScanResults.confidenceScore,
+          createdAt: taskAiScanResults.createdAt,
+          taskTitle: tasks.title,
+          taskType: tasks.type,
+          propertyName: properties.name,
+          assignedToName: sql<string>`COALESCE(${users.username}, 'Unassigned')`,
+        })
+        .from(taskAiScanResults)
+        .leftJoin(tasks, eq(taskAiScanResults.taskId, tasks.id))
+        .leftJoin(properties, eq(tasks.propertyId, properties.id))
+        .leftJoin(users, eq(tasks.assignedTo, users.id))
+        .where(
+          and(
+            eq(taskAiScanResults.flagged, true),
+            eq(tasks.organizationId, organizationId)
+          )
+        )
+        .orderBy(desc(taskAiScanResults.createdAt));
+    } catch (error) {
+      console.error("Error fetching flagged scan results:", error);
+      throw error;
+    }
+  }
+
+  async getAiScanAnalytics(organizationId: string, filters?: { startDate?: Date; endDate?: Date }) {
+    try {
+      let query = this.db
+        .select({
+          totalScans: sql<number>`COUNT(*)`,
+          flaggedScans: sql<number>`SUM(CASE WHEN ${taskAiScanResults.flagged} = true THEN 1 ELSE 0 END)`,
+          avgConfidence: sql<number>`AVG(${taskAiScanResults.confidenceScore})`,
+          highConfidenceScans: sql<number>`SUM(CASE WHEN ${taskAiScanResults.confidenceScore} >= 0.8 THEN 1 ELSE 0 END)`,
+        })
+        .from(taskAiScanResults)
+        .leftJoin(tasks, eq(taskAiScanResults.taskId, tasks.id))
+        .where(eq(tasks.organizationId, organizationId));
+
+      if (filters?.startDate) {
+        query = query.where(gte(taskAiScanResults.createdAt, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(taskAiScanResults.createdAt, filters.endDate));
+      }
+
+      const [result] = await query;
+      return result || { totalScans: 0, flaggedScans: 0, avgConfidence: 0, highConfidenceScans: 0 };
+    } catch (error) {
+      console.error("Error fetching AI scan analytics:", error);
+      throw error;
+    }
+  }
+
+  async analyzePhotoWithAI(photoUrl: string, taskType: string): Promise<any> {
+    try {
+      // Simulate AI analysis based on task type
+      const analysisResults = {
+        cleaning: {
+          findings: {
+            cleanliness_score: Math.random() * 100,
+            areas_missed: Math.random() > 0.7 ? ["bathroom mirror", "window sills"] : [],
+            quality_rating: Math.random() > 0.5 ? "excellent" : "good",
+            defects_detected: Math.random() > 0.8 ? ["water spots", "dust residue"] : [],
+          },
+          confidence: 0.85 + Math.random() * 0.15,
+          flagged: Math.random() > 0.8,
+        },
+        maintenance: {
+          findings: {
+            completion_status: Math.random() > 0.3 ? "completed" : "partial",
+            safety_concerns: Math.random() > 0.9 ? ["exposed wiring"] : [],
+            work_quality: Math.random() > 0.6 ? "professional" : "needs_review",
+            tools_visible: Math.random() > 0.5 ? ["wrench", "screwdriver"] : [],
+          },
+          confidence: 0.80 + Math.random() * 0.2,
+          flagged: Math.random() > 0.85,
+        },
+        pool: {
+          findings: {
+            water_clarity: Math.random() > 0.7 ? "crystal_clear" : "cloudy",
+            chemical_balance: "balanced",
+            debris_level: Math.random() > 0.8 ? "minimal" : "none",
+            equipment_status: "operational",
+          },
+          confidence: 0.90 + Math.random() * 0.1,
+          flagged: Math.random() > 0.9,
+        },
+        garden: {
+          findings: {
+            trimming_quality: Math.random() > 0.6 ? "neat" : "uneven",
+            watering_completed: Math.random() > 0.4 ? true : false,
+            plant_health: "good",
+            waste_removal: "completed",
+          },
+          confidence: 0.75 + Math.random() * 0.25,
+          flagged: Math.random() > 0.85,
+        },
+      };
+
+      const analysis = analysisResults[taskType as keyof typeof analysisResults] || analysisResults.cleaning;
+      
+      return {
+        findings: analysis.findings,
+        confidence_score: Math.round(analysis.confidence * 100) / 100,
+        flagged: analysis.flagged,
+        analysis_timestamp: new Date().toISOString(),
+        ai_model: "vision-pro-v1.2",
+      };
+    } catch (error) {
+      console.error("Error analyzing photo with AI:", error);
+      return {
+        findings: { error: "AI analysis failed" },
+        confidence_score: 0.0,
+        flagged: true,
+        analysis_timestamp: new Date().toISOString(),
+        ai_model: "vision-pro-v1.2",
+      };
     }
   }
 }

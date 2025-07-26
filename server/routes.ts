@@ -28998,6 +28998,118 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== TASK AI SCAN RESULTS ENDPOINTS =====
+
+  // Get AI scan results for tasks
+  app.get("/api/task-ai-scans", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { taskId } = req.query;
+      
+      const results = await storage.getTaskAiScanResults(
+        organizationId, 
+        taskId ? parseInt(taskId as string) : undefined
+      );
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching AI scan results:", error);
+      res.status(500).json({ message: "Failed to fetch AI scan results" });
+    }
+  });
+
+  // Create new AI scan result
+  app.post("/api/task-ai-scans", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { taskId, photoUrl, taskType } = req.body;
+      
+      if (!taskId || !photoUrl) {
+        return res.status(400).json({ message: "Task ID and photo URL are required" });
+      }
+
+      // Perform AI analysis
+      const aiAnalysis = await storage.analyzePhotoWithAI(photoUrl, taskType || "cleaning");
+      
+      const scanData = {
+        taskId,
+        photoUrl,
+        aiFindings: aiAnalysis.findings,
+        confidenceScore: aiAnalysis.confidence_score,
+        flagged: aiAnalysis.flagged,
+      };
+
+      const created = await storage.createTaskAiScanResult(organizationId, scanData);
+      res.json({ ...created, aiAnalysis });
+    } catch (error) {
+      console.error("Error creating AI scan result:", error);
+      res.status(500).json({ message: "Failed to create AI scan result" });
+    }
+  });
+
+  // Update AI scan result (for manual review)
+  app.put("/api/task-ai-scans/:scanId", requireAdmin, async (req, res) => {
+    try {
+      const { scanId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      const updateData = req.body;
+      
+      const updated = await storage.updateTaskAiScanResult(organizationId, parseInt(scanId), updateData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating AI scan result:", error);
+      res.status(500).json({ message: "Failed to update AI scan result" });
+    }
+  });
+
+  // Get flagged scan results requiring review
+  app.get("/api/task-ai-scans/flagged", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const flagged = await storage.getFlaggedScanResults(organizationId);
+      res.json(flagged);
+    } catch (error) {
+      console.error("Error fetching flagged scan results:", error);
+      res.status(500).json({ message: "Failed to fetch flagged scan results" });
+    }
+  });
+
+  // Get AI scan analytics
+  app.get("/api/task-ai-scans/analytics", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { startDate, endDate } = req.query;
+      
+      const filters = {
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      
+      const analytics = await storage.getAiScanAnalytics(organizationId, filters);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching AI scan analytics:", error);
+      res.status(500).json({ message: "Failed to fetch AI scan analytics" });
+    }
+  });
+
+  // Analyze photo with AI (standalone endpoint)
+  app.post("/api/analyze-photo", async (req, res) => {
+    try {
+      const { photoUrl, taskType } = req.body;
+      
+      if (!photoUrl) {
+        return res.status(400).json({ message: "Photo URL is required" });
+      }
+
+      const analysis = await storage.analyzePhotoWithAI(photoUrl, taskType || "cleaning");
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing photo:", error);
+      res.status(500).json({ message: "Failed to analyze photo" });
+    }
+  });
+
   // ===== CURRENCY AND TAX MANAGEMENT ENDPOINTS =====
 
   // Get all currency rates
