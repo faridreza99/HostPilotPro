@@ -31165,6 +31165,127 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Seasonal Forecasting Routes =====
+  
+  app.get("/api/seasonal-forecasts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, forecastMonth } = req.query;
+      const forecasts = await storage.getSeasonalForecasts(
+        propertyId ? parseInt(propertyId as string) : undefined,
+        forecastMonth as string
+      );
+      res.json(forecasts);
+    } catch (error) {
+      console.error("Error fetching seasonal forecasts:", error);
+      res.status(500).json({ error: "Failed to fetch seasonal forecasts" });
+    }
+  });
+
+  app.get("/api/seasonal-forecasts/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const forecast = await storage.getSeasonalForecastById(id);
+      if (!forecast) {
+        return res.status(404).json({ error: "Seasonal forecast not found" });
+      }
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error fetching seasonal forecast:", error);
+      res.status(500).json({ error: "Failed to fetch seasonal forecast" });
+    }
+  });
+
+  app.post("/api/seasonal-forecasts", isDemoAuthenticated, async (req, res) => {
+    try {
+      const forecast = await storage.createSeasonalForecast(req.body);
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error creating seasonal forecast:", error);
+      res.status(500).json({ error: "Failed to create seasonal forecast" });
+    }
+  });
+
+  app.put("/api/seasonal-forecasts/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const forecast = await storage.updateSeasonalForecast(id, req.body);
+      if (!forecast) {
+        return res.status(404).json({ error: "Seasonal forecast not found" });
+      }
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error updating seasonal forecast:", error);
+      res.status(500).json({ error: "Failed to update seasonal forecast" });
+    }
+  });
+
+  app.delete("/api/seasonal-forecasts/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteSeasonalForecast(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting seasonal forecast:", error);
+      res.status(500).json({ error: "Failed to delete seasonal forecast" });
+    }
+  });
+
+  app.get("/api/seasonal-forecasts/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getSeasonalForecastAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching seasonal forecast analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/seasonal-forecasts/property/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { yearRange } = req.query;
+      const forecasts = await storage.getForecastsByProperty(propertyId, yearRange as string);
+      res.json(forecasts);
+    } catch (error) {
+      console.error("Error fetching forecasts by property:", error);
+      res.status(500).json({ error: "Failed to fetch forecasts by property" });
+    }
+  });
+
+  app.post("/api/seasonal-forecasts/generate-ai", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, forecastMonth } = req.body;
+      const aiPrediction = await storage.generateAIForecast(propertyId, forecastMonth);
+      res.json(aiPrediction);
+    } catch (error) {
+      console.error("Error generating AI forecast:", error);
+      res.status(500).json({ error: "Failed to generate AI forecast" });
+    }
+  });
+
+  app.post("/api/seasonal-forecasts/bulk-generate", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyIds, startMonth, monthCount } = req.body;
+      const forecasts = await storage.bulkGenerateForecasts(propertyIds, startMonth, monthCount);
+      res.json({ generatedCount: forecasts.length, forecasts });
+    } catch (error) {
+      console.error("Error bulk generating forecasts:", error);
+      res.status(500).json({ error: "Failed to bulk generate forecasts" });
+    }
+  });
+
+  app.post("/api/seasonal-forecasts/accuracy/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { actualData } = req.body;
+      const accuracy = await storage.getForecastAccuracy(propertyId, actualData);
+      res.json(accuracy);
+    } catch (error) {
+      console.error("Error calculating forecast accuracy:", error);
+      res.status(500).json({ error: "Failed to calculate forecast accuracy" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

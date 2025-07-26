@@ -12272,3 +12272,29 @@ export const insertWhatsappBotLogSchema = createInsertSchema(whatsappBotLogs).om
 
 export type WhatsappBotLog = typeof whatsappBotLogs.$inferSelect;
 export type InsertWhatsappBotLog = z.infer<typeof insertWhatsappBotLogSchema>;
+
+// ===== SEASONAL FORECASTING SYSTEM =====
+
+export const seasonalForecasts = pgTable("seasonal_forecasts", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  forecastMonth: varchar("forecast_month").notNull(), // YYYY-MM format
+  expectedOccupancy: decimal("expected_occupancy", { precision: 5, scale: 2 }),
+  expectedRate: decimal("expected_rate", { precision: 10, scale: 2 }),
+  aiNotes: text("ai_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_seasonal_forecasts_organization").on(table.organizationId),
+  index("IDX_seasonal_forecasts_property").on(table.propertyId),
+  index("IDX_seasonal_forecasts_month").on(table.forecastMonth),
+  index("IDX_seasonal_forecasts_created").on(table.createdAt),
+]);
+
+export const insertSeasonalForecastSchema = createInsertSchema(seasonalForecasts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SeasonalForecast = typeof seasonalForecasts.$inferSelect;
+export type InsertSeasonalForecast = z.infer<typeof insertSeasonalForecastSchema>;
