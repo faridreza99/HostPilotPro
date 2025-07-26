@@ -35,6 +35,7 @@ import OrganizationBranding from "./pages/admin/OrganizationBranding";
 import LegalTemplatesManagement from "./pages/admin/LegalTemplatesManagement";
 import MarketingPackManagement from "./pages/admin/MarketingPackManagement";
 import AiOpsAnomaliesManagement from "./pages/admin/AiOpsAnomaliesManagement";
+import AiVirtualManagersManagement from "./pages/admin/AiVirtualManagersManagement";
 import AutoScheduleTaskGenerator from "./pages/AutoScheduleTaskGenerator";
 import OtaRevenueNetPayoutCalculation from "./pages/OtaRevenueNetPayoutCalculation";
 import LoyaltyGuestTracker from "./pages/LoyaltyGuestTracker";
@@ -140,6 +141,7 @@ function AppRoutes() {
         <Route path="/admin/legal-templates" component={LegalTemplatesManagement} />
         <Route path="/admin/marketing-pack-management" component={MarketingPackManagement} />
         <Route path="/admin/ai-ops-anomalies" component={AiOpsAnomaliesManagement} />
+        <Route path="/admin/ai-virtual-managers" component={AiVirtualManagersManagement} />
         <Route path="/admin/user-management" component={UserManagement} />
         <Route path="/user-management" component={UserManagement} />
         <Route path="/admin/activity-log" component={ActivityLogs} />

@@ -3603,6 +3603,66 @@ export const insertAiOpsAnomalySchema = createInsertSchema(aiOpsAnomalies).omit(
 export type InsertAiOpsAnomaly = z.infer<typeof insertAiOpsAnomalySchema>;
 export type AiOpsAnomaly = typeof aiOpsAnomalies.$inferSelect;
 
+// ===== AI VIRTUAL MANAGERS SYSTEM =====
+
+// AI Virtual Managers for property-specific AI assistants
+export const aiVirtualManagers = pgTable("ai_virtual_managers", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").references(() => properties.id),
+  organizationId: varchar("organization_id").notNull(),
+  avatarName: varchar("avatar_name").default("HostPilot AI"),
+  knowledgeBase: json("knowledge_base").$type<{
+    propertyInfo?: {
+      name?: string;
+      address?: string;
+      amenities?: string[];
+      rules?: string[];
+      checkInOut?: string;
+      emergencyContacts?: any[];
+    };
+    localInfo?: {
+      attractions?: string[];
+      restaurants?: string[];
+      transportation?: string[];
+      services?: string[];
+    };
+    operationalInfo?: {
+      wifiPassword?: string;
+      applianceInstructions?: string[];
+      maintenanceContacts?: any[];
+      keyProcesses?: string[];
+    };
+    personalizedSettings?: {
+      tone?: string;
+      responseStyle?: string;
+      specializations?: string[];
+      languages?: string[];
+    };
+  }>(),
+  language: varchar("language").default("en"), // en, th, zh, ja, ko, de, fr
+  lastActive: timestamp("last_active").defaultNow(),
+  isActive: boolean("is_active").default(true),
+  totalInteractions: integer("total_interactions").default(0),
+  avgResponseTime: decimal("avg_response_time", { precision: 6, scale: 2 }), // in seconds
+  satisfactionScore: decimal("satisfaction_score", { precision: 3, scale: 2 }), // 0.00 to 5.00
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_ai_virtual_managers_org").on(table.organizationId),
+  index("IDX_ai_virtual_managers_property").on(table.propertyId),
+  index("IDX_ai_virtual_managers_active").on(table.isActive),
+  index("IDX_ai_virtual_managers_language").on(table.language),
+]);
+
+export const insertAiVirtualManagerSchema = createInsertSchema(aiVirtualManagers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAiVirtualManager = z.infer<typeof insertAiVirtualManagerSchema>;
+export type AiVirtualManager = typeof aiVirtualManagers.$inferSelect;
+
 // ===== SHARED COSTS MANAGEMENT SYSTEM =====
 
 // Shared costs for multi-property buildings

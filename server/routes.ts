@@ -10011,6 +10011,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== AI VIRTUAL MANAGERS SYSTEM API =====
+
+  // Get all AI virtual managers
+  app.get("/api/ai-virtual-managers", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const managers = await storage.getAiVirtualManagers(organizationId);
+      res.json(managers);
+    } catch (error) {
+      console.error("Error fetching AI virtual managers:", error);
+      res.status(500).json({ message: "Failed to fetch AI virtual managers" });
+    }
+  });
+
+  // Create AI virtual manager
+  app.post("/api/ai-virtual-managers", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const { role } = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied. Admin or Portfolio Manager role required." });
+      }
+
+      const manager = await storage.createAiVirtualManager(organizationId, req.body);
+      res.status(201).json(manager);
+    } catch (error) {
+      console.error("Error creating AI virtual manager:", error);
+      res.status(500).json({ message: "Failed to create AI virtual manager" });
+    }
+  });
+
+  // Get AI virtual manager by ID
+  app.get("/api/ai-virtual-managers/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const { id } = req.params;
+      const manager = await storage.getAiVirtualManagerById(organizationId, parseInt(id));
+      
+      if (!manager) {
+        return res.status(404).json({ message: "AI virtual manager not found" });
+      }
+      
+      res.json(manager);
+    } catch (error) {
+      console.error("Error fetching AI virtual manager:", error);
+      res.status(500).json({ message: "Failed to fetch AI virtual manager" });
+    }
+  });
+
+  // Update AI virtual manager
+  app.put("/api/ai-virtual-managers/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const { id } = req.params;
+      const { role } = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied. Admin or Portfolio Manager role required." });
+      }
+
+      const manager = await storage.updateAiVirtualManager(organizationId, parseInt(id), req.body);
+      res.json(manager);
+    } catch (error) {
+      console.error("Error updating AI virtual manager:", error);
+      res.status(500).json({ message: "Failed to update AI virtual manager" });
+    }
+  });
+
+  // Delete AI virtual manager
+  app.delete("/api/ai-virtual-managers/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const { id } = req.params;
+      const { role } = req.user;
+      
+      if (!['admin', 'portfolio-manager'].includes(role)) {
+        return res.status(403).json({ message: "Access denied. Admin or Portfolio Manager role required." });
+      }
+
+      await storage.deleteAiVirtualManager(organizationId, parseInt(id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting AI virtual manager:", error);
+      res.status(500).json({ message: "Failed to delete AI virtual manager" });
+    }
+  });
+
+  // Get AI virtual managers by property
+  app.get("/api/ai-virtual-managers/property/:propertyId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const { propertyId } = req.params;
+      const managers = await storage.getAiVirtualManagersByProperty(organizationId, parseInt(propertyId));
+      res.json(managers);
+    } catch (error) {
+      console.error("Error fetching AI virtual managers by property:", error);
+      res.status(500).json({ message: "Failed to fetch AI virtual managers by property" });
+    }
+  });
+
+  // Get AI virtual manager analytics
+  app.get("/api/ai-virtual-managers/analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const analytics = await storage.getAiVirtualManagerAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching AI virtual manager analytics:", error);
+      res.status(500).json({ message: "Failed to fetch AI virtual manager analytics" });
+    }
+  });
+
+  // Get AI virtual managers by language
+  app.get("/api/ai-virtual-managers/language/:language", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const { language } = req.params;
+      const managers = await storage.getAiVirtualManagersByLanguage(organizationId, language);
+      res.json(managers);
+    } catch (error) {
+      console.error("Error fetching AI virtual managers by language:", error);
+      res.status(500).json({ message: "Failed to fetch AI virtual managers by language" });
+    }
+  });
+
+  // Update manager activity (when AI responds to guest)
+  app.post("/api/ai-virtual-managers/:id/activity", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const { id } = req.params;
+      const { responseTime } = req.body;
+      
+      await storage.updateManagerActivity(organizationId, parseInt(id), responseTime);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating manager activity:", error);
+      res.status(500).json({ message: "Failed to update manager activity" });
+    }
+  });
+
+  // Search AI virtual managers
+  app.get("/api/ai-virtual-managers/search/:searchTerm", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = "demo-org-1"; // Demo organization
+      const { searchTerm } = req.params;
+      const managers = await storage.searchAiVirtualManagers(organizationId, searchTerm);
+      res.json(managers);
+    } catch (error) {
+      console.error("Error searching AI virtual managers:", error);
+      res.status(500).json({ message: "Failed to search AI virtual managers" });
+    }
+  });
+
   // ===== COMPREHENSIVE PAYROLL, COMMISSION & INVOICE MANAGEMENT API =====
 
   // ===== STAFF PAYROLL MANAGEMENT ROUTES =====
@@ -19132,6 +19286,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error auto-fixing anomalies:", error);
       res.status(500).json({ message: "Failed to auto-fix anomalies" });
+    }
+  });
+
+  // ============= AI VIRTUAL MANAGERS ENDPOINTS =============
+
+  // Get all AI Virtual Managers
+  app.get("/api/ai-virtual-managers", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const managers = await storage.getAiVirtualManagers(organizationId);
+      res.json(managers);
+    } catch (error: any) {
+      console.error("Error fetching AI virtual managers:", error);
+      res.status(500).json({ message: "Failed to fetch AI virtual managers" });
+    }
+  });
+
+  // Create new AI Virtual Manager
+  app.post("/api/ai-virtual-managers", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const managerData = req.body;
+      const manager = await storage.createAiVirtualManager(organizationId, managerData);
+      res.status(201).json(manager);
+    } catch (error: any) {
+      console.error("Error creating AI virtual manager:", error);
+      res.status(500).json({ message: "Failed to create AI virtual manager" });
+    }
+  });
+
+  // Get AI Virtual Manager by ID
+  app.get("/api/ai-virtual-managers/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const managerId = parseInt(req.params.id);
+      const manager = await storage.getAiVirtualManagerById(organizationId, managerId);
+      
+      if (!manager) {
+        return res.status(404).json({ message: "AI virtual manager not found" });
+      }
+      
+      res.json(manager);
+    } catch (error: any) {
+      console.error("Error fetching AI virtual manager:", error);
+      res.status(500).json({ message: "Failed to fetch AI virtual manager" });
+    }
+  });
+
+  // Update AI Virtual Manager
+  app.put("/api/ai-virtual-managers/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const managerId = parseInt(req.params.id);
+      const updates = req.body;
+      const manager = await storage.updateAiVirtualManager(organizationId, managerId, updates);
+      
+      if (!manager) {
+        return res.status(404).json({ message: "AI virtual manager not found" });
+      }
+      
+      res.json(manager);
+    } catch (error: any) {
+      console.error("Error updating AI virtual manager:", error);
+      res.status(500).json({ message: "Failed to update AI virtual manager" });
+    }
+  });
+
+  // Delete AI Virtual Manager
+  app.delete("/api/ai-virtual-managers/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const managerId = parseInt(req.params.id);
+      const success = await storage.deleteAiVirtualManager(organizationId, managerId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "AI virtual manager not found" });
+      }
+      
+      res.json({ message: "AI virtual manager deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting AI virtual manager:", error);
+      res.status(500).json({ message: "Failed to delete AI virtual manager" });
+    }
+  });
+
+  // Get AI Virtual Manager Analytics
+  app.get("/api/ai-virtual-managers/analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const analytics = await storage.getAiVirtualManagerAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error fetching AI virtual manager analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // Get AI Virtual Managers by Property
+  app.get("/api/ai-virtual-managers/property/:propertyId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const propertyId = parseInt(req.params.propertyId);
+      const managers = await storage.getAiVirtualManagersByProperty(organizationId, propertyId);
+      res.json(managers);
+    } catch (error: any) {
+      console.error("Error fetching AI virtual managers by property:", error);
+      res.status(500).json({ message: "Failed to fetch AI virtual managers" });
+    }
+  });
+
+  // Search AI Virtual Managers
+  app.get("/api/ai-virtual-managers/search/:searchTerm", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const searchTerm = req.params.searchTerm;
+      const managers = await storage.searchAiVirtualManagers(organizationId, searchTerm);
+      res.json(managers);
+    } catch (error: any) {
+      console.error("Error searching AI virtual managers:", error);
+      res.status(500).json({ message: "Failed to search AI virtual managers" });
+    }
+  });
+
+  // Update Manager Activity (for interaction tracking)
+  app.post("/api/ai-virtual-managers/:id/activity", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const managerId = parseInt(req.params.id);
+      const { responseTime } = req.body;
+      await storage.updateManagerActivity(organizationId, managerId, responseTime);
+      res.json({ message: "Activity updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating manager activity:", error);
+      res.status(500).json({ message: "Failed to update activity" });
     }
   });
 

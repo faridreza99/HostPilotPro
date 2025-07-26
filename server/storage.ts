@@ -63,6 +63,7 @@ import {
   offlineTaskCache,
   marketingPacks,
   aiOpsAnomalies,
+  aiVirtualManagers,
   // Shared Costs Management
   sharedCosts,
   sharedCostSplits,
@@ -672,6 +673,9 @@ import {
   type InsertAlertRule,
   type AlertLog,
   type InsertAlertLog,
+  // AI Virtual Managers types
+  type AiVirtualManager,
+  type InsertAiVirtualManager,
 } from "@shared/schema";
 
 // Guest Portal Smart Requests & AI Chat imports
@@ -40062,6 +40066,150 @@ The ${packType} approach focuses on highlighting the property's strengths while 
     return detectedAnomalies;
   }
 
+  // ===== AI VIRTUAL MANAGERS OPERATIONS =====
+
+  async getAiVirtualManagers(organizationId: string): Promise<AiVirtualManager[]> {
+    return await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId))
+      .orderBy(desc(aiVirtualManagers.createdAt));
+  }
+
+  async createAiVirtualManager(organizationId: string, data: InsertAiVirtualManager): Promise<AiVirtualManager> {
+    const [manager] = await db
+      .insert(aiVirtualManagers)
+      .values({ ...data, organizationId })
+      .returning();
+    return manager;
+  }
+
+  async getAiVirtualManagerById(organizationId: string, id: number): Promise<AiVirtualManager | undefined> {
+    const [manager] = await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.id, id),
+        eq(aiVirtualManagers.organizationId, organizationId)
+      ));
+    return manager;
+  }
+
+  async updateAiVirtualManager(organizationId: string, id: number, data: Partial<InsertAiVirtualManager>): Promise<AiVirtualManager | undefined> {
+    const [manager] = await db
+      .update(aiVirtualManagers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(
+        eq(aiVirtualManagers.id, id),
+        eq(aiVirtualManagers.organizationId, organizationId)
+      ))
+      .returning();
+    return manager;
+  }
+
+  async deleteAiVirtualManager(organizationId: string, id: number): Promise<boolean> {
+    const result = await db
+      .delete(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.id, id),
+        eq(aiVirtualManagers.organizationId, organizationId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  async getAiVirtualManagersByProperty(organizationId: string, propertyId: number): Promise<AiVirtualManager[]> {
+    return await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.propertyId, propertyId)
+      ))
+      .orderBy(desc(aiVirtualManagers.createdAt));
+  }
+
+  async getAiVirtualManagerAnalytics(organizationId: string) {
+    const totalManagers = await db
+      .select({ count: count() })
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId));
+
+    const activeManagers = await db
+      .select({ count: count() })
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.isActive, true)
+      ));
+
+    const totalInteractions = await db
+      .select({ sum: sum(aiVirtualManagers.totalInteractions) })
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId));
+
+    const avgSatisfactionScore = await db
+      .select({ avg: avg(aiVirtualManagers.satisfactionScore) })
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId));
+
+    const languageDistribution = await db
+      .select({
+        language: aiVirtualManagers.language,
+        count: count()
+      })
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId))
+      .groupBy(aiVirtualManagers.language);
+
+    return {
+      totalManagers: totalManagers[0]?.count || 0,
+      activeManagers: activeManagers[0]?.count || 0,
+      totalInteractions: totalInteractions[0]?.sum || 0,
+      avgSatisfactionScore: avgSatisfactionScore[0]?.avg || 0,
+      languageDistribution
+    };
+  }
+
+  async getAiVirtualManagersByLanguage(organizationId: string, language: string): Promise<AiVirtualManager[]> {
+    return await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.language, language)
+      ))
+      .orderBy(desc(aiVirtualManagers.createdAt));
+  }
+
+  async updateManagerActivity(organizationId: string, id: number, responseTime: number): Promise<void> {
+    await db
+      .update(aiVirtualManagers)
+      .set({
+        lastActive: new Date(),
+        totalInteractions: sql`${aiVirtualManagers.totalInteractions} + 1`,
+        avgResponseTime: sql`(${aiVirtualManagers.avgResponseTime} + ${responseTime}) / 2`,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(aiVirtualManagers.id, id),
+        eq(aiVirtualManagers.organizationId, organizationId)
+      ));
+  }
+
+  async searchAiVirtualManagers(organizationId: string, searchTerm: string): Promise<AiVirtualManager[]> {
+    return await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        or(
+          sql`${aiVirtualManagers.avatarName} ILIKE ${'%' + searchTerm + '%'}`,
+          sql`${aiVirtualManagers.language} ILIKE ${'%' + searchTerm + '%'}`
+        )
+      ))
+      .orderBy(desc(aiVirtualManagers.createdAt));
+  }
+
   // Auto-fix anomalies where possible
   async autoFixAnomalies(organizationId: string) {
     const openAnomalies = await db
@@ -40123,6 +40271,174 @@ The ${packType} approach focuses on highlighting the property's strengths while 
   }
 
   // Bulk generate marketing packs for multiple properties
+  
+  // ===== AI VIRTUAL MANAGERS SYSTEM =====
+
+  // Get all AI virtual managers for organization
+  async getAiVirtualManagers(organizationId: string) {
+    return await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId))
+      .orderBy(desc(aiVirtualManagers.lastActive));
+  }
+
+  // Create AI virtual manager
+  async createAiVirtualManager(organizationId: string, managerData: InsertAiVirtualManager) {
+    const [manager] = await db
+      .insert(aiVirtualManagers)
+      .values({
+        ...managerData,
+        organizationId,
+      })
+      .returning();
+    return manager;
+  }
+
+  // Get AI virtual manager by ID
+  async getAiVirtualManagerById(organizationId: string, managerId: number) {
+    const [manager] = await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.id, managerId)
+      ));
+    return manager;
+  }
+
+  // Update AI virtual manager
+  async updateAiVirtualManager(organizationId: string, managerId: number, updates: Partial<InsertAiVirtualManager>) {
+    const [manager] = await db
+      .update(aiVirtualManagers)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.id, managerId)
+      ))
+      .returning();
+    return manager;
+  }
+
+  // Delete AI virtual manager
+  async deleteAiVirtualManager(organizationId: string, managerId: number) {
+    await db
+      .delete(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.id, managerId)
+      ));
+  }
+
+  // Get AI virtual managers by property
+  async getAiVirtualManagersByProperty(organizationId: string, propertyId: number) {
+    return await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.propertyId, propertyId)
+      ))
+      .orderBy(desc(aiVirtualManagers.lastActive));
+  }
+
+  // Get AI virtual manager analytics
+  async getAiVirtualManagerAnalytics(organizationId: string) {
+    const totalManagers = await db
+      .select({ count: count() })
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId));
+
+    const activeManagers = await db
+      .select({ count: count() })
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.isActive, true)
+      ));
+
+    const languageDistribution = await db
+      .select({
+        language: aiVirtualManagers.language,
+        count: count()
+      })
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId))
+      .groupBy(aiVirtualManagers.language);
+
+    const avgSatisfactionResult = await db
+      .select({
+        avgSatisfaction: avg(aiVirtualManagers.satisfactionScore)
+      })
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        isNotNull(aiVirtualManagers.satisfactionScore)
+      ));
+
+    const totalInteractionsResult = await db
+      .select({
+        totalInteractions: sum(aiVirtualManagers.totalInteractions)
+      })
+      .from(aiVirtualManagers)
+      .where(eq(aiVirtualManagers.organizationId, organizationId));
+
+    return {
+      totalManagers: totalManagers[0]?.count || 0,
+      activeManagers: activeManagers[0]?.count || 0,
+      languageDistribution,
+      avgSatisfactionScore: Number(avgSatisfactionResult[0]?.avgSatisfaction || 0),
+      totalInteractions: Number(totalInteractionsResult[0]?.totalInteractions || 0)
+    };
+  }
+
+  // Update manager activity
+  async updateManagerActivity(organizationId: string, managerId: number, responseTime: number) {
+    const manager = await this.getAiVirtualManagerById(organizationId, managerId);
+    if (!manager) return;
+
+    const newInteractionCount = (manager.totalInteractions || 0) + 1;
+    const currentAvgResponseTime = Number(manager.avgResponseTime || 0);
+    const newAvgResponseTime = currentAvgResponseTime === 0 
+      ? responseTime 
+      : (currentAvgResponseTime * (newInteractionCount - 1) + responseTime) / newInteractionCount;
+
+    await this.updateAiVirtualManager(organizationId, managerId, {
+      lastActive: new Date(),
+      totalInteractions: newInteractionCount,
+      avgResponseTime: newAvgResponseTime,
+    });
+  }
+
+  // Get managers by language
+  async getAiVirtualManagersByLanguage(organizationId: string, language: string) {
+    return await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        eq(aiVirtualManagers.language, language),
+        eq(aiVirtualManagers.isActive, true)
+      ))
+      .orderBy(desc(aiVirtualManagers.satisfactionScore));
+  }
+
+  // Search managers by knowledge base content
+  async searchAiVirtualManagers(organizationId: string, searchTerm: string) {
+    return await db
+      .select()
+      .from(aiVirtualManagers)
+      .where(and(
+        eq(aiVirtualManagers.organizationId, organizationId),
+        or(
+          ilike(aiVirtualManagers.avatarName, `%${searchTerm}%`),
+          // JSON search would require specific database functions
+        )
+      ));
+  }
   async bulkGenerateMarketingPacks(organizationId: string, propertyIds: number[], packConfig: {
     packType: string;
     targetAudience: string;
