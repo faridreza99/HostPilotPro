@@ -29110,6 +29110,158 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== PROPERTY INVESTMENTS ENDPOINTS =====
+
+  // Get property investments with optional filtering
+  app.get("/api/property-investments", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { propertyId, investmentType, startDate, endDate } = req.query;
+      
+      const filters = {
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+        investmentType: investmentType as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      
+      const investments = await storage.getPropertyInvestments(organizationId, filters);
+      res.json(investments);
+    } catch (error) {
+      console.error("Error fetching property investments:", error);
+      res.status(500).json({ message: "Failed to fetch property investments" });
+    }
+  });
+
+  // Create new property investment
+  app.post("/api/property-investments", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const investmentData = req.body;
+      
+      if (!investmentData.amount || !investmentData.investmentDate) {
+        return res.status(400).json({ message: "Amount and investment date are required" });
+      }
+
+      const created = await storage.createPropertyInvestment(organizationId, investmentData);
+      res.json(created);
+    } catch (error) {
+      console.error("Error creating property investment:", error);
+      res.status(500).json({ message: "Failed to create property investment" });
+    }
+  });
+
+  // Update property investment
+  app.put("/api/property-investments/:investmentId", requireAdmin, async (req, res) => {
+    try {
+      const { investmentId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      const updateData = req.body;
+      
+      const updated = await storage.updatePropertyInvestment(organizationId, parseInt(investmentId), updateData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating property investment:", error);
+      res.status(500).json({ message: "Failed to update property investment" });
+    }
+  });
+
+  // Delete property investment
+  app.delete("/api/property-investments/:investmentId", requireAdmin, async (req, res) => {
+    try {
+      const { investmentId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const deleted = await storage.deletePropertyInvestment(organizationId, parseInt(investmentId));
+      res.json(deleted);
+    } catch (error) {
+      console.error("Error deleting property investment:", error);
+      res.status(500).json({ message: "Failed to delete property investment" });
+    }
+  });
+
+  // Get investments by property
+  app.get("/api/property-investments/property/:propertyId", async (req, res) => {
+    try {
+      const { propertyId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const investments = await storage.getInvestmentsByProperty(organizationId, parseInt(propertyId));
+      res.json(investments);
+    } catch (error) {
+      console.error("Error fetching investments by property:", error);
+      res.status(500).json({ message: "Failed to fetch investments by property" });
+    }
+  });
+
+  // Get investment analytics
+  app.get("/api/property-investments/analytics", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { startDate, endDate, propertyId } = req.query;
+      
+      const filters = {
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        propertyId: propertyId ? parseInt(propertyId as string) : undefined,
+      };
+      
+      const analytics = await storage.getInvestmentAnalytics(organizationId, filters);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching investment analytics:", error);
+      res.status(500).json({ message: "Failed to fetch investment analytics" });
+    }
+  });
+
+  // Get investment types summary
+  app.get("/api/property-investments/types", async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const types = await storage.getInvestmentTypes(organizationId);
+      res.json(types);
+    } catch (error) {
+      console.error("Error fetching investment types:", error);
+      res.status(500).json({ message: "Failed to fetch investment types" });
+    }
+  });
+
+  // Get monthly investment trends
+  app.get("/api/property-investments/trends", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      const { months } = req.query;
+      
+      const trends = await storage.getMonthlyInvestmentTrends(
+        organizationId, 
+        months ? parseInt(months as string) : 12
+      );
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching investment trends:", error);
+      res.status(500).json({ message: "Failed to fetch investment trends" });
+    }
+  });
+
+  // Calculate ROI actuals for a specific investment
+  app.get("/api/property-investments/:investmentId/roi/:propertyId", async (req, res) => {
+    try {
+      const { investmentId, propertyId } = req.params;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      const roiData = await storage.calculateROIActuals(
+        organizationId, 
+        parseInt(propertyId), 
+        parseInt(investmentId)
+      );
+      res.json(roiData);
+    } catch (error) {
+      console.error("Error calculating ROI actuals:", error);
+      res.status(500).json({ message: "Failed to calculate ROI actuals" });
+    }
+  });
+
   // ===== CURRENCY AND TAX MANAGEMENT ENDPOINTS =====
 
   // Get all currency rates

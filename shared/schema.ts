@@ -3604,6 +3604,35 @@ export const insertTaskAiScanResultSchema = createInsertSchema(taskAiScanResults
 export type InsertTaskAiScanResult = z.infer<typeof insertTaskAiScanResultSchema>;
 export type TaskAiScanResult = typeof taskAiScanResults.$inferSelect;
 
+// ===== PROPERTY INVESTMENTS SYSTEM =====
+
+// Property investments for tracking capital investments and ROI
+export const propertyInvestments = pgTable("property_investments", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  investmentType: varchar("investment_type"),
+  description: text("description"),
+  amount: decimal("amount", { precision: 12, scale: 2 }),
+  investmentDate: date("investment_date"),
+  expectedRoi: decimal("expected_roi", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_investments_org").on(table.organizationId),
+  index("IDX_property_investments_property").on(table.propertyId),
+  index("IDX_property_investments_type").on(table.investmentType),
+  index("IDX_property_investments_date").on(table.investmentDate),
+]);
+
+// Property investments schemas
+export const insertPropertyInvestmentSchema = createInsertSchema(propertyInvestments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPropertyInvestment = z.infer<typeof insertPropertyInvestmentSchema>;
+export type PropertyInvestment = typeof propertyInvestments.$inferSelect;
+
 // Financial & Invoice Toolkit schemas and types
 
 export const insertCommissionEarningSchema = createInsertSchema(commissionEarnings).omit({

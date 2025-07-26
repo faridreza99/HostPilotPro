@@ -62,6 +62,8 @@ import {
   sharedCostSplits,
   // Task AI Scan Results
   taskAiScanResults,
+  // Property Investments
+  propertyInvestments,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -34151,6 +34153,294 @@ Plant Care:
         analysis_timestamp: new Date().toISOString(),
         ai_model: "vision-pro-v1.2",
       };
+    }
+  }
+
+  // ===== PROPERTY INVESTMENTS METHODS =====
+
+  async getPropertyInvestments(organizationId: string, filters?: { propertyId?: number; investmentType?: string; startDate?: Date; endDate?: Date }) {
+    try {
+      let query = this.db
+        .select({
+          id: propertyInvestments.id,
+          organizationId: propertyInvestments.organizationId,
+          propertyId: propertyInvestments.propertyId,
+          investmentType: propertyInvestments.investmentType,
+          description: propertyInvestments.description,
+          amount: propertyInvestments.amount,
+          investmentDate: propertyInvestments.investmentDate,
+          expectedRoi: propertyInvestments.expectedRoi,
+          createdAt: propertyInvestments.createdAt,
+          propertyName: properties.name,
+        })
+        .from(propertyInvestments)
+        .leftJoin(properties, eq(propertyInvestments.propertyId, properties.id))
+        .where(eq(propertyInvestments.organizationId, organizationId));
+
+      if (filters?.propertyId) {
+        query = query.where(eq(propertyInvestments.propertyId, filters.propertyId));
+      }
+
+      if (filters?.investmentType) {
+        query = query.where(eq(propertyInvestments.investmentType, filters.investmentType));
+      }
+
+      if (filters?.startDate) {
+        query = query.where(gte(propertyInvestments.investmentDate, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(propertyInvestments.investmentDate, filters.endDate));
+      }
+
+      return await query.orderBy(desc(propertyInvestments.investmentDate));
+    } catch (error) {
+      console.error("Error fetching property investments:", error);
+      throw error;
+    }
+  }
+
+  async createPropertyInvestment(organizationId: string, investmentData: any) {
+    try {
+      // Verify property belongs to organization if propertyId provided
+      if (investmentData.propertyId) {
+        const [property] = await this.db
+          .select()
+          .from(properties)
+          .where(
+            and(
+              eq(properties.id, investmentData.propertyId),
+              eq(properties.organizationId, organizationId)
+            )
+          );
+
+        if (!property) {
+          throw new Error("Property not found or unauthorized");
+        }
+      }
+
+      const [created] = await this.db
+        .insert(propertyInvestments)
+        .values({
+          organizationId,
+          propertyId: investmentData.propertyId,
+          investmentType: investmentData.investmentType,
+          description: investmentData.description,
+          amount: investmentData.amount,
+          investmentDate: investmentData.investmentDate,
+          expectedRoi: investmentData.expectedRoi,
+        })
+        .returning();
+
+      return created;
+    } catch (error) {
+      console.error("Error creating property investment:", error);
+      throw error;
+    }
+  }
+
+  async updatePropertyInvestment(organizationId: string, investmentId: number, updateData: any) {
+    try {
+      const [updated] = await this.db
+        .update(propertyInvestments)
+        .set({
+          investmentType: updateData.investmentType,
+          description: updateData.description,
+          amount: updateData.amount,
+          investmentDate: updateData.investmentDate,
+          expectedRoi: updateData.expectedRoi,
+        })
+        .where(
+          and(
+            eq(propertyInvestments.id, investmentId),
+            eq(propertyInvestments.organizationId, organizationId)
+          )
+        )
+        .returning();
+
+      return updated;
+    } catch (error) {
+      console.error("Error updating property investment:", error);
+      throw error;
+    }
+  }
+
+  async deletePropertyInvestment(organizationId: string, investmentId: number) {
+    try {
+      const [deleted] = await this.db
+        .delete(propertyInvestments)
+        .where(
+          and(
+            eq(propertyInvestments.id, investmentId),
+            eq(propertyInvestments.organizationId, organizationId)
+          )
+        )
+        .returning();
+
+      return deleted;
+    } catch (error) {
+      console.error("Error deleting property investment:", error);
+      throw error;
+    }
+  }
+
+  async getInvestmentsByProperty(organizationId: string, propertyId: number) {
+    try {
+      return await this.db
+        .select()
+        .from(propertyInvestments)
+        .where(
+          and(
+            eq(propertyInvestments.organizationId, organizationId),
+            eq(propertyInvestments.propertyId, propertyId)
+          )
+        )
+        .orderBy(desc(propertyInvestments.investmentDate));
+    } catch (error) {
+      console.error("Error fetching investments by property:", error);
+      throw error;
+    }
+  }
+
+  async getInvestmentAnalytics(organizationId: string, filters?: { startDate?: Date; endDate?: Date; propertyId?: number }) {
+    try {
+      let query = this.db
+        .select({
+          totalInvestments: sql<number>`COUNT(*)`,
+          totalAmount: sql<number>`SUM(${propertyInvestments.amount})`,
+          avgAmount: sql<number>`AVG(${propertyInvestments.amount})`,
+          avgExpectedRoi: sql<number>`AVG(${propertyInvestments.expectedRoi})`,
+          investmentsByType: sql<any>`json_object_agg(${propertyInvestments.investmentType}, COUNT(*))`,
+          amountsByType: sql<any>`json_object_agg(${propertyInvestments.investmentType}, SUM(${propertyInvestments.amount}))`,
+        })
+        .from(propertyInvestments)
+        .where(eq(propertyInvestments.organizationId, organizationId));
+
+      if (filters?.startDate) {
+        query = query.where(gte(propertyInvestments.investmentDate, filters.startDate));
+      }
+
+      if (filters?.endDate) {
+        query = query.where(lte(propertyInvestments.investmentDate, filters.endDate));
+      }
+
+      if (filters?.propertyId) {
+        query = query.where(eq(propertyInvestments.propertyId, filters.propertyId));
+      }
+
+      const [result] = await query;
+      return result || {
+        totalInvestments: 0,
+        totalAmount: 0,
+        avgAmount: 0,
+        avgExpectedRoi: 0,
+        investmentsByType: {},
+        amountsByType: {},
+      };
+    } catch (error) {
+      console.error("Error fetching investment analytics:", error);
+      throw error;
+    }
+  }
+
+  async getInvestmentTypes(organizationId: string) {
+    try {
+      const results = await this.db
+        .select({
+          investmentType: propertyInvestments.investmentType,
+          count: sql<number>`COUNT(*)`,
+          totalAmount: sql<number>`SUM(${propertyInvestments.amount})`,
+        })
+        .from(propertyInvestments)
+        .where(eq(propertyInvestments.organizationId, organizationId))
+        .groupBy(propertyInvestments.investmentType)
+        .orderBy(desc(sql<number>`SUM(${propertyInvestments.amount})`));
+
+      return results;
+    } catch (error) {
+      console.error("Error fetching investment types:", error);
+      throw error;
+    }
+  }
+
+  async getMonthlyInvestmentTrends(organizationId: string, months: number = 12) {
+    try {
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - months);
+
+      const results = await this.db
+        .select({
+          month: sql<string>`TO_CHAR(${propertyInvestments.investmentDate}, 'YYYY-MM')`,
+          totalAmount: sql<number>`SUM(${propertyInvestments.amount})`,
+          investmentCount: sql<number>`COUNT(*)`,
+          avgRoi: sql<number>`AVG(${propertyInvestments.expectedRoi})`,
+        })
+        .from(propertyInvestments)
+        .where(
+          and(
+            eq(propertyInvestments.organizationId, organizationId),
+            gte(propertyInvestments.investmentDate, startDate)
+          )
+        )
+        .groupBy(sql<string>`TO_CHAR(${propertyInvestments.investmentDate}, 'YYYY-MM')`)
+        .orderBy(sql<string>`TO_CHAR(${propertyInvestments.investmentDate}, 'YYYY-MM')`);
+
+      return results;
+    } catch (error) {
+      console.error("Error fetching monthly investment trends:", error);
+      throw error;
+    }
+  }
+
+  async calculateROIActuals(organizationId: string, propertyId: number, investmentId: number) {
+    try {
+      // Get the investment details
+      const [investment] = await this.db
+        .select()
+        .from(propertyInvestments)
+        .where(
+          and(
+            eq(propertyInvestments.id, investmentId),
+            eq(propertyInvestments.organizationId, organizationId),
+            eq(propertyInvestments.propertyId, propertyId)
+          )
+        );
+
+      if (!investment) {
+        throw new Error("Investment not found");
+      }
+
+      // Calculate actual returns based on finance records after investment date
+      const financeResults = await this.db
+        .select({
+          totalRevenue: sql<number>`SUM(CASE WHEN ${finance.type} = 'income' THEN ${finance.amount} ELSE 0 END)`,
+          totalExpenses: sql<number>`SUM(CASE WHEN ${finance.type} = 'expense' THEN ${finance.amount} ELSE 0 END)`,
+        })
+        .from(finance)
+        .where(
+          and(
+            eq(finance.organizationId, organizationId),
+            eq(finance.propertyId, propertyId),
+            gte(finance.date, investment.investmentDate!)
+          )
+        );
+
+      const [financials] = financeResults;
+      const netReturn = (financials?.totalRevenue || 0) - (financials?.totalExpenses || 0);
+      const actualRoi = investment.amount ? (netReturn / parseFloat(investment.amount.toString())) * 100 : 0;
+
+      return {
+        investmentAmount: investment.amount,
+        expectedRoi: investment.expectedRoi,
+        actualRoi: Math.round(actualRoi * 100) / 100,
+        netReturn,
+        totalRevenue: financials?.totalRevenue || 0,
+        totalExpenses: financials?.totalExpenses || 0,
+        investmentDate: investment.investmentDate,
+      };
+    } catch (error) {
+      console.error("Error calculating ROI actuals:", error);
+      throw error;
     }
   }
 }
