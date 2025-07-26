@@ -102,6 +102,8 @@ import {
   maintenanceBudgetForecasts,
   // Staff Workload Statistics
   staffWorkloadStats,
+  // Property Insurance
+  propertyInsurance,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -39189,6 +39191,254 @@ Plant Care:
         THEN sum(${staffWorkloadStats.tasksAssigned}) / sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL))
         ELSE 0 
       END, 2) DESC`);
+  }
+
+  // ===== Property Insurance Methods =====
+
+  async getPropertyInsurance(propertyId?: number): Promise<any[]> {
+    let query = db.select({
+      id: propertyInsurance.id,
+      propertyId: propertyInsurance.propertyId,
+      policyNumber: propertyInsurance.policyNumber,
+      insurerName: propertyInsurance.insurerName,
+      coverageDetails: propertyInsurance.coverageDetails,
+      expiryDate: propertyInsurance.expiryDate,
+      uploadedBy: propertyInsurance.uploadedBy,
+      createdAt: propertyInsurance.createdAt,
+      propertyName: properties.name,
+      propertyType: properties.propertyType,
+      daysUntilExpiry: sql<number>`DATE_PART('day', ${propertyInsurance.expiryDate} - CURRENT_DATE)`,
+      isExpired: sql<boolean>`${propertyInsurance.expiryDate} < CURRENT_DATE`,
+      isExpiringSoon: sql<boolean>`${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'`,
+    })
+    .from(propertyInsurance)
+    .leftJoin(properties, eq(propertyInsurance.propertyId, properties.id));
+
+    if (propertyId) {
+      query = query.where(eq(propertyInsurance.propertyId, propertyId));
+    }
+
+    return query.orderBy(desc(propertyInsurance.createdAt));
+  }
+
+  async createPropertyInsurance(insuranceData: any): Promise<any> {
+    const [created] = await db.insert(propertyInsurance).values({
+      ...insuranceData,
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async getPropertyInsuranceById(id: number): Promise<any> {
+    const [insurance] = await db.select({
+      id: propertyInsurance.id,
+      propertyId: propertyInsurance.propertyId,
+      policyNumber: propertyInsurance.policyNumber,
+      insurerName: propertyInsurance.insurerName,
+      coverageDetails: propertyInsurance.coverageDetails,
+      expiryDate: propertyInsurance.expiryDate,
+      uploadedBy: propertyInsurance.uploadedBy,
+      createdAt: propertyInsurance.createdAt,
+      propertyName: properties.name,
+      propertyType: properties.propertyType,
+      daysUntilExpiry: sql<number>`DATE_PART('day', ${propertyInsurance.expiryDate} - CURRENT_DATE)`,
+      isExpired: sql<boolean>`${propertyInsurance.expiryDate} < CURRENT_DATE`,
+      isExpiringSoon: sql<boolean>`${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'`,
+    })
+    .from(propertyInsurance)
+    .leftJoin(properties, eq(propertyInsurance.propertyId, properties.id))
+    .where(eq(propertyInsurance.id, id));
+    return insurance;
+  }
+
+  async updatePropertyInsurance(id: number, updates: any): Promise<any> {
+    const [updated] = await db.update(propertyInsurance)
+      .set(updates)
+      .where(eq(propertyInsurance.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePropertyInsurance(id: number): Promise<boolean> {
+    const result = await db.delete(propertyInsurance).where(eq(propertyInsurance.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getPropertyInsuranceAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalPolicies: sql<number>`count(*)`,
+      uniqueProperties: sql<number>`count(DISTINCT ${propertyInsurance.propertyId})`,
+      uniqueInsurers: sql<number>`count(DISTINCT ${propertyInsurance.insurerName})`,
+      expiredPolicies: sql<number>`count(*) FILTER (WHERE ${propertyInsurance.expiryDate} < CURRENT_DATE)`,
+      expiringSoon: sql<number>`count(*) FILTER (WHERE ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days')`,
+      activePolicies: sql<number>`count(*) FILTER (WHERE ${propertyInsurance.expiryDate} >= CURRENT_DATE)`,
+      earliestExpiry: sql<string>`min(${propertyInsurance.expiryDate})`,
+      latestExpiry: sql<string>`max(${propertyInsurance.expiryDate})`,
+    }).from(propertyInsurance);
+
+    const byInsurer = await db.select({
+      insurerName: propertyInsurance.insurerName,
+      policyCount: sql<number>`count(*)`,
+      expiredCount: sql<number>`count(*) FILTER (WHERE ${propertyInsurance.expiryDate} < CURRENT_DATE)`,
+      activeCount: sql<number>`count(*) FILTER (WHERE ${propertyInsurance.expiryDate} >= CURRENT_DATE)`,
+      expiringSoonCount: sql<number>`count(*) FILTER (WHERE ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days')`,
+      averageDaysToExpiry: sql<number>`round(avg(DATE_PART('day', ${propertyInsurance.expiryDate} - CURRENT_DATE)), 1)`,
+    })
+    .from(propertyInsurance)
+    .groupBy(propertyInsurance.insurerName)
+    .orderBy(sql<number>`count(*) DESC`);
+
+    const byProperty = await db.select({
+      propertyId: propertyInsurance.propertyId,
+      propertyName: properties.name,
+      propertyType: properties.propertyType,
+      policyCount: sql<number>`count(*)`,
+      expiredCount: sql<number>`count(*) FILTER (WHERE ${propertyInsurance.expiryDate} < CURRENT_DATE)`,
+      activeCount: sql<number>`count(*) FILTER (WHERE ${propertyInsurance.expiryDate} >= CURRENT_DATE)`,
+      latestExpiryDate: sql<string>`max(${propertyInsurance.expiryDate})`,
+      insuranceStatus: sql<string>`
+        CASE 
+          WHEN count(*) FILTER (WHERE ${propertyInsurance.expiryDate} < CURRENT_DATE) > 0 THEN 'Has Expired Policies'
+          WHEN count(*) FILTER (WHERE ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days') > 0 THEN 'Expiring Soon'
+          WHEN count(*) FILTER (WHERE ${propertyInsurance.expiryDate} >= CURRENT_DATE) > 0 THEN 'Active Coverage'
+          ELSE 'No Coverage'
+        END
+      `,
+    })
+    .from(propertyInsurance)
+    .leftJoin(properties, eq(propertyInsurance.propertyId, properties.id))
+    .groupBy(propertyInsurance.propertyId, properties.name, properties.propertyType)
+    .orderBy(sql<number>`count(*) DESC`);
+
+    const expiryDistribution = await db.select({
+      expiryStatus: sql<string>`
+        CASE 
+          WHEN ${propertyInsurance.expiryDate} < CURRENT_DATE THEN 'Expired'
+          WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 'Expiring Soon (30 days)'
+          WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '90 days' THEN 'Expiring Soon (90 days)'
+          WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '180 days' THEN 'Expiring in 6 months'
+          ELSE 'Long-term Active'
+        END
+      `,
+      count: sql<number>`count(*)`,
+      percentage: sql<number>`round((count(*) * 100.0 / (select count(*) from ${propertyInsurance})), 1)`,
+    })
+    .from(propertyInsurance)
+    .groupBy(sql`
+      CASE 
+        WHEN ${propertyInsurance.expiryDate} < CURRENT_DATE THEN 'Expired'
+        WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 'Expiring Soon (30 days)'
+        WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '90 days' THEN 'Expiring Soon (90 days)'
+        WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '180 days' THEN 'Expiring in 6 months'
+        ELSE 'Long-term Active'
+      END
+    `)
+    .orderBy(sql<number>`count(*) DESC`);
+
+    return {
+      overall: overallStats[0] || { totalPolicies: 0, uniqueProperties: 0, uniqueInsurers: 0, expiredPolicies: 0, expiringSoon: 0, activePolicies: 0, earliestExpiry: null, latestExpiry: null },
+      byInsurer,
+      byProperty,
+      expiryDistribution,
+    };
+  }
+
+  async getExpiringInsurance(days: number = 30): Promise<any[]> {
+    return db.select({
+      id: propertyInsurance.id,
+      propertyId: propertyInsurance.propertyId,
+      propertyName: properties.name,
+      policyNumber: propertyInsurance.policyNumber,
+      insurerName: propertyInsurance.insurerName,
+      expiryDate: propertyInsurance.expiryDate,
+      daysUntilExpiry: sql<number>`DATE_PART('day', ${propertyInsurance.expiryDate} - CURRENT_DATE)`,
+      urgencyLevel: sql<string>`
+        CASE 
+          WHEN ${propertyInsurance.expiryDate} < CURRENT_DATE THEN 'Expired'
+          WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' THEN 'Critical (7 days)'
+          WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 days' THEN 'High (14 days)'
+          WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 'Medium (30 days)'
+          ELSE 'Low'
+        END
+      `,
+    })
+    .from(propertyInsurance)
+    .leftJoin(properties, eq(propertyInsurance.propertyId, properties.id))
+    .where(sql`${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE - INTERVAL '30 days' AND CURRENT_DATE + INTERVAL '${days} days'`)
+    .orderBy(propertyInsurance.expiryDate);
+  }
+
+  async getInsuranceByProperty(propertyId: number): Promise<any[]> {
+    return db.select({
+      id: propertyInsurance.id,
+      policyNumber: propertyInsurance.policyNumber,
+      insurerName: propertyInsurance.insurerName,
+      coverageDetails: propertyInsurance.coverageDetails,
+      expiryDate: propertyInsurance.expiryDate,
+      uploadedBy: propertyInsurance.uploadedBy,
+      createdAt: propertyInsurance.createdAt,
+      daysUntilExpiry: sql<number>`DATE_PART('day', ${propertyInsurance.expiryDate} - CURRENT_DATE)`,
+      isExpired: sql<boolean>`${propertyInsurance.expiryDate} < CURRENT_DATE`,
+      isExpiringSoon: sql<boolean>`${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'`,
+      status: sql<string>`
+        CASE 
+          WHEN ${propertyInsurance.expiryDate} < CURRENT_DATE THEN 'Expired'
+          WHEN ${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 'Expiring Soon'
+          ELSE 'Active'
+        END
+      `,
+    })
+    .from(propertyInsurance)
+    .where(eq(propertyInsurance.propertyId, propertyId))
+    .orderBy(desc(propertyInsurance.expiryDate));
+  }
+
+  async searchPropertyInsurance(searchTerm: string): Promise<any[]> {
+    return db.select({
+      id: propertyInsurance.id,
+      propertyId: propertyInsurance.propertyId,
+      propertyName: properties.name,
+      policyNumber: propertyInsurance.policyNumber,
+      insurerName: propertyInsurance.insurerName,
+      coverageDetails: propertyInsurance.coverageDetails,
+      expiryDate: propertyInsurance.expiryDate,
+      daysUntilExpiry: sql<number>`DATE_PART('day', ${propertyInsurance.expiryDate} - CURRENT_DATE)`,
+      isExpired: sql<boolean>`${propertyInsurance.expiryDate} < CURRENT_DATE`,
+    })
+    .from(propertyInsurance)
+    .leftJoin(properties, eq(propertyInsurance.propertyId, properties.id))
+    .where(sql`
+      LOWER(${propertyInsurance.policyNumber}) LIKE LOWER(${'%' + searchTerm + '%'}) OR
+      LOWER(${propertyInsurance.insurerName}) LIKE LOWER(${'%' + searchTerm + '%'}) OR
+      LOWER(${propertyInsurance.coverageDetails}) LIKE LOWER(${'%' + searchTerm + '%'}) OR
+      LOWER(${properties.name}) LIKE LOWER(${'%' + searchTerm + '%'})
+    `)
+    .orderBy(desc(propertyInsurance.createdAt));
+  }
+
+  async getInsuranceReport(): Promise<any> {
+    const totalPolicies = await db.select({ count: sql<number>`count(*)` }).from(propertyInsurance);
+    const expiredPolicies = await db.select({ count: sql<number>`count(*)` }).from(propertyInsurance).where(sql`${propertyInsurance.expiryDate} < CURRENT_DATE`);
+    const expiringSoon = await db.select({ count: sql<number>`count(*)` }).from(propertyInsurance).where(sql`${propertyInsurance.expiryDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'`);
+    const activePolicies = await db.select({ count: sql<number>`count(*)` }).from(propertyInsurance).where(sql`${propertyInsurance.expiryDate} >= CURRENT_DATE`);
+
+    const compliancePercentage = totalPolicies[0].count > 0 ? 
+      Math.round((activePolicies[0].count / totalPolicies[0].count) * 100) : 0;
+
+    let complianceStatus = 'Poor';
+    if (compliancePercentage >= 95) complianceStatus = 'Excellent';
+    else if (compliancePercentage >= 85) complianceStatus = 'Good';
+    else if (compliancePercentage >= 70) complianceStatus = 'Fair';
+
+    return {
+      totalPolicies: totalPolicies[0].count,
+      expiredPolicies: expiredPolicies[0].count,
+      expiringSoon: expiringSoon[0].count,
+      activePolicies: activePolicies[0].count,
+      compliancePercentage,
+      complianceStatus,
+      recommendationsCount: expiredPolicies[0].count + expiringSoon[0].count,
+    };
   }
 }
 

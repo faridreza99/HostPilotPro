@@ -12438,3 +12438,28 @@ export const insertStaffWorkloadStatsSchema = createInsertSchema(staffWorkloadSt
 
 export type StaffWorkloadStats = typeof staffWorkloadStats.$inferSelect;
 export type InsertStaffWorkloadStats = z.infer<typeof insertStaffWorkloadStatsSchema>;
+
+// ===== PROPERTY INSURANCE SYSTEM =====
+
+export const propertyInsurance = pgTable("property_insurance", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").references(() => properties.id),
+  policyNumber: varchar("policy_number"),
+  insurerName: varchar("insurer_name"),
+  coverageDetails: text("coverage_details"),
+  expiryDate: date("expiry_date"),
+  uploadedBy: varchar("uploaded_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_property_insurance_property").on(table.propertyId),
+  index("IDX_property_insurance_expiry").on(table.expiryDate),
+  index("IDX_property_insurance_created").on(table.createdAt),
+]);
+
+export const insertPropertyInsuranceSchema = createInsertSchema(propertyInsurance).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PropertyInsurance = typeof propertyInsurance.$inferSelect;
+export type InsertPropertyInsurance = z.infer<typeof insertPropertyInsuranceSchema>;

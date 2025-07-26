@@ -31940,6 +31940,123 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Property Insurance Routes =====
+
+  app.get("/api/property-insurance", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId } = req.query;
+      const insurance = await storage.getPropertyInsurance(
+        propertyId ? parseInt(propertyId as string) : undefined
+      );
+      res.json(insurance);
+    } catch (error) {
+      console.error("Error fetching property insurance:", error);
+      res.status(500).json({ error: "Failed to fetch property insurance" });
+    }
+  });
+
+  app.get("/api/property-insurance/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const insurance = await storage.getPropertyInsuranceById(id);
+      if (!insurance) {
+        return res.status(404).json({ error: "Property insurance not found" });
+      }
+      res.json(insurance);
+    } catch (error) {
+      console.error("Error fetching property insurance:", error);
+      res.status(500).json({ error: "Failed to fetch property insurance" });
+    }
+  });
+
+  app.post("/api/property-insurance", isDemoAuthenticated, async (req, res) => {
+    try {
+      const insurance = await storage.createPropertyInsurance(req.body);
+      res.json(insurance);
+    } catch (error) {
+      console.error("Error creating property insurance:", error);
+      res.status(500).json({ error: "Failed to create property insurance" });
+    }
+  });
+
+  app.put("/api/property-insurance/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const insurance = await storage.updatePropertyInsurance(id, req.body);
+      if (!insurance) {
+        return res.status(404).json({ error: "Property insurance not found" });
+      }
+      res.json(insurance);
+    } catch (error) {
+      console.error("Error updating property insurance:", error);
+      res.status(500).json({ error: "Failed to update property insurance" });
+    }
+  });
+
+  app.delete("/api/property-insurance/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deletePropertyInsurance(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting property insurance:", error);
+      res.status(500).json({ error: "Failed to delete property insurance" });
+    }
+  });
+
+  app.get("/api/property-insurance/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getPropertyInsuranceAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching property insurance analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/property-insurance/expiring/:days", isDemoAuthenticated, async (req, res) => {
+    try {
+      const days = parseInt(req.params.days) || 30;
+      const expiring = await storage.getExpiringInsurance(days);
+      res.json(expiring);
+    } catch (error) {
+      console.error("Error fetching expiring insurance:", error);
+      res.status(500).json({ error: "Failed to fetch expiring insurance" });
+    }
+  });
+
+  app.get("/api/property-insurance/property/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const insurance = await storage.getInsuranceByProperty(propertyId);
+      res.json(insurance);
+    } catch (error) {
+      console.error("Error fetching insurance by property:", error);
+      res.status(500).json({ error: "Failed to fetch insurance by property" });
+    }
+  });
+
+  app.get("/api/property-insurance/search/:searchTerm", isDemoAuthenticated, async (req, res) => {
+    try {
+      const searchTerm = req.params.searchTerm;
+      const results = await storage.searchPropertyInsurance(searchTerm);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching property insurance:", error);
+      res.status(500).json({ error: "Failed to search property insurance" });
+    }
+  });
+
+  app.get("/api/property-insurance/report/compliance", isDemoAuthenticated, async (req, res) => {
+    try {
+      const report = await storage.getInsuranceReport();
+      res.json(report);
+    } catch (error) {
+      console.error("Error fetching insurance report:", error);
+      res.status(500).json({ error: "Failed to fetch insurance report" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 
