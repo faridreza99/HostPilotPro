@@ -12,8 +12,7 @@ import Properties from "./pages/Properties";
 import Tasks from "./pages/Tasks";
 import Bookings from "./pages/Bookings";
 import SimpleFinances from "./pages/SimpleFinances";
-import LoginPage from "./pages/LoginPage";
-import Landing from "./pages/Landing";
+import QuickLogin from "./pages/QuickLogin";
 import NotFound from "./pages/not-found";
 
 // AI ROI Predictions page
@@ -32,12 +31,7 @@ function AppRoutes() {
 
   // If user is not authenticated, show login page
   if (!user) {
-    return (
-      <Switch>
-        <Route path="/login" component={LoginPage} />
-        <Route component={Landing} />
-      </Switch>
-    );
+    return <QuickLogin />;
   }
 
   // User is authenticated, show the main app
