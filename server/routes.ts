@@ -64,6 +64,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { seedInventoryData } = await import("./seedInventoryData");
   await seedInventoryData();
 
+  // Seed AI Ops Anomalies Data
+  const { seedAiOpsAnomaliesData } = await import("./seedAiOpsAnomaliesData");
+  await seedAiOpsAnomaliesData();
+
   // Initialize automation systems
   initializeUtilityAutomation();
   console.log("✅ Automation systems initialized successfully");
@@ -18960,6 +18964,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating AI marketing content:", error);
       res.status(500).json({ message: "Failed to generate AI content" });
+    }
+  });
+
+  // ===== AI OPERATIONS ANOMALIES API ROUTES =====
+
+  // Get all AI operations anomalies
+  app.get("/api/ai-ops-anomalies", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const anomalies = await storage.getAiOpsAnomalies(organizationId);
+      res.json(anomalies);
+    } catch (error) {
+      console.error("Error fetching AI operations anomalies:", error);
+      res.status(500).json({ message: "Failed to fetch AI operations anomalies" });
+    }
+  });
+
+  // Create AI operations anomaly
+  app.post("/api/ai-ops-anomalies", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const anomaly = await storage.createAiOpsAnomaly(organizationId, req.body);
+      res.json(anomaly);
+    } catch (error) {
+      console.error("Error creating AI operations anomaly:", error);
+      res.status(500).json({ message: "Failed to create AI operations anomaly" });
+    }
+  });
+
+  // Get AI operations anomaly by ID
+  app.get("/api/ai-ops-anomalies/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const id = parseInt(req.params.id);
+      const anomaly = await storage.getAiOpsAnomalyById(organizationId, id);
+      
+      if (!anomaly) {
+        return res.status(404).json({ message: "AI operations anomaly not found" });
+      }
+      
+      res.json(anomaly);
+    } catch (error) {
+      console.error("Error fetching AI operations anomaly:", error);
+      res.status(500).json({ message: "Failed to fetch AI operations anomaly" });
+    }
+  });
+
+  // Update AI operations anomaly
+  app.put("/api/ai-ops-anomalies/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const id = parseInt(req.params.id);
+      const anomaly = await storage.updateAiOpsAnomaly(organizationId, id, req.body);
+      
+      if (!anomaly) {
+        return res.status(404).json({ message: "AI operations anomaly not found" });
+      }
+      
+      res.json(anomaly);
+    } catch (error) {
+      console.error("Error updating AI operations anomaly:", error);
+      res.status(500).json({ message: "Failed to update AI operations anomaly" });
+    }
+  });
+
+  // Delete AI operations anomaly
+  app.delete("/api/ai-ops-anomalies/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteAiOpsAnomaly(organizationId, id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "AI operations anomaly not found" });
+      }
+      
+      res.json({ message: "AI operations anomaly deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting AI operations anomaly:", error);
+      res.status(500).json({ message: "Failed to delete AI operations anomaly" });
+    }
+  });
+
+  // Get anomalies by type
+  app.get("/api/ai-ops-anomalies/type/:type", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const anomalies = await storage.getAnomaliesByType(organizationId, req.params.type);
+      res.json(anomalies);
+    } catch (error) {
+      console.error("Error fetching anomalies by type:", error);
+      res.status(500).json({ message: "Failed to fetch anomalies by type" });
+    }
+  });
+
+  // Get anomalies by property
+  app.get("/api/ai-ops-anomalies/property/:propertyId", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const propertyId = parseInt(req.params.propertyId);
+      const anomalies = await storage.getAnomaliesByProperty(organizationId, propertyId);
+      res.json(anomalies);
+    } catch (error) {
+      console.error("Error fetching anomalies by property:", error);
+      res.status(500).json({ message: "Failed to fetch anomalies by property" });
+    }
+  });
+
+  // Resolve anomaly
+  app.post("/api/ai-ops-anomalies/:id/resolve", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const id = parseInt(req.params.id);
+      const { fixAction } = req.body;
+      const anomaly = await storage.resolveAnomaly(organizationId, id, fixAction);
+      
+      if (!anomaly) {
+        return res.status(404).json({ message: "AI operations anomaly not found" });
+      }
+      
+      res.json(anomaly);
+    } catch (error) {
+      console.error("Error resolving AI operations anomaly:", error);
+      res.status(500).json({ message: "Failed to resolve AI operations anomaly" });
+    }
+  });
+
+  // Get AI operations analytics
+  app.get("/api/ai-ops-anomalies/analytics", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const analytics = await storage.getAiOpsAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching AI operations analytics:", error);
+      res.status(500).json({ message: "Failed to fetch AI operations analytics" });
+    }
+  });
+
+  // Detect anomalies
+  app.post("/api/ai-ops-anomalies/detect", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const detectedAnomalies = await storage.detectAnomalies(organizationId);
+      res.json({
+        message: `Detected ${detectedAnomalies.length} anomalies`,
+        anomalies: detectedAnomalies,
+        count: detectedAnomalies.length,
+      });
+    } catch (error) {
+      console.error("Error detecting anomalies:", error);
+      res.status(500).json({ message: "Failed to detect anomalies" });
+    }
+  });
+
+  // Auto-fix anomalies
+  app.post("/api/ai-ops-anomalies/auto-fix", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const fixedCount = await storage.autoFixAnomalies(organizationId);
+      res.json({
+        message: `Auto-fixed ${fixedCount} anomalies`,
+        fixedCount,
+        success: true,
+      });
+    } catch (error) {
+      console.error("Error auto-fixing anomalies:", error);
+      res.status(500).json({ message: "Failed to auto-fix anomalies" });
     }
   });
 

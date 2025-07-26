@@ -62,6 +62,7 @@ import {
   // Offline Task Cache
   offlineTaskCache,
   marketingPacks,
+  aiOpsAnomalies,
   // Shared Costs Management
   sharedCosts,
   sharedCostSplits,
@@ -39796,6 +39797,317 @@ The ${packType} approach focuses on highlighting the property's strengths while 
       languageDistribution: languageStats,
       monthlyTrends: monthlyStats,
     };
+  }
+
+  // ===== AI OPERATIONS ANOMALIES SYSTEM =====
+
+  // Get all AI operations anomalies for organization
+  async getAiOpsAnomalies(organizationId: string) {
+    return await db
+      .select()
+      .from(aiOpsAnomalies)
+      .where(eq(aiOpsAnomalies.organizationId, organizationId))
+      .orderBy(desc(aiOpsAnomalies.detectedAt));
+  }
+
+  // Create AI operations anomaly
+  async createAiOpsAnomaly(organizationId: string, anomaly: any) {
+    const [newAnomaly] = await db
+      .insert(aiOpsAnomalies)
+      .values({
+        ...anomaly,
+        organizationId,
+      })
+      .returning();
+    return newAnomaly;
+  }
+
+  // Get AI operations anomaly by ID
+  async getAiOpsAnomalyById(organizationId: string, id: number) {
+    const [anomaly] = await db
+      .select()
+      .from(aiOpsAnomalies)
+      .where(and(
+        eq(aiOpsAnomalies.organizationId, organizationId),
+        eq(aiOpsAnomalies.id, id)
+      ));
+    return anomaly || undefined;
+  }
+
+  // Update AI operations anomaly
+  async updateAiOpsAnomaly(organizationId: string, id: number, updates: any) {
+    const [updatedAnomaly] = await db
+      .update(aiOpsAnomalies)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(aiOpsAnomalies.organizationId, organizationId),
+        eq(aiOpsAnomalies.id, id)
+      ))
+      .returning();
+    return updatedAnomaly || undefined;
+  }
+
+  // Delete AI operations anomaly
+  async deleteAiOpsAnomaly(organizationId: string, id: number) {
+    const result = await db
+      .delete(aiOpsAnomalies)
+      .where(and(
+        eq(aiOpsAnomalies.organizationId, organizationId),
+        eq(aiOpsAnomalies.id, id)
+      ));
+    return result.rowCount > 0;
+  }
+
+  // Get anomalies by type
+  async getAnomaliesByType(organizationId: string, anomalyType: string) {
+    return await db
+      .select()
+      .from(aiOpsAnomalies)
+      .where(and(
+        eq(aiOpsAnomalies.organizationId, organizationId),
+        eq(aiOpsAnomalies.anomalyType, anomalyType)
+      ))
+      .orderBy(desc(aiOpsAnomalies.detectedAt));
+  }
+
+  // Get anomalies by property
+  async getAnomaliesByProperty(organizationId: string, propertyId: number) {
+    return await db
+      .select()
+      .from(aiOpsAnomalies)
+      .where(and(
+        eq(aiOpsAnomalies.organizationId, organizationId),
+        eq(aiOpsAnomalies.propertyId, propertyId)
+      ))
+      .orderBy(desc(aiOpsAnomalies.detectedAt));
+  }
+
+  // Resolve anomaly
+  async resolveAnomaly(organizationId: string, id: number, fixAction?: string) {
+    const [resolvedAnomaly] = await db
+      .update(aiOpsAnomalies)
+      .set({
+        status: "resolved",
+        resolvedAt: new Date(),
+        fixAction: fixAction || "Manually resolved",
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(aiOpsAnomalies.organizationId, organizationId),
+        eq(aiOpsAnomalies.id, id)
+      ))
+      .returning();
+    return resolvedAnomaly || undefined;
+  }
+
+  // Get AI operations analytics
+  async getAiOpsAnalytics(organizationId: string) {
+    // Overall statistics
+    const [totalStats] = await db
+      .select({
+        total: count(),
+      })
+      .from(aiOpsAnomalies)
+      .where(eq(aiOpsAnomalies.organizationId, organizationId));
+
+    // Status distribution
+    const statusStats = await db
+      .select({
+        status: aiOpsAnomalies.status,
+        count: count(),
+      })
+      .from(aiOpsAnomalies)
+      .where(eq(aiOpsAnomalies.organizationId, organizationId))
+      .groupBy(aiOpsAnomalies.status);
+
+    // Severity distribution
+    const severityStats = await db
+      .select({
+        severity: aiOpsAnomalies.severity,
+        count: count(),
+      })
+      .from(aiOpsAnomalies)
+      .where(eq(aiOpsAnomalies.organizationId, organizationId))
+      .groupBy(aiOpsAnomalies.severity);
+
+    // Anomaly type distribution
+    const typeStats = await db
+      .select({
+        type: aiOpsAnomalies.anomalyType,
+        count: count(),
+      })
+      .from(aiOpsAnomalies)
+      .where(eq(aiOpsAnomalies.organizationId, organizationId))
+      .groupBy(aiOpsAnomalies.anomalyType);
+
+    // Auto-fix success rate
+    const [autoFixStats] = await db
+      .select({
+        totalAutoFixed: sum(
+          sql`CASE WHEN ${aiOpsAnomalies.autoFixed} = true THEN 1 ELSE 0 END`
+        ),
+        totalAnomalies: count(),
+      })
+      .from(aiOpsAnomalies)
+      .where(eq(aiOpsAnomalies.organizationId, organizationId));
+
+    return {
+      totalAnomalies: totalStats.total,
+      statusDistribution: statusStats,
+      severityDistribution: severityStats,
+      typeDistribution: typeStats,
+      autoFixSuccessRate: autoFixStats.totalAnomalies > 0 
+        ? (Number(autoFixStats.totalAutoFixed) / autoFixStats.totalAnomalies * 100).toFixed(1)
+        : "0.0",
+    };
+  }
+
+  // Detect anomalies in the system
+  async detectAnomalies(organizationId: string) {
+    const detectedAnomalies = [];
+
+    // Get all properties for this organization
+    const properties = await this.getProperties(organizationId);
+
+    for (const property of properties) {
+      // Check for missing daily cleaning tasks
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const cleaningTasks = await db
+        .select()
+        .from(tasks)
+        .where(and(
+          eq(tasks.organizationId, organizationId),
+          eq(tasks.propertyId, property.id),
+          eq(tasks.type, "cleaning"),
+          gte(tasks.dueDate, today)
+        ));
+
+      if (cleaningTasks.length === 0) {
+        const anomaly = await this.createAiOpsAnomaly(organizationId, {
+          propertyId: property.id,
+          anomalyType: "missing-task",
+          severity: "medium",
+          details: {
+            description: `No cleaning tasks scheduled for ${property.name} today`,
+            recommendation: "Create daily cleaning task",
+            taskType: "cleaning",
+          },
+        });
+        detectedAnomalies.push(anomaly);
+      }
+
+      // Check for overdue maintenance tasks
+      const overdueTasks = await db
+        .select()
+        .from(tasks)
+        .where(and(
+          eq(tasks.organizationId, organizationId),
+          eq(tasks.propertyId, property.id),
+          eq(tasks.type, "maintenance"),
+          lt(tasks.dueDate, today),
+          eq(tasks.status, "pending")
+        ));
+
+      if (overdueTasks.length > 0) {
+        const anomaly = await this.createAiOpsAnomaly(organizationId, {
+          propertyId: property.id,
+          anomalyType: "overdue-maintenance",
+          severity: "high",
+          details: {
+            description: `${overdueTasks.length} overdue maintenance tasks for ${property.name}`,
+            recommendation: "Complete overdue maintenance tasks immediately",
+            overdueCount: overdueTasks.length,
+          },
+        });
+        detectedAnomalies.push(anomaly);
+      }
+
+      // Check for booking conflicts
+      const bookings = await db
+        .select()
+        .from(bookings)
+        .where(and(
+          eq(bookings.organizationId, organizationId),
+          eq(bookings.propertyId, property.id),
+          gte(bookings.checkInDate, today)
+        ))
+        .orderBy(asc(bookings.checkInDate));
+
+      for (let i = 0; i < bookings.length - 1; i++) {
+        const currentBooking = bookings[i];
+        const nextBooking = bookings[i + 1];
+        
+        if (currentBooking.checkOutDate > nextBooking.checkInDate) {
+          const anomaly = await this.createAiOpsAnomaly(organizationId, {
+            propertyId: property.id,
+            anomalyType: "booking-conflict",
+            severity: "critical",
+            details: {
+              description: `Booking conflict detected for ${property.name}`,
+              recommendation: "Resolve booking overlap immediately",
+              bookingId: currentBooking.id,
+              conflictingBookingId: nextBooking.id,
+            },
+          });
+          detectedAnomalies.push(anomaly);
+        }
+      }
+    }
+
+    return detectedAnomalies;
+  }
+
+  // Auto-fix anomalies where possible
+  async autoFixAnomalies(organizationId: string) {
+    const openAnomalies = await db
+      .select()
+      .from(aiOpsAnomalies)
+      .where(and(
+        eq(aiOpsAnomalies.organizationId, organizationId),
+        eq(aiOpsAnomalies.status, "open")
+      ));
+
+    let fixedCount = 0;
+
+    for (const anomaly of openAnomalies) {
+      try {
+        if (anomaly.anomalyType === "missing-task" && anomaly.details?.taskType === "cleaning") {
+          // Auto-create cleaning task
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(10, 0, 0, 0);
+
+          await this.createTask(organizationId, {
+            propertyId: anomaly.propertyId!,
+            title: "Daily Cleaning",
+            description: "Auto-generated daily cleaning task",
+            type: "cleaning",
+            priority: "medium",
+            status: "pending",
+            dueDate: tomorrow,
+            assignedTo: null,
+          });
+
+          await this.updateAiOpsAnomaly(organizationId, anomaly.id, {
+            status: "resolved",
+            autoFixed: true,
+            fixAction: "Auto-created daily cleaning task",
+            resolvedAt: new Date(),
+          });
+
+          fixedCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to auto-fix anomaly ${anomaly.id}:`, error);
+      }
+    }
+
+    return fixedCount;
   }
 
   // Get marketing packs by property

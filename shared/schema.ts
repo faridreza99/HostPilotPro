@@ -3570,6 +3570,39 @@ export const insertMarketingPackSchema = createInsertSchema(marketingPacks).omit
 export type InsertMarketingPack = z.infer<typeof insertMarketingPackSchema>;
 export type MarketingPack = typeof marketingPacks.$inferSelect;
 
+// AI Operations Anomalies table
+export const aiOpsAnomalies = pgTable("ai_ops_anomalies", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id", { length: 255 }).notNull(),
+  propertyId: integer("property_id").references(() => properties.id),
+  anomalyType: varchar("anomaly_type", { length: 100 }).notNull(), // missing-task, payout-mismatch, overdue-maintenance, booking-conflict, revenue-inconsistency
+  detectedAt: timestamp("detected_at").defaultNow().notNull(),
+  autoFixed: boolean("auto_fixed").default(false).notNull(),
+  fixAction: text("fix_action"),
+  status: varchar("status", { length: 50 }).default("open").notNull(), // open, resolved, investigating
+  resolvedAt: timestamp("resolved_at"),
+  severity: varchar("severity", { length: 20 }).default("medium").notNull(), // low, medium, high, critical
+  details: json("details").$type<{
+    expectedValue?: any;
+    actualValue?: any;
+    taskId?: number;
+    bookingId?: number;
+    description?: string;
+    recommendation?: string;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAiOpsAnomalySchema = createInsertSchema(aiOpsAnomalies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAiOpsAnomaly = z.infer<typeof insertAiOpsAnomalySchema>;
+export type AiOpsAnomaly = typeof aiOpsAnomalies.$inferSelect;
+
 // ===== SHARED COSTS MANAGEMENT SYSTEM =====
 
 // Shared costs for multi-property buildings
