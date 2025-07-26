@@ -31286,6 +31286,131 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Sustainability Metrics Routes =====
+  
+  app.get("/api/sustainability-metrics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, startDate, endDate } = req.query;
+      const metrics = await storage.getSustainabilityMetrics(
+        propertyId ? parseInt(propertyId as string) : undefined,
+        startDate as string,
+        endDate as string
+      );
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching sustainability metrics:", error);
+      res.status(500).json({ error: "Failed to fetch sustainability metrics" });
+    }
+  });
+
+  app.get("/api/sustainability-metrics/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const metric = await storage.getSustainabilityMetricById(id);
+      if (!metric) {
+        return res.status(404).json({ error: "Sustainability metric not found" });
+      }
+      res.json(metric);
+    } catch (error) {
+      console.error("Error fetching sustainability metric:", error);
+      res.status(500).json({ error: "Failed to fetch sustainability metric" });
+    }
+  });
+
+  app.post("/api/sustainability-metrics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const metric = await storage.createSustainabilityMetric(req.body);
+      res.json(metric);
+    } catch (error) {
+      console.error("Error creating sustainability metric:", error);
+      res.status(500).json({ error: "Failed to create sustainability metric" });
+    }
+  });
+
+  app.put("/api/sustainability-metrics/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const metric = await storage.updateSustainabilityMetric(id, req.body);
+      if (!metric) {
+        return res.status(404).json({ error: "Sustainability metric not found" });
+      }
+      res.json(metric);
+    } catch (error) {
+      console.error("Error updating sustainability metric:", error);
+      res.status(500).json({ error: "Failed to update sustainability metric" });
+    }
+  });
+
+  app.delete("/api/sustainability-metrics/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteSustainabilityMetric(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting sustainability metric:", error);
+      res.status(500).json({ error: "Failed to delete sustainability metric" });
+    }
+  });
+
+  app.get("/api/sustainability-metrics/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getSustainabilityAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching sustainability analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/sustainability-metrics/property/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { yearRange } = req.query;
+      const metrics = await storage.getMetricsByProperty(propertyId, yearRange as string);
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching metrics by property:", error);
+      res.status(500).json({ error: "Failed to fetch metrics by property" });
+    }
+  });
+
+  app.post("/api/sustainability-metrics/calculate-carbon", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { propertyId, waterUsage, electricityUsage } = req.body;
+      const calculation = await storage.calculateCarbonFootprint(propertyId, waterUsage, electricityUsage);
+      res.json(calculation);
+    } catch (error) {
+      console.error("Error calculating carbon footprint:", error);
+      res.status(500).json({ error: "Failed to calculate carbon footprint" });
+    }
+  });
+
+  app.get("/api/sustainability-metrics/trends/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const { months } = req.query;
+      const trends = await storage.getSustainabilityTrends(
+        propertyId,
+        months ? parseInt(months as string) : 12
+      );
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching sustainability trends:", error);
+      res.status(500).json({ error: "Failed to fetch sustainability trends" });
+    }
+  });
+
+  app.get("/api/sustainability-metrics/benchmark/:propertyId", isDemoAuthenticated, async (req, res) => {
+    try {
+      const propertyId = parseInt(req.params.propertyId);
+      const benchmark = await storage.getBenchmarkComparison(propertyId);
+      res.json(benchmark);
+    } catch (error) {
+      console.error("Error fetching benchmark comparison:", error);
+      res.status(500).json({ error: "Failed to fetch benchmark comparison" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

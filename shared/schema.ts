@@ -12298,3 +12298,28 @@ export const insertSeasonalForecastSchema = createInsertSchema(seasonalForecasts
 
 export type SeasonalForecast = typeof seasonalForecasts.$inferSelect;
 export type InsertSeasonalForecast = z.infer<typeof insertSeasonalForecastSchema>;
+
+// ===== SUSTAINABILITY METRICS SYSTEM =====
+
+export const sustainabilityMetrics = pgTable("sustainability_metrics", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").references(() => properties.id),
+  periodStart: date("period_start"),
+  periodEnd: date("period_end"),
+  waterUsage: decimal("water_usage", { precision: 10, scale: 2 }),
+  electricityUsage: decimal("electricity_usage", { precision: 10, scale: 2 }),
+  carbonScore: decimal("carbon_score", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_sustainability_metrics_property").on(table.propertyId),
+  index("IDX_sustainability_metrics_period").on(table.periodStart, table.periodEnd),
+  index("IDX_sustainability_metrics_created").on(table.createdAt),
+]);
+
+export const insertSustainabilityMetricSchema = createInsertSchema(sustainabilityMetrics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SustainabilityMetric = typeof sustainabilityMetrics.$inferSelect;
+export type InsertSustainabilityMetric = z.infer<typeof insertSustainabilityMetricSchema>;

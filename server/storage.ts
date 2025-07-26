@@ -92,6 +92,8 @@ import {
   whatsappBotLogs,
   // Seasonal Forecasting
   seasonalForecasts,
+  // Sustainability Metrics
+  sustainabilityMetrics,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -37422,6 +37424,302 @@ Plant Care:
     }).filter(Boolean);
     
     return accuracy;
+  }
+
+  // ===== Sustainability Metrics Methods =====
+  
+  async getSustainabilityMetrics(propertyId?: number, startDate?: string, endDate?: string): Promise<any[]> {
+    let query = db.select({
+      id: sustainabilityMetrics.id,
+      propertyId: sustainabilityMetrics.propertyId,
+      periodStart: sustainabilityMetrics.periodStart,
+      periodEnd: sustainabilityMetrics.periodEnd,
+      waterUsage: sustainabilityMetrics.waterUsage,
+      electricityUsage: sustainabilityMetrics.electricityUsage,
+      carbonScore: sustainabilityMetrics.carbonScore,
+      createdAt: sustainabilityMetrics.createdAt,
+      propertyName: properties.name,
+    })
+    .from(sustainabilityMetrics)
+    .leftJoin(properties, eq(sustainabilityMetrics.propertyId, properties.id));
+
+    const conditions = [];
+    if (propertyId) conditions.push(eq(sustainabilityMetrics.propertyId, propertyId));
+    if (startDate) conditions.push(sql`${sustainabilityMetrics.periodStart} >= ${startDate}`);
+    if (endDate) conditions.push(sql`${sustainabilityMetrics.periodEnd} <= ${endDate}`);
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return query.orderBy(desc(sustainabilityMetrics.periodStart), sustainabilityMetrics.propertyId);
+  }
+
+  async createSustainabilityMetric(metricData: any): Promise<any> {
+    const [created] = await db.insert(sustainabilityMetrics).values({
+      ...metricData,
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async getSustainabilityMetricById(id: number): Promise<any> {
+    const [metric] = await db.select({
+      id: sustainabilityMetrics.id,
+      propertyId: sustainabilityMetrics.propertyId,
+      periodStart: sustainabilityMetrics.periodStart,
+      periodEnd: sustainabilityMetrics.periodEnd,
+      waterUsage: sustainabilityMetrics.waterUsage,
+      electricityUsage: sustainabilityMetrics.electricityUsage,
+      carbonScore: sustainabilityMetrics.carbonScore,
+      createdAt: sustainabilityMetrics.createdAt,
+      propertyName: properties.name,
+    })
+    .from(sustainabilityMetrics)
+    .leftJoin(properties, eq(sustainabilityMetrics.propertyId, properties.id))
+    .where(eq(sustainabilityMetrics.id, id));
+    return metric;
+  }
+
+  async updateSustainabilityMetric(id: number, updates: any): Promise<any> {
+    const [updated] = await db.update(sustainabilityMetrics)
+      .set(updates)
+      .where(eq(sustainabilityMetrics.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSustainabilityMetric(id: number): Promise<boolean> {
+    const result = await db.delete(sustainabilityMetrics).where(eq(sustainabilityMetrics.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getSustainabilityAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalMetrics: sql<number>`count(*)`,
+      avgWaterUsage: sql<number>`round(avg(${sustainabilityMetrics.waterUsage}), 2)`,
+      avgElectricityUsage: sql<number>`round(avg(${sustainabilityMetrics.electricityUsage}), 2)`,
+      avgCarbonScore: sql<number>`round(avg(${sustainabilityMetrics.carbonScore}), 2)`,
+      totalWaterUsage: sql<number>`round(sum(${sustainabilityMetrics.waterUsage}), 2)`,
+      totalElectricityUsage: sql<number>`round(sum(${sustainabilityMetrics.electricityUsage}), 2)`,
+    }).from(sustainabilityMetrics);
+
+    const byProperty = await db.select({
+      propertyId: sustainabilityMetrics.propertyId,
+      propertyName: properties.name,
+      metricCount: sql<number>`count(*)`,
+      avgWaterUsage: sql<number>`round(avg(${sustainabilityMetrics.waterUsage}), 2)`,
+      avgElectricityUsage: sql<number>`round(avg(${sustainabilityMetrics.electricityUsage}), 2)`,
+      avgCarbonScore: sql<number>`round(avg(${sustainabilityMetrics.carbonScore}), 2)`,
+      totalWaterUsage: sql<number>`round(sum(${sustainabilityMetrics.waterUsage}), 2)`,
+      totalElectricityUsage: sql<number>`round(sum(${sustainabilityMetrics.electricityUsage}), 2)`,
+      bestCarbonScore: sql<number>`min(${sustainabilityMetrics.carbonScore})`,
+      worstCarbonScore: sql<number>`max(${sustainabilityMetrics.carbonScore})`,
+    })
+    .from(sustainabilityMetrics)
+    .leftJoin(properties, eq(sustainabilityMetrics.propertyId, properties.id))
+    .groupBy(sustainabilityMetrics.propertyId, properties.name)
+    .orderBy(sql<number>`avg(${sustainabilityMetrics.carbonScore}) ASC`);
+
+    const monthlyTrends = await db.select({
+      month: sql<string>`to_char(${sustainabilityMetrics.periodStart}, 'YYYY-MM')`,
+      propertyCount: sql<number>`count(DISTINCT ${sustainabilityMetrics.propertyId})`,
+      avgWaterUsage: sql<number>`round(avg(${sustainabilityMetrics.waterUsage}), 2)`,
+      avgElectricityUsage: sql<number>`round(avg(${sustainabilityMetrics.electricityUsage}), 2)`,
+      avgCarbonScore: sql<number>`round(avg(${sustainabilityMetrics.carbonScore}), 2)`,
+      totalWaterUsage: sql<number>`round(sum(${sustainabilityMetrics.waterUsage}), 2)`,
+      totalElectricityUsage: sql<number>`round(sum(${sustainabilityMetrics.electricityUsage}), 2)`,
+    })
+    .from(sustainabilityMetrics)
+    .groupBy(sql`to_char(${sustainabilityMetrics.periodStart}, 'YYYY-MM')`)
+    .orderBy(sql`to_char(${sustainabilityMetrics.periodStart}, 'YYYY-MM') DESC`)
+    .limit(12);
+
+    const carbonScoreDistribution = await db.select({
+      scoreRange: sql<string>`
+        CASE 
+          WHEN ${sustainabilityMetrics.carbonScore} < 2.0 THEN 'Excellent (< 2.0)'
+          WHEN ${sustainabilityMetrics.carbonScore} < 4.0 THEN 'Good (2.0 - 3.9)'
+          WHEN ${sustainabilityMetrics.carbonScore} < 6.0 THEN 'Fair (4.0 - 5.9)'
+          WHEN ${sustainabilityMetrics.carbonScore} < 8.0 THEN 'Poor (6.0 - 7.9)'
+          ELSE 'Critical (8.0+)'
+        END
+      `,
+      count: sql<number>`count(*)`,
+      percentage: sql<number>`round((count(*) * 100.0 / (select count(*) from ${sustainabilityMetrics})), 1)`,
+    })
+    .from(sustainabilityMetrics)
+    .groupBy(sql`
+      CASE 
+        WHEN ${sustainabilityMetrics.carbonScore} < 2.0 THEN 'Excellent (< 2.0)'
+        WHEN ${sustainabilityMetrics.carbonScore} < 4.0 THEN 'Good (2.0 - 3.9)'
+        WHEN ${sustainabilityMetrics.carbonScore} < 6.0 THEN 'Fair (4.0 - 5.9)'
+        WHEN ${sustainabilityMetrics.carbonScore} < 8.0 THEN 'Poor (6.0 - 7.9)'
+        ELSE 'Critical (8.0+)'
+      END
+    `)
+    .orderBy(sql<number>`min(${sustainabilityMetrics.carbonScore})`);
+
+    return {
+      overall: overallStats[0] || { totalMetrics: 0, avgWaterUsage: 0, avgElectricityUsage: 0, avgCarbonScore: 0, totalWaterUsage: 0, totalElectricityUsage: 0 },
+      byProperty,
+      monthlyTrends,
+      carbonScoreDistribution,
+    };
+  }
+
+  async getMetricsByProperty(propertyId: number, yearRange?: string): Promise<any[]> {
+    let query = db.select({
+      id: sustainabilityMetrics.id,
+      periodStart: sustainabilityMetrics.periodStart,
+      periodEnd: sustainabilityMetrics.periodEnd,
+      waterUsage: sustainabilityMetrics.waterUsage,
+      electricityUsage: sustainabilityMetrics.electricityUsage,
+      carbonScore: sustainabilityMetrics.carbonScore,
+      createdAt: sustainabilityMetrics.createdAt,
+    })
+    .from(sustainabilityMetrics)
+    .where(eq(sustainabilityMetrics.propertyId, propertyId));
+
+    if (yearRange) {
+      query = query.where(
+        and(
+          eq(sustainabilityMetrics.propertyId, propertyId),
+          sql`extract(year from ${sustainabilityMetrics.periodStart}) = ${parseInt(yearRange)}`
+        )
+      );
+    }
+
+    return query.orderBy(desc(sustainabilityMetrics.periodStart));
+  }
+
+  async calculateCarbonFootprint(propertyId: number, waterUsage: number, electricityUsage: number): Promise<any> {
+    // Carbon footprint calculation based on Thailand's emission factors
+    const waterCarbonFactor = 0.344; // kg CO2 per cubic meter (Thailand average)
+    const electricityCarbonFactor = 0.5313; // kg CO2 per kWh (Thailand grid factor 2023)
+    
+    const waterEmissions = waterUsage * waterCarbonFactor;
+    const electricityEmissions = electricityUsage * electricityCarbonFactor;
+    const totalEmissions = waterEmissions + electricityEmissions;
+    
+    // Calculate carbon score (0-10 scale, lower is better)
+    // Based on industry benchmarks for luxury villa properties
+    const baselineEmissions = 1000; // kg CO2 per month baseline for similar properties
+    const carbonScore = Math.min(10, Math.max(0, (totalEmissions / baselineEmissions) * 5));
+    
+    // Get property information for context
+    const [property] = await db.select({
+      id: properties.id,
+      name: properties.name,
+      bedrooms: properties.bedrooms,
+    }).from(properties).where(eq(properties.id, propertyId));
+
+    // Generate sustainability recommendations based on usage patterns
+    const recommendations = [];
+    if (electricityUsage > 1200) {
+      recommendations.push("High electricity usage detected. Consider LED lighting upgrades and efficient AC systems.");
+    }
+    if (waterUsage > 150) {
+      recommendations.push("Water usage above average. Install low-flow fixtures and check for leaks.");
+    }
+    if (carbonScore > 7) {
+      recommendations.push("Carbon footprint is high. Implement solar panels and energy-efficient appliances.");
+    } else if (carbonScore < 3) {
+      recommendations.push("Excellent sustainability performance! Consider green certification programs.");
+    }
+
+    return {
+      propertyId,
+      propertyName: property?.name,
+      waterUsage,
+      electricityUsage,
+      waterEmissions: Math.round(waterEmissions * 100) / 100,
+      electricityEmissions: Math.round(electricityEmissions * 100) / 100,
+      totalEmissions: Math.round(totalEmissions * 100) / 100,
+      carbonScore: Math.round(carbonScore * 100) / 100,
+      rating: carbonScore < 2 ? 'Excellent' : carbonScore < 4 ? 'Good' : carbonScore < 6 ? 'Fair' : carbonScore < 8 ? 'Poor' : 'Critical',
+      recommendations,
+    };
+  }
+
+  async getSustainabilityTrends(propertyId: number, months: number = 12): Promise<any[]> {
+    return db.select({
+      periodStart: sustainabilityMetrics.periodStart,
+      waterUsage: sustainabilityMetrics.waterUsage,
+      electricityUsage: sustainabilityMetrics.electricityUsage,
+      carbonScore: sustainabilityMetrics.carbonScore,
+      waterChange: sql<number>`
+        round(
+          (${sustainabilityMetrics.waterUsage} - 
+           lag(${sustainabilityMetrics.waterUsage}) over (order by ${sustainabilityMetrics.periodStart})
+          ) / lag(${sustainabilityMetrics.waterUsage}) over (order by ${sustainabilityMetrics.periodStart}) * 100, 
+          1
+        )
+      `,
+      electricityChange: sql<number>`
+        round(
+          (${sustainabilityMetrics.electricityUsage} - 
+           lag(${sustainabilityMetrics.electricityUsage}) over (order by ${sustainabilityMetrics.periodStart})
+          ) / lag(${sustainabilityMetrics.electricityUsage}) over (order by ${sustainabilityMetrics.periodStart}) * 100, 
+          1
+        )
+      `,
+      carbonChange: sql<number>`
+        round(
+          (${sustainabilityMetrics.carbonScore} - 
+           lag(${sustainabilityMetrics.carbonScore}) over (order by ${sustainabilityMetrics.periodStart})
+          ) / lag(${sustainabilityMetrics.carbonScore}) over (order by ${sustainabilityMetrics.periodStart}) * 100, 
+          1
+        )
+      `,
+    })
+    .from(sustainabilityMetrics)
+    .where(eq(sustainabilityMetrics.propertyId, propertyId))
+    .orderBy(desc(sustainabilityMetrics.periodStart))
+    .limit(months);
+  }
+
+  async getBenchmarkComparison(propertyId: number): Promise<any> {
+    // Get current property metrics
+    const [propertyMetrics] = await db.select({
+      avgWaterUsage: sql<number>`round(avg(${sustainabilityMetrics.waterUsage}), 2)`,
+      avgElectricityUsage: sql<number>`round(avg(${sustainabilityMetrics.electricityUsage}), 2)`,
+      avgCarbonScore: sql<number>`round(avg(${sustainabilityMetrics.carbonScore}), 2)`,
+    })
+    .from(sustainabilityMetrics)
+    .where(eq(sustainabilityMetrics.propertyId, propertyId));
+
+    // Get industry benchmarks (average of all properties)
+    const [industryBenchmarks] = await db.select({
+      avgWaterUsage: sql<number>`round(avg(${sustainabilityMetrics.waterUsage}), 2)`,
+      avgElectricityUsage: sql<number>`round(avg(${sustainabilityMetrics.electricityUsage}), 2)`,
+      avgCarbonScore: sql<number>`round(avg(${sustainabilityMetrics.carbonScore}), 2)`,
+    })
+    .from(sustainabilityMetrics)
+    .where(sql`${sustainabilityMetrics.propertyId} != ${propertyId}`);
+
+    if (!propertyMetrics || !industryBenchmarks) {
+      return null;
+    }
+
+    const waterPerformance = ((industryBenchmarks.avgWaterUsage - propertyMetrics.avgWaterUsage) / industryBenchmarks.avgWaterUsage * 100);
+    const electricityPerformance = ((industryBenchmarks.avgElectricityUsage - propertyMetrics.avgElectricityUsage) / industryBenchmarks.avgElectricityUsage * 100);
+    const carbonPerformance = ((industryBenchmarks.avgCarbonScore - propertyMetrics.avgCarbonScore) / industryBenchmarks.avgCarbonScore * 100);
+
+    return {
+      property: propertyMetrics,
+      industry: industryBenchmarks,
+      performance: {
+        water: Math.round(waterPerformance * 100) / 100,
+        electricity: Math.round(electricityPerformance * 100) / 100,
+        carbon: Math.round(carbonPerformance * 100) / 100,
+      },
+      ranking: {
+        water: waterPerformance > 0 ? 'Above Average' : 'Below Average',
+        electricity: electricityPerformance > 0 ? 'Above Average' : 'Below Average',
+        carbon: carbonPerformance > 0 ? 'Above Average' : 'Below Average',
+      }
+    };
   }
 }
 
