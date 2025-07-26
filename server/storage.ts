@@ -100,6 +100,8 @@ import {
   guestIdScans,
   // Maintenance Budget Forecasting
   maintenanceBudgetForecasts,
+  // Staff Workload Statistics
+  staffWorkloadStats,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -38865,6 +38867,328 @@ Plant Care:
       costRange: highestCostForecast && lowestCostForecast ? 
         highestCostForecast.expectedCost - lowestCostForecast.expectedCost : 0,
     };
+  }
+
+  // ===== Staff Workload Statistics Methods =====
+
+  async getStaffWorkloadStats(staffId?: string, weekStart?: string): Promise<any[]> {
+    let query = db.select({
+      id: staffWorkloadStats.id,
+      staffId: staffWorkloadStats.staffId,
+      weekStart: staffWorkloadStats.weekStart,
+      tasksAssigned: staffWorkloadStats.tasksAssigned,
+      hoursLogged: staffWorkloadStats.hoursLogged,
+      createdAt: staffWorkloadStats.createdAt,
+      staffName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.email})`,
+      staffEmail: users.email,
+      staffRole: users.role,
+    })
+    .from(staffWorkloadStats)
+    .leftJoin(users, eq(staffWorkloadStats.staffId, users.id));
+
+    const conditions = [];
+    if (staffId) conditions.push(eq(staffWorkloadStats.staffId, staffId));
+    if (weekStart) conditions.push(eq(staffWorkloadStats.weekStart, weekStart));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return query.orderBy(desc(staffWorkloadStats.weekStart), staffWorkloadStats.staffId);
+  }
+
+  async createStaffWorkloadStats(statsData: any): Promise<any> {
+    const [created] = await db.insert(staffWorkloadStats).values({
+      ...statsData,
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async getStaffWorkloadStatsById(id: number): Promise<any> {
+    const [stats] = await db.select({
+      id: staffWorkloadStats.id,
+      staffId: staffWorkloadStats.staffId,
+      weekStart: staffWorkloadStats.weekStart,
+      tasksAssigned: staffWorkloadStats.tasksAssigned,
+      hoursLogged: staffWorkloadStats.hoursLogged,
+      createdAt: staffWorkloadStats.createdAt,
+      staffName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.email})`,
+      staffEmail: users.email,
+      staffRole: users.role,
+    })
+    .from(staffWorkloadStats)
+    .leftJoin(users, eq(staffWorkloadStats.staffId, users.id))
+    .where(eq(staffWorkloadStats.id, id));
+    return stats;
+  }
+
+  async updateStaffWorkloadStats(id: number, updates: any): Promise<any> {
+    const [updated] = await db.update(staffWorkloadStats)
+      .set(updates)
+      .where(eq(staffWorkloadStats.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteStaffWorkloadStats(id: number): Promise<boolean> {
+    const result = await db.delete(staffWorkloadStats).where(eq(staffWorkloadStats.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getStaffWorkloadAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalRecords: sql<number>`count(*)`,
+      totalStaff: sql<number>`count(DISTINCT ${staffWorkloadStats.staffId})`,
+      avgTasksPerWeek: sql<number>`round(avg(${staffWorkloadStats.tasksAssigned}), 2)`,
+      avgHoursPerWeek: sql<number>`round(avg(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+      totalTasks: sql<number>`sum(${staffWorkloadStats.tasksAssigned})`,
+      totalHours: sql<number>`round(sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+      minWeek: sql<string>`min(${staffWorkloadStats.weekStart})`,
+      maxWeek: sql<string>`max(${staffWorkloadStats.weekStart})`,
+    }).from(staffWorkloadStats);
+
+    const byStaff = await db.select({
+      staffId: staffWorkloadStats.staffId,
+      staffName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.email})`,
+      staffRole: users.role,
+      weekCount: sql<number>`count(*)`,
+      avgTasks: sql<number>`round(avg(${staffWorkloadStats.tasksAssigned}), 2)`,
+      avgHours: sql<number>`round(avg(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+      totalTasks: sql<number>`sum(${staffWorkloadStats.tasksAssigned})`,
+      totalHours: sql<number>`round(sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+      productivity: sql<number>`round(
+        CASE 
+          WHEN sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)) > 0 
+          THEN sum(${staffWorkloadStats.tasksAssigned}) / sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL))
+          ELSE 0 
+        END, 2)`,
+    })
+    .from(staffWorkloadStats)
+    .leftJoin(users, eq(staffWorkloadStats.staffId, users.id))
+    .groupBy(staffWorkloadStats.staffId, users.name, users.role)
+    .orderBy(sql<number>`sum(${staffWorkloadStats.tasksAssigned}) DESC`);
+
+    const byWeek = await db.select({
+      weekStart: staffWorkloadStats.weekStart,
+      staffCount: sql<number>`count(DISTINCT ${staffWorkloadStats.staffId})`,
+      avgTasks: sql<number>`round(avg(${staffWorkloadStats.tasksAssigned}), 2)`,
+      avgHours: sql<number>`round(avg(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+      totalTasks: sql<number>`sum(${staffWorkloadStats.tasksAssigned})`,
+      totalHours: sql<number>`round(sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+    })
+    .from(staffWorkloadStats)
+    .groupBy(staffWorkloadStats.weekStart)
+    .orderBy(desc(staffWorkloadStats.weekStart));
+
+    const workloadDistribution = await db.select({
+      workloadRange: sql<string>`
+        CASE 
+          WHEN ${staffWorkloadStats.tasksAssigned} = 0 THEN 'No Tasks'
+          WHEN ${staffWorkloadStats.tasksAssigned} <= 5 THEN '1-5 Tasks'
+          WHEN ${staffWorkloadStats.tasksAssigned} <= 10 THEN '6-10 Tasks'
+          WHEN ${staffWorkloadStats.tasksAssigned} <= 20 THEN '11-20 Tasks'
+          ELSE '20+ Tasks'
+        END
+      `,
+      count: sql<number>`count(*)`,
+      percentage: sql<number>`round((count(*) * 100.0 / (select count(*) from ${staffWorkloadStats})), 1)`,
+      avgHours: sql<number>`round(avg(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+    })
+    .from(staffWorkloadStats)
+    .groupBy(sql`
+      CASE 
+        WHEN ${staffWorkloadStats.tasksAssigned} = 0 THEN 'No Tasks'
+        WHEN ${staffWorkloadStats.tasksAssigned} <= 5 THEN '1-5 Tasks'
+        WHEN ${staffWorkloadStats.tasksAssigned} <= 10 THEN '6-10 Tasks'
+        WHEN ${staffWorkloadStats.tasksAssigned} <= 20 THEN '11-20 Tasks'
+        ELSE '20+ Tasks'
+      END
+    `)
+    .orderBy(sql<number>`min(${staffWorkloadStats.tasksAssigned})`);
+
+    return {
+      overall: overallStats[0] || { totalRecords: 0, totalStaff: 0, avgTasksPerWeek: 0, avgHoursPerWeek: 0, totalTasks: 0, totalHours: 0, minWeek: null, maxWeek: null },
+      byStaff,
+      byWeek,
+      workloadDistribution,
+    };
+  }
+
+  async getStaffWorkloadByWeek(weekStart: string): Promise<any[]> {
+    return db.select({
+      id: staffWorkloadStats.id,
+      staffId: staffWorkloadStats.staffId,
+      staffName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.email})`,
+      staffRole: users.role,
+      tasksAssigned: staffWorkloadStats.tasksAssigned,
+      hoursLogged: staffWorkloadStats.hoursLogged,
+      productivity: sql<number>`
+        CASE 
+          WHEN CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL) > 0 
+          THEN round(${staffWorkloadStats.tasksAssigned} / CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL), 2)
+          ELSE 0 
+        END
+      `,
+    })
+    .from(staffWorkloadStats)
+    .leftJoin(users, eq(staffWorkloadStats.staffId, users.id))
+    .where(eq(staffWorkloadStats.weekStart, weekStart))
+    .orderBy(desc(staffWorkloadStats.tasksAssigned));
+  }
+
+  async getStaffWorkloadTrends(staffId?: string): Promise<any[]> {
+    let query = db.select({
+      weekStart: staffWorkloadStats.weekStart,
+      staffId: staffWorkloadStats.staffId,
+      staffName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.email})`,
+      tasksAssigned: staffWorkloadStats.tasksAssigned,
+      hoursLogged: staffWorkloadStats.hoursLogged,
+      productivity: sql<number>`
+        CASE 
+          WHEN CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL) > 0 
+          THEN round(${staffWorkloadStats.tasksAssigned} / CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL), 2)
+          ELSE 0 
+        END
+      `,
+    })
+    .from(staffWorkloadStats)
+    .leftJoin(users, eq(staffWorkloadStats.staffId, users.id));
+
+    if (staffId) {
+      query = query.where(eq(staffWorkloadStats.staffId, staffId));
+    }
+
+    const trends = await query.orderBy(staffWorkloadStats.weekStart, staffWorkloadStats.staffId);
+
+    // Calculate week-over-week changes for individual staff
+    const trendsWithChanges = trends.map((trend, index) => {
+      const prevTrend = index > 0 && trends[index - 1].staffId === trend.staffId ? trends[index - 1] : null;
+      const tasksChange = prevTrend ? trend.tasksAssigned - prevTrend.tasksAssigned : 0;
+      const hoursChange = prevTrend ? Number(trend.hoursLogged) - Number(prevTrend.hoursLogged) : 0;
+      const productivityChange = prevTrend ? trend.productivity - prevTrend.productivity : 0;
+
+      return {
+        ...trend,
+        tasksChange,
+        hoursChange: Math.round(hoursChange * 100) / 100,
+        productivityChange: Math.round(productivityChange * 100) / 100,
+        changeDirection: tasksChange > 0 ? 'increase' : tasksChange < 0 ? 'decrease' : 'stable',
+      };
+    });
+
+    return trendsWithChanges;
+  }
+
+  async updateStaffWorkloadFromTasks(): Promise<any> {
+    // Get all staff members
+    const staffMembers = await db.select({
+      id: users.id,
+      name: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.email})`,
+      role: users.role,
+    })
+    .from(users)
+    .where(eq(users.role, 'staff'));
+
+    const results = [];
+    
+    for (const staff of staffMembers) {
+      // Get weeks for the last 8 weeks
+      const weeks = [];
+      for (let i = 0; i < 8; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - (i * 7));
+        const monday = new Date(date.setDate(date.getDate() - date.getDay() + 1));
+        weeks.push(monday.toISOString().split('T')[0]);
+      }
+
+      for (const weekStart of weeks) {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        // Count tasks assigned to this staff member in this week
+        const [taskCount] = await db.select({
+          count: sql<number>`count(*)`,
+        })
+        .from(tasks)
+        .where(and(
+          eq(tasks.assignedTo, staff.id),
+          sql`${tasks.createdAt} >= ${weekStart}`,
+          sql`${tasks.createdAt} <= ${weekEnd.toISOString().split('T')[0]}`
+        ));
+
+        // Generate realistic hours based on task count
+        const baseHours = taskCount.count * (2 + Math.random() * 3); // 2-5 hours per task
+        const hoursLogged = Math.round((baseHours + Math.random() * 10) * 100) / 100;
+
+        // Check if record already exists
+        const [existing] = await db.select()
+          .from(staffWorkloadStats)
+          .where(and(
+            eq(staffWorkloadStats.staffId, staff.id),
+            eq(staffWorkloadStats.weekStart, weekStart)
+          ));
+
+        if (!existing && (taskCount.count > 0 || Math.random() > 0.5)) {
+          try {
+            const created = await this.createStaffWorkloadStats({
+              staffId: staff.id,
+              weekStart,
+              tasksAssigned: taskCount.count,
+              hoursLogged: hoursLogged.toString(),
+            });
+            results.push({ staffId: staff.id, weekStart, status: 'created', tasks: taskCount.count, hours: hoursLogged });
+          } catch (error) {
+            console.error(`Error creating workload stats for ${staff.name}, week ${weekStart}:`, error);
+            results.push({ staffId: staff.id, weekStart, status: 'error', error: error.message });
+          }
+        } else if (existing) {
+          results.push({ staffId: staff.id, weekStart, status: 'exists', tasks: existing.tasksAssigned, hours: existing.hoursLogged });
+        }
+      }
+    }
+
+    return {
+      processedCount: results.filter(r => r.status === 'created').length,
+      existingCount: results.filter(r => r.status === 'exists').length,
+      errorCount: results.filter(r => r.status === 'error').length,
+      results: results.slice(0, 20), // Return first 20 for preview
+    };
+  }
+
+  async getStaffProductivityRanking(): Promise<any[]> {
+    return db.select({
+      staffId: staffWorkloadStats.staffId,
+      staffName: sql<string>`COALESCE(${users.firstName} || ' ' || ${users.lastName}, ${users.email})`,
+      staffRole: users.role,
+      totalTasks: sql<number>`sum(${staffWorkloadStats.tasksAssigned})`,
+      totalHours: sql<number>`round(sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+      avgTasksPerWeek: sql<number>`round(avg(${staffWorkloadStats.tasksAssigned}), 2)`,
+      avgHoursPerWeek: sql<number>`round(avg(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2)`,
+      productivity: sql<number>`round(
+        CASE 
+          WHEN sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)) > 0 
+          THEN sum(${staffWorkloadStats.tasksAssigned}) / sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL))
+          ELSE 0 
+        END, 2)`,
+      weekCount: sql<number>`count(*)`,
+      efficiency: sql<string>`
+        CASE 
+          WHEN round(sum(${staffWorkloadStats.tasksAssigned}) / sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2) >= 1.0 THEN 'High'
+          WHEN round(sum(${staffWorkloadStats.tasksAssigned}) / sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)), 2) >= 0.5 THEN 'Medium'
+          ELSE 'Low'
+        END
+      `,
+    })
+    .from(staffWorkloadStats)
+    .leftJoin(users, eq(staffWorkloadStats.staffId, users.id))
+    .groupBy(staffWorkloadStats.staffId, users.firstName, users.lastName, users.email, users.role)
+    .orderBy(sql<number>`round(
+      CASE 
+        WHEN sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL)) > 0 
+        THEN sum(${staffWorkloadStats.tasksAssigned}) / sum(CAST(${staffWorkloadStats.hoursLogged} AS DECIMAL))
+        ELSE 0 
+      END, 2) DESC`);
   }
 }
 

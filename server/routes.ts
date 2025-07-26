@@ -31823,6 +31823,123 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Staff Workload Statistics Routes =====
+
+  app.get("/api/staff-workload-stats", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { staffId, weekStart } = req.query;
+      const stats = await storage.getStaffWorkloadStats(
+        staffId as string,
+        weekStart as string
+      );
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching staff workload stats:", error);
+      res.status(500).json({ error: "Failed to fetch staff workload stats" });
+    }
+  });
+
+  app.get("/api/staff-workload-stats/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const stats = await storage.getStaffWorkloadStatsById(id);
+      if (!stats) {
+        return res.status(404).json({ error: "Staff workload stats not found" });
+      }
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching staff workload stats:", error);
+      res.status(500).json({ error: "Failed to fetch staff workload stats" });
+    }
+  });
+
+  app.post("/api/staff-workload-stats", isDemoAuthenticated, async (req, res) => {
+    try {
+      const stats = await storage.createStaffWorkloadStats(req.body);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error creating staff workload stats:", error);
+      res.status(500).json({ error: "Failed to create staff workload stats" });
+    }
+  });
+
+  app.put("/api/staff-workload-stats/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const stats = await storage.updateStaffWorkloadStats(id, req.body);
+      if (!stats) {
+        return res.status(404).json({ error: "Staff workload stats not found" });
+      }
+      res.json(stats);
+    } catch (error) {
+      console.error("Error updating staff workload stats:", error);
+      res.status(500).json({ error: "Failed to update staff workload stats" });
+    }
+  });
+
+  app.delete("/api/staff-workload-stats/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteStaffWorkloadStats(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting staff workload stats:", error);
+      res.status(500).json({ error: "Failed to delete staff workload stats" });
+    }
+  });
+
+  app.get("/api/staff-workload-stats/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getStaffWorkloadAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching staff workload analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/staff-workload-stats/week/:weekStart", isDemoAuthenticated, async (req, res) => {
+    try {
+      const weekStart = req.params.weekStart;
+      const stats = await storage.getStaffWorkloadByWeek(weekStart);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching workload by week:", error);
+      res.status(500).json({ error: "Failed to fetch workload by week" });
+    }
+  });
+
+  app.get("/api/staff-workload-stats/trends", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { staffId } = req.query;
+      const trends = await storage.getStaffWorkloadTrends(staffId as string);
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching workload trends:", error);
+      res.status(500).json({ error: "Failed to fetch workload trends" });
+    }
+  });
+
+  app.post("/api/staff-workload-stats/update-from-tasks", isDemoAuthenticated, async (req, res) => {
+    try {
+      const result = await storage.updateStaffWorkloadFromTasks();
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating workload from tasks:", error);
+      res.status(500).json({ error: "Failed to update workload from tasks" });
+    }
+  });
+
+  app.get("/api/staff-workload-stats/productivity-ranking", isDemoAuthenticated, async (req, res) => {
+    try {
+      const ranking = await storage.getStaffProductivityRanking();
+      res.json(ranking);
+    } catch (error) {
+      console.error("Error fetching productivity ranking:", error);
+      res.status(500).json({ error: "Failed to fetch productivity ranking" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

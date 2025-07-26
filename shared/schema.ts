@@ -12415,3 +12415,26 @@ export const insertMaintenanceBudgetForecastSchema = createInsertSchema(maintena
 
 export type MaintenanceBudgetForecast = typeof maintenanceBudgetForecasts.$inferSelect;
 export type InsertMaintenanceBudgetForecast = z.infer<typeof insertMaintenanceBudgetForecastSchema>;
+
+// ===== STAFF WORKLOAD STATISTICS SYSTEM =====
+
+export const staffWorkloadStats = pgTable("staff_workload_stats", {
+  id: serial("id").primaryKey(),
+  staffId: varchar("staff_id").notNull().references(() => users.id),
+  weekStart: date("week_start"),
+  tasksAssigned: integer("tasks_assigned").default(0),
+  hoursLogged: decimal("hours_logged", { precision: 5, scale: 2 }).default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_staff_workload_staff").on(table.staffId),
+  index("IDX_staff_workload_week").on(table.weekStart),
+  index("IDX_staff_workload_created").on(table.createdAt),
+]);
+
+export const insertStaffWorkloadStatsSchema = createInsertSchema(staffWorkloadStats).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type StaffWorkloadStats = typeof staffWorkloadStats.$inferSelect;
+export type InsertStaffWorkloadStats = z.infer<typeof insertStaffWorkloadStatsSchema>;
