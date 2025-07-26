@@ -85,6 +85,9 @@ import {
   // Security Deposits & Damage Management
   securityDeposits,
   damageReports,
+  // Vendor Management & Supply Ordering
+  vendors,
+  supplyOrders,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -36773,6 +36776,227 @@ Plant Care:
       status: newStatus,
       processedAt: new Date(),
     };
+  }
+
+  // ===== Vendor Management Methods =====
+  
+  async getVendors(): Promise<any[]> {
+    const result = await db.select({
+      id: vendors.id,
+      organizationId: vendors.organizationId,
+      name: vendors.name,
+      contactInfo: vendors.contactInfo,
+      apiUrl: vendors.apiUrl,
+      createdAt: vendors.createdAt,
+    })
+    .from(vendors)
+    .orderBy(vendors.name);
+    
+    return result;
+  }
+
+  async getVendorById(id: number): Promise<any> {
+    const [vendor] = await db.select({
+      id: vendors.id,
+      organizationId: vendors.organizationId,
+      name: vendors.name,
+      contactInfo: vendors.contactInfo,
+      apiUrl: vendors.apiUrl,
+      createdAt: vendors.createdAt,
+    })
+    .from(vendors)
+    .where(eq(vendors.id, id));
+    return vendor;
+  }
+
+  async createVendor(vendorData: any): Promise<any> {
+    const [created] = await db.insert(vendors).values({
+      ...vendorData,
+      organizationId: vendorData.organizationId || 'default-org',
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async updateVendor(id: number, updates: any): Promise<any> {
+    const [updated] = await db.update(vendors)
+      .set(updates)
+      .where(eq(vendors.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteVendor(id: number): Promise<boolean> {
+    const result = await db.delete(vendors).where(eq(vendors.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getVendorsAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalVendors: sql<number>`count(*)`,
+      activeVendors: sql<number>`count(CASE WHEN api_url IS NOT NULL THEN 1 END)`,
+    }).from(vendors);
+
+    const topVendors = await db.select({
+      vendorId: vendors.id,
+      vendorName: vendors.name,
+      totalOrders: sql<number>`count(${supplyOrders.id})`,
+      totalCost: sql<number>`sum(${supplyOrders.costTotal})`,
+      pendingOrders: sql<number>`count(CASE WHEN ${supplyOrders.status} = 'pending' THEN 1 END)`,
+      deliveredOrders: sql<number>`count(CASE WHEN ${supplyOrders.status} = 'delivered' THEN 1 END)`,
+    })
+    .from(vendors)
+    .leftJoin(supplyOrders, eq(vendors.id, supplyOrders.vendorId))
+    .groupBy(vendors.id, vendors.name)
+    .orderBy(sql<number>`count(${supplyOrders.id}) DESC`)
+    .limit(10);
+
+    return {
+      overall: overallStats[0] || { totalVendors: 0, activeVendors: 0 },
+      topVendors,
+    };
+  }
+
+  // ===== Supply Orders Management Methods =====
+  
+  async getSupplyOrders(vendorId?: number, propertyId?: number, status?: string): Promise<any[]> {
+    let query = db.select({
+      id: supplyOrders.id,
+      vendorId: supplyOrders.vendorId,
+      propertyId: supplyOrders.propertyId,
+      itemName: supplyOrders.itemName,
+      quantity: supplyOrders.quantity,
+      costTotal: supplyOrders.costTotal,
+      status: supplyOrders.status,
+      createdAt: supplyOrders.createdAt,
+      vendorName: vendors.name,
+      propertyName: properties.name,
+    })
+    .from(supplyOrders)
+    .leftJoin(vendors, eq(supplyOrders.vendorId, vendors.id))
+    .leftJoin(properties, eq(supplyOrders.propertyId, properties.id));
+
+    const conditions = [];
+    if (vendorId) conditions.push(eq(supplyOrders.vendorId, vendorId));
+    if (propertyId) conditions.push(eq(supplyOrders.propertyId, propertyId));
+    if (status) conditions.push(eq(supplyOrders.status, status));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return query.orderBy(desc(supplyOrders.createdAt));
+  }
+
+  async getSupplyOrderById(id: number): Promise<any> {
+    const [order] = await db.select({
+      id: supplyOrders.id,
+      vendorId: supplyOrders.vendorId,
+      propertyId: supplyOrders.propertyId,
+      itemName: supplyOrders.itemName,
+      quantity: supplyOrders.quantity,
+      costTotal: supplyOrders.costTotal,
+      status: supplyOrders.status,
+      createdAt: supplyOrders.createdAt,
+      vendorName: vendors.name,
+      vendorContactInfo: vendors.contactInfo,
+      propertyName: properties.name,
+    })
+    .from(supplyOrders)
+    .leftJoin(vendors, eq(supplyOrders.vendorId, vendors.id))
+    .leftJoin(properties, eq(supplyOrders.propertyId, properties.id))
+    .where(eq(supplyOrders.id, id));
+    return order;
+  }
+
+  async createSupplyOrder(orderData: any): Promise<any> {
+    const [created] = await db.insert(supplyOrders).values({
+      ...orderData,
+      createdAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async updateSupplyOrder(id: number, updates: any): Promise<any> {
+    const [updated] = await db.update(supplyOrders)
+      .set(updates)
+      .where(eq(supplyOrders.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSupplyOrder(id: number): Promise<boolean> {
+    const result = await db.delete(supplyOrders).where(eq(supplyOrders.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getSupplyOrdersAnalytics(): Promise<any> {
+    const overallStats = await db.select({
+      totalOrders: sql<number>`count(*)`,
+      totalCost: sql<number>`sum(cost_total)`,
+      pendingOrders: sql<number>`count(CASE WHEN status = 'pending' THEN 1 END)`,
+      orderedOrders: sql<number>`count(CASE WHEN status = 'ordered' THEN 1 END)`,
+      deliveredOrders: sql<number>`count(CASE WHEN status = 'delivered' THEN 1 END)`,
+      averageOrderValue: sql<number>`round(avg(cost_total), 2)`,
+    }).from(supplyOrders);
+
+    const byProperty = await db.select({
+      propertyId: supplyOrders.propertyId,
+      propertyName: properties.name,
+      orderCount: sql<number>`count(*)`,
+      totalCost: sql<number>`sum(${supplyOrders.costTotal})`,
+      pendingOrders: sql<number>`count(CASE WHEN ${supplyOrders.status} = 'pending' THEN 1 END)`,
+    })
+    .from(supplyOrders)
+    .leftJoin(properties, eq(supplyOrders.propertyId, properties.id))
+    .groupBy(supplyOrders.propertyId, properties.name)
+    .orderBy(sql<number>`count(*) DESC`);
+
+    const monthlySpending = await db.select({
+      month: sql<string>`to_char(created_at, 'YYYY-MM')`,
+      orderCount: sql<number>`count(*)`,
+      totalCost: sql<number>`sum(${supplyOrders.costTotal})`,
+      pendingOrders: sql<number>`count(CASE WHEN ${supplyOrders.status} = 'pending' THEN 1 END)`,
+      deliveredOrders: sql<number>`count(CASE WHEN ${supplyOrders.status} = 'delivered' THEN 1 END)`,
+    })
+    .from(supplyOrders)
+    .groupBy(sql`to_char(created_at, 'YYYY-MM')`)
+    .orderBy(sql`to_char(created_at, 'YYYY-MM') DESC`)
+    .limit(12);
+
+    const topItems = await db.select({
+      itemName: supplyOrders.itemName,
+      orderCount: sql<number>`count(*)`,
+      totalQuantity: sql<number>`sum(${supplyOrders.quantity})`,
+      totalCost: sql<number>`sum(${supplyOrders.costTotal})`,
+      averageCost: sql<number>`round(avg(${supplyOrders.costTotal}), 2)`,
+    })
+    .from(supplyOrders)
+    .groupBy(supplyOrders.itemName)
+    .orderBy(sql<number>`count(*) DESC`)
+    .limit(10);
+
+    return {
+      overall: overallStats[0] || { totalOrders: 0, totalCost: 0, pendingOrders: 0, orderedOrders: 0, deliveredOrders: 0, averageOrderValue: 0 },
+      byProperty,
+      monthlySpending,
+      topItems,
+    };
+  }
+
+  async updateSupplyOrderStatus(id: number, status: string): Promise<any> {
+    const [updated] = await db.update(supplyOrders)
+      .set({ status })
+      .where(eq(supplyOrders.id, id))
+      .returning();
+    return updated;
+  }
+
+  async bulkUpdateSupplyOrderStatus(orderIds: number[], status: string): Promise<number> {
+    const result = await db.update(supplyOrders)
+      .set({ status })
+      .where(sql`${supplyOrders.id} = ANY(${orderIds})`);
+    return result.rowCount;
   }
 }
 

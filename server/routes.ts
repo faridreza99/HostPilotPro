@@ -30878,6 +30878,179 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // ===== Vendor Management Routes =====
+  
+  app.get("/api/vendors", isDemoAuthenticated, async (req, res) => {
+    try {
+      const vendors = await storage.getVendors();
+      res.json(vendors);
+    } catch (error) {
+      console.error("Error fetching vendors:", error);
+      res.status(500).json({ error: "Failed to fetch vendors" });
+    }
+  });
+
+  app.get("/api/vendors/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const vendor = await storage.getVendorById(id);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+      res.json(vendor);
+    } catch (error) {
+      console.error("Error fetching vendor:", error);
+      res.status(500).json({ error: "Failed to fetch vendor" });
+    }
+  });
+
+  app.post("/api/vendors", isDemoAuthenticated, async (req, res) => {
+    try {
+      const vendor = await storage.createVendor(req.body);
+      res.json(vendor);
+    } catch (error) {
+      console.error("Error creating vendor:", error);
+      res.status(500).json({ error: "Failed to create vendor" });
+    }
+  });
+
+  app.put("/api/vendors/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const vendor = await storage.updateVendor(id, req.body);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+      res.json(vendor);
+    } catch (error) {
+      console.error("Error updating vendor:", error);
+      res.status(500).json({ error: "Failed to update vendor" });
+    }
+  });
+
+  app.delete("/api/vendors/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteVendor(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting vendor:", error);
+      res.status(500).json({ error: "Failed to delete vendor" });
+    }
+  });
+
+  app.get("/api/vendors/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getVendorsAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching vendor analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // ===== Supply Orders Management Routes =====
+  
+  app.get("/api/supply-orders", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { vendorId, propertyId, status } = req.query;
+      const orders = await storage.getSupplyOrders(
+        vendorId ? parseInt(vendorId as string) : undefined,
+        propertyId ? parseInt(propertyId as string) : undefined,
+        status as string
+      );
+      res.json(orders);
+    } catch (error) {
+      console.error("Error fetching supply orders:", error);
+      res.status(500).json({ error: "Failed to fetch supply orders" });
+    }
+  });
+
+  app.get("/api/supply-orders/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const order = await storage.getSupplyOrderById(id);
+      if (!order) {
+        return res.status(404).json({ error: "Supply order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Error fetching supply order:", error);
+      res.status(500).json({ error: "Failed to fetch supply order" });
+    }
+  });
+
+  app.post("/api/supply-orders", isDemoAuthenticated, async (req, res) => {
+    try {
+      const order = await storage.createSupplyOrder(req.body);
+      res.json(order);
+    } catch (error) {
+      console.error("Error creating supply order:", error);
+      res.status(500).json({ error: "Failed to create supply order" });
+    }
+  });
+
+  app.put("/api/supply-orders/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const order = await storage.updateSupplyOrder(id, req.body);
+      if (!order) {
+        return res.status(404).json({ error: "Supply order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Error updating supply order:", error);
+      res.status(500).json({ error: "Failed to update supply order" });
+    }
+  });
+
+  app.delete("/api/supply-orders/:id", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteSupplyOrder(id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting supply order:", error);
+      res.status(500).json({ error: "Failed to delete supply order" });
+    }
+  });
+
+  app.get("/api/supply-orders/analytics", isDemoAuthenticated, async (req, res) => {
+    try {
+      const analytics = await storage.getSupplyOrdersAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching supply orders analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.put("/api/supply-orders/:id/status", isDemoAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      const order = await storage.updateSupplyOrderStatus(id, status);
+      if (!order) {
+        return res.status(404).json({ error: "Supply order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Error updating supply order status:", error);
+      res.status(500).json({ error: "Failed to update supply order status" });
+    }
+  });
+
+  app.put("/api/supply-orders/bulk-status", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { orderIds, status } = req.body;
+      const updatedCount = await storage.bulkUpdateSupplyOrderStatus(orderIds, status);
+      res.json({ updatedCount });
+    } catch (error) {
+      console.error("Error bulk updating supply order status:", error);
+      res.status(500).json({ error: "Failed to bulk update supply order status" });
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

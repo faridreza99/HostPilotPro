@@ -12203,3 +12203,48 @@ export type SecurityDeposit = typeof securityDeposits.$inferSelect;
 export type InsertSecurityDeposit = z.infer<typeof insertSecurityDepositSchema>;
 export type DamageReport = typeof damageReports.$inferSelect;
 export type InsertDamageReport = z.infer<typeof insertDamageReportSchema>;
+
+// ===== VENDOR MANAGEMENT & SUPPLY ORDERING =====
+
+export const vendors = pgTable("vendors", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").notNull(),
+  name: varchar("name").notNull(),
+  contactInfo: text("contact_info"),
+  apiUrl: text("api_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_vendors_organization").on(table.organizationId),
+  index("IDX_vendors_name").on(table.name),
+]);
+
+export const supplyOrders = pgTable("supply_orders", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").references(() => vendors.id),
+  propertyId: integer("property_id").references(() => properties.id),
+  itemName: varchar("item_name").notNull(),
+  quantity: integer("quantity"),
+  costTotal: decimal("cost_total", { precision: 10, scale: 2 }),
+  status: varchar("status").default("pending"), // pending, ordered, delivered
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_supply_orders_vendor").on(table.vendorId),
+  index("IDX_supply_orders_property").on(table.propertyId),
+  index("IDX_supply_orders_status").on(table.status),
+  index("IDX_supply_orders_created").on(table.createdAt),
+]);
+
+export const insertVendorSchema = createInsertSchema(vendors).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSupplyOrderSchema = createInsertSchema(supplyOrders).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Vendor = typeof vendors.$inferSelect;
+export type InsertVendor = z.infer<typeof insertVendorSchema>;
+export type SupplyOrder = typeof supplyOrders.$inferSelect;
+export type InsertSupplyOrder = z.infer<typeof insertSupplyOrderSchema>;
