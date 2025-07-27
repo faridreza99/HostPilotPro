@@ -26,7 +26,7 @@ export default function FilteredPropertyDashboard() {
   const [globalFilters, setGlobalFilters] = useGlobalFilters("property-dashboard-filters");
 
   // Fetch all property-related data
-  const { data: properties = [], isLoading: loadingProperties } = useQuery({
+  const { data: propertiesResponse, isLoading: loadingProperties } = useQuery({
     queryKey: ["/api/properties"],
   });
 
@@ -38,9 +38,13 @@ export default function FilteredPropertyDashboard() {
     queryKey: ["/api/utility-bills"],
   });
 
-  const { data: bookings = [] } = useQuery({
+  const { data: bookingsResponse } = useQuery({
     queryKey: ["/api/bookings"],
   });
+
+  // Extract properties array from response
+  const properties = Array.isArray(propertiesResponse) ? propertiesResponse : (propertiesResponse?.properties || []);
+  const bookings = Array.isArray(bookingsResponse) ? bookingsResponse : (bookingsResponse?.bookings || []);
 
   // Apply global filters to properties
   const filteredProperties = applyGlobalFilters(properties, globalFilters, {
