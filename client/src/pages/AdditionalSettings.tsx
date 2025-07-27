@@ -7,6 +7,7 @@ import {
   Activity, 
   Shield, 
   Brain, 
+  Database,
   ExternalLink
 } from "lucide-react";
 
@@ -39,6 +40,20 @@ const AdditionalSettings = () => {
       icon: Activity,
       href: "/sandbox-testing",
       badge: "QA"
+    },
+    {
+      title: "System Integrity Check",
+      description: "Verify system health and data integrity",
+      icon: Shield,
+      href: "/admin/system-integrity-check",
+      badge: "QA"
+    },
+    {
+      title: "System-Wide Demo Integration",
+      description: "Demo data management and system integration tools",
+      icon: Database,
+      href: "/system-wide-demo-integration",
+      badge: "Demo"
     }
   ];
 
