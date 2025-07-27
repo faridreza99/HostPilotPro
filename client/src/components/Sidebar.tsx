@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
+import { InstantHubLink, PreloadHubData } from "@/components/InstantHubNavigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
@@ -426,8 +427,12 @@ export default function Sidebar({ className }: SidebarProps) {
                           onClick={() => {
                             console.log('Sidebar link clicked:', item.href);
                             setIsOpen(false);
-                            // Direct navigation for referral agent tabs
-                            if (item.href.includes('/referral-agent')) {
+                            // For hub pages, use instant navigation, for others use regular navigation
+                            if (item.href.includes('-hub')) {
+                              // Use wouter navigation for instant loading
+                              window.history.pushState({}, '', item.href);
+                              window.dispatchEvent(new PopStateEvent('popstate'));
+                            } else if (item.href.includes('/referral-agent')) {
                               const urlParams = new URLSearchParams(item.href.split('?')[1] || '');
                               const tab = urlParams.get('tab') || 'services';
                               console.log('Setting tab to:', tab);

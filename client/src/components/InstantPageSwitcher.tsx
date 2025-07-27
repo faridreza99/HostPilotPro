@@ -8,14 +8,27 @@ export function InstantPageSwitcher() {
       '/api/properties',
       '/api/tasks', 
       '/api/bookings',
-      '/api/dashboard/stats'
+      '/api/dashboard/stats',
+      '/api/finance',
+      '/api/finance/analytics',
+      '/api/users'
     ];
 
-    // Pre-cache in background without triggering UI updates
+    // Pre-cache all hub page data immediately
     preCacheEndpoints.forEach(endpoint => {
       queryClient.prefetchQuery({
         queryKey: [endpoint],
         staleTime: 60 * 60 * 1000, // 1 hour
+      });
+    });
+
+    // Also pre-cache the hub page routes themselves
+    const hubRoutes = ['/dashboard-hub', '/property-hub', '/finance-hub', '/system-hub'];
+    hubRoutes.forEach(route => {
+      queryClient.prefetchQuery({
+        queryKey: ['route', route],
+        queryFn: () => Promise.resolve(true),
+        staleTime: 60 * 60 * 1000,
       });
     });
   }, []);

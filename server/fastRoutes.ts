@@ -68,4 +68,78 @@ export function registerFastRoutes(app: Express) {
       30 // 30 minute cache for dashboard
     );
   });
+
+  // Ultra-fast hub navigation endpoints for instant page switching
+  app.get("/api/hub/dashboard/fast", async (req: any, res) => {
+    const organizationId = req.user?.organizationId || "default-org";
+    const cacheKey = `hub-dashboard-${organizationId}`;
+    
+    return sendCachedOrFetch(
+      cacheKey,
+      async () => {
+        // Return minimal data needed for dashboard hub
+        return {
+          success: true,
+          timestamp: Date.now(),
+          hubType: 'dashboard'
+        };
+      },
+      res,
+      60 // 1 hour cache for hub navigation
+    );
+  });
+
+  app.get("/api/hub/property/fast", async (req: any, res) => {
+    const organizationId = req.user?.organizationId || "default-org";
+    const cacheKey = `hub-property-${organizationId}`;
+    
+    return sendCachedOrFetch(
+      cacheKey,
+      async () => {
+        return {
+          success: true,
+          timestamp: Date.now(),
+          hubType: 'property'
+        };
+      },
+      res,
+      60 // 1 hour cache
+    );
+  });
+
+  app.get("/api/hub/finance/fast", async (req: any, res) => {
+    const organizationId = req.user?.organizationId || "default-org";
+    const cacheKey = `hub-finance-${organizationId}`;
+    
+    return sendCachedOrFetch(
+      cacheKey,
+      async () => {
+        return {
+          success: true,
+          timestamp: Date.now(),
+          hubType: 'finance'
+        };
+      },
+      res,
+      60 // 1 hour cache
+    );
+  });
+
+  app.get("/api/hub/system/fast", async (req: any, res) => {
+    const organizationId = req.user?.organizationId || "default-org";
+    const cacheKey = `hub-system-${organizationId}`;
+    
+    return sendCachedOrFetch(
+      cacheKey,
+      async () => {
+        return {
+          success: true,
+          timestamp: Date.now(),
+          hubType: 'system'
+        };
+      },
+      res,
+      60 // 1 hour cache
+    );
+  });
 }
