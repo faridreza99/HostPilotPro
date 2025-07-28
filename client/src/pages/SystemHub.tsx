@@ -17,20 +17,20 @@ import TopBar from "@/components/TopBar";
 export default function SystemHub() {
   const systemItems = [
     {
+      title: "🔑 API Connections",
+      description: "Configure Stripe, Hostaway, OpenAI, Twilio and other third-party API integrations",
+      href: "/admin/api-connections",
+      icon: Key,
+      badge: "APIs",
+      color: "bg-emerald-50 hover:bg-emerald-100 border-emerald-300 border-2"
+    },
+    {
       title: "Settings",
       description: "General settings, branding, legal templates, and currency & tax configuration",
       href: "/settings",
       icon: Settings,
       badge: "Core",
       color: "bg-blue-50 hover:bg-blue-100 border-blue-200"
-    },
-    {
-      title: "API Connections",
-      description: "Manage third-party API integrations: Stripe, Hostaway, OpenAI, Twilio, and more",
-      href: "/admin/api-connections",
-      icon: Key,
-      badge: "API",
-      color: "bg-cyan-50 hover:bg-cyan-100 border-cyan-200"
     },
     {
       title: "User Management", 
