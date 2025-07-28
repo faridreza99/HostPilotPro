@@ -83,6 +83,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register Fast routes for performance
   const { registerFastRoutes } = await import("./fastRoutes");
   registerFastRoutes(app);
+
+  // === AI Bot Routes ===
+  
+  app.post('/api/ai-bot/query', isDemoAuthenticated, async (req, res) => {
+    try {
+      const { question } = req.body;
+      const user = req.user as any;
+      
+      if (!question) {
+        return res.status(400).json({ error: 'Question is required' });
+      }
+
+      const { aiBotEngine } = await import('./ai-bot-engine.js');
+      
+      const context = {
+        organizationId: user.organizationId || 'default-org',
+        userRole: user.role || 'admin',
+        userId: user.id
+      };
+
+      const response = await aiBotEngine.processQuery(question, context);
+      
+      res.json({ 
+        response,
+        timestamp: new Date().toISOString(),
+        context: context.organizationId 
+      });
+
+    } catch (error: any) {
+      console.error('AI Bot query error:', error);
+      res.status(500).json({ 
+        error: 'Failed to process AI query',
+        message: error.message 
+      });
+    }
+  });
+
+  app.get('/api/ai-bot/suggestions', isDemoAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { aiBotEngine } = await import('./ai-bot-engine.js');
+      
+      const context = {
+        organizationId: user.organizationId || 'default-org',
+        userRole: user.role || 'admin',
+        userId: user.id
+      };
+
+      const suggestions = await aiBotEngine.getSuggestedQuestions(context);
+      res.json(suggestions);
+
+    } catch (error: any) {
+      console.error('AI Bot suggestions error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get suggestions',
+        message: error.message 
+      });
+    }
+  });
   
   // Apply ultra-fast middleware to critical endpoints
   const { ultraFastCache } = await import("./ultraFastMiddleware");

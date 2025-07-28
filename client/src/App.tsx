@@ -73,6 +73,7 @@ import AlertManagement from "@/pages/AlertManagement";
 import AutomationManagement from "@/pages/AutomationManagement";
 import CurrencyTaxManagement from "@/pages/CurrencyTaxManagement";
 import UpsellRecommendationsManagement from "@/pages/UpsellRecommendationsManagement";
+import { AIBotPage } from "@/pages/AIBotPage";
 
 // Import new agent pages
 import QuoteGenerator from "@/pages/agent/QuoteGenerator";
@@ -240,6 +241,7 @@ function AppRoutes() {
         <Route path="/guest-check-in-check-out" component={GuestCheckInCheckOutTracker} />
         <Route path="/activity-logs" component={ActivityLogs} />
         <Route path="/daily-operations" component={DailyOperationsDashboard} />
+        <Route path="/ai-bot" component={AIBotPage} />
         
         <Route component={NotFound} />
       </Switch>

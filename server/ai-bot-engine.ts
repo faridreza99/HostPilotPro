@@ -1,0 +1,292 @@
+/**
+ * MR Pilot AI Bot Engine
+ * Provides intelligent access to all property management data
+ */
+
+import OpenAI from 'openai';
+import { DatabaseStorage } from './storage.js';
+
+interface QueryContext {
+  organizationId: string;
+  userRole: string;
+  userId: string;
+}
+
+interface DataQuery {
+  type: 'tasks' | 'revenue' | 'expenses' | 'bookings' | 'properties' | 'general';
+  filters: {
+    property?: string;
+    dateRange?: { start: string; end: string };
+    status?: string;
+    category?: string;
+  };
+  question: string;
+}
+
+export class AIBotEngine {
+  private openai: OpenAI;
+  private storage: DatabaseStorage;
+
+  constructor() {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is required for AI Bot functionality');
+    }
+    
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+    
+    this.storage = new DatabaseStorage();
+  }
+
+  /**
+   * Main entry point for AI bot queries
+   */
+  async processQuery(question: string, context: QueryContext): Promise<string> {
+    try {
+      console.log(`🤖 AI Bot processing: "${question}" for org: ${context.organizationId}`);
+
+      // Step 1: Analyze the question to understand what data is needed
+      const queryAnalysis = await this.analyzeQuestion(question);
+      console.log('📊 Query analysis:', queryAnalysis);
+
+      // Step 2: Fetch relevant data based on analysis
+      const relevantData = await this.fetchRelevantData(queryAnalysis, context);
+      console.log('📋 Data fetched:', Object.keys(relevantData));
+
+      // Step 3: Generate intelligent response using OpenAI
+      const response = await this.generateResponse(question, relevantData, queryAnalysis);
+      
+      return response;
+
+    } catch (error: any) {
+      console.error('❌ AI Bot error:', error);
+      return `I apologize, but I encountered an error while processing your question: ${error?.message || 'Unknown error'}. Please try rephrasing your question or contact support if the issue persists.`;
+    }
+  }
+
+  /**
+   * Analyze the user question to determine what data to fetch
+   */
+  private async analyzeQuestion(question: string): Promise<DataQuery> {
+    const systemPrompt = `You are a data analyst for a property management system. Analyze the user's question and return a JSON object with the query structure.
+
+Available data types: tasks, revenue, expenses, bookings, properties, general
+Available filters: property (property name), dateRange (start/end dates), status, category
+
+Examples:
+- "What tasks do we have for tomorrow?" → {"type": "tasks", "filters": {"dateRange": {"start": "tomorrow", "end": "tomorrow"}}}
+- "Revenue from Villa Tropical Paradise in March 2025" → {"type": "revenue", "filters": {"property": "Villa Tropical Paradise", "dateRange": {"start": "2025-03-01", "end": "2025-03-31"}}}
+- "Electric charges for Villa Aruna in May" → {"type": "expenses", "filters": {"property": "Villa Aruna", "category": "electric", "dateRange": {"start": "2025-05-01", "end": "2025-05-31"}}}
+
+Return only valid JSON.`;
+
+    const completion = await this.openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question }
+      ],
+      temperature: 0.1,
+    });
+
+    try {
+      const analysis = JSON.parse(completion.choices[0].message.content || '{}');
+      analysis.question = question;
+      return analysis;
+    } catch (error) {
+      // Fallback analysis if JSON parsing fails
+      return {
+        type: 'general',
+        filters: {},
+        question: question
+      };
+    }
+  }
+
+  /**
+   * Fetch relevant data based on query analysis
+   */
+  private async fetchRelevantData(query: DataQuery, context: QueryContext): Promise<any> {
+    const data: any = {};
+
+    try {
+      // Always fetch properties for reference
+      data.properties = await this.storage.getProperties();
+
+      // Fetch specific data based on query type
+      switch (query.type) {
+        case 'tasks':
+          data.tasks = await this.storage.getTasks();
+          if (query.filters.dateRange) {
+            data.tasks = this.filterByDateRange(data.tasks, query.filters.dateRange, 'dueDate');
+          }
+          break;
+
+        case 'revenue':
+        case 'expenses':
+          data.finance = await this.storage.getFinances();
+          if (query.filters.property) {
+            const property = this.findPropertyByName(data.properties, query.filters.property);
+            if (property) {
+              data.finance = data.finance.filter((f: any) => f.propertyId === property.id);
+            }
+          }
+          if (query.filters.dateRange) {
+            data.finance = this.filterByDateRange(data.finance, query.filters.dateRange, 'date');
+          }
+          if (query.type === 'revenue') {
+            data.finance = data.finance.filter((f: any) => f.type === 'income');
+          } else if (query.type === 'expenses') {
+            data.finance = data.finance.filter((f: any) => f.type === 'expense');
+            if (query.filters.category) {
+              data.finance = data.finance.filter((f: any) => 
+                f.category?.toLowerCase().includes(query.filters.category?.toLowerCase())
+              );
+            }
+          }
+          break;
+
+        case 'bookings':
+          data.bookings = await this.storage.getBookings();
+          if (query.filters.property) {
+            const property = this.findPropertyByName(data.properties, query.filters.property);
+            if (property) {
+              data.bookings = data.bookings.filter((b: any) => b.propertyId === property.id);
+            }
+          }
+          if (query.filters.dateRange) {
+            data.bookings = this.filterByDateRange(data.bookings, query.filters.dateRange, 'checkInDate');
+          }
+          break;
+
+        case 'general':
+          // Fetch all data for general questions
+          data.tasks = await this.storage.getTasks();
+          data.finance = await this.storage.getFinances();
+          data.bookings = await this.storage.getBookings();
+          break;
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      return { error: 'Failed to fetch data', properties: data.properties || [] };
+    }
+  }
+
+  /**
+   * Generate intelligent response using OpenAI
+   */
+  private async generateResponse(question: string, data: any, query: DataQuery): Promise<string> {
+    const systemPrompt = `You are MR Pilot, an AI assistant for a property management company. You have access to real property management data and should provide helpful, accurate answers.
+
+Key guidelines:
+1. Be conversational and helpful
+2. Use specific data from the provided context
+3. Format numbers clearly (use Thai Baht ฿ for money)
+4. If no data is found, explain why and suggest alternatives
+5. For date-related queries, be specific about the time period
+6. Always mention property names when relevant
+7. Keep responses concise but informative
+
+Data available: ${JSON.stringify(Object.keys(data))}
+
+Current date context: ${new Date().toISOString().split('T')[0]}`;
+
+    const userPrompt = `Question: "${question}"
+
+Available data:
+${JSON.stringify(data, null, 2)}
+
+Please provide a helpful response based on this data.`;
+
+    const completion = await this.openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 1000,
+    });
+
+    return completion.choices[0].message.content || "I apologize, but I couldn't generate a response to your question.";
+  }
+
+  /**
+   * Helper: Find property by name (fuzzy matching)
+   */
+  private findPropertyByName(properties: any[], propertyName: string): any {
+    const name = propertyName.toLowerCase();
+    return properties.find(p => 
+      p.name.toLowerCase().includes(name) || 
+      name.includes(p.name.toLowerCase())
+    );
+  }
+
+  /**
+   * Helper: Filter data by date range
+   */
+  private filterByDateRange(data: any[], dateRange: any, dateField: string): any[] {
+    if (!dateRange.start && !dateRange.end) return data;
+
+    const start = this.parseDate(dateRange.start);
+    const end = this.parseDate(dateRange.end);
+
+    return data.filter(item => {
+      const itemDate = new Date(item[dateField]);
+      if (isNaN(itemDate.getTime())) return false;
+
+      if (start && itemDate < start) return false;
+      if (end && itemDate > end) return false;
+      return true;
+    });
+  }
+
+  /**
+   * Helper: Parse various date formats including "tomorrow", "today", etc.
+   */
+  private parseDate(dateStr: string): Date | null {
+    if (!dateStr) return null;
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    switch (dateStr.toLowerCase()) {
+      case 'today':
+        return today;
+      case 'tomorrow':
+        return tomorrow;
+      case 'yesterday':
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        return yesterday;
+      default:
+        const parsed = new Date(dateStr);
+        return isNaN(parsed.getTime()) ? null : parsed;
+    }
+  }
+
+  /**
+   * Get suggested questions based on available data
+   */
+  async getSuggestedQuestions(context: QueryContext): Promise<string[]> {
+    return [
+      "What tasks do we have for tomorrow?",
+      "Show me revenue for this month",
+      "What are the pending bookings?",
+      "What were the expenses for Villa Tropical Paradise last month?",
+      "How many properties are currently active?",
+      "What tasks are overdue?",
+      "Show me electric charges for May 2025",
+      "What's our total revenue for this year?",
+      "Which properties have bookings this week?",
+      "What maintenance tasks are scheduled?"
+    ];
+  }
+}
+
+export const aiBotEngine = new AIBotEngine();
