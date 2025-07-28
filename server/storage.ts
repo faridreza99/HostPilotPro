@@ -110,6 +110,9 @@ import {
   staffWorkloadStats,
   // Property Insurance
   propertyInsurance,
+  // Property Appliances Management
+  propertyAppliances,
+  applianceRepairs,
   // Property Utilities & Maintenance Enhanced
   propertyUtilityAccountsEnhanced,
   utilityBillLogsEnhanced,
@@ -40154,6 +40157,228 @@ The ${packType} approach focuses on highlighting the property's strengths while 
     }
 
     return createdPacks;
+  }
+
+  // ===== PROPERTY APPLIANCES MANAGEMENT =====
+
+  // Get all property appliances with organization filtering
+  async getPropertyAppliances(organizationId: string, propertyId?: number): Promise<any[]> {
+    let query = db
+      .select({
+        id: propertyAppliances.id,
+        organizationId: propertyAppliances.organizationId,
+        propertyId: propertyAppliances.propertyId,
+        applianceType: propertyAppliances.applianceType,
+        brand: propertyAppliances.brand,
+        model: propertyAppliances.model,
+        serialNumber: propertyAppliances.serialNumber,
+        installDate: propertyAppliances.installDate,
+        warrantyExpiry: propertyAppliances.warrantyExpiry,
+        notes: propertyAppliances.notes,
+        createdAt: propertyAppliances.createdAt,
+      })
+      .from(propertyAppliances)
+      .where(eq(propertyAppliances.organizationId, organizationId));
+
+    if (propertyId) {
+      query = query.where(eq(propertyAppliances.propertyId, propertyId));
+    }
+
+    return query.orderBy(desc(propertyAppliances.createdAt));
+  }
+
+  // Create a new property appliance
+  async createPropertyAppliance(organizationId: string, data: any): Promise<any> {
+    const [newAppliance] = await db.insert(propertyAppliances).values({
+      organizationId,
+      propertyId: data.propertyId,
+      applianceType: data.applianceType,
+      brand: data.brand,
+      model: data.model,
+      serialNumber: data.serialNumber,
+      installDate: data.installDate,
+      warrantyExpiry: data.warrantyExpiry,
+      notes: data.notes,
+    }).returning();
+
+    return newAppliance;
+  }
+
+  // Get appliance by ID
+  async getPropertyApplianceById(organizationId: string, applianceId: number): Promise<any | null> {
+    const [appliance] = await db
+      .select()
+      .from(propertyAppliances)
+      .where(and(
+        eq(propertyAppliances.id, applianceId),
+        eq(propertyAppliances.organizationId, organizationId)
+      ));
+
+    return appliance || null;
+  }
+
+  // Update appliance
+  async updatePropertyAppliance(organizationId: string, applianceId: number, data: any): Promise<any> {
+    const [updatedAppliance] = await db
+      .update(propertyAppliances)
+      .set(data)
+      .where(and(
+        eq(propertyAppliances.id, applianceId),
+        eq(propertyAppliances.organizationId, organizationId)
+      ))
+      .returning();
+
+    return updatedAppliance;
+  }
+
+  // Delete appliance
+  async deletePropertyAppliance(organizationId: string, applianceId: number): Promise<boolean> {
+    const result = await db
+      .delete(propertyAppliances)
+      .where(and(
+        eq(propertyAppliances.id, applianceId),
+        eq(propertyAppliances.organizationId, organizationId)
+      ));
+
+    return result.rowCount > 0;
+  }
+
+  // ===== APPLIANCE REPAIRS MANAGEMENT =====
+
+  // Get all appliance repairs
+  async getApplianceRepairs(organizationId: string, applianceId?: number): Promise<any[]> {
+    let query = db
+      .select({
+        id: applianceRepairs.id,
+        applianceId: applianceRepairs.applianceId,
+        issueReported: applianceRepairs.issueReported,
+        fixDescription: applianceRepairs.fixDescription,
+        technicianName: applianceRepairs.technicianName,
+        repairCost: applianceRepairs.repairCost,
+        receiptUrl: applianceRepairs.receiptUrl,
+        repairedAt: applianceRepairs.repairedAt,
+        createdAt: applianceRepairs.createdAt,
+      })
+      .from(applianceRepairs)
+      .leftJoin(propertyAppliances, eq(applianceRepairs.applianceId, propertyAppliances.id))
+      .where(eq(propertyAppliances.organizationId, organizationId));
+
+    if (applianceId) {
+      query = query.where(eq(applianceRepairs.applianceId, applianceId));
+    }
+
+    return query.orderBy(desc(applianceRepairs.repairedAt));
+  }
+
+  // Create a new appliance repair
+  async createApplianceRepair(organizationId: string, data: any): Promise<any> {
+    // First verify the appliance belongs to this organization
+    const appliance = await this.getPropertyApplianceById(organizationId, data.applianceId);
+    if (!appliance) {
+      throw new Error('Appliance not found or does not belong to organization');
+    }
+
+    const [newRepair] = await db.insert(applianceRepairs).values({
+      applianceId: data.applianceId,
+      issueReported: data.issueReported,
+      fixDescription: data.fixDescription,
+      technicianName: data.technicianName,
+      repairCost: data.repairCost,
+      receiptUrl: data.receiptUrl,
+      repairedAt: data.repairedAt || new Date(),
+    }).returning();
+
+    return newRepair;
+  }
+
+  // Get repair by ID
+  async getApplianceRepairById(organizationId: string, repairId: number): Promise<any | null> {
+    const [repair] = await db
+      .select()
+      .from(applianceRepairs)
+      .leftJoin(propertyAppliances, eq(applianceRepairs.applianceId, propertyAppliances.id))
+      .where(and(
+        eq(applianceRepairs.id, repairId),
+        eq(propertyAppliances.organizationId, organizationId)
+      ));
+
+    return repair || null;
+  }
+
+  // Update repair
+  async updateApplianceRepair(organizationId: string, repairId: number, data: any): Promise<any> {
+    // Verify repair belongs to organization through appliance
+    const repair = await this.getApplianceRepairById(organizationId, repairId);
+    if (!repair) {
+      throw new Error('Repair not found or does not belong to organization');
+    }
+
+    const [updatedRepair] = await db
+      .update(applianceRepairs)
+      .set(data)
+      .where(eq(applianceRepairs.id, repairId))
+      .returning();
+
+    return updatedRepair;
+  }
+
+  // Delete repair
+  async deleteApplianceRepair(organizationId: string, repairId: number): Promise<boolean> {
+    // Verify repair belongs to organization through appliance
+    const repair = await this.getApplianceRepairById(organizationId, repairId);
+    if (!repair) {
+      throw new Error('Repair not found or does not belong to organization');
+    }
+
+    const result = await db
+      .delete(applianceRepairs)
+      .where(eq(applianceRepairs.id, repairId));
+
+    return result.rowCount > 0;
+  }
+
+  // Get appliances analytics for dashboard
+  async getAppliancesAnalytics(organizationId: string): Promise<any> {
+    const allAppliances = await this.getPropertyAppliances(organizationId);
+    const allRepairs = await this.getApplianceRepairs(organizationId);
+
+    const totalAppliances = allAppliances.length;
+    const totalRepairs = allRepairs.length;
+    
+    // Calculate warranty status
+    const now = new Date();
+    const expiredWarranties = allAppliances.filter(a => 
+      a.warrantyExpiry && new Date(a.warrantyExpiry) < now
+    ).length;
+    
+    const expiringWarranties = allAppliances.filter(a => {
+      if (!a.warrantyExpiry) return false;
+      const warrantyDate = new Date(a.warrantyExpiry);
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      return warrantyDate >= now && warrantyDate <= thirtyDaysFromNow;
+    }).length;
+
+    // Calculate total repair costs
+    const totalRepairCosts = allRepairs.reduce((sum, repair) => 
+      sum + (parseFloat(repair.repairCost || '0')), 0
+    );
+
+    // Most common appliance types
+    const applianceTypeCounts = allAppliances.reduce((acc, appliance) => {
+      acc[appliance.applianceType] = (acc[appliance.applianceType] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      totalAppliances,
+      totalRepairs,
+      expiredWarranties,
+      expiringWarranties,
+      totalRepairCosts,
+      applianceTypeCounts,
+      averageRepairCost: totalRepairs > 0 ? totalRepairCosts / totalRepairs : 0,
+    };
   }
 }
 

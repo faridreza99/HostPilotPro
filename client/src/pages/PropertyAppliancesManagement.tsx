@@ -7,102 +7,246 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Wrench, Calendar, AlertTriangle, DollarSign, Search } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Wrench, Calendar, AlertTriangle, DollarSign, Search, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
-import { SPEED_QUERY_OPTIONS } from "@/lib/speedOptimizer";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
 
-// Mock data for demo purposes while backend is being set up
-const mockAppliances = [
-  {
-    id: 1,
-    propertyId: 1,
-    applianceType: "Air Conditioner",
-    brand: "Daikin",
-    model: "FTXS25K",
-    serialNumber: "DAI-2024-001",
-    installDate: "2024-01-15",
-    warrantyExpiry: "2027-01-15",
-    notes: "Main living room AC unit"
-  },
-  {
-    id: 2,
-    propertyId: 1,
-    applianceType: "Refrigerator",
-    brand: "Samsung",
-    model: "RT32K5032S8",
-    serialNumber: "SAM-2024-002",
-    installDate: "2024-02-10",
-    warrantyExpiry: "2026-02-10",
-    notes: "Kitchen refrigerator"
-  },
-  {
-    id: 3,
-    propertyId: 2,
-    applianceType: "Washing Machine",
-    brand: "LG",
-    model: "T2108VSAM",
-    serialNumber: "LG-2024-003",
-    installDate: "2024-03-05",
-    warrantyExpiry: "2025-03-05",
-    notes: "Utility room washing machine"
-  }
-];
+// Form schemas
+const applianceSchema = z.object({
+  propertyId: z.number(),
+  applianceType: z.string().min(1, "Appliance type is required"),
+  brand: z.string().optional(),
+  model: z.string().optional(),
+  serialNumber: z.string().optional(),
+  installDate: z.string().optional(),
+  warrantyExpiry: z.string().optional(),
+  notes: z.string().optional(),
+});
 
-const mockRepairs = [
-  {
-    id: 1,
-    applianceId: 1,
-    issueReported: "AC not cooling properly",
-    fixDescription: "Cleaned filters and recharged refrigerant",
-    technicianName: "Somchai Repair Service",
-    repairCost: 2500,
-    receiptUrl: "",
-    repairedAt: "2024-06-15"
-  },
-  {
-    id: 2,
-    applianceId: 2,
-    issueReported: "Refrigerator making noise",
-    fixDescription: "Replaced compressor motor",
-    technicianName: "Bangkok Appliance Fix",
-    repairCost: 4500,
-    receiptUrl: "",
-    repairedAt: "2024-05-20"
-  }
-];
-
-const mockProperties = [
-  { id: 1, name: "Villa Samui Breeze" },
-  { id: 2, name: "Villa Ocean View" },
-  { id: 3, name: "Villa Aruna Demo" },
-  { id: 4, name: "Villa Tropical Paradise" }
-];
+const repairSchema = z.object({
+  applianceId: z.number(),
+  issueReported: z.string().min(1, "Issue description is required"),
+  fixDescription: z.string().optional(),
+  technicianName: z.string().optional(),
+  repairCost: z.number().optional(),
+  receiptUrl: z.string().optional(),
+  repairedAt: z.string().optional(),
+});
 
 export default function PropertyAppliancesManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProperty, setSelectedProperty] = useState<string>("all");
+  const [showApplianceDialog, setShowApplianceDialog] = useState(false);
+  const [showRepairDialog, setShowRepairDialog] = useState(false);
+  const [editingAppliance, setEditingAppliance] = useState<any>(null);
+  const [editingRepair, setEditingRepair] = useState<any>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Use mock data while backend endpoints are being set up
-  const { data: properties = mockProperties, isLoading: propertiesLoading } = useQuery({
+  // Real API queries
+  const { data: properties = [], isLoading: propertiesLoading } = useQuery({
     queryKey: ["/api/properties"],
-    ...SPEED_QUERY_OPTIONS,
   });
 
-  const { data: appliances = mockAppliances, isLoading: appliancesLoading } = useQuery({
-    queryKey: ["/api/appliances"],
-    queryFn: () => mockAppliances, // Use mock data for now
-    ...SPEED_QUERY_OPTIONS,
+  const { data: appliances = [], isLoading: appliancesLoading } = useQuery({
+    queryKey: ["/api/property-appliances"],
   });
 
-  const { data: repairs = mockRepairs, isLoading: repairsLoading } = useQuery({
+  const { data: repairs = [], isLoading: repairsLoading } = useQuery({
     queryKey: ["/api/appliance-repairs"],
-    queryFn: () => mockRepairs, // Use mock data for now
-    ...SPEED_QUERY_OPTIONS,
   });
+
+  const { data: analytics } = useQuery({
+    queryKey: ["/api/property-appliances/analytics"],
+  });
+
+  // Forms
+  const applianceForm = useForm({
+    resolver: zodResolver(applianceSchema),
+    defaultValues: {
+      propertyId: 0,
+      applianceType: "",
+      brand: "",
+      model: "",
+      serialNumber: "",
+      installDate: "",
+      warrantyExpiry: "",
+      notes: "",
+    },
+  });
+
+  const repairForm = useForm({
+    resolver: zodResolver(repairSchema),
+    defaultValues: {
+      applianceId: 0,
+      issueReported: "",
+      fixDescription: "",
+      technicianName: "",
+      repairCost: 0,
+      receiptUrl: "",
+      repairedAt: "",
+    },
+  });
+
+  // Mutations
+  const createApplianceMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/property-appliances", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-appliances"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/property-appliances/analytics"] });
+      setShowApplianceDialog(false);
+      applianceForm.reset();
+      toast({ title: "Success", description: "Appliance added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add appliance", variant: "destructive" });
+    },
+  });
+
+  const updateApplianceMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => 
+      apiRequest("PUT", `/api/property-appliances/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-appliances"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/property-appliances/analytics"] });
+      setShowApplianceDialog(false);
+      setEditingAppliance(null);
+      applianceForm.reset();
+      toast({ title: "Success", description: "Appliance updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update appliance", variant: "destructive" });
+    },
+  });
+
+  const deleteApplianceMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/property-appliances/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/property-appliances"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/property-appliances/analytics"] });
+      toast({ title: "Success", description: "Appliance deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete appliance", variant: "destructive" });
+    },
+  });
+
+  const createRepairMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/appliance-repairs", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appliance-repairs"] });
+      setShowRepairDialog(false);
+      repairForm.reset();
+      toast({ title: "Success", description: "Repair record added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add repair record", variant: "destructive" });
+    },
+  });
+
+  const updateRepairMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => 
+      apiRequest("PUT", `/api/appliance-repairs/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appliance-repairs"] });
+      setShowRepairDialog(false);
+      setEditingRepair(null);
+      repairForm.reset();
+      toast({ title: "Success", description: "Repair record updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update repair record", variant: "destructive" });
+    },
+  });
+
+  const deleteRepairMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/appliance-repairs/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appliance-repairs"] });
+      toast({ title: "Success", description: "Repair record deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete repair record", variant: "destructive" });
+    },
+  });
+
+  // Handlers
+  const handleAddAppliance = () => {
+    setEditingAppliance(null);
+    applianceForm.reset();
+    setShowApplianceDialog(true);
+  };
+
+  const handleEditAppliance = (appliance: any) => {
+    setEditingAppliance(appliance);
+    applianceForm.reset({
+      propertyId: appliance.propertyId,
+      applianceType: appliance.applianceType,
+      brand: appliance.brand || "",
+      model: appliance.model || "",
+      serialNumber: appliance.serialNumber || "",
+      installDate: appliance.installDate || "",
+      warrantyExpiry: appliance.warrantyExpiry || "",
+      notes: appliance.notes || "",
+    });
+    setShowApplianceDialog(true);
+  };
+
+  const handleDeleteAppliance = (id: number) => {
+    if (confirm("Are you sure you want to delete this appliance?")) {
+      deleteApplianceMutation.mutate(id);
+    }
+  };
+
+  const handleAddRepair = () => {
+    setEditingRepair(null);
+    repairForm.reset();
+    setShowRepairDialog(true);
+  };
+
+  const handleEditRepair = (repair: any) => {
+    setEditingRepair(repair);
+    repairForm.reset({
+      applianceId: repair.applianceId,
+      issueReported: repair.issueReported,
+      fixDescription: repair.fixDescription || "",
+      technicianName: repair.technicianName || "",
+      repairCost: parseFloat(repair.repairCost || "0"),
+      receiptUrl: repair.receiptUrl || "",
+      repairedAt: repair.repairedAt || "",
+    });
+    setShowRepairDialog(true);
+  };
+
+  const handleDeleteRepair = (id: number) => {
+    if (confirm("Are you sure you want to delete this repair record?")) {
+      deleteRepairMutation.mutate(id);
+    }
+  };
+
+  const onSubmitAppliance = (data: any) => {
+    if (editingAppliance) {
+      updateApplianceMutation.mutate({ id: editingAppliance.id, data });
+    } else {
+      createApplianceMutation.mutate(data);
+    }
+  };
+
+  const onSubmitRepair = (data: any) => {
+    if (editingRepair) {
+      updateRepairMutation.mutate({ id: editingRepair.id, data });
+    } else {
+      createRepairMutation.mutate(data);
+    }
+  };
 
   // Show loading state
   if (propertiesLoading || appliancesLoading || repairsLoading) {
@@ -137,23 +281,29 @@ export default function PropertyAppliancesManagement() {
     return property?.name || "Unknown Property";
   };
 
-  // Get appliance name
+  // Get appliance name for repairs table
   const getApplianceName = (applianceId: number) => {
     const appliance = appliances.find((a: any) => a.id === applianceId);
-    return appliance ? `${appliance.applianceType} - ${appliance.brand || "Unknown Brand"}` : "Unknown Appliance";
+    if (!appliance) return "Unknown Appliance";
+    return `${appliance.applianceType} - ${appliance.brand} ${appliance.model}`;
   };
 
-  // Check warranty status
-  const getWarrantyStatus = (warrantyExpiry: string) => {
+  // Get warranty status
+  const getWarrantyStatus = (warrantyExpiry: string | null) => {
     if (!warrantyExpiry) return null;
+    
     const now = new Date();
     const expiry = new Date(warrantyExpiry);
     const diffTime = expiry.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return { status: "expired", days: Math.abs(diffDays) };
-    if (diffDays <= 30) return { status: "expiring", days: diffDays };
-    return { status: "active", days: diffDays };
+    if (diffDays < 0) {
+      return { status: "expired", days: Math.abs(diffDays) };
+    } else if (diffDays <= 30) {
+      return { status: "expiring", days: diffDays };
+    } else {
+      return { status: "active", days: diffDays };
+    }
   };
 
   // Calculate stats
@@ -172,11 +322,11 @@ export default function PropertyAppliancesManagement() {
           <p className="text-gray-600 mt-1">Track appliances, warranties, and repair history</p>
         </div>
         <div className="flex gap-2">
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleAddAppliance} className="bg-blue-600 hover:bg-blue-700">
             <Plus className="w-4 h-4 mr-2" />
             Add Appliance
           </Button>
-          <Button variant="outline">
+          <Button onClick={handleAddRepair} variant="outline">
             <Wrench className="w-4 h-4 mr-2" />
             Add Repair
           </Button>
@@ -342,8 +492,21 @@ export default function PropertyAppliancesManagement() {
                             <TableCell>{appliance.installDate || "N/A"}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="sm">Edit</Button>
-                                <Button variant="ghost" size="sm">Delete</Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditAppliance(appliance)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleDeleteAppliance(appliance.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -408,8 +571,21 @@ export default function PropertyAppliancesManagement() {
                           <TableCell>{repair.repairedAt || "N/A"}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm">Edit</Button>
-                              <Button variant="ghost" size="sm">Delete</Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditRepair(repair)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteRepair(repair.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -480,6 +656,281 @@ export default function PropertyAppliancesManagement() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Add Appliance Dialog */}
+      <Dialog open={showApplianceDialog} onOpenChange={setShowApplianceDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAppliance ? "Edit Appliance" : "Add New Appliance"}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...applianceForm}>
+            <form onSubmit={applianceForm.handleSubmit(onSubmitAppliance)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={applianceForm.control}
+                  name="propertyId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Property</FormLabel>
+                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select property" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {properties.map((property: any) => (
+                            <SelectItem key={property.id} value={property.id.toString()}>
+                              {property.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={applianceForm.control}
+                  name="applianceType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Appliance Type</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., Air Conditioner" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={applianceForm.control}
+                  name="brand"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Brand</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., Daikin" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={applianceForm.control}
+                  name="model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Model</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., FTXS25K" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={applianceForm.control}
+                  name="serialNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Serial Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., DAI-2024-001" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={applianceForm.control}
+                  name="installDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Install Date</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={applianceForm.control}
+                name="warrantyExpiry"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Warranty Expiry</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={applianceForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Additional notes..." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowApplianceDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createApplianceMutation.isPending || updateApplianceMutation.isPending}>
+                  {createApplianceMutation.isPending || updateApplianceMutation.isPending ? "Saving..." : 
+                   editingAppliance ? "Update Appliance" : "Add Appliance"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Repair Dialog */}
+      <Dialog open={showRepairDialog} onOpenChange={setShowRepairDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingRepair ? "Edit Repair Record" : "Add New Repair Record"}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...repairForm}>
+            <form onSubmit={repairForm.handleSubmit(onSubmitRepair)} className="space-y-4">
+              <FormField
+                control={repairForm.control}
+                name="applianceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Appliance</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select appliance" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {appliances.map((appliance: any) => (
+                          <SelectItem key={appliance.id} value={appliance.id.toString()}>
+                            {appliance.applianceType} - {appliance.brand} {appliance.model} ({getPropertyName(appliance.propertyId)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={repairForm.control}
+                name="issueReported"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Issue Reported</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Describe the issue..." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={repairForm.control}
+                name="fixDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fix Description</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Describe what was done to fix the issue..." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={repairForm.control}
+                  name="technicianName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Technician Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., Somchai Repair Service" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={repairForm.control}
+                  name="repairCost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Repair Cost (THB)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" placeholder="0" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={repairForm.control}
+                  name="receiptUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Receipt URL</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Link to receipt/invoice" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={repairForm.control}
+                  name="repairedAt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Repair Date</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowRepairDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createRepairMutation.isPending || updateRepairMutation.isPending}>
+                  {createRepairMutation.isPending || updateRepairMutation.isPending ? "Saving..." : 
+                   editingRepair ? "Update Repair" : "Add Repair"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

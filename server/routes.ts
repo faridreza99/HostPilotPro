@@ -253,6 +253,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true, message: 'Booking gap resolved' });
   });
 
+  // ===== Property Appliances API Routes =====
+  
+  // Get all appliances for organization (with optional property filter)
+  app.get('/api/property-appliances', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const propertyId = req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined;
+      
+      const appliances = await storage.getPropertyAppliances(organizationId, propertyId);
+      res.json(appliances);
+    } catch (error) {
+      console.error('Error fetching appliances:', error);
+      res.status(500).json({ error: 'Failed to fetch appliances' });
+    }
+  });
+
+  // Create new appliance
+  app.post('/api/property-appliances', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const appliance = await storage.createPropertyAppliance(organizationId, req.body);
+      res.status(201).json(appliance);
+    } catch (error) {
+      console.error('Error creating appliance:', error);
+      res.status(500).json({ error: 'Failed to create appliance' });
+    }
+  });
+
+  // Get specific appliance
+  app.get('/api/property-appliances/:id', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const applianceId = parseInt(req.params.id);
+      
+      const appliance = await storage.getPropertyApplianceById(organizationId, applianceId);
+      if (!appliance) {
+        return res.status(404).json({ error: 'Appliance not found' });
+      }
+      res.json(appliance);
+    } catch (error) {
+      console.error('Error fetching appliance:', error);
+      res.status(500).json({ error: 'Failed to fetch appliance' });
+    }
+  });
+
+  // Update appliance
+  app.put('/api/property-appliances/:id', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const applianceId = parseInt(req.params.id);
+      
+      const appliance = await storage.updatePropertyAppliance(organizationId, applianceId, req.body);
+      if (!appliance) {
+        return res.status(404).json({ error: 'Appliance not found' });
+      }
+      res.json(appliance);
+    } catch (error) {
+      console.error('Error updating appliance:', error);
+      res.status(500).json({ error: 'Failed to update appliance' });
+    }
+  });
+
+  // Delete appliance
+  app.delete('/api/property-appliances/:id', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const applianceId = parseInt(req.params.id);
+      
+      const success = await storage.deletePropertyAppliance(organizationId, applianceId);
+      if (!success) {
+        return res.status(404).json({ error: 'Appliance not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting appliance:', error);
+      res.status(500).json({ error: 'Failed to delete appliance' });
+    }
+  });
+
+  // Get appliances analytics
+  app.get('/api/property-appliances/analytics', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const analytics = await storage.getAppliancesAnalytics(organizationId);
+      res.json(analytics);
+    } catch (error) {
+      console.error('Error fetching appliances analytics:', error);
+      res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  });
+
+  // ===== Appliance Repairs API Routes =====
+  
+  // Get all repairs for organization (with optional appliance filter)
+  app.get('/api/appliance-repairs', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const applianceId = req.query.applianceId ? parseInt(req.query.applianceId as string) : undefined;
+      
+      const repairs = await storage.getApplianceRepairs(organizationId, applianceId);
+      res.json(repairs);
+    } catch (error) {
+      console.error('Error fetching repairs:', error);
+      res.status(500).json({ error: 'Failed to fetch repairs' });
+    }
+  });
+
+  // Create new repair
+  app.post('/api/appliance-repairs', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const repair = await storage.createApplianceRepair(organizationId, req.body);
+      res.status(201).json(repair);
+    } catch (error) {
+      console.error('Error creating repair:', error);
+      res.status(500).json({ error: 'Failed to create repair' });
+    }
+  });
+
+  // Get specific repair
+  app.get('/api/appliance-repairs/:id', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const repairId = parseInt(req.params.id);
+      
+      const repair = await storage.getApplianceRepairById(organizationId, repairId);
+      if (!repair) {
+        return res.status(404).json({ error: 'Repair not found' });
+      }
+      res.json(repair);
+    } catch (error) {
+      console.error('Error fetching repair:', error);
+      res.status(500).json({ error: 'Failed to fetch repair' });
+    }
+  });
+
+  // Update repair
+  app.put('/api/appliance-repairs/:id', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const repairId = parseInt(req.params.id);
+      
+      const repair = await storage.updateApplianceRepair(organizationId, repairId, req.body);
+      if (!repair) {
+        return res.status(404).json({ error: 'Repair not found' });
+      }
+      res.json(repair);
+    } catch (error) {
+      console.error('Error updating repair:', error);
+      res.status(500).json({ error: 'Failed to update repair' });
+    }
+  });
+
+  // Delete repair
+  app.delete('/api/appliance-repairs/:id', isDemoAuthenticated, async (req, res) => {
+    try {
+      const organizationId = req.user?.organizationId || 'default-org';
+      const repairId = parseInt(req.params.id);
+      
+      const success = await storage.deleteApplianceRepair(organizationId, repairId);
+      if (!success) {
+        return res.status(404).json({ error: 'Repair not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting repair:', error);
+      res.status(500).json({ error: 'Failed to delete repair' });
+    }
+  });
+
   // === AI Bot Routes ===
   
   // === Demo Data Fix Endpoint ===
