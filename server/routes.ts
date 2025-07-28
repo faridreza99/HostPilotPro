@@ -88,6 +88,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { registerFastRoutes } = await import("./fastRoutes");
   registerFastRoutes(app);
 
+  // === Smart Pricing API Routes (prevent crashes) ===
+  
+  app.get('/api/smart-pricing/dashboard', isDemoAuthenticated, (req, res) => {
+    res.json({
+      totalRevenue: 1680000,
+      averageNightlyRate: 12500,
+      occupancyRate: 78.5,
+      priceOptimizationScore: 84,
+      monthlyData: [
+        { month: 'Jan', revenue: 145000, rate: 12000, occupancy: 75 },
+        { month: 'Feb', revenue: 158000, rate: 12800, occupancy: 82 },
+        { month: 'Mar', revenue: 142000, rate: 11500, occupancy: 76 }
+      ]
+    });
+  });
+
+  app.get('/api/smart-pricing/year-on-year', isDemoAuthenticated, (req, res) => {
+    res.json({
+      currentYear: 2025,
+      previousYear: 2024,
+      growth: 15.2,
+      data: [
+        { month: 'Jan', current: 145000, previous: 125000 },
+        { month: 'Feb', current: 158000, previous: 138000 },
+        { month: 'Mar', current: 142000, previous: 128000 }
+      ]
+    });
+  });
+
+  app.get('/api/smart-pricing/holidays', isDemoAuthenticated, (req, res) => {
+    res.json([
+      { name: 'Chinese New Year', date: '2025-01-29', impact: 'high', priceIncrease: 25 },
+      { name: 'Songkran', date: '2025-04-13', impact: 'very-high', priceIncrease: 40 },
+      { name: 'Loy Krathong', date: '2025-11-05', impact: 'medium', priceIncrease: 15 }
+    ]);
+  });
+
+  app.get('/api/smart-pricing/price-deviation', isDemoAuthenticated, (req, res) => {
+    res.json({
+      averageMarketRate: 11500,
+      currentRate: 12500,
+      deviation: 8.7,
+      recommendation: 'optimal',
+      competitorRates: [
+        { name: 'Similar Villa A', rate: 11200 },
+        { name: 'Similar Villa B', rate: 12800 },
+        { name: 'Similar Villa C', rate: 11900 }
+      ]
+    });
+  });
+
+  app.get('/api/smart-pricing/booking-gaps', isDemoAuthenticated, (req, res) => {
+    res.json([
+      {
+        id: 1,
+        startDate: '2025-02-15',
+        endDate: '2025-02-20',
+        duration: 5,
+        potentialRevenue: 62500,
+        suggestedAction: 'Reduce rate by 10%',
+        resolved: false
+      },
+      {
+        id: 2,
+        startDate: '2025-03-10',
+        endDate: '2025-03-12',
+        duration: 2,
+        potentialRevenue: 25000,
+        suggestedAction: 'Add promotion',
+        resolved: false
+      }
+    ]);
+  });
+
+  app.get('/api/smart-pricing/alerts', isDemoAuthenticated, (req, res) => {
+    res.json([
+      {
+        id: 1,
+        type: 'pricing',
+        priority: 'high',
+        message: 'Villa Aruna rate 15% below market average',
+        createdAt: new Date().toISOString(),
+        read: false
+      },
+      {
+        id: 2,
+        type: 'occupancy',
+        priority: 'medium',
+        message: 'Low occupancy predicted for next week',
+        createdAt: new Date().toISOString(),
+        read: false
+      }
+    ]);
+  });
+
+  app.get('/api/smart-pricing/ai-summary', isDemoAuthenticated, (req, res) => {
+    res.json({
+      summary: 'Your pricing strategy is performing well with 84% optimization score. Consider adjusting Villa Aruna rates during peak season for 12% additional revenue.',
+      recommendations: [
+        'Increase weekend rates by 8-12% during February',
+        'Add last-minute booking discounts for gap periods',
+        'Implement dynamic pricing for holiday seasons'
+      ],
+      confidence: 87
+    });
+  });
+
+  app.get('/api/smart-pricing/direct-booking', isDemoAuthenticated, (req, res) => {
+    res.json({
+      totalDirectBookings: 23,
+      directBookingRate: 31.5,
+      averageDirectRate: 13200,
+      potentialSavings: 95000,
+      monthlyTrend: [
+        { month: 'Jan', direct: 8, total: 25, rate: 32 },
+        { month: 'Feb', direct: 7, total: 22, rate: 31.8 },
+        { month: 'Mar', direct: 8, total: 26, rate: 30.7 }
+      ]
+    });
+  });
+
+  app.get('/api/smart-pricing/heatmap', isDemoAuthenticated, (req, res) => {
+    res.json({
+      data: [
+        { date: '2025-01-15', occupancy: 85, rate: 12500 },
+        { date: '2025-01-16', occupancy: 92, rate: 13000 },
+        { date: '2025-01-17', occupancy: 78, rate: 11800 },
+        { date: '2025-01-18', occupancy: 95, rate: 14000 }
+      ],
+      optimalRates: {
+        weekday: 11500,
+        weekend: 14500,
+        holiday: 18000
+      }
+    });
+  });
+
+  app.get('/api/smart-pricing/historical-patterns', isDemoAuthenticated, (req, res) => {
+    res.json({
+      patterns: [
+        { pattern: 'Weekend Premium', impact: '+18%', frequency: 'weekly' },
+        { pattern: 'Holiday Surge', impact: '+35%', frequency: 'seasonal' },
+        { pattern: 'Low Season Discount', impact: '-15%', frequency: 'seasonal' }
+      ],
+      seasonality: {
+        high: ['Dec', 'Jan', 'Feb', 'Mar'],
+        medium: ['Apr', 'May', 'Oct', 'Nov'],
+        low: ['Jun', 'Jul', 'Aug', 'Sep']
+      }
+    });
+  });
+
+  // Smart pricing action endpoints
+  app.patch('/api/smart-pricing/alerts/:id/read', isDemoAuthenticated, (req, res) => {
+    res.json({ success: true, message: 'Alert marked as read' });
+  });
+
+  app.patch('/api/smart-pricing/alerts/:id/resolve', isDemoAuthenticated, (req, res) => {
+    res.json({ success: true, message: 'Alert resolved successfully' });
+  });
+
+  app.patch('/api/smart-pricing/booking-gaps/:id/resolve', isDemoAuthenticated, (req, res) => {
+    res.json({ success: true, message: 'Booking gap resolved' });
+  });
+
   // === AI Bot Routes ===
   
   // === Demo Data Fix Endpoint ===
