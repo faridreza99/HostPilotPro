@@ -205,7 +205,7 @@ export class SaasStorage {
       ? masterDb.select().from(saasAuditLog).where(eq(saasAuditLog.organizationId, organizationId))
       : masterDb.select().from(saasAuditLog);
     
-    return await query.orderBy(desc(saasAuditLog.timestamp));
+    return await query.orderBy(desc(saasAuditLog.createdAt));
   }
 
   // ===== UTILITY METHODS =====

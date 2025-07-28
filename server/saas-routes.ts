@@ -47,7 +47,7 @@ export function registerSaasRoutes(app: Express) {
   
   // Get all signup requests
   app.get("/api/saas/signup-requests", async (req, res) => {
-    if (!req.isAuthenticated() || !req.user || req.user.role !== "admin") {
+    if (!req.isAuthenticated() || !req.user || (req.user as any).role !== "admin") {
       return res.status(403).json({ error: "Admin access required" });
     }
 
