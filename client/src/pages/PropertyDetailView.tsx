@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
 import { 
   ArrowLeft, 
   MapPin, 
@@ -66,15 +66,40 @@ interface ActionButtonProps {
   href: string;
   icon: React.ElementType;
   variant?: "default" | "outline";
+  propertyId?: string;
+  onClick?: () => void;
 }
 
-function ActionButton({ label, href, icon: Icon, variant = "default" }: ActionButtonProps) {
+function ActionButton({ label, href, icon: Icon, variant = "default", propertyId, onClick }: ActionButtonProps) {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  
+  const handleClick = () => {
+    try {
+      if (onClick) {
+        onClick();
+      } else {
+        // Check if the href exists and handle property-specific navigation
+        if (href.includes('/property/') && propertyId) {
+          setLocation(`${href}?propertyId=${propertyId}`);
+        } else {
+          setLocation(href);
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Navigation Error",
+        description: `Failed to navigate to ${label}. This feature will be available soon.`,
+        variant: "destructive",
+      });
+      console.error("Navigation error:", error);
+    }
+  };
   
   return (
     <Button
       variant={variant}
-      onClick={() => setLocation(href)}
+      onClick={handleClick}
       className="w-full h-12 flex items-center justify-center gap-2"
     >
       <Icon className="w-4 h-4" />
@@ -416,16 +441,25 @@ export default function PropertyDetailView() {
                 label="View Tasks" 
                 href="/tasks" 
                 icon={ClipboardList}
+                propertyId={property?.id}
               />
               <ActionButton 
                 label="View Bookings" 
                 href="/bookings" 
                 icon={Calendar}
+                propertyId={property?.id}
               />
               <ActionButton 
                 label="Edit Property" 
-                href="/settings" 
+                href="/property-edit" 
                 icon={Settings}
+                propertyId={property?.id}
+                onClick={() => {
+                  toast({
+                    title: "Property Edit",
+                    description: "Property editing interface will be available soon. Use the admin dashboard to edit properties for now.",
+                  });
+                }}
               />
               <ActionButton 
                 label="View Utilities" 
@@ -440,14 +474,20 @@ export default function PropertyDetailView() {
                 variant="outline"
               />
               <ActionButton 
-                label="Important Info" 
-                href="/settings" 
+                label="Property Info" 
+                href="/property-info" 
                 icon={Info}
                 variant="outline"
+                onClick={() => {
+                  toast({
+                    title: "Property Information",
+                    description: "Detailed property information panel is displayed above. Additional settings available in admin dashboard.",
+                  });
+                }}
               />
               <ActionButton 
                 label="Documents" 
-                href="/settings" 
+                href="/property-documents-management" 
                 icon={FileText}
                 variant="outline"
               />
