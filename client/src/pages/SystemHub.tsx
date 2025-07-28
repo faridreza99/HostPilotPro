@@ -51,7 +51,7 @@ export default function SystemHub() {
     {
       title: "AI Features",
       description: "AI task management, notifications, feedback monitoring, and smart suggestions",
-      href: "/ai-feature-dashboard",
+      href: "/ai-features",
       icon: Brain,
       badge: "AI",
       color: "bg-purple-50 hover:bg-purple-100 border-purple-200"
