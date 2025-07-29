@@ -16,10 +16,11 @@ export function registerCaptainCortexRoutes(app: Express) {
       }
 
       // Get user context with role-based permissions
+      const user = req.user as any;
       const context = {
-        organizationId: req.user.organizationId,
-        userRole: req.user.role,
-        userId: req.user.id
+        organizationId: user?.organizationId || 'default-org',
+        userRole: user?.role || 'admin',
+        userId: user?.id || 'demo-admin'
       };
 
       console.log(`🤖 AI Bot query from ${context.userRole}: "${question}"`);
@@ -45,7 +46,7 @@ export function registerCaptainCortexRoutes(app: Express) {
   app.get("/api/ai-bot/capabilities", isDemoAuthenticated, async (req, res) => {
     try {
       const { CAPTAIN_CORTEX_ROLES } = await import("../captainCortexRoleSystem");
-      const userRole = req.user.role;
+      const userRole = (req.user as any)?.role || 'admin';
       const roleConfig = CAPTAIN_CORTEX_ROLES[userRole] || CAPTAIN_CORTEX_ROLES.guest;
       
       res.json({
@@ -68,7 +69,7 @@ export function registerCaptainCortexRoutes(app: Express) {
   app.get("/api/ai-bot/greeting", isDemoAuthenticated, async (req, res) => {
     try {
       const { getRoleBasedGreeting } = await import("../captainCortexRoleSystem");
-      const userRole = req.user.role;
+      const userRole = (req.user as any)?.role || 'admin';
       const greeting = getRoleBasedGreeting(userRole);
       
       res.json({

@@ -71,7 +71,8 @@ export class AIBotEngine {
 
     } catch (error: any) {
       console.error('❌ AI Bot error:', error);
-      return `I apologize, but I encountered an error while processing your question: ${error?.message || 'Unknown error'}. Please try rephrasing your question or contact support if the issue persists.`;
+      console.error('❌ Error stack:', error?.stack);
+      return `Sorry, I encountered an issue while processing your question. Let me try to help you another way. Could you try asking about specific properties or current tasks?`;
     }
   }
 
@@ -79,8 +80,11 @@ export class AIBotEngine {
    * Fast single-call query processing with role-based permissions
    */
   private async processQueryFast(question: string, context: QueryContext): Promise<string> {
+    console.log(`🔍 Processing query: "${question}" for role: ${context.userRole}`);
+    
     // Get allowed data queries based on user role
     const allowedQueries = getAllowedDataQueries(context.userRole);
+    console.log(`📋 Allowed queries for ${context.userRole}:`, allowedQueries);
     
     // Fetch data based on role permissions
     const dataPromises: Promise<any>[] = [];
@@ -110,6 +114,7 @@ export class AIBotEngine {
     }
 
     const [properties, tasks, bookings, finances] = await Promise.all(dataPromises);
+    console.log(`📊 Data fetched - Properties: ${properties?.length || 0}, Tasks: ${tasks?.length || 0}, Bookings: ${bookings?.length || 0}, Finances: ${finances?.length || 0}`);
 
     // Filter by organization and show only main demo properties for clean demo experience
     const mainDemoPropertyNames = [
@@ -141,6 +146,22 @@ export class AIBotEngine {
     
     if (allowedQueries.includes('tasks')) {
       organizationData.tasks = tasks.filter((t: any) => t.organizationId === context.organizationId);
+      console.log(`📅 Filtered tasks for org ${context.organizationId}: ${organizationData.tasks.length} tasks`);
+      
+      // If question is about tomorrow's tasks, add date filtering
+      if (question.toLowerCase().includes('tomorrow')) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        console.log(`🗓️ Looking for tasks for tomorrow: ${tomorrowStr}`);
+        
+        organizationData.tomorrowTasks = organizationData.tasks.filter((task: any) => {
+          if (!task.dueDate) return false;
+          const taskDueDate = new Date(task.dueDate).toISOString().split('T')[0];
+          return taskDueDate === tomorrowStr;
+        });
+        console.log(`📋 Found ${organizationData.tomorrowTasks.length} tasks for tomorrow`);
+      }
     }
     
     if (allowedQueries.includes('bookings')) {
@@ -174,6 +195,8 @@ ${JSON.stringify(organizationData, null, 2)}
 
 Please analyze this question and provide a helpful response using only the available data within your role permissions.`;
 
+    console.log(`🤖 Sending to OpenAI with data keys: ${Object.keys(organizationData)}`);
+    
     const completion = await this.openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
