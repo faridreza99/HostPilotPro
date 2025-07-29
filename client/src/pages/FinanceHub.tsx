@@ -65,7 +65,7 @@ export default function FinanceHub() {
       color: "bg-orange-50 hover:bg-orange-100 border-orange-200"
     },
     {
-      title: "Financial Dashboard",
+      title: "Financial Admin Cockpit",
       description: "Comprehensive financial overview with charts and key metrics",
       href: "/simple-filtered-financial-dashboard",
       icon: PieChart,
