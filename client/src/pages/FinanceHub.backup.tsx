@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import TopBar from "@/components/TopBar";
 
-// Lazy load all Finance modules
+// Lazy load all Finance modules - only load when user clicks
 const FinancesPage = lazy(() => import("./Finances"));
 const InvoiceGenerator = lazy(() => import("./InvoiceGenerator"));
 const UtilityTracker = lazy(() => import("./UtilityTracker"));
@@ -103,49 +103,6 @@ export default function FinanceHub() {
     }
   ];
 
-  const handleModuleClick = (key: string) => {
-    setSelectedModule(key);
-  };
-
-  const selectedItem = financeItems.find(item => item.key === selectedModule);
-
-  // If a module is selected, render it lazily
-  if (selectedModule && selectedItem) {
-    const Component = selectedItem.component;
-    return (
-      <div className="min-h-screen flex bg-background">
-        <div className="flex-1 flex flex-col lg:ml-0">
-          <TopBar title={selectedItem.title} />
-          
-          <main className="flex-1 overflow-auto">
-            <div className="p-4 border-b bg-white">
-              <Button
-                variant="outline"
-                onClick={() => setSelectedModule(null)}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Finance Hub
-              </Button>
-            </div>
-            
-            <Suspense fallback={
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Loading {selectedItem.title}...</p>
-                </div>
-              </div>
-            }>
-              <Component />
-            </Suspense>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  // Default hub view with cards
   return (
     <div className="min-h-screen flex bg-background">
       <div className="flex-1 flex flex-col lg:ml-0">
@@ -164,34 +121,28 @@ export default function FinanceHub() {
               {financeItems.map((item) => {
                 const IconComponent = item.icon;
                 return (
-                  <Card
-                    key={item.key}
-                    className={`h-full ${item.color} border-2 transition-all duration-200 hover:scale-105 hover:shadow-lg hover:border-opacity-60 cursor-pointer group`}
-                    onClick={() => handleModuleClick(item.key)}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 rounded-lg bg-white/50">
-                            <IconComponent className="h-6 w-6 text-gray-700" />
+                  <Link key={item.href} href={item.href}>
+                    <Card className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${item.color}`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-white rounded-lg shadow-sm">
+                              <IconComponent className="h-6 w-6 text-gray-700" />
+                            </div>
+                            <CardTitle className="text-lg">{item.title}</CardTitle>
                           </div>
-                          <div>
-                            <CardTitle className="text-lg font-semibold text-gray-900">
-                              {item.title}
-                            </CardTitle>
-                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {item.badge}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className="bg-white/70 text-gray-700 border border-gray-300">
-                          {item.badge}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        {item.description}
-                      </p>
-                    </CardContent>
-                  </Card>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {item.description}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 );
               })}
             </div>
