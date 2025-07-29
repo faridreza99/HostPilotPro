@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import CaptainCortexAvatar from "./CaptainCortexAvatar";
 
 const CaptainCortex = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,16 +43,23 @@ const CaptainCortex = () => {
     <div className="fixed bottom-4 right-4 z-50">
       {!isOpen ? (
         <button
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-colors"
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-colors flex items-center gap-2"
           onClick={() => setIsOpen(true)}
           title="Open Captain Cortex AI Assistant"
         >
-          👨‍✈️ Captain Cortex
+          <CaptainCortexAvatar size={32} className="rounded-full overflow-hidden" />
+          <span className="text-sm font-medium">Captain Cortex</span>
         </button>
       ) : (
         <div className="bg-white dark:bg-gray-800 shadow-lg border dark:border-gray-700 rounded-lg w-96 p-4">
           <div className="flex justify-between items-center mb-2">
-            <h2 className="font-bold text-gray-900 dark:text-gray-100">Captain Cortex</h2>
+            <div className="flex items-center gap-2">
+              <CaptainCortexAvatar size={40} className="rounded-full overflow-hidden" />
+              <div>
+                <h2 className="font-bold text-gray-900 dark:text-gray-100">Captain Cortex</h2>
+                <div className="text-xs text-gray-500">The Smart Co-Pilot for Property Management by HostPilotPro</div>
+              </div>
+            </div>
             <button 
               onClick={() => setIsOpen(false)}
               className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -60,7 +68,6 @@ const CaptainCortex = () => {
               ❌
             </button>
           </div>
-          <div className="text-xs text-gray-500 mb-2">The Smart Co-Pilot for Property Management by HostPilotPro</div>
           {!response && (
             <div className="text-xs text-blue-600 dark:text-blue-400 mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
               {greetingData?.greeting || "👨‍✈️ Hello! I'm Captain Cortex – your smart co-pilot for property management, powered by HostPilotPro. Ready to navigate tasks, finances, and data with you!"}
