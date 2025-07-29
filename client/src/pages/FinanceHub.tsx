@@ -14,13 +14,13 @@ import {
   ArrowLeft
 } from "lucide-react";
 import TopBar from "@/components/TopBar";
-import CacheRefreshButton from "@/components/CacheRefreshButton";
+import RefreshDataButton from "@/components/RefreshDataButton";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 // Lazy load all Finance modules
-const FinancesPage = lazy(() => import("./Finances"));
-const InvoiceGenerator = lazy(() => import("./InvoiceGenerator"));
-const UtilityTracker = lazy(() => import("./UtilityTracker"));
+const FinancesPage = lazy(() => import("./CachedFinances"));
+const InvoiceGenerator = lazy(() => import("./CachedInvoiceGenerator"));
+const UtilityTracker = lazy(() => import("./CachedUtilityTracker"));
 const FinanceEngine = lazy(() => import("./FinanceEngine"));
 const SmartPricingPerformanceToolkit = lazy(() => import("./SmartPricingPerformanceToolkit"));
 const OtaPayoutLogicSmartRevenue = lazy(() => import("./OtaPayoutLogicSmartRevenue"));
@@ -163,11 +163,12 @@ export default function FinanceHub() {
                     Complete financial management suite for revenue tracking, billing, and analytics
                   </p>
                 </div>
-                <CacheRefreshButton
+                <RefreshDataButton
                   endpoints={['/api/finance', '/api/finance/analytics']}
                   variant="outline"
                   size="sm"
                   showStats={true}
+                  showLastUpdate={true}
                 />
               </div>
             </div>

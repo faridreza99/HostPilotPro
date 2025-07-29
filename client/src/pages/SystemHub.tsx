@@ -15,6 +15,8 @@ import {
   ArrowLeft
 } from "lucide-react";
 import TopBar from "@/components/TopBar";
+import RefreshDataButton from "@/components/RefreshDataButton";
+import { useDashboardStats, useUsersData } from "@/hooks/useDashboardData";
 
 // Lazy load all System modules - only load when user clicks
 const SettingsPage = lazy(() => import("./Settings"));
@@ -29,6 +31,10 @@ const ApiConnections = lazy(() => import("./admin/ApiConnections"));
 
 export default function SystemHub() {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  
+  // Use cached data for system stats
+  const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
+  const { data: users = [], isLoading: usersLoading } = useUsersData();
 
   const systemItems = [
     {
@@ -165,10 +171,21 @@ export default function SystemHub() {
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-6xl mx-auto">
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">System Hub</h1>
-              <p className="text-gray-600">
-                Complete system administration suite for user management, automation, and platform configuration
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">System Hub</h1>
+                  <p className="text-gray-600">
+                    Complete system administration suite for user management, automation, and platform configuration
+                  </p>
+                </div>
+                <RefreshDataButton
+                  endpoints={['/api/dashboard/stats', '/api/users']}
+                  variant="outline"
+                  size="sm"
+                  showStats={true}
+                  showLastUpdate={true}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

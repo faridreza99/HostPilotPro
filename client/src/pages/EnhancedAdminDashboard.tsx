@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import AdminGlobalFilterBar, { AdminFilters } from "@/components/AdminGlobalFilterBar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Building, Calendar, ListTodo, DollarSign, User, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Wrench } from "lucide-react";
 import { RoleBackButton } from "@/components/BackButton";
-import CacheRefreshButton from "@/components/CacheRefreshButton";
+import RefreshDataButton from "@/components/RefreshDataButton";
+import { useDashboardStats, usePropertiesData, useTasksData, useBookingsData, useFinanceData } from "@/hooks/useDashboardData";
 
 interface FilteredData {
   properties: any[];
@@ -22,6 +22,14 @@ interface FilteredData {
 export default function EnhancedAdminDashboard() {
   const { user } = useAuth();
   const [activeFilters, setActiveFilters] = useState<AdminFilters>({});
+  
+  // Use cached data hooks for instant loading
+  const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
+  const { data: properties = [], isLoading: propertiesLoading } = usePropertiesData();
+  const { data: tasks = [], isLoading: tasksLoading } = useTasksData();
+  const { data: bookings = [], isLoading: bookingsLoading } = useBookingsData();
+  const { data: finances = [], isLoading: financesLoading } = useFinanceData();
+  
   const [filteredData, setFilteredData] = useState<FilteredData>({
     properties: [],
     tasks: [],
@@ -175,10 +183,11 @@ export default function EnhancedAdminDashboard() {
           onFiltersChange={setActiveFilters}
           className="flex-1"
         />
-        <CacheRefreshButton
+        <RefreshDataButton
           variant="outline"
           size="sm"
           showStats={true}
+          showLastUpdate={true}
         />
       </div>
 

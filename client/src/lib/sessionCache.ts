@@ -5,18 +5,55 @@ interface CacheEntry {
   data: any;
   timestamp: number;
   key: string;
+  isStale?: boolean;
+}
+
+interface CacheUpdateListener {
+  (key: string, data: any): void;
 }
 
 class SessionCache {
   private cache = new Map<string, CacheEntry>();
+  private listeners = new Map<string, Set<CacheUpdateListener>>();
   private readonly CACHE_DURATION = 120 * 1000; // 120 seconds
 
   set(key: string, data: any): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      key
+      key,
+      isStale: false
     });
+    
+    // Notify listeners of cache update
+    this.notifyListeners(key, data);
+  }
+
+  // Add listener for cache updates
+  addListener(key: string, listener: CacheUpdateListener): void {
+    if (!this.listeners.has(key)) {
+      this.listeners.set(key, new Set());
+    }
+    this.listeners.get(key)!.add(listener);
+  }
+
+  // Remove listener
+  removeListener(key: string, listener: CacheUpdateListener): void {
+    const keyListeners = this.listeners.get(key);
+    if (keyListeners) {
+      keyListeners.delete(listener);
+      if (keyListeners.size === 0) {
+        this.listeners.delete(key);
+      }
+    }
+  }
+
+  // Notify all listeners for a key
+  private notifyListeners(key: string, data: any): void {
+    const keyListeners = this.listeners.get(key);
+    if (keyListeners) {
+      keyListeners.forEach(listener => listener(key, data));
+    }
   }
 
   get(key: string): any | null {

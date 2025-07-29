@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { warmCache } from "@/lib/sessionCache";
+import { CacheProvider } from "@/context/CacheContext";
 
 // Import existing pages with lazy loading for performance
 import { LazyDashboard, LazyFinancialDashboard, LazyPropertyDashboard } from "@/components/LazyDashboard";
@@ -260,12 +261,14 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <InstantPageSwitcher />
-        <AppRoutes />
-        <MrPilot />
-        <Toaster />
-      </TooltipProvider>
+      <CacheProvider>
+        <TooltipProvider>
+          <InstantPageSwitcher />
+          <AppRoutes />
+          <MrPilot />
+          <Toaster />
+        </TooltipProvider>
+      </CacheProvider>
     </QueryClientProvider>
   );
 }
