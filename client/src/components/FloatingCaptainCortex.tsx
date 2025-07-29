@@ -94,7 +94,7 @@ const FloatingCaptainCortex = () => {
         
         {/* Floating avatar button */}
         <button
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-all duration-300 hover:scale-110 animate-pulse"
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg transition-all duration-300 hover:scale-110"
           onClick={() => setIsOpen(true)}
           title="Chat with Captain Cortex"
         >
