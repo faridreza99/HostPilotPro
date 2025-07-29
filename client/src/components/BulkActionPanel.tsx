@@ -209,7 +209,7 @@ export function BulkActionPanel({
 
           <div className="py-4">
             {actionDialog.action === 'assign-manager' && (
-              <Select defaultValue="">
+              <Select defaultValue="manager1">
                 <SelectTrigger>
                   <SelectValue placeholder="Select Property Manager" />
                 </SelectTrigger>
@@ -223,7 +223,7 @@ export function BulkActionPanel({
             )}
 
             {actionDialog.action === 'update-status' && (
-              <Select defaultValue="">
+              <Select defaultValue="active">
                 <SelectTrigger>
                   <SelectValue placeholder="Select Status" />
                 </SelectTrigger>

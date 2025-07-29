@@ -103,12 +103,12 @@ export function PropertyFilters({
             className="flex-1"
           />
           
-          <Select value={filters.location} onValueChange={(value) => updateFilter('location', value)}>
+          <Select value={filters.location || 'all'} onValueChange={(value) => updateFilter('location', value === 'all' ? '' : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Locations</SelectItem>
+              <SelectItem value="all">All Locations</SelectItem>
               <SelectItem value="chaweng">Chaweng</SelectItem>
               <SelectItem value="lamai">Lamai</SelectItem>
               <SelectItem value="bophut">Bophut</SelectItem>
@@ -117,12 +117,12 @@ export function PropertyFilters({
             </SelectContent>
           </Select>
 
-          <Select value={filters.status} onValueChange={(value) => updateFilter('status', value)}>
+          <Select value={filters.status || 'all'} onValueChange={(value) => updateFilter('status', value === 'all' ? '' : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Status</SelectItem>
+              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="maintenance">Maintenance</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
