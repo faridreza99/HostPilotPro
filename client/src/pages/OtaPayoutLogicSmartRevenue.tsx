@@ -243,7 +243,7 @@ const OtaPayoutLogicSmartRevenue = () => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Net Payout</p>
               <p className="text-2xl font-bold text-green-600">
-                {analytics ? formatCurrency(analytics.totalNetPayout, "THB") : "Loading..."}
+                {analytics && analytics.totalNetPayout != null ? formatCurrency(analytics.totalNetPayout, "THB") : "฿0"}
               </p>
             </div>
             <TrendingUp className="h-8 w-8 text-green-600" />
@@ -260,7 +260,7 @@ const OtaPayoutLogicSmartRevenue = () => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">OTA Commissions</p>
               <p className="text-2xl font-bold text-red-600">
-                {analytics ? formatCurrency(analytics.totalOtaCommissions, "THB") : "Loading..."}
+                {analytics && analytics.totalOtaCommissions != null ? formatCurrency(analytics.totalOtaCommissions, "THB") : "฿0"}
               </p>
             </div>
             <TrendingDown className="h-8 w-8 text-red-600" />
@@ -277,7 +277,7 @@ const OtaPayoutLogicSmartRevenue = () => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Avg Commission Rate</p>
               <p className="text-2xl font-bold text-blue-600">
-                {analytics ? `${analytics.averageOtaCommissionRate.toFixed(1)}%` : "Loading..."}
+                {analytics && analytics.averageOtaCommissionRate != null ? `${analytics.averageOtaCommissionRate.toFixed(1)}%` : "0.0%"}
               </p>
             </div>
             <PieChart className="h-8 w-8 text-blue-600" />
@@ -294,7 +294,7 @@ const OtaPayoutLogicSmartRevenue = () => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Bookings</p>
               <p className="text-2xl font-bold text-purple-600">
-                {analytics ? analytics.totalBookings : "Loading..."}
+                {analytics && analytics.totalBookings != null ? analytics.totalBookings : "0"}
               </p>
             </div>
             <Calendar className="h-8 w-8 text-purple-600" />
@@ -319,7 +319,7 @@ const OtaPayoutLogicSmartRevenue = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {analytics?.platformBreakdown.map((platform) => (
+              {analytics?.platformBreakdown && Array.isArray(analytics.platformBreakdown) ? analytics.platformBreakdown.map((platform) => (
                 <div key={platform.platform} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium flex items-center gap-2">
@@ -331,19 +331,23 @@ const OtaPayoutLogicSmartRevenue = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Guest Paid:</span>
-                      <span className="font-medium">{formatCurrency(platform.totalGuestPayments, "THB")}</span>
+                      <span className="font-medium">{platform.totalGuestPayments != null ? formatCurrency(platform.totalGuestPayments, "THB") : "฿0"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Net Payout:</span>
-                      <span className="font-medium text-green-600">{formatCurrency(platform.totalNetPayouts, "THB")}</span>
+                      <span className="font-medium text-green-600">{platform.totalNetPayouts != null ? formatCurrency(platform.totalNetPayouts, "THB") : "฿0"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Commission:</span>
-                      <span className="font-medium text-red-600">{platform.averageCommissionRate.toFixed(1)}%</span>
+                      <span className="font-medium text-red-600">{platform.averageCommissionRate != null ? platform.averageCommissionRate.toFixed(1) : "0.0"}%</span>
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  No platform data available
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -448,19 +452,19 @@ const OtaPayoutLogicSmartRevenue = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">Guest Paid:</span>
-                          <p className="font-medium">{formatCurrency(parseFloat(payout.guestPaidAmount), payout.currency)}</p>
+                          <p className="font-medium">{payout.guestPaidAmount ? formatCurrency(parseFloat(payout.guestPaidAmount), payout.currency) : "฿0"}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground">OTA Commission:</span>
                           <p className="font-medium text-red-600">
-                            -{formatCurrency(parseFloat(payout.otaCommissionAmount), payout.currency)} 
+                            -{payout.otaCommissionAmount ? formatCurrency(parseFloat(payout.otaCommissionAmount), payout.currency) : "฿0"} 
                             ({payout.otaCommissionRate}%)
                           </p>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Net Payout:</span>
                           <p className="font-semibold text-green-600">
-                            {formatCurrency(parseFloat(payout.netPayoutAmount), payout.currency)}
+                            {payout.netPayoutAmount ? formatCurrency(parseFloat(payout.netPayoutAmount), payout.currency) : "฿0"}
                           </p>
                         </div>
                         <div>
@@ -598,32 +602,36 @@ const OtaPayoutLogicSmartRevenue = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {analytics?.monthlyTrends.map((trend) => (
+            {analytics?.monthlyTrends && Array.isArray(analytics.monthlyTrends) ? analytics.monthlyTrends.map((trend) => (
               <div key={trend.month} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium">{trend.month}</h3>
                   <div className="text-sm text-muted-foreground">
-                    Commission Impact: {formatCurrency(trend.otaCommissions, "THB")}
+                    Commission Impact: {trend.otaCommissions != null ? formatCurrency(trend.otaCommissions, "THB") : "฿0"}
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Guest Payments:</span>
-                    <p className="font-medium">{formatCurrency(trend.guestPayments, "THB")}</p>
+                    <p className="font-medium">{trend.guestPayments != null ? formatCurrency(trend.guestPayments, "THB") : "฿0"}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Net Payouts:</span>
-                    <p className="font-medium text-green-600">{formatCurrency(trend.netPayouts, "THB")}</p>
+                    <p className="font-medium text-green-600">{trend.netPayouts != null ? formatCurrency(trend.netPayouts, "THB") : "฿0"}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Loss Ratio:</span>
                     <p className="font-medium text-red-600">
-                      {((trend.otaCommissions / trend.guestPayments) * 100).toFixed(1)}%
+                      {trend.otaCommissions != null && trend.guestPayments != null && trend.guestPayments > 0 ? ((trend.otaCommissions / trend.guestPayments) * 100).toFixed(1) : "0.0"}%
                     </p>
                   </div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No trend data available
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -638,17 +646,21 @@ const OtaPayoutLogicSmartRevenue = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {analytics?.payoutStatusBreakdown.map((status) => (
+            {analytics?.payoutStatusBreakdown && Array.isArray(analytics.payoutStatusBreakdown) ? analytics.payoutStatusBreakdown.map((status) => (
               <div key={status.status} className="border rounded-lg p-4 text-center">
                 <Badge className={getStatusColor(status.status)} variant="outline">
                   {status.status}
                 </Badge>
                 <p className="font-semibold text-lg mt-2">{status.count}</p>
                 <p className="text-sm text-muted-foreground">
-                  {formatCurrency(status.totalAmount, "THB")}
+                  {status.totalAmount != null ? formatCurrency(status.totalAmount, "THB") : "฿0"}
                 </p>
               </div>
-            ))}
+            )) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No status breakdown data available
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
