@@ -13,9 +13,8 @@ const DEMO_CREDENTIALS = [
   { email: "manager@test.com", role: "Portfolio Manager", password: "manager123", permissions: "Property management, Financial oversight" },
   { email: "owner@test.com", role: "Property Owner", password: "owner123", permissions: "Own properties, Financial reports" },
   { email: "staff@test.com", role: "Staff Member", password: "staff123", permissions: "Task management, Property operations" },
-  { email: "retail@demo.com", role: "Retail Agent", password: "123456", permissions: "Booking management, Commission tracking" },
-  { email: "referral@demo.com", role: "Referral Agent", password: "123456", permissions: "Property referrals, Commission tracking" },
-  { email: "guest@hostpilotpro.com", role: "Guest", password: "guest123", permissions: "Guest portal, Service requests" }
+  { email: "retail@test.com", role: "Retail Agent", password: "retail123", permissions: "Booking management, Commission tracking" },
+  { email: "referral@test.com", role: "Referral Agent", password: "referral123", permissions: "Property referrals, Commission tracking" }
 ];
 
 export default function LoginPage() {

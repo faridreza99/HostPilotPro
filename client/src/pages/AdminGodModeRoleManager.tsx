@@ -117,13 +117,12 @@ const PERMISSIONS: Permission[] = [
 ];
 
 const DEMO_USERS: DemoUser[] = [
-  { id: 'demo-admin', name: 'Admin Demo', email: 'admin@demo.com', role: 'admin', lastLogin: '2025-01-05 17:30', status: 'active' },
-  { id: 'demo-pm', name: 'Manager Demo', email: 'manager@demo.com', role: 'portfolio-manager', lastLogin: '2025-01-05 16:45', status: 'active' },
-  { id: 'demo-owner', name: 'Owner Demo', email: 'owner@demo.com', role: 'owner', lastLogin: '2025-01-05 15:20', status: 'active' },
-  { id: 'demo-retail', name: 'Retail Agent Demo', email: 'retail@demo.com', role: 'retail-agent', lastLogin: '2025-01-05 14:15', status: 'active' },
-  { id: 'demo-referral', name: 'Referral Agent Demo', email: 'referral@demo.com', role: 'referral-agent', lastLogin: '2025-01-05 13:30', status: 'active' },
-  { id: 'demo-staff', name: 'Staff Demo', email: 'staff@demo.com', role: 'staff', lastLogin: '2025-01-05 12:45', status: 'active' },
-  { id: 'demo-guest', name: 'Guest Demo', email: 'guest@demo.com', role: 'guest', lastLogin: '2025-01-05 11:20', status: 'active' }
+  { id: 'demo-admin', name: 'Admin User', email: 'admin@test.com', role: 'admin', lastLogin: '2025-01-28 17:30', status: 'active' },
+  { id: 'demo-pm', name: 'Portfolio Manager', email: 'manager@test.com', role: 'portfolio-manager', lastLogin: '2025-01-28 16:45', status: 'active' },
+  { id: 'demo-owner', name: 'Property Owner', email: 'owner@test.com', role: 'owner', lastLogin: '2025-01-28 15:20', status: 'active' },
+  { id: 'demo-staff', name: 'Staff Member', email: 'staff@test.com', role: 'staff', lastLogin: '2025-01-28 14:15', status: 'active' },
+  { id: 'demo-retail-agent', name: 'Retail Agent', email: 'retail@test.com', role: 'retail-agent', lastLogin: '2025-01-28 13:30', status: 'active' },
+  { id: 'demo-referral-agent', name: 'Referral Agent', email: 'referral@test.com', role: 'referral-agent', lastLogin: '2025-01-28 12:45', status: 'active' }
 ];
 
 export default function AdminGodModeRoleManager() {
