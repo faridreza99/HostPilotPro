@@ -1415,20 +1415,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return sendCachedOrFetch(
       cacheKey,
       async () => {
-        let properties;
-        if (user?.role === 'admin' || user?.role === 'portfolio-manager') {
-          properties = await storage.getProperties();
-        } else if (user?.role === 'retail-agent' || user?.role === 'referral-agent') {
-          const allProperties = await storage.getProperties();
-          properties = allProperties.filter(prop => 
-            prop.ownerId === 'demo-owner' || 
-            prop.name.includes('Demo') || 
-            prop.name.includes('Villa Samui') ||
-            prop.name.includes('Villa Aruna')
-          );
-        } else {
-          properties = await storage.getPropertiesByOwner(userId);
+        // Get all properties first
+        const allProperties = await storage.getProperties();
+        
+        // Filter to show only the 4 standardized demo properties for all users
+        const demoPropertyNames = [
+          'Villa Samui Breeze',
+          'Villa Ocean View', 
+          'Villa Aruna Demo',
+          'Villa Tropical Paradise'
+        ];
+        
+        let properties = allProperties.filter(prop => 
+          demoPropertyNames.some(demoName => prop.name.includes(demoName)) ||
+          prop.name.includes('Demo') ||
+          prop.ownerId === 'demo-owner'
+        );
+        
+        // If no demo properties found, return the filtered demo properties
+        if (properties.length === 0) {
+          properties = allProperties.slice(0, 4); // Fallback to first 4 properties
         }
+        
         return properties;
       },
       res,
