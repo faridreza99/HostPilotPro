@@ -72,11 +72,11 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      refetchOnReconnect: true, // Allow reconnect refetch
       refetchOnMount: false, // Don't refetch on mount if cache exists
-      staleTime: 1 * 60 * 60 * 1000, // 1 hour extreme caching
-      gcTime: 2 * 60 * 60 * 1000, // 2 hours garbage collection  
-      retry: 0, // Disable retries completely for speed
+      staleTime: 120 * 1000, // 120 seconds to match session cache
+      gcTime: 300 * 1000, // 5 minutes garbage collection  
+      retry: 2, // Allow 2 retries for better reliability
       networkMode: 'online',
       notifyOnChangeProps: ['data', 'error'],
     },
@@ -86,3 +86,8 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Make queryClient globally available for session cache integration
+if (typeof window !== 'undefined') {
+  (window as any).queryClient = queryClient;
+}

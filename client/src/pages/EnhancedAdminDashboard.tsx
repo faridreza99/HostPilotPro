@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Building, Calendar, ListTodo, DollarSign, User, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Wrench } from "lucide-react";
 import { RoleBackButton } from "@/components/BackButton";
+import CacheRefreshButton from "@/components/CacheRefreshButton";
 
 interface FilteredData {
   properties: any[];
@@ -168,11 +169,18 @@ export default function EnhancedAdminDashboard() {
         </Badge>
       </div>
 
-      {/* Global Filter Bar */}
-      <AdminGlobalFilterBar 
-        onFiltersChange={setActiveFilters}
-        className="w-full"
-      />
+      {/* Global Filter Bar and Cache Controls */}
+      <div className="flex items-center justify-between gap-4">
+        <AdminGlobalFilterBar 
+          onFiltersChange={setActiveFilters}
+          className="flex-1"
+        />
+        <CacheRefreshButton
+          variant="outline"
+          size="sm"
+          showStats={true}
+        />
+      </div>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

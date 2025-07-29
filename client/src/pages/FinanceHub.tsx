@@ -14,6 +14,8 @@ import {
   ArrowLeft
 } from "lucide-react";
 import TopBar from "@/components/TopBar";
+import CacheRefreshButton from "@/components/CacheRefreshButton";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 // Lazy load all Finance modules
 const FinancesPage = lazy(() => import("./Finances"));
@@ -154,10 +156,20 @@ export default function FinanceHub() {
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-6xl mx-auto">
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Finance Hub</h1>
-              <p className="text-gray-600">
-                Complete financial management suite for revenue tracking, billing, and analytics
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Finance Hub</h1>
+                  <p className="text-gray-600">
+                    Complete financial management suite for revenue tracking, billing, and analytics
+                  </p>
+                </div>
+                <CacheRefreshButton
+                  endpoints={['/api/finance', '/api/finance/analytics']}
+                  variant="outline"
+                  size="sm"
+                  showStats={true}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
