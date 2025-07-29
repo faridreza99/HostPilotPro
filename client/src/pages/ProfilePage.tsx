@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFastAuth } from "@/lib/fastAuth";
+import { profileStorage } from "@/lib/profileStorage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,21 @@ export default function ProfilePage() {
     timezone: (user as any)?.timezone || "Asia/Bangkok",
     language: (user as any)?.language || "English"
   });
+
+  // Load saved profile data on mount
+  useEffect(() => {
+    if (user) {
+      const savedProfile = profileStorage.getProfile((user as any).id);
+      if (savedProfile) {
+        setFormData(prev => ({ ...prev, ...savedProfile }));
+      }
+      
+      const savedNotifications = profileStorage.getNotifications((user as any).id);
+      if (savedNotifications) {
+        setNotifications(savedNotifications);
+      }
+    }
+  }, [user]);
   
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
@@ -61,16 +77,44 @@ export default function ProfilePage() {
   });
 
   const handleSaveProfile = () => {
-    // In a real app, this would make an API call
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been saved successfully.",
-    });
+    if (user) {
+      // Save to localStorage for immediate persistence
+      const profileData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.company,
+        department: formData.department
+      };
+      
+      const saved = profileStorage.saveProfile((user as any).id, profileData);
+      
+      if (saved) {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been saved successfully.",
+        });
+      } else {
+        toast({
+          title: "Save Error",
+          description: "Failed to save profile. Please try again.",
+          variant: "destructive"
+        });
+      }
+    }
     setIsEditing(false);
   };
 
   const handleNotificationChange = (key: string, value: boolean) => {
-    setNotifications(prev => ({ ...prev, [key]: value }));
+    const updatedNotifications = { ...notifications, [key]: value };
+    setNotifications(updatedNotifications);
+    
+    if (user) {
+      // Save to localStorage immediately
+      profileStorage.saveNotifications((user as any).id, updatedNotifications);
+    }
+    
     toast({
       title: "Notification Settings Updated",
       description: `${key.replace(/([A-Z])/g, ' $1').toLowerCase()} ${value ? 'enabled' : 'disabled'}.`,
