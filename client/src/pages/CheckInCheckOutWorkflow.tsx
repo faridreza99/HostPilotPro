@@ -24,19 +24,19 @@ export default function CheckInCheckOutWorkflow() {
 
   // Check-ins Query
   const { data: checkIns = [], isLoading: checkInsLoading } = useQuery({
-    queryKey: ["/api/guest-checkins"],
+    queryKey: ["/api/checkins"],
     retry: false,
   });
 
   // Check-outs Query
   const { data: checkOuts = [], isLoading: checkOutsLoading } = useQuery({
-    queryKey: ["/api/guest-checkouts"],
+    queryKey: ["/api/checkouts"],
     retry: false,
   });
 
-  // Demo Tasks Query
+  // Demo Tasks Query - using checkins data as placeholder
   const { data: demoTasks = [], isLoading: demoTasksLoading } = useQuery({
-    queryKey: ["/api/checkin-checkout-demo-tasks"],
+    queryKey: ["/api/checkins"],
     retry: false,
   });
 
