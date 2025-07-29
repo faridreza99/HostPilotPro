@@ -12773,8 +12773,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         { 
           id: "demo-pm", 
-          email: "pm@test.com", 
-          name: "Demo Portfolio Manager", 
+          email: "manager@test.com", 
+          name: "JOHN DO", 
           role: "portfolio-manager", 
           status: "active",
           organizationId 

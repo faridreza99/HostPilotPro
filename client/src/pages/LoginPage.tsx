@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 
 const DEMO_CREDENTIALS = [
   { email: "admin@test.com", role: "Admin", password: "admin123", permissions: "Full system access, User management, God Mode" },
-  { email: "manager@test.com", role: "Portfolio Manager", password: "manager123", permissions: "Property management, Financial oversight" },
+  { email: "manager@test.com", role: "JOHN DO (Portfolio Manager)", password: "manager123", permissions: "Property management, Financial oversight" },
   { email: "owner@test.com", role: "Property Owner", password: "owner123", permissions: "Own properties, Financial reports" },
   { email: "staff@test.com", role: "Staff Member", password: "staff123", permissions: "Task management, Property operations" },
   { email: "retail@test.com", role: "Retail Agent", password: "retail123", permissions: "Booking management, Commission tracking" },
