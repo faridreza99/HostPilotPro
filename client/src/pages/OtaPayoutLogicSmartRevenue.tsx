@@ -124,25 +124,29 @@ const OtaPayoutLogicSmartRevenue = () => {
 
   const queryClient = useQueryClient();
 
-  // Fetch OTA booking payouts
-  const { data: payouts = [], isLoading: payoutsLoading } = useQuery({
+  // Fetch OTA booking payouts with proper array safety
+  const { data: payoutsRaw, isLoading: payoutsLoading } = useQuery({
     queryKey: ["/api/ota-payout/bookings", filters],
-    queryFn: () => apiRequest("/api/ota-payout/bookings", {
-      method: "GET",
-      params: filters
-    }).then(res => res.json())
+    queryFn: () => apiRequest('GET', '/api/ota-payout/bookings'),
+    retry: false,
   });
 
-  // Fetch OTA payout alerts
-  const { data: alerts = [], isLoading: alertsLoading } = useQuery({
+  const payouts = Array.isArray(payoutsRaw) ? payoutsRaw : [];
+
+  // Fetch OTA payout alerts with proper array safety
+  const { data: alertsRaw, isLoading: alertsLoading } = useQuery({
     queryKey: ["/api/ota-payout/alerts"],
-    queryFn: () => apiRequest("/api/ota-payout/alerts").then(res => res.json())
+    queryFn: () => apiRequest('GET', '/api/ota-payout/alerts'),
+    retry: false,
   });
+
+  const alerts = Array.isArray(alertsRaw) ? alertsRaw : [];
 
   // Fetch revenue analytics
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["/api/ota-payout/analytics"],
-    queryFn: () => apiRequest("/api/ota-payout/analytics").then(res => res.json())
+    queryFn: () => apiRequest('GET', '/api/ota-payout/analytics'),
+    retry: false,
   });
 
   // Payout confirmation mutation

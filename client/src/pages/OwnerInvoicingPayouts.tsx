@@ -135,21 +135,29 @@ export default function OwnerInvoicingPayouts() {
     })}`),
   });
 
-  const { data: payoutRequests } = useQuery({
+  const { data: payoutRequestsRaw } = useQuery({
     queryKey: ['/api/owner-payout-requests', statusFilter, selectedProperty],
     queryFn: () => apiRequest('GET', `/api/owner-payout-requests?${new URLSearchParams({
       ...(statusFilter !== 'all' && { status: statusFilter }),
       ...(selectedProperty && { propertyId: selectedProperty.toString() }),
     })}`),
+    retry: false,
   });
 
-  const { data: ownerInvoices } = useQuery({
+  // Ensure data is always an array to prevent crashes
+  const payoutRequests = Array.isArray(payoutRequestsRaw) ? payoutRequestsRaw : [];
+
+  const { data: ownerInvoicesRaw } = useQuery({
     queryKey: ['/api/owner-invoices', statusFilter, selectedProperty],
     queryFn: () => apiRequest('GET', `/api/owner-invoices?${new URLSearchParams({
       ...(statusFilter !== 'all' && { status: statusFilter }),
       ...(selectedProperty && { propertyId: selectedProperty.toString() }),
     })}`),
+    retry: false,
   });
+
+  // Ensure data is always an array to prevent crashes
+  const ownerInvoices = Array.isArray(ownerInvoicesRaw) ? ownerInvoicesRaw : [];
 
   const { data: properties } = useQuery({
     queryKey: ['/api/properties'],

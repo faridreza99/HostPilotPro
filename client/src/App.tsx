@@ -40,6 +40,7 @@ import MarketingPackManagement from "./pages/admin/MarketingPackManagement";
 import AiOpsAnomaliesManagement from "./pages/admin/AiOpsAnomaliesManagement";
 import AutoScheduleTaskGenerator from "./pages/AutoScheduleTaskGenerator";
 import OtaRevenueNetPayoutCalculation from "./pages/OtaRevenueNetPayoutCalculation";
+import OtaPayoutLogicSmartRevenue from "./pages/OtaPayoutLogicSmartRevenue";
 import LoyaltyGuestTracker from "./pages/LoyaltyGuestTracker";
 import InvoiceGenerator from "./pages/InvoiceGenerator";
 import StaffAdvanceSalaryOvertimeTracker from "./pages/StaffAdvanceSalaryOvertimeTracker";
@@ -175,6 +176,7 @@ function AppRoutes() {
         <Route path="/owner-target-upgrade-tracker" component={OwnerTargetUpgradeTracker} />
         <Route path="/auto-scheduling-recurring-task-generator" component={AutoScheduleTaskGenerator} />
         <Route path="/ota-revenue-net-payout-calculation" component={OtaRevenueNetPayoutCalculation} />
+        <Route path="/ota-payout-logic-smart-revenue" component={OtaPayoutLogicSmartRevenue} />
         <Route path="/loyalty-guest-tracker" component={LoyaltyGuestTracker} />
         <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
         <Route path="/invoice-generator" component={InvoiceGenerator} />
