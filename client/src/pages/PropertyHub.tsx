@@ -35,7 +35,7 @@ export default function PropertyHub() {
     {
       title: "Check-in/Check-out",
       description: "Guest arrival and departure management with workflow tracking",
-      href: "/guest-check-in-check-out-tracker", 
+      href: "/guest-checkin-checkout-tracker", 
       icon: UserCheck,
       badge: "Guests",
       color: "bg-purple-50 hover:bg-purple-100 border-purple-200"
