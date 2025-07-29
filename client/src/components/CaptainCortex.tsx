@@ -54,6 +54,11 @@ const CaptainCortex = () => {
             </button>
           </div>
           <div className="text-xs text-gray-500 mb-2">The Smart Co-Pilot for Property Management by HostPilotPro</div>
+          {!response && (
+            <div className="text-xs text-blue-600 dark:text-blue-400 mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+              👨‍✈️ Hello! I'm Captain Cortex – your smart co-pilot for property management, powered by HostPilotPro. Ready to navigate tasks, finances, and data with you!
+            </div>
+          )}
           <textarea
             className="w-full p-2 border dark:border-gray-600 rounded mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             rows={3}

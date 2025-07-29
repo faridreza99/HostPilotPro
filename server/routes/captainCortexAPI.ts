@@ -1,0 +1,66 @@
+// Captain Cortex API routes with role-based permissions
+import type { Express } from "express";
+import { AIBotEngine } from "../ai-bot-engine";
+import { isDemoAuthenticated } from "../demoAuth";
+
+export function registerCaptainCortexRoutes(app: Express) {
+  const aiBotEngine = new AIBotEngine();
+
+  // AI Bot query endpoint with role-based permissions
+  app.post("/api/ai-bot/query", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { question } = req.body;
+      
+      if (!question || typeof question !== 'string') {
+        return res.status(400).json({ error: "Question is required and must be a string" });
+      }
+
+      // Get user context with role-based permissions
+      const context = {
+        organizationId: req.user.organizationId,
+        userRole: req.user.role,
+        userId: req.user.id
+      };
+
+      console.log(`🤖 AI Bot query from ${context.userRole}: "${question}"`);
+
+      const response = await aiBotEngine.processQuery(question, context);
+      
+      res.json({ 
+        response,
+        userRole: context.userRole,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error("❌ AI Bot API error:", error);
+      res.status(500).json({ 
+        error: "Failed to process AI query",
+        message: error?.message || "Unknown error"
+      });
+    }
+  });
+
+  // Get user role capabilities for UI
+  app.get("/api/ai-bot/capabilities", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { CAPTAIN_CORTEX_ROLES } = await import("../captainCortexRoleSystem");
+      const userRole = req.user.role;
+      const roleConfig = CAPTAIN_CORTEX_ROLES[userRole] || CAPTAIN_CORTEX_ROLES.guest;
+      
+      res.json({
+        role: userRole,
+        permissions: roleConfig.permissions,
+        tone: roleConfig.tone,
+        dataAccess: roleConfig.dataAccess
+      });
+      
+    } catch (error: any) {
+      console.error("❌ AI Bot capabilities error:", error);
+      res.status(500).json({ 
+        error: "Failed to get capabilities",
+        message: error?.message || "Unknown error"
+      });
+    }
+  });
+}

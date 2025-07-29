@@ -89,6 +89,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register optimized hub routes for better performance with large datasets
   const optimizedRoutes = await import('./optimizedRoutes');
   app.use(optimizedRoutes.default);
+  
+  // Register Captain Cortex AI routes with role-based permissions
+  const { registerCaptainCortexRoutes } = await import('./routes/captainCortexAPI');
+  registerCaptainCortexRoutes(app);
 
   // === Smart Pricing API Routes (prevent crashes) ===
   
