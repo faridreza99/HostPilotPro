@@ -27,7 +27,6 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
     propertyId: "",
     dueDate: "",
     estimatedCost: "",
-    costAssignment: "owner",
     isRecurring: false,
     recurringType: "",
     recurringInterval: "1",
@@ -69,7 +68,6 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
         propertyId: "",
         dueDate: "",
         estimatedCost: "",
-        costAssignment: "owner",
         isRecurring: false,
         recurringType: "",
         recurringInterval: "1",
@@ -98,10 +96,18 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
     }
     
     const data = {
-      ...formData,
+      organizationId: "default-org", // Add organizationId 
+      title: formData.title,
+      description: formData.description || null,
+      type: formData.type,
+      department: formData.department || null,
+      priority: formData.priority,
       propertyId: formData.propertyId ? parseInt(formData.propertyId) : null,
       dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
-      estimatedCost: formData.estimatedCost || null,
+      estimatedCost: formData.estimatedCost ? parseFloat(formData.estimatedCost) : null,
+      isRecurring: formData.isRecurring || false,
+      recurringType: formData.isRecurring ? formData.recurringType : null,
+      recurringInterval: formData.isRecurring ? parseInt(formData.recurringInterval) : null,
     };
 
     createMutation.mutate(data);
@@ -245,7 +251,7 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="estimatedCost">Estimated Cost</Label>
               <Input
@@ -256,20 +262,6 @@ export default function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialo
                 onChange={(e) => handleChange("estimatedCost", e.target.value)}
                 placeholder="0.00"
               />
-            </div>
-            
-            <div>
-              <Label htmlFor="costAssignment">Charge Cost To</Label>
-              <Select value={formData.costAssignment} onValueChange={(value) => handleChange("costAssignment", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="owner">Owner</SelectItem>
-                  <SelectItem value="guest">Guest</SelectItem>
-                  <SelectItem value="company">Company</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             
             <div className="flex items-center space-x-2 mt-6">
