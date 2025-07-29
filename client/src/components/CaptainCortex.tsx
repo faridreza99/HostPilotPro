@@ -39,7 +39,7 @@ const CaptainCortex = () => {
           onClick={() => setIsOpen(true)}
           title="Open Captain Cortex AI Assistant"
         >
-          🧠 Captain Cortex
+          👨‍✈️ Captain Cortex
         </button>
       ) : (
         <div className="bg-white dark:bg-gray-800 shadow-lg border dark:border-gray-700 rounded-lg w-96 p-4">

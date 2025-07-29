@@ -25,7 +25,7 @@ export function AIBotChat({ className }: AIBotChatProps) {
     {
       id: '1',
       type: 'bot',
-      content: 'Hello! I\'m Captain Cortex, your Smart Co-Pilot for Property Management. I can help you with questions about your properties, tasks, revenue, expenses, and bookings. What would you like to know?',
+      content: '👨‍✈️ Hello! I\'m Captain Cortex – your smart co-pilot for property management, powered by HostPilotPro. Ready to navigate tasks, finances, and data with you!',
       timestamp: new Date()
     }
   ]);
