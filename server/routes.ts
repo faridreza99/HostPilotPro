@@ -76,8 +76,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   initializeUtilityAutomation();
   console.log("✅ Automation systems initialized successfully");
 
-
-
   // Register SaaS routes
   registerSaasRoutes(app);
   
@@ -87,6 +85,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register Fast routes for performance
   const { registerFastRoutes } = await import("./fastRoutes");
   registerFastRoutes(app);
+
+  // Register optimized hub routes for better performance with large datasets
+  const optimizedRoutes = await import('./optimizedRoutes');
+  app.use(optimizedRoutes.default);
 
   // === Smart Pricing API Routes (prevent crashes) ===
   
