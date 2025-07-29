@@ -71,15 +71,13 @@ export class AIBotEngine {
       return response;
 
     } catch (error: any) {
-      console.error('❌ AI Bot error:', error);
-      console.error('❌ Error details:', {
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name,
-        question: question,
-        context: context
-      });
-      return `Sorry, I encountered an issue while processing your question: ${error?.message || 'Unknown error'}. The technical team has been notified.`;
+      console.error('❌ AI Bot MAIN ERROR:', error);
+      console.error('❌ Error name:', error?.name);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Error stack:', error?.stack);
+      console.error('❌ Question was:', question);
+      console.error('❌ Context was:', JSON.stringify(context));
+      return `Error: ${error?.message || 'Unknown error'}`;
     }
   }
 
@@ -240,8 +238,11 @@ Please analyze this question and provide a helpful response using only the avail
     return response;
 
     } catch (error: any) {
-      console.error('❌ processQueryFast error:', error);
-      throw new Error(`Fast query processing failed: ${error?.message || 'Unknown error'}`);
+      console.error('❌ processQueryFast DETAILED ERROR:', error);
+      console.error('❌ FastQuery Error name:', error?.name);
+      console.error('❌ FastQuery Error message:', error?.message);
+      console.error('❌ FastQuery Error stack:', error?.stack);
+      throw new Error(`FastQuery failed: ${error?.message || 'Unknown error'}`);
     }
   }
 
