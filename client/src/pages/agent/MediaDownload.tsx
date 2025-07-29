@@ -1,6 +1,12 @@
 import { useState } from "react";
 
+import OptimizedMediaDownload from "./OptimizedMediaDownload";
+
 export default function MediaDownload() {
+  return <OptimizedMediaDownload />;
+}
+
+function OriginalMediaDownload() {
   const [searchTerm, setSearchTerm] = useState("");
   const [propertyFilter, setPropertyFilter] = useState("all");
 

@@ -1,6 +1,12 @@
 import React from "react";
 
+import OptimizedLeaderboard from "./OptimizedLeaderboard";
+
 export default function Leaderboard() {
+  return <OptimizedLeaderboard />;
+}
+
+function OriginalLeaderboard() {
   return (
     <div className="p-4">
       <h1 className="text-xl font-bold mb-6">Top Agent Board</h1>
