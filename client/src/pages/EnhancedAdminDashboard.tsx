@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useFastAuth } from "@/lib/fastAuth";
 import AdminGlobalFilterBar, { AdminFilters } from "@/components/AdminGlobalFilterBar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building, Calendar, ListTodo, DollarSign, User, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Wrench } from "lucide-react";
+import { Building, Calendar, ListTodo, DollarSign, User, Users, TrendingUp, AlertTriangle, CheckCircle, Clock, Wrench, Settings } from "lucide-react";
 import { RoleBackButton } from "@/components/BackButton";
 import RefreshDataButton from "@/components/RefreshDataButton";
-import { useDashboardStats, usePropertiesData, useTasksData, useBookingsData, useFinanceData } from "@/hooks/useDashboardData";
 
 interface FilteredData {
   properties: any[];
@@ -20,15 +19,8 @@ interface FilteredData {
 }
 
 export default function EnhancedAdminDashboard() {
-  const { user } = useAuth();
+  const { user } = useFastAuth();
   const [activeFilters, setActiveFilters] = useState<AdminFilters>({});
-  
-  // Use cached data hooks for instant loading
-  const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
-  const { data: properties = [], isLoading: propertiesLoading } = usePropertiesData();
-  const { data: tasks = [], isLoading: tasksLoading } = useTasksData();
-  const { data: bookings = [], isLoading: bookingsLoading } = useBookingsData();
-  const { data: finances = [], isLoading: financesLoading } = useFinanceData();
   
   const [filteredData, setFilteredData] = useState<FilteredData>({
     properties: [],
@@ -172,9 +164,27 @@ export default function EnhancedAdminDashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="text-gray-600 mt-1">Comprehensive property management overview with global filtering</p>
         </div>
-        <Badge variant="outline" className="text-sm">
-          {user?.role === 'admin' ? 'System Administrator' : 'Portfolio Manager'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-sm">
+            {user?.role === 'admin' ? 'System Administrator' : 'Portfolio Manager'}
+          </Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => {
+              try {
+                window.location.href = "/settings";
+              } catch (error) {
+                console.error("Settings navigation error:", error);
+                window.location.href = "/simple-settings";
+              }
+            }}
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Global Filter Bar and Cache Controls */}

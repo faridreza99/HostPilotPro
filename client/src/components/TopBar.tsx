@@ -148,7 +148,15 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
             variant="ghost"
             size="sm"
             className="hidden sm:flex h-8 w-8 p-0"
-            onClick={() => window.location.href = "/settings"}
+            onClick={() => {
+              try {
+                window.location.href = "/settings";
+              } catch (error) {
+                console.error("Settings navigation error:", error);
+                // Fallback to simple settings page
+                window.location.href = "/simple-settings";
+              }
+            }}
           >
             <Settings className="h-4 w-4" />
           </Button>
