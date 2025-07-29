@@ -86,4 +86,37 @@ export function registerCaptainCortexRoutes(app: Express) {
       });
     }
   });
+
+  // Debug endpoint to test AI bot directly
+  app.post("/api/ai-bot/debug", async (req, res) => {
+    try {
+      const { question } = req.body;
+      
+      console.log(`🐛 Debug AI Bot query: "${question}"`);
+      
+      // Use fixed context for debugging
+      const context = {
+        organizationId: 'default-org',
+        userRole: 'admin',
+        userId: 'debug-user'
+      };
+
+      const response = await aiBotEngine.processQuery(question, context);
+      
+      res.json({ 
+        response,
+        debug: true,
+        context,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error("❌ AI Bot debug error:", error);
+      res.status(500).json({ 
+        error: "Debug failed",
+        message: error?.message || "Unknown error",
+        stack: error?.stack
+      });
+    }
+  });
 }

@@ -41,6 +41,7 @@ export class AIBotEngine {
     });
     
     this.storage = new DatabaseStorage();
+    console.log('🤖 AI Bot Engine initialized successfully');
   }
 
   /**
@@ -71,8 +72,14 @@ export class AIBotEngine {
 
     } catch (error: any) {
       console.error('❌ AI Bot error:', error);
-      console.error('❌ Error stack:', error?.stack);
-      return `Sorry, I encountered an issue while processing your question. Let me try to help you another way. Could you try asking about specific properties or current tasks?`;
+      console.error('❌ Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+        question: question,
+        context: context
+      });
+      return `Sorry, I encountered an issue while processing your question: ${error?.message || 'Unknown error'}. The technical team has been notified.`;
     }
   }
 
@@ -82,9 +89,10 @@ export class AIBotEngine {
   private async processQueryFast(question: string, context: QueryContext): Promise<string> {
     console.log(`🔍 Processing query: "${question}" for role: ${context.userRole}`);
     
-    // Get allowed data queries based on user role
-    const allowedQueries = getAllowedDataQueries(context.userRole);
-    console.log(`📋 Allowed queries for ${context.userRole}:`, allowedQueries);
+    try {
+      // Get allowed data queries based on user role
+      const allowedQueries = getAllowedDataQueries(context.userRole);
+      console.log(`📋 Allowed queries for ${context.userRole}:`, allowedQueries);
     
     // Fetch data based on role permissions
     const dataPromises: Promise<any>[] = [];
@@ -214,6 +222,11 @@ Please analyze this question and provide a helpful response using only the avail
     
     console.log(`✅ AI response generated for ${context.userRole}`);
     return response;
+
+    } catch (error: any) {
+      console.error('❌ processQueryFast error:', error);
+      throw new Error(`Fast query processing failed: ${error?.message || 'Unknown error'}`);
+    }
   }
 
   /**
