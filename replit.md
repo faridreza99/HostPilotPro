@@ -147,14 +147,21 @@ HostPilotPro is a comprehensive, multi-tenant property management platform desig
 - **Download Option**: Use three dots menu → "Download as zip" for complete file backup
 
 ## AI Assistant Configuration
-Captain Cortex AI assistant has been configured with comprehensive role-based context rules for personalized responses:
-- **Admin**: Full data access, strategic tone, complete insights and system oversight
-- **Portfolio Manager**: Focus on assigned properties, financials, and staff management
-- **Staff**: Clear instructions, task-focused, no access to owner financials or commissions
-- **Guest**: Friendly service orientation, guest-appropriate information only
-- **Owner**: Professional transparency, property reports and financials for owned properties
-- **Retail Agent**: Villa information, availability, pricing, and commission tracking
-- **Referral Agent**: Referral performance focus and commission motivation
+Captain Cortex AI assistant has been configured with comprehensive role-based context rules and personalized greetings:
+
+**Role-Based Greetings:**
+- **Admin**: "👨‍✈️ Captain Cortex reporting! Full systems online. You have complete access to all data and operations in HostPilotPro."
+- **Portfolio Manager**: "👨‍✈️ Welcome back, Portfolio Captain! Ready to navigate your assigned villas, coordinate staff, and optimize performance."
+- **Staff**: "👨‍✈️ Captain Cortex here! Let's tackle today's task list and keep everything running smoothly. I'll guide you step-by-step."
+- **Guest**: "👨‍✈️ Hello traveler! I'm Captain Cortex, here to make your stay seamless. Need info or concierge services? Just ask!"
+- **Owner**: "👨‍✈️ Greetings, Property Captain! I have your financials, reports, and maintenance updates ready for review."
+- **Retail Agent**: "👨‍✈️ Captain Cortex checking in! Live villa availability and your commission opportunities are ready for takeoff."
+- **Referral Agent**: "👨‍✈️ Welcome back, Partner! I've got your referral performance, commissions, and villa stats ready to review."
+
+**Data Access & Tone Control:**
+- Each role receives appropriate tone and data access level
+- Context automatically adjusts AI responses for proper information sharing
+- Complete permission system ensures role-appropriate data visibility
 
 ## Changelog
 - July 29, 2025. Fixed all Property Hub 404 routing errors and enhanced navigation: Successfully resolved PropertyManage.tsx and PropertyDocuments.tsx routing issues by creating complete property management and document management interfaces, updated OptimizedPropertyHub.tsx navigation to use proper useLocation hook instead of window.location.href, added comprehensive property editing functionality with dropdown menus for portfolio manager and owner assignments synced with user management system, implemented PropertyDetailView.tsx for detailed property information display, added all necessary routes to App.tsx (/property-manage/:id, /property-documents/:id, /property-detail/:id) for seamless navigation, fixed button URLs throughout Property Hub to point to correct endpoints, eliminated all 404 errors on manage and document buttons. Property Hub now provides working document management with upload/download capabilities, property management with editable descriptions and staff assignments, fast navigation between all property-related pages, and comprehensive CRUD operations for property data management.

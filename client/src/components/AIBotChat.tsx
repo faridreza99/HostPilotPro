@@ -21,17 +21,28 @@ interface AIBotChatProps {
 }
 
 export function AIBotChat({ className }: AIBotChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'bot',
-      content: '👨‍✈️ Hello! I\'m Captain Cortex – your smart co-pilot for property management, powered by HostPilotPro. Ready to navigate tasks, finances, and data with you!',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+
+  // Fetch role-based greeting
+  const { data: greetingData } = useQuery({
+    queryKey: ['/api/ai-bot/greeting'],
+    staleTime: 1000 * 60 * 10, // 10 minutes
+  });
+
+  // Initialize with role-based greeting when available
+  useEffect(() => {
+    if (greetingData?.greeting && messages.length === 0) {
+      setMessages([{
+        id: '1',
+        type: 'bot',
+        content: greetingData.greeting,
+        timestamp: new Date()
+      }]);
+    }
+  }, [greetingData, messages.length]);
 
   // Fetch suggested questions
   const { data: suggestedQuestions = [] } = useQuery<string[]>({

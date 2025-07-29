@@ -4,6 +4,7 @@
 export interface CaptainCortexRoleConfig {
   permissions: string[];
   tone: string;
+  greeting: string;
   dataAccess: {
     financials: boolean;
     allProperties: boolean;
@@ -21,6 +22,7 @@ export const CAPTAIN_CORTEX_ROLES: Record<string, CaptainCortexRoleConfig> = {
   admin: {
     permissions: ["all"],
     tone: "authoritative, strategic, full access to all systems and data",
+    greeting: "👨‍✈️ Captain Cortex reporting! Full systems online. You have complete access to all data and operations in HostPilotPro.",
     dataAccess: {
       financials: true,
       allProperties: true,
@@ -37,6 +39,7 @@ export const CAPTAIN_CORTEX_ROLES: Record<string, CaptainCortexRoleConfig> = {
   "portfolio-manager": {
     permissions: ["assigned_properties", "financials", "staff_tasks", "guest_communication"],
     tone: "professional, problem-solving, focused on property performance and team coordination",
+    greeting: "👨‍✈️ Welcome back, Portfolio Captain! Ready to navigate your assigned villas, coordinate staff, and optimize performance.",
     dataAccess: {
       financials: true,
       allProperties: true,
@@ -53,6 +56,7 @@ export const CAPTAIN_CORTEX_ROLES: Record<string, CaptainCortexRoleConfig> = {
   staff: {
     permissions: ["task_lists", "maintenance_logs", "guest_requests"],
     tone: "clear, instructional, task-oriented with no owner-level financial data",
+    greeting: "👨‍✈️ Captain Cortex here! Let's tackle today's task list and keep everything running smoothly. I'll guide you step-by-step.",
     dataAccess: {
       financials: false,
       allProperties: false,
@@ -69,6 +73,7 @@ export const CAPTAIN_CORTEX_ROLES: Record<string, CaptainCortexRoleConfig> = {
   guest: {
     permissions: ["basic_info", "concierge_services"],
     tone: "friendly, helpful, customer-service tone; never expose internal or financial data",
+    greeting: "👨‍✈️ Hello traveler! I'm Captain Cortex, here to make your stay seamless. Need info or concierge services? Just ask!",
     dataAccess: {
       financials: false,
       allProperties: false,
@@ -85,6 +90,7 @@ export const CAPTAIN_CORTEX_ROLES: Record<string, CaptainCortexRoleConfig> = {
   owner: {
     permissions: ["view_financials", "reports", "maintenance_updates"],
     tone: "professional and transparent, focusing on their property performance and expenses",
+    greeting: "👨‍✈️ Greetings, Property Captain! I have your financials, reports, and maintenance updates ready for review.",
     dataAccess: {
       financials: true,
       allProperties: false,
@@ -101,6 +107,7 @@ export const CAPTAIN_CORTEX_ROLES: Record<string, CaptainCortexRoleConfig> = {
   "retail-agent": {
     permissions: ["booking_engine", "commission_tracking", "villa_info"],
     tone: "sales-oriented, professional, emphasize availability, pricing, and commissions",
+    greeting: "👨‍✈️ Captain Cortex checking in! Live villa availability and your commission opportunities are ready for takeoff.",
     dataAccess: {
       financials: false,
       allProperties: true,
@@ -117,6 +124,7 @@ export const CAPTAIN_CORTEX_ROLES: Record<string, CaptainCortexRoleConfig> = {
   "referral-agent": {
     permissions: ["commission_tracking", "referred_villas"],
     tone: "motivational, partner-focused, highlight referral performance and payouts",
+    greeting: "👨‍✈️ Welcome back, Partner! I've got your referral performance, commissions, and villa stats ready to review.",
     dataAccess: {
       financials: false,
       allProperties: false,
@@ -130,6 +138,12 @@ export const CAPTAIN_CORTEX_ROLES: Record<string, CaptainCortexRoleConfig> = {
     responseFilters: ["owner_data", "staff_data", "system_admin_data", "maintenance_data", "guest_data"]
   }
 };
+
+// Get role-based greeting
+export function getRoleBasedGreeting(userRole: string): string {
+  const roleConfig = CAPTAIN_CORTEX_ROLES[userRole] || CAPTAIN_CORTEX_ROLES.guest;
+  return roleConfig.greeting;
+}
 
 // System prompt generation based on user role
 export function generateRoleBasedSystemPrompt(userRole: string): string {

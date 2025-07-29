@@ -1,10 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 const CaptainCortex = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch role-based greeting
+  const { data: greetingData } = useQuery({
+    queryKey: ['/api/ai-bot/greeting'],
+    staleTime: 1000 * 60 * 10, // 10 minutes
+  });
 
   const askCortex = async () => {
     if (!prompt.trim()) return;
@@ -56,7 +63,7 @@ const CaptainCortex = () => {
           <div className="text-xs text-gray-500 mb-2">The Smart Co-Pilot for Property Management by HostPilotPro</div>
           {!response && (
             <div className="text-xs text-blue-600 dark:text-blue-400 mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
-              👨‍✈️ Hello! I'm Captain Cortex – your smart co-pilot for property management, powered by HostPilotPro. Ready to navigate tasks, finances, and data with you!
+              {greetingData?.greeting || "👨‍✈️ Hello! I'm Captain Cortex – your smart co-pilot for property management, powered by HostPilotPro. Ready to navigate tasks, finances, and data with you!"}
             </div>
           )}
           <textarea

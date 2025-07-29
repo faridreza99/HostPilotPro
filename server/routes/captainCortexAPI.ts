@@ -63,4 +63,26 @@ export function registerCaptainCortexRoutes(app: Express) {
       });
     }
   });
+
+  // Get role-based greeting for Captain Cortex
+  app.get("/api/ai-bot/greeting", isDemoAuthenticated, async (req, res) => {
+    try {
+      const { getRoleBasedGreeting } = await import("../captainCortexRoleSystem");
+      const userRole = req.user.role;
+      const greeting = getRoleBasedGreeting(userRole);
+      
+      res.json({
+        greeting,
+        role: userRole,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error("❌ AI Bot greeting error:", error);
+      res.status(500).json({ 
+        error: "Failed to get greeting",
+        message: error?.message || "Unknown error"
+      });
+    }
+  });
 }

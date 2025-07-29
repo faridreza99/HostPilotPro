@@ -6,7 +6,7 @@
 
 import OpenAI from 'openai';
 import { DatabaseStorage } from './storage.js';
-import { generateRoleBasedSystemPrompt, filterResponseByRole, getAllowedDataQueries } from './captainCortexRoleSystem';
+import { generateRoleBasedSystemPrompt, filterResponseByRole, getAllowedDataQueries, getRoleBasedGreeting } from './captainCortexRoleSystem';
 
 interface QueryContext {
   organizationId: string;
