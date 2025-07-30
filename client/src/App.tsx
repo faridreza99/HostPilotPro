@@ -121,6 +121,16 @@ import PropertyDocuments from "@/pages/PropertyDocuments";
 function AppRoutes() {
   const { user, isLoading } = useFastAuth();
   
+  // Check for logout parameter and force logout
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('logout') === 'true') {
+      localStorage.removeItem('hostpilot_fast_auth_session');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      window.location.reload();
+    }
+  }, []);
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -137,7 +147,8 @@ function AppRoutes() {
     return (
       <Switch>
         <Route path="/login" component={LoginPage} />
-        <Route component={Landing} />
+        <Route path="/" component={LoginPage} />
+        <Route component={LoginPage} />
       </Switch>
     );
   }

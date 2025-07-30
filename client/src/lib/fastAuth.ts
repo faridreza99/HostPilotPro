@@ -118,6 +118,9 @@ export async function fastLogout(): Promise<void> {
   }).catch(error => {
     console.error('Logout API failed:', error);
   });
+
+  // Force page reload to ensure clean state
+  window.location.href = '/login';
 }
 
 // Fast auth hook with immediate local storage check
@@ -137,6 +140,13 @@ export function useFastAuth() {
     // Only then check server if no local session
     checkServerAuth();
   }, []);
+
+  // Force clear session function for debugging
+  const forceLogout = () => {
+    FastAuthSessionManager.clearSession();
+    setUser(null);
+    setIsLoading(false);
+  };
 
   const checkServerAuth = async () => {
     try {
