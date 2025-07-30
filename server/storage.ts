@@ -4777,7 +4777,8 @@ export class DatabaseStorage implements IStorage {
         query = query.offset(filters.offset);
       }
 
-      return await query;
+      const result = await query;
+      return result || [];
     } catch (error) {
       console.error('Error fetching finances:', error);
       return [];

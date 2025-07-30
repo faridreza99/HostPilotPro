@@ -543,6 +543,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Invoice endpoints
+  app.get('/api/invoices', isDemoAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Return demo invoice data for now
+      const demoInvoices = [
+        {
+          id: 1,
+          number: 'INV-2025-001',
+          clientName: 'Villa Samui Breeze Booking',
+          amount: 25000,
+          status: 'paid',
+          date: '2025-01-15',
+          dueDate: '2025-01-30'
+        },
+        {
+          id: 2,
+          number: 'INV-2025-002',
+          clientName: 'Villa Ocean View Booking',
+          amount: 18000,
+          status: 'pending',
+          date: '2025-01-20',
+          dueDate: '2025-02-05'
+        },
+        {
+          id: 3,
+          number: 'INV-2025-003',
+          clientName: 'Villa Aruna Demo Booking',
+          amount: 35000,
+          status: 'overdue',
+          date: '2025-01-10',
+          dueDate: '2025-01-25'
+        }
+      ];
+      
+      res.json(demoInvoices);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      res.status(500).json({ message: 'Error fetching invoices' });
+    }
+  });
+
   app.post('/api/ai-bot/query', isDemoAuthenticated, async (req, res) => {
     try {
       const { question } = req.body;

@@ -1,18 +1,30 @@
 import React from "react";
-import { useCachedData } from "@/context/CacheContext";
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import RefreshDataButton from "@/components/RefreshDataButton";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { FileText, Download, Eye, AlertCircle, Plus } from "lucide-react";
 
 export default function CachedInvoiceGenerator() {
-  const { data: invoices = [], isLoading: invoicesLoading, isStale } = useCachedData(
-    '/api/invoices',
-    undefined,
-    { backgroundRefresh: true, refetchInterval: 5 * 60 * 1000 }
-  );
+  const { data: invoices, isLoading: invoicesLoading, error } = useQuery({
+    queryKey: ['/api/invoices'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/invoices');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Failed to fetch invoices:', error);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000
+  });
+
+  // Safe array handling to prevent crashes
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
 
   const formatCurrency = (amount: number | null | undefined) => {
     if (amount == null) return "฿0";
@@ -37,21 +49,16 @@ export default function CachedInvoiceGenerator() {
           <p className="text-gray-600 mt-1">Generate invoices, track payments, and manage income streams</p>
         </div>
         <div className="flex items-center gap-2">
-          {isStale && (
-            <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+          {error && (
+            <Badge variant="outline" className="text-red-600 border-red-600">
               <AlertCircle className="h-3 w-3 mr-1" />
-              Data refreshing...
+              Loading error
             </Badge>
           )}
           <Button className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             New Invoice
           </Button>
-          <RefreshDataButton
-            endpoints={['/api/invoices']}
-            showStats={true}
-            showLastUpdate={true}
-          />
         </div>
       </div>
 
@@ -61,7 +68,7 @@ export default function CachedInvoiceGenerator() {
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-center">
-                  <LoadingSpinner size="md" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               </CardContent>
             </Card>
@@ -74,7 +81,7 @@ export default function CachedInvoiceGenerator() {
             <Card>
               <CardContent className="p-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{invoices.length}</p>
+                  <p className="text-2xl font-bold text-blue-600">{safeInvoices.length}</p>
                   <p className="text-sm text-gray-600">Total Invoices</p>
                 </div>
               </CardContent>
@@ -83,7 +90,7 @@ export default function CachedInvoiceGenerator() {
               <CardContent className="p-4">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-600">
-                    {invoices.filter((inv: any) => inv.status === 'paid').length}
+                    {safeInvoices.filter((inv: any) => inv.status === 'paid').length}
                   </p>
                   <p className="text-sm text-gray-600">Paid</p>
                 </div>
@@ -93,7 +100,7 @@ export default function CachedInvoiceGenerator() {
               <CardContent className="p-4">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-yellow-600">
-                    {invoices.filter((inv: any) => inv.status === 'pending').length}
+                    {safeInvoices.filter((inv: any) => inv.status === 'pending').length}
                   </p>
                   <p className="text-sm text-gray-600">Pending</p>
                 </div>
@@ -103,7 +110,7 @@ export default function CachedInvoiceGenerator() {
               <CardContent className="p-4">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-red-600">
-                    {invoices.filter((inv: any) => inv.status === 'overdue').length}
+                    {safeInvoices.filter((inv: any) => inv.status === 'overdue').length}
                   </p>
                   <p className="text-sm text-gray-600">Overdue</p>
                 </div>
@@ -116,13 +123,13 @@ export default function CachedInvoiceGenerator() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Recent Invoices</span>
-                {invoicesLoading && <LoadingSpinner size="sm" />}
+                {invoicesLoading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {invoices.length > 0 ? (
+              {safeInvoices.length > 0 ? (
                 <div className="space-y-4">
-                  {invoices.map((invoice: any) => (
+                  {safeInvoices.map((invoice: any) => (
                     <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                       <div className="flex items-center gap-4">
                         <FileText className="h-8 w-8 text-blue-600" />
