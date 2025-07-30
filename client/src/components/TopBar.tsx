@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 import { 
   Menu, 
   Bell, 
@@ -61,6 +62,7 @@ const roleColors = {
 
 export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: TopBarProps) {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const userRole = (user as any)?.role || "guest";
   const RoleIcon = roleIcons[userRole as keyof typeof roleIcons] || Clock;
   const roleColor = roleColors[userRole as keyof typeof roleColors] || "bg-gray-500";
@@ -133,30 +135,22 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
           {/* Notifications */}
           <NotificationDropdown />
 
-          {/* Help - Link to help page */}
+          {/* Help - Instant navigation to help page */}
           <Button
             variant="ghost"
             size="sm"
             className="hidden sm:flex h-8 w-8 p-0"
-            onClick={() => window.location.href = "/help"}
+            onClick={() => setLocation("/help")}
           >
             <HelpCircle className="h-4 w-4" />
           </Button>
 
-          {/* Settings - Link to settings page */}
+          {/* Settings - Instant navigation to settings page */}
           <Button
             variant="ghost"
             size="sm"
             className="hidden sm:flex h-8 w-8 p-0"
-            onClick={() => {
-              try {
-                window.location.href = "/settings";
-              } catch (error) {
-                console.error("Settings navigation error:", error);
-                // Fallback to simple settings page
-                window.location.href = "/simple-settings";
-              }
-            }}
+            onClick={() => setLocation("/simple-settings")}
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -197,13 +191,7 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="flex items-center gap-2"
-                onClick={() => {
-                  try {
-                    window.location.href = "/profile";
-                  } catch (error) {
-                    console.error("Profile navigation error:", error);
-                  }
-                }}
+                onClick={() => setLocation("/profile")}
               >
                 <User className="h-4 w-4" />
                 Profile

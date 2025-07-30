@@ -32,6 +32,7 @@ import SandboxTestingDashboard from "@/pages/SandboxTestingDashboard";
 import GuestPortalSmartRequests from "@/pages/GuestPortalSmartRequests";
 import GuestActivityRecommendations from "@/pages/GuestActivityRecommendations";
 import SimpleHelp from "./pages/SimpleHelp";
+import FastHelp from "./pages/FastHelp";
 import UserManagement from "./pages/UserManagement";
 import HostawayUserManagement from "./pages/HostawayUserManagement";
 import OwnerTargetUpgradeTracker from "./pages/OwnerTargetUpgradeTracker";
@@ -153,7 +154,7 @@ function AppRoutes() {
         <Route path="/finances" component={SimpleFinances} />
         <Route path="/settings" component={SimpleSettings} />
         <Route path="/profile" component={ProfilePage} />
-        <Route path="/help" component={SimpleHelp} />
+        <Route path="/help" component={FastHelp} />
         
         {/* Hub Pages */}
         <Route path="/dashboard-hub" component={DashboardHub} />
