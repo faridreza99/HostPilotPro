@@ -112,24 +112,10 @@ import OwnerDashboard from "@/pages/OwnerDashboard";
 import GuestPortal from "@/pages/GuestPortal";
 import PropertySettingsModule from "@/pages/PropertySettingsModule";
 
-// Import Property Hub related components
-import PropertyManage from "@/pages/PropertyManage";
-import PropertyDocuments from "@/pages/PropertyDocuments";
-
 // QueryClient is now imported from lib/queryClient for better performance
 
 function AppRoutes() {
   const { user, isLoading } = useFastAuth();
-  
-  // Check for logout parameter and force logout
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('logout') === 'true') {
-      localStorage.removeItem('hostpilot_fast_auth_session');
-      window.history.replaceState({}, document.title, window.location.pathname);
-      window.location.reload();
-    }
-  }, []);
   
   if (isLoading) {
     return (
@@ -147,8 +133,7 @@ function AppRoutes() {
     return (
       <Switch>
         <Route path="/login" component={LoginPage} />
-        <Route path="/" component={LoginPage} />
-        <Route component={LoginPage} />
+        <Route component={Landing} />
       </Switch>
     );
   }
@@ -173,11 +158,6 @@ function AppRoutes() {
         <Route path="/property-hub" component={OptimizedPropertyHub} />
         <Route path="/finance-hub" component={OptimizedFinanceHub} />
         <Route path="/system-hub" component={OptimizedSystemHub} />
-        
-        {/* Property Management Routes */}
-        <Route path="/property-manage/:id" component={PropertyManage} />
-        <Route path="/property-documents/:id" component={PropertyDocuments} />
-        <Route path="/property-detail/:id" component={PropertyDetailView} />
         
         {/* Legacy Hub Routes */}
         <Route path="/legacy-property-hub" component={PropertyHub} />

@@ -6,7 +6,6 @@
 
 import OpenAI from 'openai';
 import { DatabaseStorage } from './storage.js';
-import { generateRoleBasedSystemPrompt, filterResponseByRole, getAllowedDataQueries, getRoleBasedGreeting } from './captainCortexRoleSystem';
 
 interface QueryContext {
   organizationId: string;
@@ -76,40 +75,16 @@ export class AIBotEngine {
   }
 
   /**
-   * Fast single-call query processing with role-based permissions
+   * Fast single-call query processing
    */
   private async processQueryFast(question: string, context: QueryContext): Promise<string> {
-    // Get allowed data queries based on user role
-    const allowedQueries = getAllowedDataQueries(context.userRole);
-    
-    // Fetch data based on role permissions
-    const dataPromises: Promise<any>[] = [];
-    
-    if (allowedQueries.includes('properties')) {
-      dataPromises.push(this.storage.getProperties());
-    } else {
-      dataPromises.push(Promise.resolve([]));
-    }
-    
-    if (allowedQueries.includes('tasks')) {
-      dataPromises.push(this.storage.getTasks());
-    } else {
-      dataPromises.push(Promise.resolve([]));
-    }
-    
-    if (allowedQueries.includes('bookings')) {
-      dataPromises.push(this.storage.getBookings());
-    } else {
-      dataPromises.push(Promise.resolve([]));
-    }
-    
-    if (allowedQueries.includes('finances')) {
-      dataPromises.push(this.storage.getFinances());
-    } else {
-      dataPromises.push(Promise.resolve([]));
-    }
-
-    const [properties, tasks, bookings, finances] = await Promise.all(dataPromises);
+    // Fetch all relevant data upfront
+    const [properties, tasks, bookings, finances] = await Promise.all([
+      this.storage.getProperties(),
+      this.storage.getTasks(),
+      this.storage.getBookings(),
+      this.storage.getFinances()
+    ]);
 
     // Filter by organization and show only main demo properties for clean demo experience
     const mainDemoPropertyNames = [
@@ -119,11 +94,8 @@ export class AIBotEngine {
       'Villa Tropical Paradise'
     ];
     
-    // Build organization data based on role permissions
-    const organizationData: any = {};
-    
-    if (allowedQueries.includes('properties')) {
-      organizationData.properties = properties
+    const organizationData = {
+      properties: properties
         .filter((p: any) => p.organizationId === context.organizationId)
         .filter((p: any) => mainDemoPropertyNames.includes(p.name))
         .map((p: any) => ({
@@ -132,65 +104,57 @@ export class AIBotEngine {
           bedrooms: p.bedrooms,
           bathrooms: p.bathrooms,
           maxGuests: p.maxGuests,
-          pricePerNight: allowedQueries.includes('finances') ? p.pricePerNight : '[RESTRICTED]',
+          pricePerNight: p.pricePerNight,
           currency: p.currency,
           status: p.status,
           address: p.address
-        }));
-    }
-    
-    if (allowedQueries.includes('tasks')) {
-      organizationData.tasks = tasks.filter((t: any) => t.organizationId === context.organizationId);
-    }
-    
-    if (allowedQueries.includes('bookings')) {
-      organizationData.bookings = bookings.filter((b: any) => b.organizationId === context.organizationId);
-    }
-    
-    if (allowedQueries.includes('finances')) {
-      organizationData.finances = finances.filter((f: any) => f.organizationId === context.organizationId);
-    }
+        })),
+      tasks: tasks.filter((t: any) => t.organizationId === context.organizationId),
+      bookings: bookings.filter((b: any) => b.organizationId === context.organizationId),
+      finances: finances.filter((f: any) => f.organizationId === context.organizationId)
+    };
 
-    console.log(`📋 Data fetched for ${context.userRole}:`, Object.keys(organizationData));
+    console.log('📋 Data fetched:', Object.keys(organizationData));
 
-    // Generate role-based system prompt
-    const systemPrompt = generateRoleBasedSystemPrompt(context.userRole);
-    
-    const dataContextPrompt = `
+    // Single AI call with combined analysis and response
+    const systemPrompt = `You are MR Pilot, an AI assistant for a Thai property management company. Analyze the user's question and provide a helpful response using the available data.
+
+Guidelines:
+1. Be conversational and helpful
+2. Use specific data from the provided context
+3. Format numbers clearly (use Thai Baht ฿ for money)
+4. If no data is found, explain why and suggest alternatives
+5. For date-related queries, be specific about the time period
+6. Always mention property names when relevant
+7. Keep responses concise but informative
+8. Focus on the main 4 demo properties: Villa Samui Breeze, Villa Ocean View, Villa Aruna (Demo), and Villa Tropical Paradise
+
 Current date: ${new Date().toISOString().split('T')[0]}
 
 Available data summary:
-${organizationData.properties ? `- Properties: ${organizationData.properties.length} main demo properties` : '- Properties: [NO ACCESS]'}
-${organizationData.tasks ? `- Tasks: ${organizationData.tasks.length} tasks` : '- Tasks: [NO ACCESS]'}
-${organizationData.bookings ? `- Bookings: ${organizationData.bookings.length} bookings` : '- Bookings: [NO ACCESS]'}
-${organizationData.finances ? `- Financial records: ${organizationData.finances.length} records` : '- Financial records: [NO ACCESS]'}
-
-Focus on the main 4 demo properties when available: Villa Samui Breeze, Villa Ocean View, Villa Aruna (Demo), and Villa Tropical Paradise`;
+- Properties: ${organizationData.properties.length} main demo properties
+- Tasks: ${organizationData.tasks.length} tasks
+- Bookings: ${organizationData.bookings.length} bookings
+- Financial records: ${organizationData.finances.length} records`;
 
     const userPrompt = `Question: "${question}"
 
-Available data (filtered by your role permissions):
+Available data:
 ${JSON.stringify(organizationData, null, 2)}
 
-Please analyze this question and provide a helpful response using only the available data within your role permissions.`;
+Please provide a helpful response based on this data.`;
 
     const completion = await this.openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: systemPrompt + dataContextPrompt },
+        { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
       temperature: 0.3,
       max_tokens: 600,
     });
 
-    let response = completion.choices[0].message.content || "I apologize, but I couldn't generate a response to your question.";
-    
-    // Apply role-based filtering to the response
-    response = filterResponseByRole(response, context.userRole);
-    
-    console.log(`✅ AI response generated for ${context.userRole}`);
-    return response;
+    return completion.choices[0].message.content || "I apologize, but I couldn't generate a response to your question.";
   }
 
   /**

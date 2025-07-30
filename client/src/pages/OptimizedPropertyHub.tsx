@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,7 +120,6 @@ const QUICK_ACTIONS = [
 ];
 
 export default function OptimizedPropertyHub() {
-  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedProperties, setSelectedProperties] = useState<number[]>([]);
@@ -177,7 +175,7 @@ export default function OptimizedPropertyHub() {
   };
 
   const handleNavigation = (route: string) => {
-    setLocation(route);
+    window.location.href = route;
   };
 
   const handleAddProperty = () => {
@@ -594,24 +592,16 @@ export default function OptimizedPropertyHub() {
                   size="sm" 
                   variant="outline" 
                   className="flex-1"
-                  onClick={() => handleNavigation(`/property-manage/${property.id}`)}
+                  onClick={() => handleNavigation(`/property/${property.id}`)}
                 >
                   View Details
                 </Button>
                 <Button 
                   size="sm" 
                   className="flex-1"
-                  onClick={() => handleNavigation(`/property-manage/${property.id}`)}
+                  onClick={() => handleNavigation(`/property/${property.id}/edit`)}
                 >
                   Manage
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => handleNavigation(`/property-documents/${property.id}`)}
-                >
-                  Documents
                 </Button>
               </div>
             </CardContent>
