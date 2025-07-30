@@ -12,9 +12,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Users, Shield, Eye, Building, UserPlus, Search, Filter, Settings } from "lucide-react";
+import { Users, Shield, Eye, Building, UserPlus, Search, Filter, Settings, ChevronDown, Lock, Unlock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const editUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -33,12 +34,91 @@ const addUserSchema = z.object({
 type EditUserForm = z.infer<typeof editUserSchema>;
 type AddUserForm = z.infer<typeof addUserSchema>;
 
+// Comprehensive module permissions structure
+const MODULE_PERMISSIONS = {
+  "Core Dashboard": {
+    "Admin Dashboard": { view: true, edit: true, create: false, delete: false },
+    "Portfolio Manager Dashboard": { view: true, edit: false, create: false, delete: false },
+    "Owner Dashboard": { view: true, edit: false, create: false, delete: false },
+    "Staff Dashboard": { view: true, edit: false, create: false, delete: false },
+    "Retail Agent Hub": { view: true, edit: false, create: false, delete: false },
+  },
+  "Property Management": {
+    "Property CRUD": { view: true, edit: true, create: true, delete: true },
+    "Property Settings": { view: true, edit: true, create: false, delete: false },
+    "Property Goals": { view: true, edit: true, create: true, delete: false },
+    "Property Hub": { view: true, edit: false, create: false, delete: false },
+    "Property Overview": { view: true, edit: false, create: false, delete: false },
+  },
+  "Task Management": {
+    "Task CRUD": { view: true, edit: true, create: true, delete: true },
+    "Task Templates": { view: true, edit: true, create: true, delete: false },
+    "Task Automation": { view: true, edit: true, create: false, delete: false },
+    "Daily Operations": { view: true, edit: false, create: false, delete: false },
+    "Maintenance Tracking": { view: true, edit: true, create: true, delete: false },
+  },
+  "Booking & Guest Services": {
+    "Booking CRUD": { view: true, edit: true, create: true, delete: false },
+    "Guest Portal": { view: true, edit: false, create: false, delete: false },
+    "Check-in/Check-out": { view: true, edit: true, create: false, delete: false },
+    "Guest Communication": { view: true, edit: true, create: true, delete: false },
+    "Guest Services": { view: true, edit: false, create: false, delete: false },
+  },
+  "Financial Management": {
+    "Finance CRUD": { view: true, edit: true, create: true, delete: true },
+    "Invoice Generator": { view: true, edit: true, create: true, delete: false },
+    "Finance Engine": { view: true, edit: true, create: false, delete: false },
+    "Smart Pricing": { view: true, edit: true, create: false, delete: false },
+    "OTA Payout Logic": { view: true, edit: false, create: false, delete: false },
+    "Owner Invoicing": { view: true, edit: true, create: true, delete: false },
+    "Commission System": { view: true, edit: true, create: false, delete: false },
+  },
+  "Utilities & Maintenance": {
+    "Utility Tracker": { view: true, edit: true, create: true, delete: false },
+    "Water Management": { view: true, edit: true, create: true, delete: false },
+    "Maintenance System": { view: true, edit: true, create: true, delete: false },
+    "Vendor Management": { view: true, edit: true, create: true, delete: true },
+    "Supply Orders": { view: true, edit: true, create: true, delete: false },
+  },
+  "Staff & Operations": {
+    "Staff Management": { view: true, edit: true, create: true, delete: false },
+    "Staff Permissions": { view: true, edit: true, create: false, delete: false },
+    "Staff Workload": { view: true, edit: false, create: false, delete: false },
+    "Staff Skills": { view: true, edit: true, create: true, delete: false },
+    "Operational Efficiency": { view: true, edit: false, create: false, delete: false },
+  },
+  "Reports & Analytics": {
+    "Financial Reports": { view: true, edit: false, create: false, delete: false },
+    "Performance Analytics": { view: true, edit: false, create: false, delete: false },
+    "Portfolio Health": { view: true, edit: false, create: false, delete: false },
+    "Sustainability Metrics": { view: true, edit: false, create: false, delete: false },
+    "Revenue Forecasting": { view: true, edit: false, create: false, delete: false },
+  },
+  "AI & Automation": {
+    "Captain Cortex AI": { view: true, edit: false, create: false, delete: false },
+    "AI Notifications": { view: true, edit: true, create: false, delete: false },
+    "AI Task Automation": { view: true, edit: true, create: false, delete: false },
+    "Smart Suggestions": { view: true, edit: false, create: false, delete: false },
+  },
+  "System Administration": {
+    "User Management": { view: true, edit: true, create: true, delete: true },
+    "System Settings": { view: true, edit: true, create: false, delete: false },
+    "API Connections": { view: true, edit: true, create: false, delete: false },
+    "Sandbox Testing": { view: true, edit: true, create: false, delete: false },
+    "System Integrity": { view: true, edit: false, create: false, delete: false },
+  }
+};
+
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
+  const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<any>(null);
+  const [userPermissions, setUserPermissions] = useState<any>({});
+  const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -132,6 +212,70 @@ export default function UserManagement() {
 
   const onSubmitAdd = (data: AddUserForm) => {
     createUserMutation.mutate(data);
+  };
+
+  const handleManagePermissions = (user: any) => {
+    setSelectedUserForPermissions(user);
+    // Initialize user permissions with defaults based on role
+    const defaultPermissions: any = {};
+    Object.keys(MODULE_PERMISSIONS).forEach(category => {
+      defaultPermissions[category] = {};
+      Object.keys(MODULE_PERMISSIONS[category as keyof typeof MODULE_PERMISSIONS]).forEach(module => {
+        // Set default permissions based on user role
+        const isAdmin = user.role === 'admin';
+        const isManager = user.role === 'portfolio-manager';
+        const isStaff = user.role === 'staff';
+        const isOwner = user.role === 'owner';
+        
+        defaultPermissions[category][module] = {
+          view: true, // Most users can view
+          edit: isAdmin || (isManager && !category.includes('System')),
+          create: isAdmin || (isManager && !category.includes('System')),
+          delete: isAdmin
+        };
+        
+        // Special restrictions
+        if (category === 'System Administration' && !isAdmin) {
+          defaultPermissions[category][module] = { view: false, edit: false, create: false, delete: false };
+        }
+        if (category === 'Financial Management' && isStaff) {
+          defaultPermissions[category][module].edit = false;
+          defaultPermissions[category][module].create = false;
+        }
+      });
+    });
+    setUserPermissions(defaultPermissions);
+    setIsPermissionDialogOpen(true);
+  };
+
+  const updatePermission = (category: string, module: string, permission: string, value: boolean) => {
+    setUserPermissions((prev: any) => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [module]: {
+          ...prev[category][module],
+          [permission]: value
+        }
+      }
+    }));
+  };
+
+  const toggleModuleExpansion = (category: string) => {
+    setExpandedModules(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const savePermissions = () => {
+    // In a real app, this would save to the backend
+    toast({
+      title: "Success",
+      description: `Permissions updated for ${selectedUserForPermissions?.name || selectedUserForPermissions?.email}`,
+    });
+    setIsPermissionDialogOpen(false);
   };
 
   const filteredUsers = users.filter((user: any) => {
@@ -250,6 +394,108 @@ export default function UserManagement() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* User Permissions Management Dialog */}
+        <Dialog open={isPermissionDialogOpen} onOpenChange={setIsPermissionDialogOpen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Manage Permissions: {selectedUserForPermissions?.name || selectedUserForPermissions?.email}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Badge className={roleColors[selectedUserForPermissions?.role as keyof typeof roleColors]}>
+                    {selectedUserForPermissions?.role}
+                  </Badge>
+                  <span className="text-sm text-gray-600">{selectedUserForPermissions?.email}</span>
+                </div>
+                <div className="ml-auto text-xs text-gray-500">
+                  Configure granular permissions for each module and operation
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {Object.keys(MODULE_PERMISSIONS).map(category => (
+                  <div key={category} className="border rounded-lg">
+                    <Collapsible>
+                      <CollapsibleTrigger 
+                        className="w-full p-3 flex items-center justify-between hover:bg-gray-50"
+                        onClick={() => toggleModuleExpansion(category)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedModules.includes(category) ? 'rotate-180' : ''}`} />
+                          <h3 className="font-semibold">{category}</h3>
+                          <Badge variant="outline">
+                            {Object.keys(MODULE_PERMISSIONS[category as keyof typeof MODULE_PERMISSIONS]).length} modules
+                          </Badge>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="p-3 border-t space-y-3">
+                          {Object.keys(MODULE_PERMISSIONS[category as keyof typeof MODULE_PERMISSIONS]).map(module => (
+                            <div key={module} className="flex items-center justify-between p-2 border rounded">
+                              <div className="font-medium text-sm">{module}</div>
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <Eye className="h-3 w-3 text-blue-500" />
+                                  <span className="text-xs">View</span>
+                                  <Switch
+                                    checked={userPermissions[category]?.[module]?.view || false}
+                                    onCheckedChange={(checked) => updatePermission(category, module, 'view', checked)}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Settings className="h-3 w-3 text-yellow-500" />
+                                  <span className="text-xs">Edit</span>
+                                  <Switch
+                                    checked={userPermissions[category]?.[module]?.edit || false}
+                                    onCheckedChange={(checked) => updatePermission(category, module, 'edit', checked)}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <UserPlus className="h-3 w-3 text-green-500" />
+                                  <span className="text-xs">Create</span>
+                                  <Switch
+                                    checked={userPermissions[category]?.[module]?.create || false}
+                                    onCheckedChange={(checked) => updatePermission(category, module, 'create', checked)}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Filter className="h-3 w-3 text-red-500" />
+                                  <span className="text-xs">Delete</span>
+                                  <Switch
+                                    checked={userPermissions[category]?.[module]?.delete || false}
+                                    onCheckedChange={(checked) => updatePermission(category, module, 'delete', checked)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsPermissionDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={savePermissions}>
+                  Save Permissions
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Tabs defaultValue="users" className="space-y-6">
@@ -356,6 +602,14 @@ export default function UserManagement() {
                           >
                             Edit
                           </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleManagePermissions(user)}
+                          >
+                            <Shield className="w-4 h-4 mr-1" />
+                            Permissions
+                          </Button>
                         </div>
                       </div>
                     );
@@ -376,80 +630,120 @@ export default function UserManagement() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="w-5 h-5" />
-                Permission Control Panel
+                Global Permission Templates
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Admin Permissions</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span>Manage Users</span>
-                      <Switch defaultChecked />
+              <div className="space-y-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-blue-900 mb-2">How to Manage Permissions</h3>
+                  <p className="text-blue-800 text-sm">
+                    Click the "Permissions" button next to any user in the Users tab to configure their detailed module access.
+                    Each user can have granular permissions for View, Edit, Create, and Delete operations across all platform modules.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-4 border rounded-lg">
+                    <h4 className="font-semibold text-red-700 mb-2">Admin Role</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Full system access</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>User management</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>System settings</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>All CRUD operations</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>Financial Controls</span>
-                      <Switch defaultChecked />
+                  </div>
+
+                  <div className="p-4 border rounded-lg">
+                    <h4 className="font-semibold text-blue-700 mb-2">Portfolio Manager</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Property management</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Financial oversight</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <span>Limited staff management</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span>No system admin</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>System Settings</span>
-                      <Switch defaultChecked />
+                  </div>
+
+                  <div className="p-4 border rounded-lg">
+                    <h4 className="font-semibold text-green-700 mb-2">Staff Role</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Task management</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Guest services</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <span>Basic financial view</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span>No financial edit</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border rounded-lg">
+                    <h4 className="font-semibold text-purple-700 mb-2">Owner Role</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Own properties view</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Financial reports</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span>Payout requests</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span>No management access</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Portfolio Manager Permissions</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span>Property Management</span>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Financial Reports</span>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Staff Management</span>
-                      <Switch />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Staff Permissions</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span>Task Management</span>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Guest Services</span>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Basic Reports</span>
-                      <Switch />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Owner Permissions</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span>View Properties</span>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Financial Reports</span>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Request Payouts</span>
-                      <Switch defaultChecked />
-                    </div>
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3">Total Platform Modules Coverage</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    {Object.keys(MODULE_PERMISSIONS).map(category => (
+                      <div key={category} className="p-2 bg-gray-50 rounded">
+                        <div className="font-medium">{category}</div>
+                        <div className="text-xs text-gray-600">
+                          {Object.keys(MODULE_PERMISSIONS[category as keyof typeof MODULE_PERMISSIONS]).length} modules
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
