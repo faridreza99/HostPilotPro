@@ -64,7 +64,7 @@ import StaffCashCollection from "./pages/StaffCashCollection";
 import StaffExpenseManagement from "./pages/StaffExpenseManagement";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffPermissionManagement from "./pages/StaffPermissionManagement";
-import FloatingCaptainCortex from "@/components/FloatingCaptainCortex";
+import CaptainCortex from "@/components/CaptainCortex";
 import { InstantPageSwitcher } from "@/components/InstantPageSwitcher";
 
 // Import SaaS pages
@@ -293,7 +293,7 @@ export default function App() {
         <TooltipProvider>
           <InstantPageSwitcher />
           <AppRoutes />
-          <FloatingCaptainCortex />
+          <CaptainCortex />
           <Toaster />
         </TooltipProvider>
       </CacheProvider>

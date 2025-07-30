@@ -41,7 +41,6 @@ export class AIBotEngine {
     });
     
     this.storage = new DatabaseStorage();
-    console.log('🤖 AI Bot Engine initialized successfully');
   }
 
   /**
@@ -71,13 +70,8 @@ export class AIBotEngine {
       return response;
 
     } catch (error: any) {
-      console.error('❌ AI Bot MAIN ERROR:', error);
-      console.error('❌ Error name:', error?.name);
-      console.error('❌ Error message:', error?.message);
-      console.error('❌ Error stack:', error?.stack);
-      console.error('❌ Question was:', question);
-      console.error('❌ Context was:', JSON.stringify(context));
-      return `Error: ${error?.message || 'Unknown error'}`;
+      console.error('❌ AI Bot error:', error);
+      return `I apologize, but I encountered an error while processing your question: ${error?.message || 'Unknown error'}. Please try rephrasing your question or contact support if the issue persists.`;
     }
   }
 
@@ -85,22 +79,37 @@ export class AIBotEngine {
    * Fast single-call query processing with role-based permissions
    */
   private async processQueryFast(question: string, context: QueryContext): Promise<string> {
-    console.log(`🔍 Processing query: "${question}" for role: ${context.userRole}`);
+    // Get allowed data queries based on user role
+    const allowedQueries = getAllowedDataQueries(context.userRole);
     
-    try {
-      // Get allowed data queries based on user role
-      const allowedQueries = getAllowedDataQueries(context.userRole);
-      console.log(`📋 Allowed queries for ${context.userRole}:`, allowedQueries);
+    // Fetch data based on role permissions
+    const dataPromises: Promise<any>[] = [];
     
-    // For now, skip data fetching to identify token source - use minimal hardcoded data
-    const properties = [];
-    const tasks = [
-      { id: 1, title: "Pool cleaning", status: "pending", priority: "high", dueDate: "2025-07-30" },
-      { id: 2, title: "AC maintenance", status: "in-progress", priority: "medium", dueDate: "2025-07-30" }
-    ];
-    const bookings = [];
-    const finances = [];
-    console.log(`📊 Data fetched - Properties: ${properties?.length || 0}, Tasks: ${tasks?.length || 0}, Bookings: ${bookings?.length || 0}, Finances: ${finances?.length || 0}`);
+    if (allowedQueries.includes('properties')) {
+      dataPromises.push(this.storage.getProperties());
+    } else {
+      dataPromises.push(Promise.resolve([]));
+    }
+    
+    if (allowedQueries.includes('tasks')) {
+      dataPromises.push(this.storage.getTasks());
+    } else {
+      dataPromises.push(Promise.resolve([]));
+    }
+    
+    if (allowedQueries.includes('bookings')) {
+      dataPromises.push(this.storage.getBookings());
+    } else {
+      dataPromises.push(Promise.resolve([]));
+    }
+    
+    if (allowedQueries.includes('finances')) {
+      dataPromises.push(this.storage.getFinances());
+    } else {
+      dataPromises.push(Promise.resolve([]));
+    }
+
+    const [properties, tasks, bookings, finances] = await Promise.all(dataPromises);
 
     // Filter by organization and show only main demo properties for clean demo experience
     const mainDemoPropertyNames = [
@@ -132,22 +141,6 @@ export class AIBotEngine {
     
     if (allowedQueries.includes('tasks')) {
       organizationData.tasks = tasks.filter((t: any) => t.organizationId === context.organizationId);
-      console.log(`📅 Filtered tasks for org ${context.organizationId}: ${organizationData.tasks.length} tasks`);
-      
-      // If question is about tomorrow's tasks, add date filtering
-      if (question.toLowerCase().includes('tomorrow')) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-        console.log(`🗓️ Looking for tasks for tomorrow: ${tomorrowStr}`);
-        
-        organizationData.tomorrowTasks = organizationData.tasks.filter((task: any) => {
-          if (!task.dueDate) return false;
-          const taskDueDate = new Date(task.dueDate).toISOString().split('T')[0];
-          return taskDueDate === tomorrowStr;
-        });
-        console.log(`📋 Found ${organizationData.tomorrowTasks.length} tasks for tomorrow`);
-      }
     }
     
     if (allowedQueries.includes('bookings')) {
@@ -160,76 +153,44 @@ export class AIBotEngine {
 
     console.log(`📋 Data fetched for ${context.userRole}:`, Object.keys(organizationData));
 
-    // Use minimal system prompt to avoid token limits
-    const systemPrompt = `You are Captain Cortex, AI assistant for property management. Role: ${context.userRole}. Be helpful and concise.`;
+    // Generate role-based system prompt
+    const systemPrompt = generateRoleBasedSystemPrompt(context.userRole);
     
-    const dataContextPrompt = `Current date: ${new Date().toISOString().split('T')[0]}`;
+    const dataContextPrompt = `
+Current date: ${new Date().toISOString().split('T')[0]}
 
-    // Create a compact summary instead of full JSON to avoid token limits
-    let dataSummary = '';
-    if (organizationData.properties) {
-      dataSummary += `Properties (${organizationData.properties.length}): ${organizationData.properties.map(p => p.name).join(', ')}\n`;
-    }
-    if (organizationData.tasks) {
-      dataSummary += `Tasks (${organizationData.tasks.length}): ${organizationData.tasks.slice(0, 5).map(t => `${t.title} (${t.status})`).join(', ')}\n`;
-    }
-    if (organizationData.tomorrowTasks) {
-      dataSummary += `Tomorrow's Tasks (${organizationData.tomorrowTasks.length}): ${organizationData.tomorrowTasks.map(t => `${t.title} (${t.priority})`).join(', ')}\n`;
-    }
-    if (organizationData.bookings) {
-      dataSummary += `Recent Bookings (${organizationData.bookings.length}): ${organizationData.bookings.slice(0, 3).map(b => `${b.guestName} (${b.status})`).join(', ')}\n`;
-    }
+Available data summary:
+${organizationData.properties ? `- Properties: ${organizationData.properties.length} main demo properties` : '- Properties: [NO ACCESS]'}
+${organizationData.tasks ? `- Tasks: ${organizationData.tasks.length} tasks` : '- Tasks: [NO ACCESS]'}
+${organizationData.bookings ? `- Bookings: ${organizationData.bookings.length} bookings` : '- Bookings: [NO ACCESS]'}
+${organizationData.finances ? `- Financial records: ${organizationData.finances.length} records` : '- Financial records: [NO ACCESS]'}
+
+Focus on the main 4 demo properties when available: Villa Samui Breeze, Villa Ocean View, Villa Aruna (Demo), and Villa Tropical Paradise`;
 
     const userPrompt = `Question: "${question}"
 
-Data Summary:
-${dataSummary}
+Available data (filtered by your role permissions):
+${JSON.stringify(organizationData, null, 2)}
 
-Please provide a helpful response based on this data summary.`;
+Please analyze this question and provide a helpful response using only the available data within your role permissions.`;
 
-    console.log(`🤖 Sending to OpenAI with data keys: ${Object.keys(organizationData)}`);
-    console.log('🤖 System prompt length:', (systemPrompt + dataContextPrompt).length);
-    console.log('🤖 User prompt length:', userPrompt.length);
-    
-    let response: string;
-    
-    try {
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt + dataContextPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 600,
-      });
+    const completion = await this.openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt + dataContextPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 600,
+    });
 
-      response = completion.choices[0]?.message?.content || "I apologize, but I couldn't generate a response to your question.";
-      console.log('✅ OpenAI response received, length:', response.length);
-    } catch (openaiError: any) {
-      console.error('❌ OpenAI API Error:', openaiError);
-      console.error('❌ OpenAI Error Details:', {
-        message: openaiError?.message,
-        status: openaiError?.status,
-        code: openaiError?.code,
-        type: openaiError?.type
-      });
-      throw new Error(`OpenAI API failed: ${openaiError?.message || 'Unknown OpenAI error'}`);
-    }
+    let response = completion.choices[0].message.content || "I apologize, but I couldn't generate a response to your question.";
     
     // Apply role-based filtering to the response
     response = filterResponseByRole(response, context.userRole);
     
     console.log(`✅ AI response generated for ${context.userRole}`);
     return response;
-
-    } catch (error: any) {
-      console.error('❌ processQueryFast DETAILED ERROR:', error);
-      console.error('❌ FastQuery Error name:', error?.name);
-      console.error('❌ FastQuery Error message:', error?.message);
-      console.error('❌ FastQuery Error stack:', error?.stack);
-      throw new Error(`FastQuery failed: ${error?.message || 'Unknown error'}`);
-    }
   }
 
   /**

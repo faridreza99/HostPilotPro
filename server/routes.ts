@@ -1524,58 +1524,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Import property from Airbnb URL
-  app.post("/api/properties/import-airbnb", isDemoAuthenticated, async (req: any, res) => {
-    try {
-      const { airbnbUrl } = req.body;
-      const organizationId = req.user.organizationId || "default-org";
-
-      if (!airbnbUrl || !airbnbUrl.includes('airbnb.com')) {
-        return res.status(400).json({ error: "Valid Airbnb URL is required" });
-      }
-
-      // Simulate Airbnb property extraction (in production, this would use web scraping or Airbnb API)
-      const mockAirbnbData = {
-        name: "Imported Villa from Airbnb",
-        address: "Extracted Location from Airbnb",
-        bedrooms: 3,
-        bathrooms: 2,
-        capacity: 6,
-        description: "This property was imported from Airbnb. Description and details extracted from the listing.",
-        status: "active",
-        airbnbUrl: airbnbUrl,
-        importedAt: new Date().toISOString(),
-        ownerId: req.user.id,
-        organizationId: organizationId,
-        currency: "THB"
-      };
-
-      // Extract potential property name from URL
-      const urlParts = airbnbUrl.split('/');
-      const roomId = urlParts.find(part => part.match(/^\d+$/));
-      if (roomId) {
-        mockAirbnbData.name = `Airbnb Property ${roomId}`;
-      }
-
-      // In production, you would implement actual web scraping or API integration
-      // For demo purposes, we'll create a property with extracted/simulated data
-      const property = await storage.createProperty(mockAirbnbData);
-
-      res.json({
-        ...property,
-        message: "Property imported successfully from Airbnb",
-        importSource: "airbnb"
-      });
-
-    } catch (error: any) {
-      console.error("Airbnb import error:", error);
-      res.status(500).json({ 
-        error: "Failed to import property from Airbnb",
-        details: error.message
-      });
-    }
-  });
-
   // Task routes with caching
   app.get("/api/tasks", isDemoAuthenticated, async (req: any, res) => {
     const { sendCachedOrFetch } = await import("./performanceOptimizer");

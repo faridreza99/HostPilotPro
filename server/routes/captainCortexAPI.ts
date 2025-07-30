@@ -1,12 +1,10 @@
 // Captain Cortex API routes with role-based permissions
 import type { Express } from "express";
 import { AIBotEngine } from "../ai-bot-engine";
-import { MinimalAIBotEngine } from "../ai-bot-engine-minimal";
 import { isDemoAuthenticated } from "../demoAuth";
 
 export function registerCaptainCortexRoutes(app: Express) {
   const aiBotEngine = new AIBotEngine();
-  const minimalEngine = new MinimalAIBotEngine();
 
   // AI Bot query endpoint with role-based permissions
   app.post("/api/ai-bot/query", isDemoAuthenticated, async (req, res) => {
@@ -18,17 +16,15 @@ export function registerCaptainCortexRoutes(app: Express) {
       }
 
       // Get user context with role-based permissions
-      const user = req.user as any;
       const context = {
-        organizationId: user?.organizationId || 'default-org',
-        userRole: user?.role || 'admin',
-        userId: user?.id || 'demo-admin'
+        organizationId: req.user.organizationId,
+        userRole: req.user.role,
+        userId: req.user.id
       };
 
       console.log(`🤖 AI Bot query from ${context.userRole}: "${question}"`);
 
-      // Use minimal engine temporarily to debug token issue
-      const response = await minimalEngine.processQuery(question);
+      const response = await aiBotEngine.processQuery(question, context);
       
       res.json({ 
         response,
@@ -49,7 +45,7 @@ export function registerCaptainCortexRoutes(app: Express) {
   app.get("/api/ai-bot/capabilities", isDemoAuthenticated, async (req, res) => {
     try {
       const { CAPTAIN_CORTEX_ROLES } = await import("../captainCortexRoleSystem");
-      const userRole = (req.user as any)?.role || 'admin';
+      const userRole = req.user.role;
       const roleConfig = CAPTAIN_CORTEX_ROLES[userRole] || CAPTAIN_CORTEX_ROLES.guest;
       
       res.json({
@@ -72,7 +68,7 @@ export function registerCaptainCortexRoutes(app: Express) {
   app.get("/api/ai-bot/greeting", isDemoAuthenticated, async (req, res) => {
     try {
       const { getRoleBasedGreeting } = await import("../captainCortexRoleSystem");
-      const userRole = (req.user as any)?.role || 'admin';
+      const userRole = req.user.role;
       const greeting = getRoleBasedGreeting(userRole);
       
       res.json({
@@ -86,39 +82,6 @@ export function registerCaptainCortexRoutes(app: Express) {
       res.status(500).json({ 
         error: "Failed to get greeting",
         message: error?.message || "Unknown error"
-      });
-    }
-  });
-
-  // Debug endpoint to test AI bot directly
-  app.post("/api/ai-bot/debug", async (req, res) => {
-    try {
-      const { question } = req.body;
-      
-      console.log(`🐛 Debug AI Bot query: "${question}"`);
-      
-      // Use fixed context for debugging
-      const context = {
-        organizationId: 'default-org',
-        userRole: 'admin',
-        userId: 'debug-user'
-      };
-
-      const response = await aiBotEngine.processQuery(question, context);
-      
-      res.json({ 
-        response,
-        debug: true,
-        context,
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (error: any) {
-      console.error("❌ AI Bot debug error:", error);
-      res.status(500).json({ 
-        error: "Debug failed",
-        message: error?.message || "Unknown error",
-        stack: error?.stack
       });
     }
   });

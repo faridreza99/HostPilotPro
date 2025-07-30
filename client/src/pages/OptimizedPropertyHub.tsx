@@ -8,10 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { 
   Home, 
   Calendar, 
@@ -25,9 +22,7 @@ import {
   CheckCircle,
   Archive,
   UserCheck,
-  Edit3,
-  Globe,
-  Download
+  Edit3
 } from "lucide-react";
 
 // Pre-loaded property data for instant display
@@ -140,72 +135,8 @@ export default function OptimizedPropertyHub() {
     capacity: 2,
     description: ""
   });
-  const [airbnbUrl, setAirbnbUrl] = useState("");
-  const [isImporting, setIsImporting] = useState(false);
   
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Create property mutation
-  const createPropertyMutation = useMutation({
-    mutationFn: async (propertyData: any) => {
-      return await apiRequest('/api/properties', {
-        method: 'POST',
-        body: propertyData
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-      toast({
-        title: "Property Added Successfully",
-        description: `${newProperty.name} has been added to your portfolio.`,
-      });
-      
-      // Reset form and close dialog
-      setNewProperty({
-        name: "",
-        location: "",
-        bedrooms: 1,
-        bathrooms: 1,
-        capacity: 2,
-        description: ""
-      });
-      setIsAddPropertyOpen(false);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error Creating Property",
-        description: error.message || "Failed to create property. Please try again.",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Airbnb import mutation
-  const importAirbnbMutation = useMutation({
-    mutationFn: async (url: string) => {
-      return await apiRequest('/api/properties/import-airbnb', {
-        method: 'POST',
-        body: { airbnbUrl: url }
-      });
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-      toast({
-        title: "Property Imported Successfully",
-        description: `${data.name} has been imported from Airbnb.`,
-      });
-      setAirbnbUrl("");
-      setIsAddPropertyOpen(false);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Import Failed",
-        description: error.message || "Failed to import property from Airbnb. Please check the URL and try again.",
-        variant: "destructive"
-      });
-    }
-  });
 
   // Fast, instant filtering
   const filteredProperties = useMemo(() => {
@@ -250,46 +181,40 @@ export default function OptimizedPropertyHub() {
   };
 
   const handleAddProperty = () => {
-    if (!newProperty.name || !newProperty.location) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in property name and location.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    createPropertyMutation.mutate({
+    // Simulate adding property
+    const newId = Math.max(...DEMO_PROPERTIES.map(p => p.id)) + 1;
+    const propertyToAdd = {
+      id: newId,
       name: newProperty.name,
-      address: newProperty.location,
+      location: newProperty.location,
       bedrooms: newProperty.bedrooms,
       bathrooms: newProperty.bathrooms,
       capacity: newProperty.capacity,
-      description: newProperty.description,
-      status: "active"
+      status: "active" as const,
+      lastBooking: "Never",
+      occupancy: 0,
+      monthlyRevenue: 0,
+      roi: 0,
+      maintenanceTasks: 0,
+      image: "🏠"
+    };
+    
+    // In a real app, this would make an API call
+    toast({
+      title: "Property Added Successfully",
+      description: `${newProperty.name} has been added to your portfolio.`,
     });
-  };
-
-  const handleAirbnbImport = () => {
-    if (!airbnbUrl.trim()) {
-      toast({
-        title: "Missing URL",
-        description: "Please enter an Airbnb property URL.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!airbnbUrl.includes('airbnb.com')) {
-      toast({
-        title: "Invalid URL",
-        description: "Please enter a valid Airbnb property URL.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    importAirbnbMutation.mutate(airbnbUrl);
+    
+    // Reset form and close dialog
+    setNewProperty({
+      name: "",
+      location: "",
+      bedrooms: 1,
+      bathrooms: 1,
+      capacity: 2,
+      description: ""
+    });
+    setIsAddPropertyOpen(false);
   };
 
   const handleBulkAction = (action: string) => {
@@ -356,21 +281,14 @@ export default function OptimizedPropertyHub() {
                 Add New Property
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add New Property</DialogTitle>
                 <DialogDescription>
-                  Add a new property to your portfolio or import from Airbnb
+                  Add a new property to your portfolio
                 </DialogDescription>
               </DialogHeader>
-              
-              <Tabs defaultValue="manual" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="manual">Manual Entry</TabsTrigger>
-                  <TabsTrigger value="airbnb">Import from Airbnb</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="manual" className="space-y-4">
+              <div className="space-y-4">
                 <div>
                   <Label htmlFor="property-name">Property Name</Label>
                   <Input
@@ -445,67 +363,23 @@ export default function OptimizedPropertyHub() {
                     rows={3}
                   />
                 </div>
-                  <div className="flex gap-2 pt-4">
-                    <Button 
-                      onClick={handleAddProperty}
-                      className="flex-1"
-                      disabled={!newProperty.name || !newProperty.location || createPropertyMutation.isPending}
-                    >
-                      {createPropertyMutation.isPending ? "Adding..." : "Add Property"}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIsAddPropertyOpen(false)}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="airbnb" className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg">
-                      <Globe className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <h4 className="font-medium text-blue-900">Import from Airbnb</h4>
-                        <p className="text-sm text-blue-700">Automatically extract property details from Airbnb listing</p>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="airbnb-url">Airbnb Property URL</Label>
-                      <Input
-                        id="airbnb-url"
-                        value={airbnbUrl}
-                        onChange={(e) => setAirbnbUrl(e.target.value)}
-                        placeholder="https://www.airbnb.com/rooms/..."
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Copy the full URL from the Airbnb property page
-                      </p>
-                    </div>
-                    
-                    <div className="flex gap-2 pt-4">
-                      <Button 
-                        onClick={handleAirbnbImport}
-                        className="flex-1"
-                        disabled={!airbnbUrl.trim() || importAirbnbMutation.isPending}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        {importAirbnbMutation.isPending ? "Importing..." : "Import Property"}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setIsAddPropertyOpen(false)}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
+                <div className="flex gap-2 pt-4">
+                  <Button 
+                    onClick={handleAddProperty}
+                    className="flex-1"
+                    disabled={!newProperty.name || !newProperty.location}
+                  >
+                    Add Property
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsAddPropertyOpen(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
 
