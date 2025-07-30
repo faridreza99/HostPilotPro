@@ -116,8 +116,11 @@ export class AIBotEngine {
 
     console.log('📋 Data fetched:', Object.keys(organizationData));
 
+    // OpenAI Assistant Configuration
+    const ASSISTANT_ID = "asst_OATIDMTgutnkdOJpTrQ9Mf7u";
+    
     // Single AI call with combined analysis and response
-    const systemPrompt = `You are MR Pilot, an AI assistant for a Thai property management company. Analyze the user's question and provide a helpful response using the available data.
+    const systemPrompt = `You are Captain Cortex, the Smart Co-Pilot for Property Management by HostPilotPro, an AI assistant for a Thai property management company. Analyze the user's question and provide a helpful response using the available data.
 
 Guidelines:
 1. Be conversational and helpful
@@ -144,17 +147,58 @@ ${JSON.stringify(organizationData, null, 2)}
 
 Please provide a helpful response based on this data.`;
 
-    const completion = await this.openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 600,
-    });
+    // Try to use the OpenAI Assistant first, fallback to direct completion
+    let response;
+    try {
+      // Create a thread for the assistant
+      const thread = await this.openai.beta.threads.create();
+      
+      // Add the user's message to the thread
+      await this.openai.beta.threads.messages.create(thread.id, {
+        role: "user",
+        content: `${systemPrompt}\n\n${userPrompt}`
+      });
+      
+      // Run the assistant
+      const run = await this.openai.beta.threads.runs.create(thread.id, {
+        assistant_id: ASSISTANT_ID
+      });
+      
+      // Poll for completion (simplified version)
+      let runStatus = run;
+      for (let i = 0; i < 30; i++) { // Max 30 seconds wait
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        runStatus = await this.openai.beta.threads.runs.retrieve(thread.id, run.id);
+        if (runStatus.status === 'completed') break;
+        if (runStatus.status === 'failed') throw new Error('Assistant run failed');
+      }
+      
+      if (runStatus.status === 'completed') {
+        const messages = await this.openai.beta.threads.messages.list(thread.id);
+        const lastMessage = messages.data[0];
+        if (lastMessage.content[0].type === 'text') {
+          response = lastMessage.content[0].text.value;
+        }
+      }
+    } catch (assistantError) {
+      console.log('Assistant failed, falling back to direct completion');
+    }
+    
+    // Fallback to direct completion if assistant fails
+    if (!response) {
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 600,
+      });
+      response = completion.choices[0].message.content;
+    }
 
-    return completion.choices[0].message.content || "I apologize, but I couldn't generate a response to your question.";
+    return response || "I apologize, but I couldn't generate a response to your question.";
   }
 
   /**
