@@ -94,24 +94,65 @@ export class AIBotEngine {
       'Villa Tropical Paradise'
     ];
     
+    // Filter and limit data to prevent token overflow
+    const filteredProperties = properties
+      .filter((p: any) => p.organizationId === context.organizationId)
+      .filter((p: any) => mainDemoPropertyNames.includes(p.name))
+      .map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        bedrooms: p.bedrooms,
+        bathrooms: p.bathrooms,
+        maxGuests: p.maxGuests,
+        pricePerNight: p.pricePerNight,
+        currency: p.currency,
+        status: p.status
+      }));
+
+    // Limit data to prevent context overflow - take only recent/relevant items
+    const recentTasks = tasks
+      .filter((t: any) => t.organizationId === context.organizationId)
+      .slice(0, 20) // Limit to 20 most recent tasks
+      .map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        propertyName: t.propertyName,
+        dueDate: t.dueDate
+      }));
+
+    const recentBookings = bookings
+      .filter((b: any) => b.organizationId === context.organizationId)
+      .slice(0, 15) // Limit to 15 most recent bookings
+      .map((b: any) => ({
+        id: b.id,
+        guestName: b.guestName,
+        propertyName: b.propertyName,
+        checkIn: b.checkIn,
+        checkOut: b.checkOut,
+        totalAmount: b.totalAmount,
+        status: b.status
+      }));
+
+    const recentFinances = finances
+      .filter((f: any) => f.organizationId === context.organizationId)
+      .slice(0, 20) // Limit to 20 most recent finance records
+      .map((f: any) => ({
+        id: f.id,
+        type: f.type,
+        category: f.category,
+        amount: f.amount,
+        currency: f.currency,
+        date: f.date,
+        propertyId: f.propertyId
+      }));
+
     const organizationData = {
-      properties: properties
-        .filter((p: any) => p.organizationId === context.organizationId)
-        .filter((p: any) => mainDemoPropertyNames.includes(p.name))
-        .map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          bedrooms: p.bedrooms,
-          bathrooms: p.bathrooms,
-          maxGuests: p.maxGuests,
-          pricePerNight: p.pricePerNight,
-          currency: p.currency,
-          status: p.status,
-          address: p.address
-        })),
-      tasks: tasks.filter((t: any) => t.organizationId === context.organizationId),
-      bookings: bookings.filter((b: any) => b.organizationId === context.organizationId),
-      finances: finances.filter((f: any) => f.organizationId === context.organizationId)
+      properties: filteredProperties,
+      tasks: recentTasks,
+      bookings: recentBookings,
+      finances: recentFinances
     };
 
     console.log('📋 Data fetched:', Object.keys(organizationData));
@@ -136,14 +177,27 @@ Current date: ${new Date().toISOString().split('T')[0]}
 
 Available data summary:
 - Properties: ${organizationData.properties.length} main demo properties
-- Tasks: ${organizationData.tasks.length} tasks
-- Bookings: ${organizationData.bookings.length} bookings
-- Financial records: ${organizationData.finances.length} records`;
+- Recent Tasks: ${organizationData.tasks.length} tasks (last 20)
+- Recent Bookings: ${organizationData.bookings.length} bookings (last 15)
+- Recent Financial records: ${organizationData.finances.length} records (last 20)`;
+
+    // Create a more concise data summary to reduce token usage
+    const dataSummary = `Properties (${organizationData.properties.length}):
+${organizationData.properties.map(p => `- ${p.name}: ${p.bedrooms}BR/${p.bathrooms}BA, ฿${p.pricePerNight}/night, ${p.status}`).join('\n')}
+
+Recent Tasks (${organizationData.tasks.length}):
+${organizationData.tasks.map(t => `- ${t.title} (${t.status}, ${t.priority}, ${t.propertyName}, due: ${t.dueDate})`).join('\n')}
+
+Recent Bookings (${organizationData.bookings.length}):
+${organizationData.bookings.map(b => `- ${b.guestName} at ${b.propertyName} (${b.checkIn} to ${b.checkOut}), ฿${b.totalAmount}, ${b.status}`).join('\n')}
+
+Recent Finance Records (${organizationData.finances.length}):
+${organizationData.finances.map(f => `- ${f.type}: ${f.category} ฿${f.amount} (${f.date})`).join('\n')}`;
 
     const userPrompt = `Question: "${question}"
 
 Available data:
-${JSON.stringify(organizationData, null, 2)}
+${dataSummary}
 
 Please provide a helpful response based on this data.`;
 
