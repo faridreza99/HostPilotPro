@@ -99,7 +99,8 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  const httpServer = app.listen(process.env.PORT || 5000, '0.0.0.0', () => {
+  const port = Number(process.env.PORT) || 5000;
+  const httpServer = app.listen(port, '0.0.0.0', () => {
     console.log("Server started");
   });
 
