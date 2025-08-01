@@ -2,7 +2,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from "@shared/schema";
 
-// For now, keep using the working Neon connection until proper Supabase URL is provided
+// For now, keep using Neon until Supabase connection is properly tested
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
