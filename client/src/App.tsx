@@ -11,6 +11,8 @@ import { CacheProvider } from "@/context/CacheContext";
 
 // Import existing pages with lazy loading for performance
 import { LazyDashboard, LazyFinancialDashboard, LazyPropertyDashboard } from "@/components/LazyDashboard";
+import UltraFastPropertyDashboard from "@/pages/UltraFastPropertyDashboard";
+import UltraFastTasks from "@/pages/UltraFastTasks";
 import RoleBasedDashboard from "@/components/RoleBasedDashboard";
 import Properties from "@/pages/Properties";
 import Tasks from "@/pages/Tasks";
@@ -32,6 +34,7 @@ import SandboxTestingDashboard from "@/pages/SandboxTestingDashboard";
 import GuestPortalSmartRequests from "@/pages/GuestPortalSmartRequests";
 import GuestActivityRecommendations from "@/pages/GuestActivityRecommendations";
 import SimpleHelp from "./pages/SimpleHelp";
+import FastHelp from "./pages/FastHelp";
 import UserManagement from "./pages/UserManagement";
 import HostawayUserManagement from "./pages/HostawayUserManagement";
 import OwnerTargetUpgradeTracker from "./pages/OwnerTargetUpgradeTracker";
@@ -147,13 +150,13 @@ function AppRoutes() {
         <Route path="/" component={RoleBasedDashboard} />
         <Route path="/properties" component={Properties} />
         <Route path="/property/:id" component={PropertyDetailView} />
-        <Route path="/tasks" component={Tasks} />
+        <Route path="/tasks" component={UltraFastTasks} />
         <Route path="/bookings" component={Bookings} />
         <Route path="/services" component={Services} />
         <Route path="/finances" component={SimpleFinances} />
         <Route path="/settings" component={SimpleSettings} />
         <Route path="/profile" component={ProfilePage} />
-        <Route path="/help" component={SimpleHelp} />
+        <Route path="/help" component={FastHelp} />
         
         {/* Hub Pages */}
         <Route path="/dashboard-hub" component={DashboardHub} />
@@ -168,7 +171,7 @@ function AppRoutes() {
         
         {/* Enhanced Dashboards */}
         <Route path="/simple-filtered-financial-dashboard" component={LazyFinancialDashboard} />
-        <Route path="/filtered-property-dashboard" component={LazyPropertyDashboard} />
+        <Route path="/filtered-property-dashboard" component={UltraFastPropertyDashboard} />
         
         {/* Core Management */}
         <Route path="/maintenance-suggestions" component={SimpleMaintenanceSuggestions} />
