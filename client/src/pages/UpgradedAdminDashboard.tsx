@@ -1,20 +1,15 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useFastAuth } from '@/lib/fastAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Calendar, ListTodo, DollarSign, User, Users, TrendingUp, MoreVertical } from 'lucide-react';
-import { RoleBackButton } from '@/components/BackButton';
-import RefreshDataButton from '@/components/RefreshDataButton';
-import { LiveAlertsBar } from '@/components/LiveAlertsBar';
-import { KPIWidgets } from '@/components/KPIWidgets';
-import { QuickActionButtons } from '@/components/QuickActionButtons';
-import { TaskProgressBar } from '@/components/TaskProgressBar';
+import { Building, Calendar, ListTodo, DollarSign, User, Users, TrendingUp, MoreVertical, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import TopBar from '@/components/TopBar';
 
 export default function UpgradedAdminDashboard() {
-  const { user } = useAuth();
+  const { user } = useFastAuth();
   const [activeTab, setActiveTab] = useState('overview');
 
   // Fetch data for dashboard
@@ -69,32 +64,73 @@ export default function UpgradedAdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <RoleBackButton />
+    <div className="min-h-screen flex bg-background">
+      <div className="flex-1 flex flex-col lg:ml-0">
+        <TopBar title="Enhanced Admin Dashboard" />
+        
+        <main className="flex-1 overflow-auto p-6 space-y-6">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-                Admin Dashboard
+                Enhanced Admin Dashboard
               </h1>
               <p className="text-slate-600 dark:text-slate-400">
-                Welcome back, {user?.name || user?.email}
+                Welcome back, {user?.firstName || user?.email}
               </p>
             </div>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              <MoreVertical className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
           </div>
-          <RefreshDataButton />
-        </div>
 
-        {/* Live Alerts Bar */}
-        <LiveAlertsBar />
-
-        {/* Quick Action Buttons */}
-        <QuickActionButtons />
-
-        {/* KPI Widgets */}
-        <KPIWidgets />
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-600">Properties</p>
+                    <p className="text-2xl font-bold">{properties.length}</p>
+                  </div>
+                  <Building className="h-8 w-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-600">Active Tasks</p>
+                    <p className="text-2xl font-bold">{tasks.length}</p>
+                  </div>
+                  <ListTodo className="h-8 w-8 text-orange-500" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-600">Bookings</p>
+                    <p className="text-2xl font-bold">{bookings.length}</p>
+                  </div>
+                  <Calendar className="h-8 w-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-600">Finances</p>
+                    <p className="text-2xl font-bold">{finances.length}</p>
+                  </div>
+                  <DollarSign className="h-8 w-8 text-purple-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -299,6 +335,7 @@ export default function UpgradedAdminDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+        </main>
       </div>
     </div>
   );
