@@ -14,7 +14,8 @@ import {
   ArrowLeft,
   Users,
   Shield,
-  Brain
+  Brain,
+  Receipt
 } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import RefreshDataButton from "@/components/RefreshDataButton";
@@ -32,6 +33,9 @@ const SimpleFilteredFinancialDashboard = lazy(() => import("./SimpleFilteredFina
 const OwnerInvoicingPayouts = lazy(() => import("./OwnerInvoicingPayouts"));
 const SalariesWages = lazy(() => import("./SalariesWages"));
 const FinanceIntelligenceModule = lazy(() => import("./FinanceIntelligenceModule"));
+const CurrencyTaxManagement = lazy(() => import("./CurrencyTaxManagement"));
+const OtaRevenueNetPayoutCalculation = lazy(() => import("./OtaRevenueNetPayoutCalculation"));
+const StaffExpenseManagement = lazy(() => import("./StaffExpenseManagement"));
 
 export default function FinanceHub() {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
@@ -132,6 +136,36 @@ export default function FinanceHub() {
       badge: "Admin Only",
       color: "bg-red-50 hover:bg-red-100 border-red-200",
       component: SalariesWages,
+      adminOnly: true
+    },
+    {
+      title: "Currency & Tax Management",
+      description: "Configure currency settings, tax rates, and financial compliance options",
+      key: "currency-tax-management",
+      icon: Calculator,
+      badge: "Admin Only",
+      color: "bg-blue-50 hover:bg-blue-100 border-blue-200",
+      component: CurrencyTaxManagement,
+      adminOnly: true
+    },
+    {
+      title: "OTA Revenue Calculator",
+      description: "Advanced OTA commission calculations and revenue optimization tools",
+      key: "ota-revenue-calculator",
+      icon: TrendingUp,
+      badge: "Admin Only",
+      color: "bg-green-50 hover:bg-green-100 border-green-200",
+      component: OtaRevenueNetPayoutCalculation,
+      adminOnly: true
+    },
+    {
+      title: "Staff Expense Management",
+      description: "Track staff expenses, reimbursements, and operational cost management",
+      key: "staff-expense-management",
+      icon: Receipt,
+      badge: "Admin Only",
+      color: "bg-gray-50 hover:bg-gray-100 border-gray-200",
+      component: StaffExpenseManagement,
       adminOnly: true
     }
   ];

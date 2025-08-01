@@ -28,6 +28,10 @@ const SandboxTestingDashboard = lazy(() => import("./SandboxTestingDashboard"));
 const AdminGodModeRoleManager = lazy(() => import("./AdminGodModeRoleManager"));
 const SaasManagement = lazy(() => import("./admin/SaasManagement"));
 const ApiConnections = lazy(() => import("./admin/ApiConnections"));
+const SystemIntegrityCheck = lazy(() => import("./SystemIntegrityCheck"));
+const AiOpsAnomaliesManagement = lazy(() => import("./admin/AiOpsAnomaliesManagement"));
+const AdditionalSettings = lazy(() => import("./AdditionalSettings"));
+const UpgradedAdminDashboard = lazy(() => import("./UpgradedAdminDashboard"));
 
 export default function SystemHub() {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
@@ -117,6 +121,42 @@ export default function SystemHub() {
       badge: "SaaS",
       color: "bg-indigo-50 hover:bg-indigo-100 border-indigo-200",
       component: SaasManagement
+    },
+    {
+      title: "System Integrity Check",
+      description: "System health monitoring, integrity scanning, and diagnostic tools",
+      key: "system-integrity-check",
+      icon: Shield,
+      badge: "Diagnostics",
+      color: "bg-red-50 hover:bg-red-100 border-red-200",
+      component: SystemIntegrityCheck
+    },
+    {
+      title: "AI Operations & Anomalies",
+      description: "AI operations monitoring, anomaly detection, and performance analytics",
+      key: "ai-ops-anomalies",
+      icon: Brain,
+      badge: "AI Ops",
+      color: "bg-purple-50 hover:bg-purple-100 border-purple-200",
+      component: AiOpsAnomaliesManagement
+    },
+    {
+      title: "Additional Settings",
+      description: "Extended admin configuration options and advanced system settings",
+      key: "additional-settings",
+      icon: Settings,
+      badge: "Extended",
+      color: "bg-gray-50 hover:bg-gray-100 border-gray-200",
+      component: AdditionalSettings
+    },
+    {
+      title: "Upgraded Admin Dashboard",
+      description: "Enhanced admin control center with advanced monitoring capabilities",
+      key: "upgraded-admin-dashboard",
+      icon: BarChart3,
+      badge: "Enhanced",
+      color: "bg-blue-50 hover:bg-blue-100 border-blue-200",
+      component: UpgradedAdminDashboard
     }
   ];
 
