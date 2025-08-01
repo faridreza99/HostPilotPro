@@ -248,6 +248,8 @@ export default function FinanceHub() {
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-700">
                   🔐 Admin Access Active - Showing {allFinanceItems.length} finance modules (including admin-only)
+                  <br />
+                  <strong>SALARIES & WAGES FORCED VISIBLE: {allFinanceItems.some(item => item.key === 'salaries-wages') ? 'YES ✓' : 'NO ❌'}</strong>
                 </p>
               </div>
             )}
