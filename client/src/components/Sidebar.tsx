@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
@@ -433,7 +433,14 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                console.log("Settings button clicked");
+                setSettingsOpen(true);
+              }}
+            >
               <Settings className="h-4 w-4" />
             </Button>
           </div>
@@ -676,6 +683,9 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
+            <DialogDescription>
+              Customize your preferences and application settings.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-6">
             {/* Notification Preferences */}
