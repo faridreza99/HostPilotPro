@@ -107,8 +107,8 @@ export default function Dashboard() {
     propertyMap.set(property.id, property.name);
   });
 
-  // Filter data based on active filters
-  const filteredProperties = enhancedProperties.filter(property => {
+  // Filter data based on active filters - use actual properties from API
+  const filteredProperties = properties.filter((property: any) => {
     if (activeFilters.searchText && !property.name.toLowerCase().includes(activeFilters.searchText.toLowerCase())) return false;
     if (activeFilters.area && property.area !== activeFilters.area) return false;
     if (activeFilters.bedroomCount && property.bedrooms !== activeFilters.bedroomCount) return false;
@@ -220,8 +220,8 @@ export default function Dashboard() {
               color="warning"
             />
             <StatsCard
-              title="Monthly Revenue"
-              value={formatCurrency(filteredProperties.reduce((sum, p) => sum + p.revenue, 0))}
+              title="Total Properties"
+              value={filteredProperties.length}
               icon={DollarSign}
               color="accent"
             />
@@ -362,10 +362,10 @@ export default function Dashboard() {
                         <div>
                           <h3 className="font-semibold">{property.name}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {property.area} • {property.bedrooms} bedrooms • {property.owner}
+                            {property.address || 'No address'} • {property.bedrooms || 0} bedrooms
                           </p>
                           <p className="text-sm font-medium text-green-600">
-                            Revenue: {formatCurrency(property.revenue)}
+                            {property.pricePerNight ? `฿${property.pricePerNight}/night` : 'No price set'}
                           </p>
                         </div>
                         <Badge variant={getStatusBadgeVariant(property.status)}>
