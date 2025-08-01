@@ -1,21 +1,18 @@
 // Bulk delete operations for tasks
 import { Express } from 'express';
 
-// Bulk delete task functions using Drizzle ORM
+// Bulk delete task functions
 async function deleteExpiredTasks() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
   try {
-    const { db } = await import('./db');
-    const { tasks } = await import('../shared/schema');
-    const { lt, sql } = await import('drizzle-orm');
-    
-    const result = await db.delete(tasks)
-      .where(lt(tasks.createdAt, thirtyDaysAgo))
-      .returning({ id: tasks.id });
-    
-    return result.length;
+    const { pool } = await import('./db');
+    const result = await pool.query(
+      'DELETE FROM tasks WHERE created_at < $1 RETURNING id',
+      [thirtyDaysAgo.toISOString()]
+    );
+    return result.rows.length;
   } catch (error) {
     console.error('Error deleting expired tasks:', error);
     return 0;
@@ -24,15 +21,12 @@ async function deleteExpiredTasks() {
 
 async function deleteCompletedTasks() {
   try {
-    const { db } = await import('./db');
-    const { tasks } = await import('../shared/schema');
-    const { eq } = await import('drizzle-orm');
-    
-    const result = await db.delete(tasks)
-      .where(eq(tasks.status, 'completed'))
-      .returning({ id: tasks.id });
-    
-    return result.length;
+    const { pool } = await import('./db');
+    const result = await pool.query(
+      'DELETE FROM tasks WHERE status = $1 RETURNING id',
+      ['completed']
+    );
+    return result.rows.length;
   } catch (error) {
     console.error('Error deleting completed tasks:', error);
     return 0;
@@ -44,15 +38,12 @@ async function deleteOldTasks() {
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
   
   try {
-    const { db } = await import('./db');
-    const { tasks } = await import('../shared/schema');
-    const { lt } = await import('drizzle-orm');
-    
-    const result = await db.delete(tasks)
-      .where(lt(tasks.createdAt, ninetyDaysAgo))
-      .returning({ id: tasks.id });
-    
-    return result.length;
+    const { pool } = await import('./db');
+    const result = await pool.query(
+      'DELETE FROM tasks WHERE created_at < $1 RETURNING id',
+      [ninetyDaysAgo.toISOString()]
+    );
+    return result.rows.length;
   } catch (error) {
     console.error('Error deleting old tasks:', error);
     return 0;
