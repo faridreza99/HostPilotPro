@@ -1,13 +1,23 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import RefreshDataButton from "@/components/RefreshDataButton";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import RefreshDataButton from "../components/RefreshDataButton";
+import LoadingSpinner from "../components/ui/LoadingSpinner";
 import { Zap, Droplets, Wifi, AlertCircle } from "lucide-react";
 
+interface Utility {
+  id: number;
+  type: string;
+  property: string;
+  status: string;
+  amount: number;
+  dueDate: string;
+  usage?: string;
+}
+
 export default function CachedUtilityTracker() {
-  const { data: utilities = [], isLoading: utilitiesLoading, isStale = false } = useQuery({
+  const { data: utilities = [], isLoading: utilitiesLoading } = useQuery<Utility[]>({
     queryKey: ['/api/utilities'],
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 5 * 60 * 1000,
@@ -44,17 +54,10 @@ export default function CachedUtilityTracker() {
           <p className="text-gray-600 mt-1">Monitor utility bills, track usage, and manage property expenses</p>
         </div>
         <div className="flex items-center gap-2">
-          {isStale && (
-            <Badge variant="outline" className="text-yellow-600 border-yellow-600">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              Data refreshing...
-            </Badge>
-          )}
-          <RefreshDataButton
-            endpoints={['/api/utilities']}
-            showStats={true}
-            showLastUpdate={true}
-          />
+          <Badge variant="outline" className="text-blue-600 border-blue-600">
+            <Zap className="h-3 w-3 mr-1" />
+            Utilities
+          </Badge>
         </div>
       </div>
 
@@ -72,7 +75,7 @@ export default function CachedUtilityTracker() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {utilities.length > 0 ? utilities.map((utility: any) => (
+          {utilities.length > 0 ? utilities.map((utility) => (
             <Card key={utility.id} className="border-2 hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
