@@ -33774,6 +33774,52 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // User Profile API for Settings
+  app.get("/api/user/profile", isDemoAuthenticated, async (req: any, res) => {
+    const user = req.user;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    res.json({
+      id: user.id, firstName: user.firstName || "Admin", lastName: user.lastName || "User", 
+      email: user.email, role: user.role, phone: user.phone || "", timezone: user.timezone || "UTC", language: user.language || "en"
+    });
+  });
+
+  app.patch("/api/user/profile", isDemoAuthenticated, async (req: any, res) => {
+    const user = req.user;
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    res.json({ message: "Profile updated successfully", ...user, ...req.body });
+  });
+
+  // System Settings API  
+  app.get("/api/settings/system", isDemoAuthenticated, async (req: any, res) => {
+    res.json({ currency: "USD", timezone: "UTC", dateFormat: "MM/DD/YYYY", emailNotifications: true, pushNotifications: true, taskReminders: true, theme: "light", organizationName: "HostPilotPro Demo" });
+  });
+
+  app.patch("/api/settings/system", isDemoAuthenticated, async (req: any, res) => {
+    const user = req.user;
+    if (!user || user.role !== 'admin') return res.status(403).json({ message: "Admin access required" });
+    res.json({ message: "Settings updated successfully", ...req.body });
+  });
+
+  // Global Search API
+  app.get("/api/global-search", isDemoAuthenticated, async (req: any, res) => {
+    const query = req.query.q as string;
+    if (!query || query.trim().length < 3) return res.json([]);
+    const searchTerm = query.toLowerCase();
+    const results: any[] = [];
+    try {
+      const properties = await storage.getProperties();
+      properties.slice(0, 5).forEach(property => {
+        if (property.name.toLowerCase().includes(searchTerm)) {
+          results.push({ id: property.id.toString(), type: 'property', title: property.name, subtitle: property.address, path: `/properties/${property.id}` });
+        }
+      });
+      res.json(results.slice(0, 10));
+    } catch (error) {
+      res.json([]);
+    }
+  });
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 

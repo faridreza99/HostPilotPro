@@ -35,6 +35,7 @@ import GuestPortalSmartRequests from "@/pages/GuestPortalSmartRequests";
 import GuestActivityRecommendations from "@/pages/GuestActivityRecommendations";
 import SimpleHelp from "./pages/SimpleHelp";
 import FastHelp from "./pages/FastHelp";
+import HelpCenter from "./pages/HelpCenter";
 import UserManagement from "./pages/UserManagement";
 import HostawayUserManagement from "./pages/HostawayUserManagement";
 import OwnerTargetUpgradeTracker from "./pages/OwnerTargetUpgradeTracker";
@@ -249,6 +250,12 @@ function AppRoutes() {
         {/* SaaS Framework Routes */}
         <Route path="/signup-request" component={SignupRequest} />
         <Route path="/admin/saas-management" component={SaasManagement} />
+        
+        {/* Settings & Help */}
+        <Route path="/simple-settings" component={SimpleSettings} />
+        <Route path="/help" component={HelpCenter} />
+        <Route path="/simple-help" component={SimpleHelp} />
+        <Route path="/fast-help" component={FastHelp} />
         
         {/* Additional Settings */}
         <Route path="/admin/additional-settings" component={AdditionalSettings} />

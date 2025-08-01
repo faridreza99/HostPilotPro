@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { GlobalSearchModal } from "./GlobalSearchModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,30 @@ import {
   LogOut,
   User
 } from "lucide-react";
+
+// Global Search Button Component
+function GlobalSearchButton() {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="hidden md:flex h-8 w-8 p-0"
+        onClick={() => setIsSearchOpen(true)}
+        title="Global Search (Ctrl+K)"
+      >
+        <Search className="h-4 w-4" />
+      </Button>
+      
+      <GlobalSearchModal 
+        isOpen={isSearchOpen} 
+        onClose={() => setIsSearchOpen(false)} 
+      />
+    </>
+  );
+}
 
 interface TopBarProps {
   title: string;
@@ -115,22 +140,8 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
         {/* Right side items */}
         <div className="flex items-center gap-2">
           
-          {/* Search functionality - implement actual search */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="hidden md:flex h-8 w-8 p-0"
-            onClick={() => {
-              // Quick search implementation
-              const searchTerm = prompt("Search properties, bookings, or guests:");
-              if (searchTerm) {
-                console.log("Searching for:", searchTerm);
-                // TODO: Implement actual search functionality
-              }
-            }}
-          >
-            <Search className="h-4 w-4" />
-          </Button>
+          {/* Global Search Modal */}
+          <GlobalSearchButton />
 
           {/* Notifications */}
           <NotificationDropdown />
@@ -141,6 +152,7 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
             size="sm"
             className="hidden sm:flex h-8 w-8 p-0"
             onClick={() => setLocation("/help")}
+            title="Help Center"
           >
             <HelpCircle className="h-4 w-4" />
           </Button>
@@ -151,6 +163,7 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
             size="sm"
             className="hidden sm:flex h-8 w-8 p-0"
             onClick={() => setLocation("/simple-settings")}
+            title="Settings"
           >
             <Settings className="h-4 w-4" />
           </Button>
