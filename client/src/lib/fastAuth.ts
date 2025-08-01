@@ -84,6 +84,7 @@ export async function fastLogin(email: string, password: string): Promise<AuthUs
     }
 
     const userData = await response.json();
+    console.log("Login response data:", userData);
     
     // Create optimized auth user
     const authUser: AuthUser = {
@@ -91,6 +92,7 @@ export async function fastLogin(email: string, password: string): Promise<AuthUs
       permissions: [],
       listingsAccess: []
     };
+    console.log("Created auth user:", authUser);
 
     // Immediately save session for instant future loads
     const session: AuthSession = {
@@ -146,11 +148,13 @@ export function useFastAuth() {
 
       if (response.ok) {
         const userData = await response.json();
+        console.log("Server auth response:", userData);
         const authUser: AuthUser = {
           ...userData,
           permissions: [],
           listingsAccess: []
         };
+        console.log("Processed auth user:", authUser);
         
         // Save to session for next time
         const session: AuthSession = {

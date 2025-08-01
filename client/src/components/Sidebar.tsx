@@ -222,6 +222,15 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
   });
   
   const { user, isAuthenticated, logout } = useFastAuth();
+  
+  // Debug user data to identify role issue
+  useEffect(() => {
+    if (user) {
+      console.log("Sidebar user data:", user);
+      console.log("User role detected:", user.role);
+    }
+  }, [user]);
+  
   const userRole = user?.role || "guest";
 
   const toggleSection = (sectionTitle: string) => {
