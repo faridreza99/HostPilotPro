@@ -74,6 +74,9 @@ import { InstantPageSwitcher } from "@/components/InstantPageSwitcher";
 import SignupRequest from "@/pages/public/SignupRequest";
 import SaasManagement from "@/pages/admin/SaasManagement";
 
+// Import Achievement System
+import AchievementsPage from "@/pages/AchievementsPage";
+
 // Import Property Appliances Management
 import PropertyAppliancesManagement from "@/pages/PropertyAppliancesManagement";
 import TaskOverview from "@/pages/TaskOverview";
@@ -272,6 +275,9 @@ function AppRoutes() {
         <Route path="/activity-logs" component={ActivityLogs} />
         <Route path="/daily-operations" component={DailyOperationsDashboard} />
         <Route path="/ai-bot" component={AIBotPage} />
+        
+        {/* Achievement System */}
+        <Route path="/achievements" component={AchievementsPage} />
         
         <Route component={NotFound} />
       </Switch>

@@ -2551,6 +2551,92 @@ export const guestPortalAccessRelations = relations(guestPortalAccess, ({ one })
   createdByUser: one(users, { fields: [guestPortalAccess.createdBy], references: [users.id] }),
 }));
 
+// ===== GAMIFIED ACHIEVEMENT SYSTEM =====
+export const achievements = pgTable("achievements", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  category: varchar("category").notNull(), // task, booking, finance, property, system
+  type: varchar("type").notNull(), // milestone, streak, progress, special
+  criteria: jsonb("criteria").notNull(), // conditions for earning
+  points: integer("points").default(10),
+  iconUrl: varchar("icon_url"),
+  badgeColor: varchar("badge_color").default("#0066ff"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_achievements_org").on(table.organizationId),
+  index("IDX_achievements_category").on(table.category),
+]);
+
+export const userAchievements = pgTable("user_achievements", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  achievementId: integer("achievement_id").references(() => achievements.id).notNull(),
+  earnedAt: timestamp("earned_at").defaultNow(),
+  progress: integer("progress").default(0), // for progress-based achievements
+  metadata: jsonb("metadata"), // additional data about how it was earned
+}, (table) => [
+  index("IDX_user_achievements_user").on(table.userId),
+  index("IDX_user_achievements_achievement").on(table.achievementId),
+]);
+
+export const userGameStats = pgTable("user_game_stats", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  totalPoints: integer("total_points").default(0),
+  level: integer("level").default(1),
+  currentStreak: integer("current_streak").default(0),
+  longestStreak: integer("longest_streak").default(0),
+  tasksCompleted: integer("tasks_completed").default(0),
+  bookingsProcessed: integer("bookings_processed").default(0),
+  propertiesManaged: integer("properties_managed").default(0),
+  lastActivity: timestamp("last_activity").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_user_game_stats_user").on(table.userId),
+  index("IDX_user_game_stats_points").on(table.totalPoints),
+]);
+
+export const achievementNotifications = pgTable("achievement_notifications", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  achievementId: integer("achievement_id").references(() => achievements.id).notNull(),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_achievement_notifications_user").on(table.userId),
+]);
+
+// Achievement relations
+export const achievementsRelations = relations(achievements, ({ one, many }) => ({
+  organization: one(organizations, { fields: [achievements.organizationId], references: [organizations.id] }),
+  userAchievements: many(userAchievements),
+  notifications: many(achievementNotifications),
+}));
+
+export const userAchievementsRelations = relations(userAchievements, ({ one }) => ({
+  organization: one(organizations, { fields: [userAchievements.organizationId], references: [organizations.id] }),
+  user: one(users, { fields: [userAchievements.userId], references: [users.id] }),
+  achievement: one(achievements, { fields: [userAchievements.achievementId], references: [achievements.id] }),
+}));
+
+export const userGameStatsRelations = relations(userGameStats, ({ one }) => ({
+  organization: one(organizations, { fields: [userGameStats.organizationId], references: [organizations.id] }),
+  user: one(users, { fields: [userGameStats.userId], references: [users.id] }),
+}));
+
+export const achievementNotificationsRelations = relations(achievementNotifications, ({ one }) => ({
+  organization: one(organizations, { fields: [achievementNotifications.organizationId], references: [organizations.id] }),
+  user: one(users, { fields: [achievementNotifications.userId], references: [users.id] }),
+  achievement: one(achievements, { fields: [achievementNotifications.achievementId], references: [achievements.id] }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
@@ -2688,6 +2774,34 @@ export const insertFinancialTransactionSchema = createInsertSchema(financialTran
   createdAt: true,
   updatedAt: true,
 });
+
+// Achievement system insert schemas
+export const insertAchievementSchema = createInsertSchema(achievements).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserAchievementSchema = createInsertSchema(userAchievements).omit({
+  id: true,
+  earnedAt: true,
+});
+
+export const insertUserGameStatsSchema = createInsertSchema(userGameStats).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAchievementNotificationSchema = createInsertSchema(achievementNotifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Export achievement types
+export type Achievement = typeof achievements.$inferSelect;
+export type UserAchievement = typeof userAchievements.$inferSelect;
+export type UserGameStats = typeof userGameStats.$inferSelect;
+export type AchievementNotification = typeof achievementNotifications.$inferSelect;
 
 // ===== COMMUNICATION SYSTEM TABLES =====
 

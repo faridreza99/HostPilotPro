@@ -62,9 +62,11 @@ import {
   Droplets,
   Target,
   Filter,
-  Palette
+  Palette,
+  Trophy
 } from "lucide-react";
 import { useFastAuth } from "@/lib/fastAuth";
+import { filterMenuForRole, getRoleDisplayInfo, UserRole } from "@/utils/roleBasedMenu";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -97,6 +99,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         { label: "Property", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
         { label: "Finance", icon: DollarSign, href: "/finance-hub", description: "Financial management and analytics" },
         { label: "System", icon: Settings, href: "/system-hub", description: "System settings and administration" },
+        { label: "Achievements", icon: Trophy, href: "/achievements", description: "Track your progress and unlock rewards" },
       ]
     }
   ];
@@ -110,6 +113,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
         items: [
           { label: "Dashboard", icon: BarChart3, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
           { label: "Property", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
+          { label: "Achievements", icon: Trophy, href: "/achievements", description: "Track your progress and unlock rewards" },
         ]
       }
     ],
@@ -120,6 +124,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
           { label: "Dashboard", icon: BarChart3, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
           { label: "Property", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
           { label: "Finance", icon: DollarSign, href: "/finance-hub", description: "Financial management and analytics" },
+          { label: "Achievements", icon: Trophy, href: "/achievements", description: "Track your progress and unlock rewards" },
         ]
       }
     ],
@@ -231,7 +236,8 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
     }
   }, [user]);
   
-  const userRole = user?.role || "guest";
+  const userRole = (user?.role || "guest") as UserRole;
+  const roleInfo = getRoleDisplayInfo(userRole);
 
   const toggleSection = (sectionTitle: string) => {
     setCollapsedSections(prev => ({
@@ -267,8 +273,11 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
     }
   };
 
-  // Memoize menu sections to prevent recreation on every render
-  const menuSections = useMemo(() => getRoleBasedMenus(userRole), [userRole]);
+  // Memoize menu sections with role-based filtering
+  const menuSections = useMemo(() => {
+    const baseMenu = getRoleBasedMenus(userRole);
+    return filterMenuForRole(baseMenu, userRole);
+  }, [userRole]);
   const RoleIcon = useMemo(() => roleIcons[userRole as keyof typeof roleIcons] || User, [userRole]);
 
   if (!isAuthenticated) {
@@ -317,9 +326,9 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
               </p>
               <Badge 
                 variant="secondary" 
-                className={cn("text-xs", roleColors[userRole as keyof typeof roleColors])}
+                className={cn("text-xs", roleInfo.color)}
               >
-                {userRole.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}
+                {roleInfo.name}
               </Badge>
             </div>
           </div>
