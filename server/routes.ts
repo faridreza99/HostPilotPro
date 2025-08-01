@@ -3465,23 +3465,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== STAFF MANAGEMENT & PAYROLL API ENDPOINTS =====
 
+  // Helper function to check admin role
+  const requireAdminRole = (req: any, res: any, next: any) => {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ 
+        message: "Admin access required",
+        userRole: req.user?.role || 'unknown'
+      });
+    }
+    next();
+  };
+
   // Staff member endpoints - Admin only
-  app.get("/api/staff-members", isDemoAuthenticated, requireRole(['admin']), getStaffMembers);
-  app.get("/api/staff-members/:id", isDemoAuthenticated, requireRole(['admin']), getStaffMember);
-  app.post("/api/staff-members", isDemoAuthenticated, requireRole(['admin']), createStaffMember);
-  app.put("/api/staff-members/:id", isDemoAuthenticated, requireRole(['admin']), updateStaffMember);
-  app.delete("/api/staff-members/:id", isDemoAuthenticated, requireRole(['admin']), deleteStaffMember);
+  app.get("/api/staff-members", isDemoAuthenticated, requireAdminRole, getStaffMembers);
+  app.get("/api/staff-members/:id", isDemoAuthenticated, requireAdminRole, getStaffMember);
+  app.post("/api/staff-members", isDemoAuthenticated, requireAdminRole, createStaffMember);
+  app.put("/api/staff-members/:id", isDemoAuthenticated, requireAdminRole, updateStaffMember);
+  app.delete("/api/staff-members/:id", isDemoAuthenticated, requireAdminRole, deleteStaffMember);
   
   // Staff document endpoints - Admin only
-  app.get("/api/staff-members/:staffMemberId/documents", isDemoAuthenticated, requireRole(['admin']), getStaffDocuments);
-  app.post("/api/staff-documents", isDemoAuthenticated, requireRole(['admin']), createStaffDocument);
+  app.get("/api/staff-members/:staffMemberId/documents", isDemoAuthenticated, requireAdminRole, getStaffDocuments);
+  app.post("/api/staff-documents", isDemoAuthenticated, requireAdminRole, createStaffDocument);
   
   // Payroll record endpoints - Admin only
-  app.get("/api/payroll-records", isDemoAuthenticated, requireRole(['admin']), getPayrollRecords);
-  app.post("/api/payroll-records", isDemoAuthenticated, requireRole(['admin']), createPayrollRecord);
+  app.get("/api/payroll-records", isDemoAuthenticated, requireAdminRole, getPayrollRecords);
+  app.post("/api/payroll-records", isDemoAuthenticated, requireAdminRole, createPayrollRecord);
   
   // Staff analytics endpoint - Admin only
-  app.get("/api/staff-analytics", isDemoAuthenticated, requireRole(['admin']), getStaffAnalytics);
+  app.get("/api/staff-analytics", isDemoAuthenticated, requireAdminRole, getStaffAnalytics);
 
   // ===== GUEST MESSAGING SYSTEM API ENDPOINTS =====
 
