@@ -209,6 +209,15 @@ export default function FinanceHub() {
               </div>
             </div>
 
+            {/* Debug info for checking user role */}
+            {user?.role === "admin" && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  🔐 Admin Access Active - Showing {allFinanceItems.length} finance modules (including admin-only)
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {allFinanceItems.map((item) => {
                 const IconComponent = item.icon;
@@ -232,9 +241,9 @@ export default function FinanceHub() {
                         </div>
                         <Badge 
                           variant="secondary" 
-                          className={`${item.badge === "Admin Only" ? "bg-red-100 text-red-700 border-red-300" : "bg-white/70 text-gray-700 border border-gray-300"}`}
+                          className={`${item.badge === "Admin Only" || item.badge === "AI Intelligence" ? "bg-red-100 text-red-700 border-red-300" : "bg-white/70 text-gray-700 border border-gray-300"}`}
                         >
-                          {item.badge === "Admin Only" && <Shield className="h-3 w-3 mr-1" />}
+                          {(item.badge === "Admin Only" || item.badge === "AI Intelligence") && <Shield className="h-3 w-3 mr-1" />}
                           {item.badge}
                         </Badge>
                       </div>
