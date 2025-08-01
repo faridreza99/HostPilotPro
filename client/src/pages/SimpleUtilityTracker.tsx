@@ -1,7 +1,5 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
 import { Zap, Droplets, Wifi, AlertCircle, Plus } from "lucide-react";
 
 interface Utility {
@@ -64,44 +62,44 @@ export default function SimpleUtilityTracker() {
           <p className="text-gray-600 mt-1">Monitor utility bills, track usage, and manage property expenses</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-blue-600 border-blue-600">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
             <Zap className="h-3 w-3 mr-1" />
             Utilities
-          </Badge>
+          </span>
         </div>
       </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map(i => (
-            <Card key={i}>
-              <CardContent className="p-6">
+            <div key={i} className="bg-white rounded-lg border border-gray-200 shadow-sm">
+              <div className="p-6">
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {utilities.length > 0 ? utilities.map((utility) => (
-            <Card key={utility.id} className="border-2 hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
+            <div key={utility.id} className="bg-white rounded-lg border-2 border-gray-200 hover:shadow-lg transition-shadow">
+              <div className="p-4 pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {getUtilityIcon(utility.type)}
                     <div>
-                      <CardTitle className="text-lg">{utility.type || 'Unknown'}</CardTitle>
+                      <h3 className="text-lg font-semibold">{utility.type || 'Unknown'}</h3>
                       <p className="text-sm text-gray-600">{utility.property || 'Unknown Property'}</p>
                     </div>
                   </div>
-                  <Badge className={getStatusColor(utility.status)}>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(utility.status)}`}>
                     {utility.status || 'Unknown'}
-                  </Badge>
+                  </span>
                 </div>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="px-4 pb-4">
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Amount:</span>
@@ -118,8 +116,8 @@ export default function SimpleUtilityTracker() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )) : (
             <div className="col-span-full text-center py-12">
               <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
