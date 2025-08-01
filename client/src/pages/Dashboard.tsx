@@ -100,6 +100,12 @@ export default function Dashboard() {
 
   const recentBookings = enhancedBookings.slice(0, 3);
   const recentTasks = tasks.slice(0, 5); // Use actual tasks from API
+  
+  // Create property lookup map for bookings  
+  const propertyMap = new Map();
+  properties.forEach((property: any) => {
+    propertyMap.set(property.id, property.name);
+  });
 
   // Filter data based on active filters
   const filteredProperties = enhancedProperties.filter(property => {
@@ -243,25 +249,28 @@ export default function Dashboard() {
                   <p className="text-gray-500 text-center py-4">No bookings found</p>
                 ) : (
                   <div className="space-y-4">
-                    {recentBookings.map((booking: any) => (
-                      <div key={booking.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                            <Home className="w-6 h-6 text-gray-500" />
+                    {recentBookings.map((booking: any) => {
+                      const propertyName = propertyMap.get(booking.propertyId) || booking.property || `Property #${booking.propertyId}`;
+                      return (
+                        <div key={booking.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                              <Home className="w-6 h-6 text-gray-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{booking.guestName}</p>
+                              <p className="text-sm text-blue-600 font-medium">{propertyName}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{booking.guestName}</p>
-                            <p className="text-sm text-gray-500">Property ID: {booking.propertyId}</p>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900">
+                              {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                            </p>
+                            <p className="text-sm text-gray-500">{formatCurrency(booking.totalAmount)}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900">
-                            {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
-                          </p>
-                          <p className="text-sm text-gray-500">{formatCurrency(booking.totalAmount)}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>

@@ -40,6 +40,12 @@ export default function UpgradedAdminDashboard() {
   const recentBookings = bookings.slice(0, 5);
   const recentFinances = finances.slice(0, 5);
 
+  // Create property lookup map for bookings
+  const propertyMap = new Map();
+  properties.forEach((property: any) => {
+    propertyMap.set(property.id, property.name);
+  });
+
   const formatCurrency = (amount: number) => {
     return `฿${amount?.toLocaleString() || '0'}`;
   };
@@ -209,22 +215,26 @@ export default function UpgradedAdminDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {recentBookings.map((booking: any) => (
-                    <div key={booking.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded">
-                      <div>
-                        <p className="font-medium text-sm">{booking.guestName}</p>
-                        <p className="text-xs text-slate-600">
-                          {formatDate(booking.checkInDate)} - {formatDate(booking.checkOutDate)}
-                        </p>
+                  {recentBookings.map((booking: any) => {
+                    const propertyName = propertyMap.get(booking.propertyId) || `Property #${booking.propertyId}`;
+                    return (
+                      <div key={booking.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded">
+                        <div>
+                          <p className="font-medium text-sm">{booking.guestName}</p>
+                          <p className="text-xs text-blue-600 font-medium">{propertyName}</p>
+                          <p className="text-xs text-slate-600">
+                            {formatDate(booking.checkInDate || booking.checkIn)} - {formatDate(booking.checkOutDate || booking.checkOut)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium text-sm">{formatCurrency(booking.totalAmount)}</p>
+                          <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
+                            {booking.status}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-sm">{formatCurrency(booking.totalAmount)}</p>
-                        <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
-                          {booking.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             </div>
@@ -270,28 +280,31 @@ export default function UpgradedAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {bookings.map((booking: any) => (
-                    <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-medium">{booking.guestName}</h3>
-                          <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
-                            {booking.status}
-                          </Badge>
+                  {bookings.map((booking: any) => {
+                    const propertyName = propertyMap.get(booking.propertyId) || `Property #${booking.propertyId}`;
+                    return (
+                      <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-medium">{booking.guestName}</h3>
+                            <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
+                              {booking.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-blue-600 font-medium mb-1">
+                            Property: {propertyName}
+                          </p>
+                          <p className="text-sm text-slate-600">
+                            {formatDate(booking.checkInDate || booking.checkIn)} - {formatDate(booking.checkOutDate || booking.checkOut)}
+                          </p>
                         </div>
-                        <p className="text-sm text-slate-600 mb-1">
-                          Property: {booking.propertyName || 'Unknown Property'}
-                        </p>
-                        <p className="text-sm text-slate-600">
-                          {formatDate(booking.checkInDate)} - {formatDate(booking.checkOutDate)}
-                        </p>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{formatCurrency(booking.totalAmount)}</p>
+                          <p className="text-sm text-slate-600">{booking.source || 'Direct'}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg">{formatCurrency(booking.totalAmount)}</p>
-                        <p className="text-sm text-slate-600">{booking.source || 'Direct'}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
