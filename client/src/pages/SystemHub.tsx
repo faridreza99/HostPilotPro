@@ -12,7 +12,8 @@ import {
   Shield,
   Database,
   Key,
-  ArrowLeft
+  ArrowLeft,
+  BarChart3
 } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import RefreshDataButton from "@/components/RefreshDataButton";
