@@ -2,8 +2,6 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import RefreshDataButton from "../components/RefreshDataButton";
-import LoadingSpinner from "../components/ui/LoadingSpinner";
 import { Zap, Droplets, Wifi, AlertCircle } from "lucide-react";
 
 interface Utility {
@@ -67,7 +65,7 @@ export default function CachedUtilityTracker() {
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-center">
-                  <LoadingSpinner size="md" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               </CardContent>
             </Card>
