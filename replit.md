@@ -52,7 +52,9 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
     - **Sustainability Metrics Tracking System**: Environmental monitoring, carbon footprint management, and recommendations.
 
 ## External Dependencies
-- **Database**: Neon PostgreSQL serverless database.
+- **Database**: Neon PostgreSQL serverless database (primary).
+- **Real-time Features**: Supabase client integration (secondary).
+- **Deployment**: Railway CLI integration for production deployment.
 - **ORM**: Drizzle ORM.
 - **State Management**: TanStack React Query.
 - **UI Components**: Radix UI.
@@ -63,3 +65,9 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - **Language**: TypeScript.
 - **AI**: OpenAI API.
 - **Third-Party Integrations**: Hostaway, Stripe, Twilio, PEA (as per API Connections management system).
+
+## Recent Changes
+- **Database Integration**: Successfully integrated Supabase client alongside Neon primary database
+- **Railway Deployment**: Added comprehensive Railway deployment configuration with CLI tools
+- **Multi-Platform Setup**: Dual database approach (Neon primary + Supabase for enhanced features)
+- **Production Ready**: Railway configuration optimized for production deployment
