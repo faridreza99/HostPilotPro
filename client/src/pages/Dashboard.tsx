@@ -356,7 +356,11 @@ export default function Dashboard() {
             <TabsContent value="properties" className="space-y-4">
               <div className="grid gap-4">
                 {filteredProperties.map((property) => (
-                  <Card key={property.id}>
+                  <Card 
+                    key={property.id} 
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => window.location.href = `/property-hub?property=${property.id}`}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
@@ -375,6 +379,15 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+              <div className="text-center pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.href = '/property-hub'}
+                  className="w-full"
+                >
+                  View All Properties in Property Management Hub
+                </Button>
               </div>
             </TabsContent>
 

@@ -46,6 +46,16 @@ export default function PropertyHub() {
     roiMax: 50,
     hasMaintenanceTasks: false,
   });
+
+  // Check for property selection from Dashboard
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyId = urlParams.get('property');
+    if (propertyId) {
+      // Pre-filter to specific property if coming from Dashboard
+      setFilters(prev => ({ ...prev, search: propertyId }));
+    }
+  }, []);
   
   const { toast } = useToast();
 
@@ -184,6 +194,9 @@ export default function PropertyHub() {
                 <p className="text-gray-600">
                   Enhanced property management with advanced filtering, bulk actions, and calendar views
                 </p>
+                <div className="mt-2 text-sm text-blue-600">
+                  Connected to Dashboard • Showing Real Data from API
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <Button variant="outline" onClick={() => refetchProperties()}>
