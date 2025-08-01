@@ -170,14 +170,9 @@ function AppRoutes() {
         
         {/* Hub Pages */}
         <Route path="/dashboard-hub" component={DashboardHub} />
-        <Route path="/property-hub" component={OptimizedPropertyHub} />
-        <Route path="/finance-hub" component={OptimizedFinanceHub} />
-        <Route path="/system-hub" component={OptimizedSystemHub} />
-        
-        {/* Legacy Hub Routes */}
-        <Route path="/legacy-property-hub" component={PropertyHub} />
-        <Route path="/legacy-finance-hub" component={FinanceHub} />
-        <Route path="/legacy-system-hub" component={SystemHub} />
+        <Route path="/property-hub" component={PropertyHub} />
+        <Route path="/finance-hub" component={FinanceHub} />
+        <Route path="/system-hub" component={SystemHub} />
         
         {/* Enhanced Dashboards */}
         <Route path="/simple-filtered-financial-dashboard" component={LazyFinancialDashboard} />
@@ -294,6 +289,8 @@ function AppRoutes() {
         
         {/* Salaries & Wages Management */}
         <Route path="/salaries-wages" component={SalariesWages} />
+        <Route path="/staff-salaries" component={SalariesWages} />
+        <Route path="/admin/salaries-wages" component={SalariesWages} />
         
         <Route component={NotFound} />
       </Switch>

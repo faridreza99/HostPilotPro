@@ -67,10 +67,11 @@ export default function CreatePropertyDialog({ open, onOpenChange }: CreatePrope
         status: "active",
       });
       
-      // Force page refresh to show new property
+      // Force refresh without page reload
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+        queryClient.refetchQueries({ queryKey: ["/api/properties"] });
+      }, 500);
     },
     onError: (error: any) => {
       console.error("❌ Frontend: Property creation error:", error);
