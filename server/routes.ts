@@ -957,7 +957,8 @@ Be specific and actionable in your recommendations.`;
   
   // Apply ultra-fast middleware to critical endpoints
   const { ultraFastCache } = await import("./ultraFastMiddleware");
-  app.use("/api/properties", ultraFastCache(15));
+  // URGENT FIX: Disable cache for properties to fix data saving issues
+  // app.use("/api/properties", ultraFastCache(15)); // DISABLED
   app.use("/api/tasks", ultraFastCache(5));
   app.use("/api/bookings", ultraFastCache(10));
   app.use("/api/dashboard/stats", ultraFastCache(30));
@@ -1762,16 +1763,25 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  // Property routes with performance optimization
+  // Property routes - CACHE DISABLED FOR DEBUGGING
   app.get("/api/properties", isDemoAuthenticated, async (req: any, res) => {
     try {
-      console.log("🏠 GET /api/properties - Fetching properties...");
+      console.log("🏠 GET /api/properties - Fetching fresh properties (cache disabled)...");
       
-      // Get all properties directly without complex filtering for now
+      // Clear any cached responses
+      const { clearCache } = await import("./performanceOptimizer");
+      clearCache("properties");
+      
+      // Get all properties directly
       const allProperties = await storage.getProperties();
       console.log(`🏠 Found ${allProperties.length} total properties`);
+      console.log(`🏠 First property name: ${allProperties[0]?.name || 'No properties'}`);
       
-      // Return all properties for now to fix the issue
+      // Set no-cache headers to prevent browser caching
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       res.json(allProperties);
     } catch (error) {
       console.error("❌ Error fetching properties:", error);
@@ -1800,10 +1810,14 @@ Be specific and actionable in your recommendations.`;
       const userId = req.user.id;
       const organizationId = req.user.organizationId || 'default-org';
       
-      console.log("=== URGENT PROPERTY CREATION DEBUG ===");
+      console.log("=== PROPERTY CREATION DEBUG ===");
       console.log("User ID:", userId);
       console.log("Organization ID:", organizationId);
       console.log("Request body:", req.body);
+      
+      // Clear property cache when creating new property
+      const { clearCache } = await import("./performanceOptimizer");
+      clearCache("properties");
       
       // URGENT FIX: Bypass validation temporarily and create directly
       const propertyData = {
