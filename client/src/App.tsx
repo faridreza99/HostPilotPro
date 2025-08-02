@@ -79,7 +79,7 @@ import SaasManagement from "@/pages/admin/SaasManagement";
 import AchievementsPage from "@/pages/AchievementsPage";
 
 // Import Salaries & Wages Management
-import SalariesWages from "@/pages/SalariesWages";
+import SimpleSalariesWages from "@/pages/SimpleSalariesWages";
 
 // Import Property Appliances Management
 import PropertyAppliancesManagement from "@/pages/PropertyAppliancesManagement";
@@ -288,9 +288,9 @@ function AppRoutes() {
         <Route path="/achievements" component={AchievementsPage} />
         
         {/* Salaries & Wages Management */}
-        <Route path="/salaries-wages" component={SalariesWages} />
-        <Route path="/staff-salaries" component={SalariesWages} />
-        <Route path="/admin/salaries-wages" component={SalariesWages} />
+        <Route path="/salaries-wages" component={SimpleSalariesWages} />
+        <Route path="/staff-salaries" component={SimpleSalariesWages} />
+        <Route path="/admin/salaries-wages" component={SimpleSalariesWages} />
         
         <Route component={NotFound} />
       </Switch>

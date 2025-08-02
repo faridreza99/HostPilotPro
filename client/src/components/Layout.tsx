@@ -1,5 +1,4 @@
 import { ReactNode } from "react";
-import Sidebar from "./Sidebar";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -10,9 +9,7 @@ interface LayoutProps {
 export default function Layout({ children, className }: LayoutProps) {
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
-      
-      {/* Main Content */}
+      {/* Main Content - No sidebar here since App.tsx already has one */}
       <div className="lg:pl-80">
         {/* Mobile top spacing */}
         <div className="lg:hidden h-20"></div>
