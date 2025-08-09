@@ -33895,8 +33895,8 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Mount PMS Integration Routes
-  const mountIntegrationRoutes = (await import("./routers/integrations-routes")).default;
-  const mountPmsRoutes = (await import("./routers/pms-routes")).default;
+  const { default: mountIntegrationRoutes } = await import("./routers/integrations-routes");
+  const { default: mountPmsRoutes } = await import("./routers/pms-routes");
   
   mountIntegrationRoutes(app);
   mountPmsRoutes(app);
