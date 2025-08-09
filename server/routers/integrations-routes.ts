@@ -1,18 +1,21 @@
 import type { Express } from "express";
 import { encrypt, getIntegrationForOrg, saveIntegration, removeIntegration } from "../services/integrationStore";
 import { HostawayAdapter } from "../integrations/providers/hostawayAdapter";
+import { orgContext } from "../middlewares/orgContext";
 
 export default function mountIntegrationRoutes(app: Express) {
+  app.use(orgContext());
+
   // Status
   app.get("/api/integrations/me", async (req: any, res) => {
-    const orgId = req.user?.organizationId || "default-org";
+    const orgId = req.user.organizationId;
     const row = await getIntegrationForOrg(orgId);
     res.json({ provider: row?.provider ?? null });
   });
 
   // Connect + Test
   app.post("/api/integrations/connect", async (req: any, res) => {
-    const orgId = req.user?.organizationId || "default-org";
+    const orgId = req.user.organizationId;
     const { provider, authType, apiKey, accountId, accessToken } = req.body || {};
     if (!provider || !authType) return res.status(400).json({ message: "provider and authType required" });
 
@@ -38,7 +41,7 @@ export default function mountIntegrationRoutes(app: Express) {
 
   // Disconnect
   app.delete("/api/integrations/connect", async (req: any, res) => {
-    const orgId = req.user?.organizationId || "default-org";
+    const orgId = req.user.organizationId;
     await removeIntegration(orgId);
     res.json({ ok: true });
   });

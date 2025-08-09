@@ -33894,6 +33894,13 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
+  // Mount PMS Integration Routes
+  const mountIntegrationRoutes = (await import("./routers/integrations-routes")).default;
+  const mountPmsRoutes = (await import("./routers/pms-routes")).default;
+  
+  mountIntegrationRoutes(app);
+  mountPmsRoutes(app);
+
   // API 404 handler - must be after all other API routes
   app.use("/api/*", (req, res) => {
     res.status(404).json({ 
