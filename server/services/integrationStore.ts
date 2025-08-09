@@ -1,85 +1,87 @@
-import crypto from 'crypto';
+import fs from "fs";
+import crypto from "crypto";
+import path from "path";
 
-export interface Integration {
-  provider: string;
-  authType: 'api_key' | 'oauth';
+const DATA_DIR = path.resolve(process.cwd(), "data");
+const FILE = path.join(DATA_DIR, "integrations.json");
+
+type IntegrationRow = {
+  organizationId: string;
+  provider: "hostaway" | "lodgify" | "demo";
+  authType: "api_key" | "oauth2";
   apiKeyEnc?: string;
   accessTokenEnc?: string;
+  refreshTokenEnc?: string;
   accountId?: string;
-  isActive: boolean;
-  connectedAt: Date;
-  lastSyncAt?: Date;
+  meta?: any;
+  isActive?: boolean;
+  connectedAt?: string;
+  lastSyncAt?: string;
+};
+
+type Store = { [orgId: string]: IntegrationRow };
+
+function ensureFile() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, "{}", "utf-8");
 }
 
-interface IntegrationData {
-  organizationId: string;
-  integration: Integration | null;
+export async function getIntegrationForOrg(orgId: string): Promise<IntegrationRow | null> {
+  ensureFile();
+  const raw = JSON.parse(fs.readFileSync(FILE, "utf-8") || "{}") as Store;
+  return raw[orgId] || null;
 }
 
-// Encryption utilities
-const cryptKey = process.env.INTEGRATION_CRYPT_KEY || 'dev-dev-dev-dev-dev-dev-dev-dev';
-
-export function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(cryptKey), iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  return iv.toString('hex') + ':' + encrypted;
+export async function saveIntegration(orgId: string, row: Omit<IntegrationRow, "organizationId">) {
+  ensureFile();
+  const raw = JSON.parse(fs.readFileSync(FILE, "utf-8") || "{}") as Store;
+  raw[orgId] = { 
+    organizationId: orgId, 
+    isActive: true,
+    connectedAt: new Date().toISOString(),
+    ...row 
+  } as IntegrationRow;
+  fs.writeFileSync(FILE, JSON.stringify(raw, null, 2), "utf-8");
 }
 
-export function decrypt(encryptedText: string): string {
-  const [ivHex, encrypted] = encryptedText.split(':');
-  const iv = Buffer.from(ivHex, 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(cryptKey), iv);
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
+export async function removeIntegration(orgId: string) {
+  ensureFile();
+  const raw = JSON.parse(fs.readFileSync(FILE, "utf-8") || "{}") as Store;
+  delete raw[orgId];
+  fs.writeFileSync(FILE, JSON.stringify(raw, null, 2), "utf-8");
 }
 
-// Simple in-memory store - will be replaced with Drizzle tables later
-class IntegrationStore {
-  private store: Map<string, IntegrationData> = new Map();
+// --- crypto helpers (replace with KMS/libsodium later) ---
+const KEY = (process.env.INTEGRATION_CRYPT_KEY || "dev-dev-dev-dev-dev-dev-dev-dev").slice(0,32);
+export function encrypt(plain?: string) {
+  if (!plain) return undefined;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", Buffer.from(KEY), iv);
+  const enc = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString("base64");
+}
+export function decrypt(token?: string) {
+  if (!token) return undefined;
+  const buf = Buffer.from(token, "base64");
+  const iv = buf.subarray(0,12);
+  const tag = buf.subarray(12,28);
+  const enc = buf.subarray(28);
+  const decipher = crypto.createDecipheriv("aes-256-gcm", Buffer.from(KEY), iv);
+  decipher.setAuthTag(tag);
+  const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
+  return dec.toString("utf8");
+}
 
-  async getIntegration(organizationId: string): Promise<Integration | null> {
-    const data = this.store.get(organizationId);
-    return data?.integration || null;
+// Legacy compatibility exports
+export const integrationStore = {
+  async getIntegration(orgId: string) {
+    return getIntegrationForOrg(orgId);
+  },
+  async saveIntegration(orgId: string, integration: any) {
+    return saveIntegration(orgId, integration);
+  },
+  async deleteIntegration(orgId: string) {
+    return removeIntegration(orgId);
   }
-
-  async saveIntegration(organizationId: string, integration: Integration): Promise<void> {
-    this.store.set(organizationId, {
-      organizationId,
-      integration
-    });
-  }
-
-  async deleteIntegration(organizationId: string): Promise<void> {
-    this.store.delete(organizationId);
-  }
-
-  async updateLastSync(organizationId: string): Promise<void> {
-    const data = this.store.get(organizationId);
-    if (data?.integration) {
-      data.integration.lastSyncAt = new Date();
-      this.store.set(organizationId, data);
-    }
-  }
-
-  // Debug method - remove in production
-  async getAllIntegrations(): Promise<Array<{ orgId: string; provider: string | null }>> {
-    const result: Array<{ orgId: string; provider: string | null }> = [];
-    for (const [orgId, data] of this.store.entries()) {
-      result.push({
-        orgId,
-        provider: data.integration?.provider || null
-      });
-    }
-    return result;
-  }
-}
-
-export const integrationStore = new IntegrationStore();
-
-// Helper function for getting integration by organization
-export async function getIntegrationForOrg(organizationId: string): Promise<Integration | null> {
-  return integrationStore.getIntegration(organizationId);
-}
+};
