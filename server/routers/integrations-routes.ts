@@ -1,7 +1,8 @@
 import { Express, Request, Response } from 'express';
 import { integrationStore } from '../services/integrationStore';
 import { extractOrganizationId, IntegrationRequest } from '../middlewares/integration-auth';
-import { HostawayClient } from '../integrations/hostaway';
+import { PMSClientFactory } from '../integrations/factory';
+import { PMSProviderName } from '../integrations/types';
 
 export default function mountIntegrationRoutes(app: Express) {
   
@@ -31,7 +32,7 @@ export default function mountIntegrationRoutes(app: Express) {
   // Connect a new integration
   app.post('/api/integrations/connect', extractOrganizationId, async (req: IntegrationRequest, res: Response) => {
     try {
-      const { provider, authType, apiKey, accountId } = req.body;
+      const { provider, authType, ...credentials } = req.body;
 
       if (!provider || !authType) {
         return res.status(400).json({ 
@@ -40,23 +41,41 @@ export default function mountIntegrationRoutes(app: Express) {
         });
       }
 
-      // Validate provider-specific requirements
-      if (provider === 'hostaway') {
-        if (!apiKey || !accountId) {
+      // Validate provider is supported
+      if (!PMSClientFactory.getSupportedProviders().includes(provider as PMSProviderName)) {
+        return res.status(400).json({
+          error: 'Unsupported provider',
+          message: `Provider ${provider} is not supported`
+        });
+      }
+
+      // Validate required credentials for provider
+      const requiredCreds = PMSClientFactory.getProviderRequiredCredentials(provider as PMSProviderName);
+      for (const cred of requiredCreds) {
+        if (!credentials[cred]) {
           return res.status(400).json({
             error: 'Missing credentials',
-            message: 'Hostaway requires apiKey and accountId'
+            message: `${provider} requires: ${requiredCreds.join(', ')}`
           });
         }
+      }
 
-        // Test the connection
-        const client = new HostawayClient({ apiKey, accountId });
-        const isValid = await client.testConnection();
-        
-        if (!isValid) {
+      // Test the connection (skip for demo)
+      if (provider !== 'demo') {
+        try {
+          const client = PMSClientFactory.create(provider as PMSProviderName, credentials);
+          const isValid = await (client as any).testConnection?.();
+          
+          if (isValid === false) {
+            return res.status(400).json({
+              error: 'Invalid credentials',
+              message: `Could not connect to ${provider} with provided credentials`
+            });
+          }
+        } catch (testError) {
           return res.status(400).json({
-            error: 'Invalid credentials',
-            message: 'Could not connect to Hostaway with provided credentials'
+            error: 'Connection test failed',
+            message: testError instanceof Error ? testError.message : 'Unknown error'
           });
         }
       }
@@ -65,7 +84,7 @@ export default function mountIntegrationRoutes(app: Express) {
       const integration = {
         provider,
         authType,
-        credentials: { apiKey, accountId },
+        credentials,
         isActive: true,
         connectedAt: new Date()
       };
@@ -115,9 +134,16 @@ export default function mountIntegrationRoutes(app: Express) {
 
       let testResult = false;
       
-      if (integration.provider === 'hostaway') {
-        const client = new HostawayClient(integration.credentials as { apiKey: string; accountId: string });
-        testResult = await client.testConnection();
+      try {
+        if (integration.provider === 'demo') {
+          testResult = true; // Demo always works
+        } else {
+          const client = PMSClientFactory.create(integration.provider as PMSProviderName, integration.credentials);
+          testResult = await (client as any).testConnection?.() || false;
+        }
+      } catch (error) {
+        console.error('Connection test error:', error);
+        testResult = false;
       }
 
       if (testResult) {

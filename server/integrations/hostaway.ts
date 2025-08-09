@@ -1,29 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
-
-export interface HostawayListing {
-  id: number;
-  title: string;
-  address: string;
-  bedrooms: number;
-  bathrooms: number;
-  maxGuests: number;
-  propertyType: string;
-  status: string;
-}
-
-export interface HostawayAvailability {
-  date: string;
-  available: boolean;
-  price?: number;
-  minStay?: number;
-}
+import { PMSClient, PMSListing, PMSAvailability } from './types';
 
 export interface HostawayCredentials {
   apiKey: string;
   accountId: string;
 }
 
-export class HostawayClient {
+export class HostawayClient implements PMSClient {
   private client: AxiosInstance;
   private credentials: HostawayCredentials;
 
@@ -38,23 +21,27 @@ export class HostawayClient {
     });
   }
 
-  async getListings(): Promise<HostawayListing[]> {
+  async listListings(params?: { limit?: number; offset?: number }): Promise<PMSListing[]> {
     try {
+      const { limit = 10, offset = 0 } = params || {};
       const response = await this.client.get('/listings', {
         params: {
-          accountId: this.credentials.accountId
+          accountId: this.credentials.accountId,
+          limit,
+          offset
         }
       });
       
       return response.data.result?.map((listing: any) => ({
-        id: listing.id,
+        id: listing.id.toString(),
         title: listing.name || listing.title,
         address: listing.address,
         bedrooms: listing.bedrooms || 0,
         bathrooms: listing.bathrooms || 0,
         maxGuests: listing.maxGuests || 1,
         propertyType: listing.propertyTypeName || 'Unknown',
-        status: listing.isActive ? 'active' : 'inactive'
+        status: listing.isActive ? 'active' : 'inactive',
+        description: listing.description || undefined
       })) || [];
     } catch (error) {
       console.error('Error fetching Hostaway listings:', error);
@@ -62,12 +49,13 @@ export class HostawayClient {
     }
   }
 
-  async getAvailability(listingId: number, startDate: string, endDate: string): Promise<HostawayAvailability[]> {
+  async getAvailability(params: { listingId: string | number; start: string; end: string }): Promise<PMSAvailability[]> {
     try {
+      const { listingId, start, end } = params;
       const response = await this.client.get(`/listings/${listingId}/calendar`, {
         params: {
-          startDate,
-          endDate,
+          startDate: start,
+          endDate: end,
           accountId: this.credentials.accountId
         }
       });
@@ -76,7 +64,8 @@ export class HostawayClient {
         date: day.date,
         available: day.isAvailable,
         price: day.price || undefined,
-        minStay: day.minStay || undefined
+        minStay: day.minStay || undefined,
+        currency: day.currency || 'USD'
       })) || [];
     } catch (error) {
       console.error('Error fetching Hostaway availability:', error);

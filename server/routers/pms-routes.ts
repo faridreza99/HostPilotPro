@@ -1,6 +1,7 @@
-import { Express, Response } from 'express';
+import { Express, Request, Response } from 'express';
 import { requireIntegration, IntegrationRequest } from '../middlewares/integration-auth';
-import { HostawayClient } from '../integrations/hostaway';
+import { PMSClientFactory } from '../integrations/factory';
+import { PMSProviderName } from '../integrations/types';
 
 export default function mountPmsRoutes(app: Express) {
 
@@ -8,22 +9,19 @@ export default function mountPmsRoutes(app: Express) {
   app.get('/api/pms/listings', requireIntegration(), async (req: IntegrationRequest, res: Response) => {
     try {
       const { integration } = req;
+      const { limit, offset } = req.query;
       
-      if (integration.provider === 'hostaway') {
-        const client = new HostawayClient(integration.credentials as { apiKey: string; accountId: string });
-        const listings = await client.getListings();
-        
-        res.json({
-          success: true,
-          provider: integration.provider,
-          listings
-        });
-      } else {
-        res.status(400).json({
-          error: 'Unsupported provider',
-          message: `Provider ${integration.provider} is not supported yet`
-        });
-      }
+      const client = PMSClientFactory.create(integration.provider as PMSProviderName, integration.credentials);
+      const listings = await client.listListings({
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined
+      });
+      
+      res.json({
+        success: true,
+        provider: integration.provider,
+        listings
+      });
     } catch (error) {
       console.error('Error fetching PMS listings:', error);
       res.status(500).json({
@@ -46,33 +44,43 @@ export default function mountPmsRoutes(app: Express) {
         });
       }
 
-      if (integration.provider === 'hostaway') {
-        const client = new HostawayClient(integration.credentials as { apiKey: string; accountId: string });
-        const availability = await client.getAvailability(
-          parseInt(listingId as string),
-          start as string,
-          end as string
-        );
-        
-        res.json({
-          success: true,
-          provider: integration.provider,
-          listingId: parseInt(listingId as string),
-          period: { start, end },
-          availability
-        });
-      } else {
-        res.status(400).json({
-          error: 'Unsupported provider',
-          message: `Provider ${integration.provider} is not supported yet`
-        });
-      }
+      const client = PMSClientFactory.create(integration.provider as PMSProviderName, integration.credentials);
+      const availability = await client.getAvailability({
+        listingId: listingId as string,
+        start: start as string,
+        end: end as string
+      });
+      
+      res.json({
+        success: true,
+        provider: integration.provider,
+        listingId: listingId as string,
+        period: { start, end },
+        availability
+      });
     } catch (error) {
       console.error('Error fetching PMS availability:', error);
       res.status(500).json({
         error: 'Failed to fetch availability',
         message: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  });
+
+  // Get supported PMS providers
+  app.get('/api/pms/providers', async (req: Request, res: Response) => {
+    try {
+      const providers = PMSClientFactory.getSupportedProviders().map(provider => ({
+        name: provider,
+        displayName: provider.charAt(0).toUpperCase() + provider.slice(1),
+        requiredCredentials: PMSClientFactory.getProviderRequiredCredentials(provider),
+        isDemo: provider === 'demo'
+      }));
+      
+      res.json({ providers });
+    } catch (error) {
+      console.error('Error getting providers:', error);
+      res.status(500).json({ error: 'Failed to get providers' });
     }
   });
 
