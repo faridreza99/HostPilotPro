@@ -21,7 +21,7 @@ import { useDashboardStats, useUsersData } from "@/hooks/useDashboardData";
 
 // Lazy load all System modules - only load when user clicks
 const SettingsPage = lazy(() => import("./Settings"));
-const HostawayUserManagement = lazy(() => import("./HostawayUserManagement"));  
+const UserManagement = lazy(() => import("./UserManagement"));  
 const AutomationManagement = lazy(() => import("./AutomationManagement"));
 const AiNotificationsReminders = lazy(() => import("./AiNotificationsReminders"));
 const ActivityLogs = lazy(() => import("./ActivityLogs"));
@@ -61,13 +61,13 @@ export default function SystemHub() {
       component: SettingsPage
     },
     {
-      title: "User Management", 
-      description: "Manage users, roles, permissions, and access control across the platform",
+      title: "Staff Management", 
+      description: "Manage staff members, roles, permissions, and granular access control across all platform modules",
       key: "user-management",
       icon: Users,
-      badge: "Users",
+      badge: "Staff",
       color: "bg-green-50 hover:bg-green-100 border-green-200",
-      component: HostawayUserManagement
+      component: UserManagement
     },
     {
       title: "Automation Management",
