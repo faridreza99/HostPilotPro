@@ -33,7 +33,7 @@ export default function DashboardHub() {
     {
       title: "Property Dashboard",
       description: "Property-specific metrics, occupancy rates, and performance analytics",
-      href: "/filtered-property-dashboard", 
+      href: "/property-hub", 
       icon: Building2,
       badge: "Properties",
       color: "bg-purple-50 hover:bg-purple-100 border-purple-200"
