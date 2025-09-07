@@ -106,6 +106,7 @@ import PropertyHub from "@/pages/PropertyHub";
 import OptimizedPropertyHub from "@/pages/OptimizedPropertyHub";
 import FinanceHub from "@/pages/FinanceHub";
 import SystemHub from "@/pages/SystemHub";
+import ConsolidatedSystemHub from "@/pages/ConsolidatedSystemHub";
 import OptimizedFinanceHub from "@/pages/OptimizedFinanceHub";
 import OptimizedSystemHub from "@/pages/OptimizedSystemHub";
 
@@ -175,7 +176,8 @@ function AppRoutes() {
         <Route path="/dashboard-hub" component={DashboardHub} />
         <Route path="/property-hub" component={PropertyHub} />
         <Route path="/finance-hub" component={FinanceHub} />
-        <Route path="/system-hub" component={SystemHub} />
+        <Route path="/system-hub" component={ConsolidatedSystemHub} />
+        <Route path="/system-hub-old" component={SystemHub} />
         
         {/* Enhanced Dashboards */}
         <Route path="/simple-filtered-financial-dashboard" component={LazyFinancialDashboard} />
