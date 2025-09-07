@@ -149,7 +149,7 @@ export async function seedAiDemoData() {
       matchedKeywords: ["pool dirty", "pool water", "needs cleaning"],
       confidenceScore: 0.92,
       actionTaken: "requires_review",
-      processedBy: "AI_SYSTEM",
+      processedBy: "demo-admin",
       processingTime: 150,
     });
 
@@ -161,7 +161,7 @@ export async function seedAiDemoData() {
       matchedKeywords: ["too cold", "heating"],
       confidenceScore: 0.88,
       actionTaken: "requires_review",
-      processedBy: "AI_SYSTEM",
+      processedBy: "demo-admin",
       processingTime: 120,
     });
 
