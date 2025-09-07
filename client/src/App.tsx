@@ -124,6 +124,7 @@ import PortfolioManagerDashboard from "@/pages/PortfolioManagerDashboard";
 import OwnerDashboard from "@/pages/OwnerDashboard";
 import GuestPortal from "@/pages/GuestPortal";
 import PropertySettingsModule from "@/pages/PropertySettingsModule";
+import EnhancedAdminDashboard from "@/pages/EnhancedAdminDashboard";
 import DocumentCenter from "@/pages/DocumentCenter";
 import PropertyDocumentCenter from "@/pages/PropertyDocumentCenter";
 import PropertyDocumentUpload from "@/pages/PropertyDocumentUpload";
@@ -180,6 +181,7 @@ function AppRoutes() {
         <Route path="/system-hub-old" component={SystemHub} />
         
         {/* Enhanced Dashboards */}
+        <Route path="/enhanced-admin-dashboard" component={EnhancedAdminDashboard} />
         <Route path="/simple-filtered-financial-dashboard" component={LazyFinancialDashboard} />
         <Route path="/filtered-property-dashboard" component={UltraFastPropertyDashboard} />
         
