@@ -182,77 +182,176 @@ export class CoreFinancialCalculationService {
   }
 
   /**
+   * Get property defaults with all configuration
+   */
+  async getPropertyDefaults(organizationId: string, propertyId: number): Promise<PropertyDefaults> {
+    // Get property configuration
+    const property = await db.select().from(properties).where(eq(properties.id, propertyId)).limit(1);
+    if (!property[0]) throw new Error('Property not found');
+    
+    const prop = property[0];
+    
+    // Get channel routing for this property
+    const channelRouting: { [channel: string]: ChannelPayoutRouting } = {};
+    try {
+      const routingRules = await db.query.sql`
+        SELECT channel, routing_type, owner_split_pct, company_split_pct
+        FROM channel_payout_routing 
+        WHERE organization_id = ${organizationId} AND property_id = ${propertyId}
+      `;
+      
+      for (const rule of routingRules) {
+        channelRouting[rule.channel] = {
+          routingType: rule.routing_type,
+          ownerSplitPct: rule.owner_split_pct ? Number(rule.owner_split_pct) : undefined,
+          companySplitPct: rule.company_split_pct ? Number(rule.company_split_pct) : undefined
+        };
+      }
+    } catch (e) {
+      console.log('No channel routing found for property');
+    }
+    
+    // Get default expenses
+    const defaultExpenses: Array<{ expenseType: string; amount: number; description?: string }> = [];
+    try {
+      const expenses = await db.query.sql`
+        SELECT expense_type, amount, description
+        FROM property_default_expenses 
+        WHERE organization_id = ${organizationId} AND property_id = ${propertyId}
+      `;
+      
+      for (const expense of expenses) {
+        defaultExpenses.push({
+          expenseType: expense.expense_type,
+          amount: Number(expense.amount),
+          description: expense.description
+        });
+      }
+    } catch (e) {
+      console.log('No default expenses found for property');
+    }
+    
+    return {
+      managementFeePct: Number(prop.managementFeePct) || 15.00,
+      pmUserId: prop.pmUserId || undefined,
+      pmSplitPct: Number(prop.pmSplitPct) || 50.00,
+      referralAgentId: prop.referralAgentId || undefined,
+      retailAgentId: prop.retailAgentId || undefined,
+      defaultExpenses,
+      channelRouting
+    };
+  }
+  
+  /**
    * Calculate financial breakdown for a specific booking using exact core logic
+   * Step 1: Apply channel payout routing (where money goes initially)
+   * Step 2: Apply calculations (fees, PM splits, owner payouts)
    */
   async calculateBookingBreakdown(
     organizationId: string,
     bookingId: number,
     grossBookingRevenue: number,
-    platformFees: number = 0,
-    ownerBillableExpenses: number = 0,
-    hasReferralAgent: boolean = false,
-    hasRetailAgent: boolean = false
+    channel: string = 'airbnb',
+    platformFees: number = 0
   ): Promise<BookingFinancialBreakdown> {
     
     // Get booking details
     const booking = await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1);
     if (!booking[0]) throw new Error('Booking not found');
     
-    const propertyId = booking[0].propertyId;
+    const propertyId = booking[0].propertyId!;
     
-    // Get commission settings with hierarchy
-    const settings = await this.getCommissionSettings(organizationId, propertyId, bookingId);
+    // Get property defaults
+    const propertyDefaults = await this.getPropertyDefaults(organizationId, propertyId);
     
-    // Step 1: Calculate net basis
+    // Step 1: Apply channel payout routing (where money goes initially)
+    const channelRouting = propertyDefaults.channelRouting[channel] || { routingType: 'company_100' };
+    
+    let initialPayoutToCompany = 0;
+    let initialPayoutToOwner = 0;
+    
+    switch (channelRouting.routingType) {
+      case 'company_100':
+        initialPayoutToCompany = grossBookingRevenue;
+        initialPayoutToOwner = 0;
+        break;
+      case 'owner_100':
+        initialPayoutToCompany = 0;
+        initialPayoutToOwner = grossBookingRevenue;
+        break;
+      case 'split':
+        initialPayoutToOwner = (grossBookingRevenue * (channelRouting.ownerSplitPct || 50)) / 100;
+        initialPayoutToCompany = grossBookingRevenue - initialPayoutToOwner;
+        break;
+    }
+    
+    // Step 2: Apply calculations (fees, PM splits, owner payouts) - these are always calculated the same way
     const netBasis = grossBookingRevenue - platformFees;
     
-    // Step 2: Calculate management fee
-    const managementFeePct = settings.managementFeePct;
-    const managementFeeAmount = (netBasis * managementFeePct) / 100;
+    // Management fee calculation
+    const managementFeePct = propertyDefaults.managementFeePct;
+    const managementFeeAmount = (grossBookingRevenue * managementFeePct) / 100;
     
-    // Step 3: Calculate PM and Company shares of management fee
-    const pmSplitPct = settings.pmSplitPct;
+    // PM split calculation
+    const pmSplitPct = propertyDefaults.pmSplitPct;
     const pmShare = (managementFeeAmount * pmSplitPct) / 100;
     const companyShare = managementFeeAmount - pmShare;
     
-    // Step 4: Calculate agent commissions
+    // Agent commissions (only if agents are assigned)
     let referralAgentCommission = 0;
     let retailAgentCommission = 0;
     
-    if (hasReferralAgent) {
-      // Referral agent commission = 10% of management fee (default, deducted from company share)
+    const settings = await this.getCommissionSettings(organizationId, propertyId, bookingId);
+    
+    if (propertyDefaults.referralAgentId) {
       referralAgentCommission = (managementFeeAmount * settings.referralAgentPct) / 100;
     }
     
-    if (hasRetailAgent) {
-      // Retail agent commission = 10% of configurable basis (management fee or gross)
+    if (propertyDefaults.retailAgentId) {
       const retailBasis = settings.retailAgentBasis === 'gross' ? grossBookingRevenue : managementFeeAmount;
       retailAgentCommission = (retailBasis * settings.retailAgentPct) / 100;
     }
     
-    // Step 5: Calculate owner payout
-    const ownerPayout = netBasis - managementFeeAmount - ownerBillableExpenses;
+    // Owner billable expenses from property defaults
+    const ownerBillableExpenses = propertyDefaults.defaultExpenses.reduce((total, expense) => total + expense.amount, 0);
     
-    // Step 6: Calculate final company share (after agent commissions)
-    const finalCompanyShare = companyShare - referralAgentCommission - retailAgentCommission;
+    // Final calculations
+    const finalOwnerPayout = grossBookingRevenue - managementFeeAmount - ownerBillableExpenses;
+    const finalCompanyRetention = companyShare - referralAgentCommission - retailAgentCommission;
     
     return {
+      // Channel routing (applied first)
+      channelPayoutRouting: channelRouting,
+      initialPayoutToCompany,
+      initialPayoutToOwner,
+      
+      // Core revenue flow
       grossBookingRevenue,
       platformFees,
       netBasis,
+      
+      // Management fee calculations
       managementFeePct,
       managementFeeAmount,
+      
+      // PM split
       pmSplitPct,
       pmShare,
       companyShare,
+      
+      // Agent commissions
       referralAgentPct: settings.referralAgentPct,
       referralAgentCommission,
       retailAgentPct: settings.retailAgentPct,
       retailAgentBasis: settings.retailAgentBasis,
       retailAgentCommission,
+      
+      // Owner billable expenses
       ownerBillableExpenses,
-      ownerPayout,
-      finalCompanyShare
+      
+      // Final payouts
+      finalOwnerPayout,
+      finalCompanyRetention
     };
   }
 
