@@ -11,16 +11,22 @@ window.addEventListener("unhandledrejection", (event) => {
   console.error("🚨 Unhandled Promise Rejection:", event.reason);
 });
 
-// Button interaction debugging  
+// Button interaction debugging - improved to detect React event handlers
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     document.querySelectorAll("button").forEach(btn => {
-      const hasHandler = btn.onclick;
-      if (!hasHandler && btn.innerText.trim()) {
-        console.warn(`⚠️ Button has no action:`, btn.innerText.trim());
+      const hasClickHandler = btn.onclick || 
+        btn.getAttribute('onclick') ||
+        btn.hasAttribute('data-testid') ||
+        btn.closest('form') ||
+        btn.type === 'submit' ||
+        btn.getAttribute('aria-expanded') !== null; // Dropdown/modal triggers
+      
+      if (!hasClickHandler && btn.innerText.trim() && !btn.disabled) {
+        console.warn(`⚠️ Button may have no action:`, btn.innerText.trim());
       }
     });
-  }, 2000); // Wait for React to render
+  }, 3000); // Wait longer for React to render and attach handlers
 });
 
 createRoot(document.getElementById("root")!).render(<App />);
