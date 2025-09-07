@@ -88,7 +88,6 @@ export default function PropertyHub() {
   }, []);
   
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Delete property mutation
   const deleteMutation = useMutation({
@@ -128,26 +127,6 @@ export default function PropertyHub() {
     staleTime: 10 * 60 * 1000,
   });
 
-  // Delete property mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/properties/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
-      toast({
-        title: "Success",
-        description: "Property deleted successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete property",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Type assertions for safety
   const propertiesArray = Array.isArray(properties) ? properties : [];
