@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -25,6 +26,8 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property, isSelected, onSelect, onViewDetails }: PropertyCardProps) {
+  const [, navigate] = useLocation();
+  
   const formatCurrency = (amount: number) => {
     return `฿${amount?.toLocaleString() || '0'}`;
   };
@@ -170,10 +173,22 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails }: 
           <Button variant="outline" size="sm" onClick={onViewDetails} className="flex-1">
             View Details
           </Button>
-          <Button variant="outline" size="sm" className="px-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="px-3" 
+            onClick={() => navigate('/bookings')}
+            title="View Bookings & Calendar"
+          >
             <Calendar className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="sm" className="px-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="px-3"
+            onClick={() => navigate(`/finance-hub?property=${property.id}&name=${encodeURIComponent(property.name || 'Property')}`)}
+            title="View Property Analytics"
+          >
             <TrendingUp className="h-4 w-4" />
           </Button>
         </div>
