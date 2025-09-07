@@ -84,6 +84,10 @@ export default function ConsolidatedSystemHub() {
   const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
   const { data: users = [], isLoading: usersLoading } = useUsersData();
 
+  // Safe fallbacks for null data
+  const safeUsers = users || [];
+  const safeStats = dashboardStats || { totalProperties: 0 };
+
   const categories: CategorySection[] = [
     {
       title: "Core Settings",
@@ -424,7 +428,7 @@ export default function ConsolidatedSystemHub() {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{dashboardStats?.totalProperties || 0}</div>
+                  <div className="text-2xl font-bold">{safeStats.totalProperties || 0}</div>
                 </CardContent>
               </Card>
               
@@ -434,7 +438,7 @@ export default function ConsolidatedSystemHub() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{users.length}</div>
+                  <div className="text-2xl font-bold">{safeUsers.length}</div>
                 </CardContent>
               </Card>
               
@@ -451,7 +455,7 @@ export default function ConsolidatedSystemHub() {
 
             {/* Consolidated Categories */}
             <div className="space-y-6">
-              {categories.map((category) => {
+              {categories && categories.length > 0 ? categories.map((category) => {
                 const isExpanded = expandedCategories[category.title];
                 const CategoryIcon = category.icon;
                 
@@ -529,7 +533,15 @@ export default function ConsolidatedSystemHub() {
                     </Collapsible>
                   </Card>
                 );
-              })}
+              }) : (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center text-muted-foreground">
+                      Loading system modules...
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </main>
