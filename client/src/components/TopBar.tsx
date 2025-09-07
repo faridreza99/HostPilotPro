@@ -17,7 +17,6 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { 
-  Menu, 
   Bell, 
   Search, 
   Settings,
@@ -61,7 +60,6 @@ interface TopBarProps {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
-  onMobileMenuToggle?: () => void;
 }
 
 // Role icons mapping
@@ -85,7 +83,7 @@ const roleColors = {
   guest: "bg-gray-500"
 } as const;
 
-export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: TopBarProps) {
+export default function TopBar({ title, subtitle, action }: TopBarProps) {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const userRole = (user as any)?.role || "guest";
@@ -106,15 +104,6 @@ export default function TopBar({ title, subtitle, action, onMobileMenuToggle }: 
     <header className="sticky top-0 z-40 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
       <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
         
-        {/* Mobile menu button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="lg:hidden"
-          onClick={onMobileMenuToggle}
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
 
         {/* Title and subtitle */}
         <div className="flex-1 min-w-0">
