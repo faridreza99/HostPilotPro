@@ -6,7 +6,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
 import { setupSecureAuth, requireAuth, requireRole, requirePermission } from "./secureAuth";
-import { authenticatedTenantMiddleware, getTenantContext } from "./multiTenant";
+import { isDemoAuthenticated, getTenantContext } from "./multiTenant";
 import { insertPropertySchema, insertTaskSchema, insertBookingSchema, insertFinanceSchema, insertPlatformSettingSchema, insertAddonServiceSchema, insertAddonBookingSchema, insertUtilityBillSchema, insertPropertyUtilityAccountSchema, insertUtilityBillReminderSchema, insertOwnerActivityTimelineSchema, insertOwnerPayoutRequestSchema, insertOwnerInvoiceSchema, insertOwnerPreferencesSchema, insertOwnerSettingsSchema, insertMarketingPackSchema, insertGuestServiceRequestSchema, insertGuestConfirmedServiceSchema, insertBookingLinkedTaskSchema, insertBookingRevenueSchema, insertOtaPlatformSettingsSchema, insertBookingRevenueCommissionSchema } from "@shared/schema";
 
 // Import staff management routes
@@ -2497,7 +2497,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Hostaway API routes
-  app.post("/api/hostaway/sync", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/hostaway/sync", isDemoAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -2519,7 +2519,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/hostaway/properties", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/hostaway/properties", isDemoAuthenticated, async (req, res) => {
     try {
       const { getHostawayAPI } = await import("./hostaway");
       const hostaway = await getHostawayAPI(req);
@@ -2536,7 +2536,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/hostaway/bookings", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/hostaway/bookings", isDemoAuthenticated, async (req, res) => {
     try {
       const { getHostawayAPI } = await import("./hostaway");
       const hostaway = await getHostawayAPI(req);
@@ -2553,7 +2553,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/hostaway/calendar", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/hostaway/calendar", isDemoAuthenticated, async (req, res) => {
     try {
       const { getHostawayAPI } = await import("./hostaway");
       const hostaway = await getHostawayAPI(req);
@@ -2571,7 +2571,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/hostaway/earnings", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/hostaway/earnings", isDemoAuthenticated, async (req, res) => {
     try {
       const { getHostawayAPI } = await import("./hostaway");
       const hostaway = await getHostawayAPI(req);
@@ -2589,7 +2589,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Add-on Services routes
-  app.get("/api/addon-services", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/addon-services", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const services = await storage.getAddonServices();
@@ -2601,7 +2601,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/addon-services", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/addon-services", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userData = req.user as any;
@@ -2620,7 +2620,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Add-on Bookings routes
-  app.get("/api/addon-bookings", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/addon-bookings", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const bookings = await storage.getAddonBookings();
@@ -2632,7 +2632,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/addon-bookings", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/addon-bookings", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userData = req.user as any;
@@ -2708,7 +2708,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Welcome Pack Inventory routes
-  app.get("/api/welcome-pack-items", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/welcome-pack-items", isDemoAuthenticated, async (req, res) => {
     try {
       const items = await storage.getWelcomePackItems();
       res.json(items);
@@ -2718,7 +2718,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/welcome-pack-items", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/welcome-pack-items", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       
@@ -2735,7 +2735,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/welcome-pack-templates", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/welcome-pack-templates", isDemoAuthenticated, async (req, res) => {
     try {
       const templates = await storage.getWelcomePackTemplates();
       res.json(templates);
@@ -2745,7 +2745,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/welcome-pack-templates/property/:propertyId", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/welcome-pack-templates/property/:propertyId", isDemoAuthenticated, async (req, res) => {
     try {
       const propertyId = parseInt(req.params.propertyId);
       const templates = await storage.getWelcomePackTemplatesByProperty(propertyId);
@@ -2756,7 +2756,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/welcome-pack-templates", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/welcome-pack-templates", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       
@@ -2773,7 +2773,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/welcome-pack-usage", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/welcome-pack-usage", isDemoAuthenticated, async (req, res) => {
     try {
       const usage = await storage.getWelcomePackUsage();
       res.json(usage);
@@ -2783,7 +2783,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/welcome-pack-usage/checkout", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/welcome-pack-usage/checkout", isDemoAuthenticated, async (req, res) => {
     try {
       const userData = req.user as any;
       const { bookingId, propertyId } = req.body;
@@ -2802,7 +2802,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Inventory analytics endpoints
-  app.get("/api/inventory/stats", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/inventory/stats", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const { propertyId, staffId, fromDate, toDate } = req.query;
@@ -2822,7 +2822,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/welcome-pack-usage/detailed", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/welcome-pack-usage/detailed", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const { propertyId, staffId, fromDate, toDate } = req.query;
@@ -2845,7 +2845,7 @@ Be specific and actionable in your recommendations.`;
   // Financial & Invoice Toolkit routes
 
   // Staff salary routes
-  app.get("/api/staff/salary/:userId", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/staff/salary/:userId", isDemoAuthenticated, async (req, res) => {
     try {
       const { userId } = req.params;
       const salary = await storage.getStaffSalary(userId);
@@ -2856,7 +2856,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/staff/salary", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/staff/salary", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const salaryData = { ...req.body, organizationId };
@@ -2869,7 +2869,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Commission earnings routes
-  app.get("/api/commission-earnings/:userId", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/commission-earnings/:userId", isDemoAuthenticated, async (req, res) => {
     try {
       const { userId } = req.params;
       const { period } = req.query;
@@ -2881,7 +2881,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/portfolio-manager/earnings/:managerId", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/portfolio-manager/earnings/:managerId", isDemoAuthenticated, async (req, res) => {
     try {
       const { managerId } = req.params;
       const { period } = req.query;
@@ -2894,7 +2894,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Portfolio assignment routes
-  app.get("/api/portfolio-assignments/:managerId", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/portfolio-assignments/:managerId", isDemoAuthenticated, async (req, res) => {
     try {
       const { managerId } = req.params;
       const assignments = await storage.getPortfolioAssignments(managerId);
@@ -2905,7 +2905,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/portfolio-assignments", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/portfolio-assignments", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const assignmentData = { ...req.body, organizationId };
@@ -2918,7 +2918,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Invoice routes
-  app.get("/api/invoices", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/invoices", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const { userId, type, status } = req.query;
@@ -2935,7 +2935,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/invoices/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/invoices/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const invoice = await storage.getInvoice(parseInt(id));
@@ -2949,7 +2949,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/invoices", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/invoices", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userData = req.user as any;
@@ -2974,7 +2974,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.patch("/api/invoices/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/invoices/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const invoice = await storage.updateInvoice(parseInt(id), req.body);
@@ -2988,7 +2988,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.delete("/api/invoices/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.delete("/api/invoices/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteInvoice(parseInt(id));
@@ -3003,7 +3003,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Owner Payout routes
-  app.get("/api/owner-payouts", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/owner-payouts", isDemoAuthenticated, async (req, res) => {
     try {
       const { status, ownerId, propertyId } = req.query;
       
@@ -3025,7 +3025,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/owner-payouts/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/owner-payouts/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const payoutId = parseInt(req.params.id);
       const payout = await storage.getOwnerPayout(payoutId);
@@ -3041,7 +3041,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/owner-payouts", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/owner-payouts", isDemoAuthenticated, async (req, res) => {
     try {
       const userData = req.user as any;
       const { organizationId } = getTenantContext(req);
@@ -3062,7 +3062,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.patch("/api/owner-payouts/:id/approve", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/owner-payouts/:id/approve", isDemoAuthenticated, async (req, res) => {
     try {
       const userData = req.user as any;
       const payoutId = parseInt(req.params.id);
@@ -3088,7 +3088,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.patch("/api/owner-payouts/:id/mark-paid", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/owner-payouts/:id/mark-paid", isDemoAuthenticated, async (req, res) => {
     try {
       const userData = req.user as any;
       const payoutId = parseInt(req.params.id);
@@ -3112,7 +3112,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.patch("/api/owner-payouts/:id/upload-receipt", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/owner-payouts/:id/upload-receipt", isDemoAuthenticated, async (req, res) => {
     try {
       const userData = req.user as any;
       const payoutId = parseInt(req.params.id);
@@ -3135,7 +3135,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.patch("/api/owner-payouts/:id/confirm-received", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/owner-payouts/:id/confirm-received", isDemoAuthenticated, async (req, res) => {
     try {
       const userData = req.user as any;
       const payoutId = parseInt(req.params.id);
@@ -3156,7 +3156,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.get("/api/owner-balance/:ownerId", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/owner-balance/:ownerId", isDemoAuthenticated, async (req, res) => {
     try {
       const { ownerId } = req.params;
       const { propertyId, startDate, endDate } = req.query;
@@ -3177,7 +3177,7 @@ Be specific and actionable in your recommendations.`;
 
   // Notification API routes - removed duplicates to prevent conflicts
 
-  app.post("/api/notifications/:id/read", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/notifications/:id/read", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.markNotificationRead(parseInt(id));
@@ -3192,7 +3192,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/notifications/read-all", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/notifications/read-all", isDemoAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -3207,7 +3207,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.delete("/api/notifications/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.delete("/api/notifications/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteNotification(parseInt(id));
@@ -3223,7 +3223,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Test notification route for development
-  app.post("/api/test-notification", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/test-notification", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userId = req.user?.claims?.sub;
@@ -3253,7 +3253,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Notification preferences API routes
-  app.get("/api/notification-preferences", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/notification-preferences", isDemoAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -3268,7 +3268,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/notification-preferences", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/notification-preferences", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userId = req.user?.claims?.sub;
@@ -13767,7 +13767,7 @@ Be specific and actionable in your recommendations.`;
   // === AI-TRIGGERED TASK SYSTEM API ROUTES ===
   
   // Enhanced AI Suggestions
-  app.get('/api/enhanced-ai-suggestions', authenticatedTenantMiddleware, async (req, res) => {
+  app.get('/api/enhanced-ai-suggestions', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const { propertyId, status, urgencyLevel } = req.query;
@@ -13786,7 +13786,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/enhanced-ai-suggestions', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/enhanced-ai-suggestions', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userData = req.user as any;
@@ -13804,7 +13804,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/enhanced-ai-suggestions/:id/accept', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/enhanced-ai-suggestions/:id/accept', isDemoAuthenticated, async (req, res) => {
     try {
       const suggestionId = parseInt(req.params.id);
       const userData = req.user as any;
@@ -13846,7 +13846,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/enhanced-ai-suggestions/:id/reject', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/enhanced-ai-suggestions/:id/reject', isDemoAuthenticated, async (req, res) => {
     try {
       const suggestionId = parseInt(req.params.id);
       const userData = req.user as any;
@@ -13860,7 +13860,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Property Timeline
-  app.get('/api/property-timeline/:propertyId', authenticatedTenantMiddleware, async (req, res) => {
+  app.get('/api/property-timeline/:propertyId', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const propertyId = parseInt(req.params.propertyId);
@@ -13874,7 +13874,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/property-timeline', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/property-timeline', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userData = req.user as any;
@@ -13895,7 +13895,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Smart Notifications
-  app.get('/api/smart-notifications', authenticatedTenantMiddleware, async (req, res) => {
+  app.get('/api/smart-notifications', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userData = req.user as any;
@@ -13908,7 +13908,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/smart-notifications/:id/read', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/smart-notifications/:id/read', isDemoAuthenticated, async (req, res) => {
     try {
       const notificationId = parseInt(req.params.id);
       await storage.markNotificationRead(notificationId);
@@ -13920,7 +13920,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Fast Action Suggestions
-  app.get('/api/fast-action-suggestions', authenticatedTenantMiddleware, async (req, res) => {
+  app.get('/api/fast-action-suggestions', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const propertyId = req.query.propertyId ? parseInt(req.query.propertyId as string) : undefined;
@@ -13933,7 +13933,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/fast-action-suggestions', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/fast-action-suggestions', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userData = req.user as any;
@@ -13953,7 +13953,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/fast-action-suggestions/:id/approve', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/fast-action-suggestions/:id/approve', isDemoAuthenticated, async (req, res) => {
     try {
       const actionId = parseInt(req.params.id);
       const userData = req.user as any;
@@ -13966,7 +13966,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/fast-action-suggestions/:id/reject', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/fast-action-suggestions/:id/reject', isDemoAuthenticated, async (req, res) => {
     try {
       const actionId = parseInt(req.params.id);
       const userData = req.user as any;
@@ -13981,7 +13981,7 @@ Be specific and actionable in your recommendations.`;
   });
 
   // AI Processing Endpoints
-  app.post('/api/ai/process-review-feedback', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/ai/process-review-feedback', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const { bookingId, reviewText } = req.body;
@@ -14019,7 +14019,7 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post('/api/ai/create-longstay-tasks', authenticatedTenantMiddleware, async (req, res) => {
+  app.post('/api/ai/create-longstay-tasks', isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const { bookingId } = req.body;
@@ -30364,7 +30364,7 @@ async function processGuestIssueForAI(issueReport: any) {
   // ===== PROPERTY APPLIANCES MANAGEMENT API ENDPOINTS =====
 
   // Property appliances routes
-  app.get("/api/appliances", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/appliances", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const { propertyId } = req.query;
@@ -30381,7 +30381,7 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  app.get("/api/appliances/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/appliances/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const appliance = await storage.getPropertyAppliance(parseInt(id));
@@ -30397,7 +30397,7 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  app.post("/api/appliances", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/appliances", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const userData = req.user as any;
@@ -30416,7 +30416,7 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  app.patch("/api/appliances/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/appliances/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const appliance = await storage.updatePropertyAppliance(parseInt(id), req.body);
@@ -30432,7 +30432,7 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  app.delete("/api/appliances/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.delete("/api/appliances/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deletePropertyAppliance(parseInt(id));
@@ -30449,7 +30449,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Appliance repairs routes
-  app.get("/api/appliance-repairs", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/appliance-repairs", isDemoAuthenticated, async (req, res) => {
     try {
       const { organizationId } = getTenantContext(req);
       const { applianceId } = req.query;
@@ -30466,7 +30466,7 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  app.get("/api/appliance-repairs/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/appliance-repairs/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const repair = await storage.getApplianceRepair(parseInt(id));
@@ -30482,7 +30482,7 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  app.post("/api/appliance-repairs", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/appliance-repairs", isDemoAuthenticated, async (req, res) => {
     try {
       const userData = req.user as any;
       
@@ -30499,7 +30499,7 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  app.patch("/api/appliance-repairs/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/appliance-repairs/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const repair = await storage.updateApplianceRepair(parseInt(id), req.body);
@@ -30515,7 +30515,7 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  app.delete("/api/appliance-repairs/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.delete("/api/appliance-repairs/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteApplianceRepair(parseInt(id));
@@ -30534,7 +30534,7 @@ async function processGuestIssueForAI(issueReport: any) {
   // ===== ALERT MANAGEMENT ROUTES =====
 
   // Get all alert rules
-  app.get("/api/alert-rules", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/alert-rules", isDemoAuthenticated, async (req, res) => {
     try {
       const organizationId = (req as any).organizationId;
       const { triggerType, isActive, alertLevel } = req.query;
@@ -30553,7 +30553,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Get specific alert rule by ID
-  app.get("/api/alert-rules/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/alert-rules/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const rule = await storage.getAlertRule(id);
@@ -30570,7 +30570,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Create new alert rule
-  app.post("/api/alert-rules", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/alert-rules", isDemoAuthenticated, async (req, res) => {
     try {
       const organizationId = (req as any).organizationId;
       
@@ -30588,7 +30588,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Update alert rule
-  app.patch("/api/alert-rules/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/alert-rules/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const rule = await storage.updateAlertRule(id, req.body);
@@ -30605,7 +30605,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Delete alert rule
-  app.delete("/api/alert-rules/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.delete("/api/alert-rules/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteAlertRule(id);
@@ -30622,7 +30622,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Get all alert logs
-  app.get("/api/alert-logs", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/alert-logs", isDemoAuthenticated, async (req, res) => {
     try {
       const organizationId = (req as any).organizationId;
       const { ruleId, status, alertLevel, limit, offset } = req.query;
@@ -30643,7 +30643,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Get specific alert log by ID
-  app.get("/api/alert-logs/:id", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/alert-logs/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const log = await storage.getAlertLog(id);
@@ -30660,7 +30660,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Acknowledge alert log
-  app.patch("/api/alert-logs/:id/acknowledge", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/alert-logs/:id/acknowledge", isDemoAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req as any).user.id;
@@ -30679,7 +30679,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Resolve alert log
-  app.patch("/api/alert-logs/:id/resolve", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/alert-logs/:id/resolve", isDemoAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req as any).user.id;
@@ -30698,7 +30698,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Dismiss alert log
-  app.patch("/api/alert-logs/:id/dismiss", authenticatedTenantMiddleware, async (req, res) => {
+  app.patch("/api/alert-logs/:id/dismiss", isDemoAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req as any).user.id;
@@ -30717,7 +30717,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Get alert analytics
-  app.get("/api/alert-analytics", authenticatedTenantMiddleware, async (req, res) => {
+  app.get("/api/alert-analytics", isDemoAuthenticated, async (req, res) => {
     try {
       const organizationId = (req as any).organizationId;
       const analytics = await storage.getAlertAnalytics(organizationId);
@@ -30729,7 +30729,7 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Evaluate and trigger alert rules (system endpoint)
-  app.post("/api/alert-rules/evaluate", authenticatedTenantMiddleware, async (req, res) => {
+  app.post("/api/alert-rules/evaluate", isDemoAuthenticated, async (req, res) => {
     try {
       const organizationId = (req as any).organizationId;
       const triggeredAlerts = await storage.evaluateAlertRules(organizationId);
