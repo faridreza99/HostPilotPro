@@ -47,12 +47,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Also setup production auth (fallback)
   await setupAuth(app);
 
-  // Notification API routes - deployment safe fallbacks
-  app.get("/api/notifications", (req, res) => {
+  // Notification API routes - deployment safe fallbacks with authentication
+  app.get("/api/notifications", authenticatedTenantMiddleware, (req, res) => {
     res.json([]);
   });
 
-  app.get("/api/notifications/unread", (req, res) => {
+  app.get("/api/notifications/unread", authenticatedTenantMiddleware, (req, res) => {
     res.json([]);
   });
 
