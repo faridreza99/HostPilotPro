@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -21,6 +21,26 @@ export default function Tasks() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [globalFilters, setGlobalFilters] = useGlobalFilters("tasks-filters");
   const { user } = useAuth();
+
+  // Handle URL parameters for property filtering and maintenance tasks
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyId = urlParams.get('property');
+    const filterType = urlParams.get('filter');
+    
+    if (propertyId) {
+      // Set global filters to filter by specific property
+      setGlobalFilters(prev => ({
+        ...prev,
+        propertyFilter: [parseInt(propertyId)]
+      }));
+    }
+    
+    if (filterType === 'maintenance') {
+      // Set type filter to maintenance tasks
+      setTypeFilter('maintenance');
+    }
+  }, [setGlobalFilters]);
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["/api/tasks"],

@@ -150,18 +150,35 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails }: 
 
         {/* Maintenance Tasks Priority */}
         {maintenanceTasks > 0 && (
-          <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-            <div className="flex items-center gap-2 mb-2">
-              <Wrench className="h-4 w-4 text-orange-600" />
-              <span className="text-sm font-medium text-orange-800">
-                {maintenanceTasks} Maintenance Tasks
-              </span>
+          <div 
+            className="p-3 bg-orange-50 rounded-lg border border-orange-200 cursor-pointer hover:bg-orange-100 transition-colors duration-200"
+            onClick={() => navigate(`/tasks?property=${property.id}&filter=maintenance`)}
+            title="Click to view maintenance tasks for this property"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-orange-600" />
+                <span className="text-sm font-medium text-orange-800">
+                  {maintenanceTasks} Maintenance Tasks
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-orange-700 hover:text-orange-900"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/tasks?property=${property.id}&filter=maintenance`);
+                }}
+              >
+                View →
+              </Button>
             </div>
             {urgentTasks > 0 && (
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-3 w-3 text-red-500" />
                 <span className="text-xs text-red-700">
-                  {urgentTasks} urgent task{urgentTasks > 1 ? 's' : ''}
+                  {urgentTasks} urgent task{urgentTasks > 1 ? 's' : ''} require attention
                 </span>
               </div>
             )}

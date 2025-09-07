@@ -580,10 +580,17 @@ export default function OptimizedPropertyHub() {
               </div>
 
               {property.maintenanceTasks > 0 && (
-                <div className="mt-3 p-2 bg-yellow-50 rounded-lg">
-                  <p className="text-xs text-yellow-800">
-                    {property.maintenanceTasks} pending maintenance task{property.maintenanceTasks > 1 ? 's' : ''}
-                  </p>
+                <div 
+                  className="mt-3 p-2 bg-yellow-50 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors duration-200"
+                  onClick={() => handleNavigation(`/tasks?property=${property.id}&filter=maintenance`)}
+                  title="Click to view maintenance tasks for this property"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-yellow-800">
+                      {property.maintenanceTasks} pending maintenance task{property.maintenanceTasks > 1 ? 's' : ''}
+                    </p>
+                    <span className="text-xs text-yellow-700">View →</span>
+                  </div>
                 </div>
               )}
 
