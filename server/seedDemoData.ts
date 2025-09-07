@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { 
   users, 
   properties, 
@@ -157,86 +157,70 @@ export async function seedDemoData(): Promise<void> {
       where: (props, { eq }) => eq(props.organizationId, DEMO_ORG_ID)
     });
     
-    // Create tasks for properties
-    console.log("Creating demo tasks...");
+    // Clear existing tasks and related data to avoid ID accumulation
+    try {
+      // Clear related AI scan results directly via SQL to avoid foreign key constraint
+      await db.execute(sql`DELETE FROM task_ai_scan_results WHERE task_id IN (SELECT id FROM tasks WHERE organization_id = ${DEMO_ORG_ID})`);
+      console.log("Cleared AI scan results for demo tasks");
+    } catch (e) {
+      // Table might not exist, continue
+      console.log("AI scan results table not found or already clean");
+    }
     
-    const demoTasks: InsertTask[] = [
-      {
-        organizationId: DEMO_ORG_ID,
-        propertyId: createdProperties[0].id,
-        title: 'Deep clean before guest arrival',
-        description: 'Complete deep cleaning including windows, carpets, and bathrooms',
-        type: 'cleaning',
-        priority: 'high',
-        status: 'pending',
-        assigneeId: 'staff-1',
-        dueDate: new Date('2025-01-14'),
-        department: 'housekeeping',
-      },
-      {
-        organizationId: DEMO_ORG_ID,
-        propertyId: createdProperties[0].id,
-        title: 'Check pool equipment',
-        description: 'Test pool pump, heater, and chemical levels',
-        type: 'maintenance',
-        priority: 'medium',
-        status: 'in_progress',
-        assigneeId: 'staff-2',
-        dueDate: new Date('2025-01-16'),
-        department: 'maintenance',
-      },
-      {
-        organizationId: DEMO_ORG_ID,
-        propertyId: createdProperties[1].id,
-        title: 'Replace air conditioning filter',
-        description: 'Install new HEPA filter in main AC unit',
-        type: 'maintenance',
-        priority: 'medium',
-        status: 'pending',
-        assigneeId: 'staff-3',
-        dueDate: new Date('2025-01-20'),
-        department: 'maintenance',
-      },
-      {
-        organizationId: DEMO_ORG_ID,
-        propertyId: createdProperties[2].id,
-        title: 'Stock welcome amenities',
-        description: 'Restock coffee, tea, toiletries, and welcome basket',
-        type: 'maintenance',
-        priority: 'low',
-        status: 'completed',
-        assigneeId: 'staff-4',
-        dueDate: new Date('2025-01-10'),
-        department: 'housekeeping',
-      },
-      {
-        organizationId: DEMO_ORG_ID,
-        propertyId: createdProperties[3].id,
-        title: 'Garden maintenance',
-        description: 'Trim hedges, water plants, clean outdoor furniture',
-        type: 'maintenance',
-        priority: 'medium',
-        status: 'pending',
-        assigneeId: 'staff-1',
-        dueDate: new Date('2025-01-18'),
-        department: 'landscaping',
-      },
-      {
-        organizationId: DEMO_ORG_ID,
-        propertyId: createdProperties[4].id,
-        title: 'WiFi troubleshooting',
-        description: 'Test internet connection and reset router if needed',
-        type: 'maintenance',
-        priority: 'high',
-        status: 'in_progress',
-        assigneeId: 'staff-2',
-        dueDate: new Date('2025-01-15'),
-        department: 'technical',
-      }
+    // Now safely delete tasks
+    await db.delete(tasks).where(eq(tasks.organizationId, DEMO_ORG_ID));
+    console.log("Cleared existing demo tasks and related data");
+    
+    // Create 50 demo tasks for proper demonstration
+    console.log("Creating 50 demo tasks...");
+    
+    const taskTypes = ['cleaning', 'maintenance', 'inspection', 'setup', 'repair'];
+    const priorities = ['low', 'medium', 'high'];
+    const statuses = ['pending', 'approved', 'in_progress', 'completed'];
+    const departments = ['housekeeping', 'maintenance', 'technical', 'landscaping', 'security'];
+    const staffIds = ['staff-1', 'staff-2', 'staff-3', 'staff-4'];
+    
+    const taskTitles = [
+      'Deep clean guest rooms', 'Pool maintenance check', 'AC filter replacement', 'Garden landscaping',
+      'WiFi network setup', 'Plumbing inspection', 'Window cleaning', 'Kitchen deep clean',
+      'Bathroom renovation', 'Security system check', 'Laundry service', 'Carpet cleaning',
+      'Paint touch-ups', 'Light fixture repair', 'Door lock maintenance', 'Balcony cleaning',
+      'Toilet repair', 'Shower head replacement', 'Tile cleaning', 'Grout maintenance',
+      'Furniture assembly', 'Appliance servicing', 'Pest control', 'Floor polishing',
+      'Curtain cleaning', 'Bed linen change', 'Welcome basket prep', 'Amenity restocking',
+      'Safety equipment check', 'Fire alarm testing', 'Emergency exit inspection', 'First aid kit check',
+      'Inventory management', 'Supply ordering', 'Equipment calibration', 'System backup',
+      'Guest feedback review', 'Quality assurance', 'Property documentation', 'Insurance inspection',
+      'Compliance check', 'Energy audit', 'Water quality test', 'Air quality monitoring',
+      'Temperature control', 'Humidity regulation', 'Noise level assessment', 'Lighting optimization',
+      'Internet speed test', 'Cable TV setup', 'Phone system check', 'Intercom testing'
     ];
     
+    const demoTasks: InsertTask[] = [];
+    
+    for (let i = 0; i < 50; i++) {
+      const propertyIndex = i % createdProperties.length;
+      const titleIndex = i % taskTitles.length;
+      const daysOffset = Math.floor(Math.random() * 30) - 15; // -15 to +15 days from today
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + daysOffset);
+      
+      demoTasks.push({
+        organizationId: DEMO_ORG_ID,
+        propertyId: createdProperties[propertyIndex].id,
+        title: taskTitles[titleIndex] + (i > taskTitles.length - 1 ? ` #${Math.floor(i / taskTitles.length) + 1}` : ''),
+        description: `Task description for ${taskTitles[titleIndex]} - Property ${createdProperties[propertyIndex].name}`,
+        type: taskTypes[i % taskTypes.length],
+        priority: priorities[i % priorities.length],
+        status: statuses[i % statuses.length],
+        assigneeId: staffIds[i % staffIds.length],
+        dueDate: dueDate,
+        department: departments[i % departments.length],
+      });
+    }
+    
     await db.insert(tasks).values(demoTasks);
-    console.log(`Created ${demoTasks.length} demo tasks`);
+    console.log(`Created ${demoTasks.length} demo tasks with clean sequential IDs`);
     
     // Create addon services
     console.log("Creating addon services...");
