@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { registerSaasRoutes } from "./saas-routes";
 import { registerFinanceRoutes } from "./finance-routes";
+import adminFinanceRoutes from './routes/admin-finance-routes';
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated as prodAuth } from "./replitAuth";
 import { setupDemoAuth, isDemoAuthenticated } from "./demoAuth";
@@ -96,6 +97,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register Finance routes
   registerFinanceRoutes(app);
+  
+  // Register Admin Finance routes
+  app.use('/api/admin/finance', adminFinanceRoutes);
   
   // Register Bulk Delete routes
   registerBulkDeleteRoutes(app);
