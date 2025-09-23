@@ -17,6 +17,8 @@ export function TaskProgressBar({ status, priority, className = '' }: TaskProgre
         return 50;
       case 'completed':
         return 100;
+      case 'approved':
+        return 100; // Map approved to completed
       default:
         return 0;
     }
@@ -46,6 +48,8 @@ export function TaskProgressBar({ status, priority, className = '' }: TaskProgre
         return 'In Progress';
       case 'completed':
         return 'Completed';
+      case 'approved':
+        return 'Completed'; // Map approved to completed text
       default:
         return status;
     }
