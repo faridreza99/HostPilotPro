@@ -287,12 +287,20 @@ router.post('/mark-paid', async (req, res) => {
   try {
     const { stakeholderId, stakeholderType, amount, paymentMethod, receiptUrl, notes } = req.body;
 
-    // In a real implementation, you'd update the database records and create payment records
-    // For now, just return success
+    // Mark payment as paid using the core service
+    const result = await coreFinancialCalculationService.markPaymentAsPaid(
+      stakeholderId,
+      stakeholderType,
+      amount
+    );
+
     res.json({
       success: true,
-      paymentId: `payment_${Date.now()}`,
-      paidAt: new Date().toISOString()
+      paymentId: result.paymentId,
+      paidAt: result.paidAt.toISOString(),
+      stakeholderId,
+      stakeholderType,
+      amount
     });
   } catch (error) {
     console.error('Error marking payment as paid:', error);

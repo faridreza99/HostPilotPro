@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -31,6 +31,7 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DollarSign, Eye, CheckCircle, Clock } from "lucide-react";
 import { FinancialFilters } from "@/pages/AdminFinance";
 
@@ -54,20 +55,54 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
     queryKey: [`/api/admin/finance/owner-payouts?${queryParams}`],
   });
 
+  const markPaidMutation = useMutation({
+    mutationFn: async ({ stakeholderId, amount }: { stakeholderId: string; amount: number }) => {
+      return apiRequest('/api/admin/finance/mark-paid', {
+        method: 'POST',
+        body: JSON.stringify({
+          stakeholderId,
+          stakeholderType: 'owner',
+          amount,
+          paymentMethod: 'bank_transfer',
+          notes: 'Marked as paid via admin interface'
+        }),
+      });
+    },
+    onSuccess: (data, variables) => {
+      // Show success toast
+      toast({
+        title: "Payment Marked as Paid",
+        description: `Successfully marked payment of ฿${variables.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} as paid.`,
+        duration: 3000,
+      });
+      
+      // Invalidate and refetch owner payouts data
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/admin/finance/owner-payouts'] 
+      });
+      
+      // Close dialog
+      setConfirmPaymentOwnerId(null);
+      setConfirmPaymentAmount(0);
+    },
+    onError: (error) => {
+      console.error('Error marking payment as paid:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark payment as paid. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  });
+
   const handleMarkPaidConfirm = () => {
-    // TODO: Implement mark as paid functionality
-    console.log('Mark paid:', confirmPaymentOwnerId, confirmPaymentAmount);
-    
-    // Show success toast
-    toast({
-      title: "Payment Marked as Paid",
-      description: `Successfully marked payment of ฿${confirmPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} as paid.`,
-      duration: 3000,
-    });
-    
-    // Close dialog
-    setConfirmPaymentOwnerId(null);
-    setConfirmPaymentAmount(0);
+    if (confirmPaymentOwnerId && confirmPaymentAmount > 0) {
+      markPaidMutation.mutate({
+        stakeholderId: confirmPaymentOwnerId,
+        amount: confirmPaymentAmount
+      });
+    }
   };
 
   const openPaymentConfirmation = (ownerId: string, amount: number) => {
@@ -272,8 +307,12 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleMarkPaidConfirm} className="bg-green-600 hover:bg-green-700">
-              Confirm Payment
+            <Button 
+              onClick={handleMarkPaidConfirm} 
+              className="bg-green-600 hover:bg-green-700"
+              disabled={markPaidMutation.isPending}
+            >
+              {markPaidMutation.isPending ? 'Processing...' : 'Confirm Payment'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -87,6 +87,35 @@ export interface StaffWageConfig {
 }
 
 export class CoreFinancialCalculationService {
+  // In-memory storage for payment statuses (in production, this would be a database table)
+  private static paymentStatuses: Map<string, { status: 'pending' | 'paid'; paidAt?: Date; paymentId?: string }> = new Map();
+
+  /**
+   * Mark a stakeholder payment as paid
+   */
+  async markPaymentAsPaid(stakeholderId: string, stakeholderType: string, amount: number): Promise<{ paymentId: string; paidAt: Date }> {
+    const paymentId = `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const paidAt = new Date();
+    
+    // Store payment status (in production, this would be saved to database)
+    CoreFinancialCalculationService.paymentStatuses.set(stakeholderId, {
+      status: 'paid',
+      paidAt,
+      paymentId
+    });
+    
+    console.log(`Payment marked as paid: ${stakeholderId} (${stakeholderType}) - ${amount} - Payment ID: ${paymentId}`);
+    
+    return { paymentId, paidAt };
+  }
+
+  /**
+   * Get payment status for a stakeholder
+   */
+  private getPaymentStatus(stakeholderId: string): 'pending' | 'paid' {
+    const status = CoreFinancialCalculationService.paymentStatuses.get(stakeholderId);
+    return status?.status || 'pending';
+  }
 
   /**
    * Get hierarchical commission settings with property and booking overrides
@@ -423,7 +452,7 @@ export class CoreFinancialCalculationService {
             gross: 0, // Total gross booking revenue
             net: 0,   // Total owner payouts using exact formula
             deductions: 0, // Total management fees + expenses
-            status: 'pending'
+            status: this.getPaymentStatus(ownerId)
           },
           properties: []
         });
