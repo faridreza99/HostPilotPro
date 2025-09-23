@@ -188,8 +188,26 @@ function AppRoutes() {
           }}
         </Route>
         {/* Admin Finance */}
-        <Route path="/admin/finance" component={lazy(() => import("./pages/AdminFinance"))} />
-        <Route path="/admin-finance" component={lazy(() => import("./pages/AdminFinance"))} />
+        <Route path="/admin/finance">
+          {() => {
+            const AdminFinance = lazy(() => import("./pages/AdminFinance"));
+            return (
+              <Suspense fallback={<div className="p-6"><div className="flex items-center space-x-3"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div><div className="text-lg font-medium text-blue-700">Loading Financial Admin Cockpit...</div></div></div>}>
+                <AdminFinance />
+              </Suspense>
+            );
+          }}
+        </Route>
+        <Route path="/admin-finance">
+          {() => {
+            const AdminFinance = lazy(() => import("./pages/AdminFinance"));
+            return (
+              <Suspense fallback={<div className="p-6"><div className="flex items-center space-x-3"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div><div className="text-lg font-medium text-blue-700">Loading Financial Admin Cockpit...</div></div></div>}>
+                <AdminFinance />
+              </Suspense>
+            );
+          }}
+        </Route>
         
         <Route path="/system-hub" component={ConsolidatedSystemHub} />
         <Route path="/system-hub-old" component={SystemHub} />

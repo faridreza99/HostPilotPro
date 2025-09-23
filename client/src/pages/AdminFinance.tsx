@@ -39,7 +39,7 @@ export interface FinancialFilters {
 }
 
 export default function AdminFinance() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("owner-payouts");
   const [filters, setFilters] = useState<FinancialFilters>({});
   const [showFilters, setShowFilters] = useState(false);
 
