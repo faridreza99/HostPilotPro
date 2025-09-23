@@ -99,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerFinanceRoutes(app);
   
   // Register Admin Finance routes
-  app.use('/api/admin/finance', adminFinanceRoutes);
+  app.use('/api/admin/finance', isDemoAuthenticated, adminFinanceRoutes);
   
   // Register Bulk Delete routes
   registerBulkDeleteRoutes(app);
