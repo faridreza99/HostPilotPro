@@ -72,7 +72,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
     );
   }
 
-  const totalPayout = ownerPayouts.reduce((sum: number, owner: any) => sum + owner.earnings.net, 0);
+  const totalPayout = ownerPayouts.reduce((sum: number, owner: any) => sum + (owner.earnings?.net || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -88,7 +88,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Total Payouts Due</p>
-              <p className="text-2xl font-bold">${totalPayout.toLocaleString()}</p>
+              <p className="text-2xl font-bold">฿{(totalPayout || 0).toLocaleString()}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Number of Owners</p>
@@ -97,7 +97,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
             <div>
               <p className="text-sm text-muted-foreground">Properties Involved</p>
               <p className="text-2xl font-bold">
-                {ownerPayouts.reduce((sum: number, owner: any) => sum + owner.properties.length, 0)}
+                {ownerPayouts.reduce((sum: number, owner: any) => sum + (owner.properties?.length || 0), 0)}
               </p>
             </div>
           </div>
@@ -146,13 +146,13 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    ${owner.earnings.gross.toLocaleString()}
+                    ฿{(owner.earnings?.gross || 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right">
-                    ${owner.earnings.deductions.toLocaleString()}
+                    ฿{(owner.earnings?.deductions || 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    ${owner.earnings.net.toLocaleString()}
+                    ฿{(owner.earnings?.net || 0).toLocaleString()}
                   </TableCell>
                   <TableCell>
                     {getStatusBadge(owner.earnings.status)}
@@ -184,13 +184,13 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
                                   <TableRow key={property.propertyId}>
                                     <TableCell>{property.propertyName}</TableCell>
                                     <TableCell className="text-right">
-                                      ${property.revenue.toLocaleString()}
+                                      ฿{(property.revenue || 0).toLocaleString()}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                      ${(property.revenue - property.commission).toLocaleString()}
+                                      ฿{((property.revenue || 0) - (property.commission || 0)).toLocaleString()}
                                     </TableCell>
                                     <TableCell className="text-right font-medium">
-                                      ${property.commission.toLocaleString()}
+                                      ฿{(property.commission || 0).toLocaleString()}
                                     </TableCell>
                                   </TableRow>
                                 ))}
@@ -203,7 +203,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
                       {owner.earnings.status === 'pending' && (
                         <Button
                           size="sm"
-                          onClick={() => handleMarkPaid(owner.stakeholderId, owner.earnings.net)}
+                          onClick={() => handleMarkPaid(owner.stakeholderId, owner.earnings?.net || 0)}
                         >
                           Mark Paid
                         </Button>
