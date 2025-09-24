@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -71,7 +72,13 @@ import {
   Target,
   Filter,
   Palette,
-  Trophy
+  Trophy,
+  LayoutDashboard,
+  Banknote,
+  Cog,
+  PieChart,
+  UserCheck,
+  Award
 } from "lucide-react";
 import { useFastAuth } from "@/lib/fastAuth";
 import { filterMenuForRole, getRoleDisplayInfo, UserRole } from "@/utils/roleBasedMenu";
@@ -99,19 +106,30 @@ interface MenuSection {
   items: MenuItem[];
 }
 
-// Simplified hub-based navigation for all roles
+// Enhanced hub-based navigation with better organization
 const getRoleBasedMenus = (role: string): MenuSection[] => {
-  // All roles get the same simplified hub navigation
+  // All roles get the same simplified hub navigation with better grouping
   const commonMenus = [
     {
-      title: "Main Navigation",
+      title: "📊 Analytics",
       items: [
-        { label: "Dashboard", icon: BarChart3, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
-        { label: "Property", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
-        { label: "Finance", icon: DollarSign, href: "/finance-hub", description: "Financial management and analytics" },
-        { label: "System", icon: Settings, href: "/system-hub", description: "System settings and administration" },
+        { label: "Dashboard Hub", icon: LayoutDashboard, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
+        { label: "Reports", icon: PieChart, href: "/reports", description: "Comprehensive reporting and insights" },
+      ]
+    },
+    {
+      title: "🏢 Management", 
+      items: [
+        { label: "Property Hub", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
+        { label: "Finance Hub", icon: Banknote, href: "/finance-hub", description: "Financial management and analytics" },
         { label: "Staff Salaries", icon: Calculator, href: "/salaries-wages", description: "Manage staff salaries and wages" },
-        { label: "Achievements", icon: Trophy, href: "/achievements", description: "Track your progress and unlock rewards" },
+      ]
+    },
+    {
+      title: "⚙️ Settings",
+      items: [
+        { label: "System Hub", icon: Cog, href: "/system-hub", description: "System settings and administration" },
+        { label: "Achievements", icon: Award, href: "/achievements", description: "Track your progress and unlock rewards" },
       ]
     }
   ];
@@ -121,56 +139,76 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
     "portfolio-manager": commonMenus,
     staff: [
       {
-        title: "Main Navigation",
+        title: "📊 Analytics",
         items: [
-          { label: "Dashboard", icon: BarChart3, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
-          { label: "Property", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
-          { label: "Achievements", icon: Trophy, href: "/achievements", description: "Track your progress and unlock rewards" },
+          { label: "Dashboard Hub", icon: LayoutDashboard, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
+        ]
+      },
+      {
+        title: "🏢 Management",
+        items: [
+          { label: "Property Hub", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
+        ]
+      },
+      {
+        title: "⚙️ Settings",
+        items: [
+          { label: "Achievements", icon: Award, href: "/achievements", description: "Track your progress and unlock rewards" },
         ]
       }
     ],
     owner: [
       {
-        title: "Main Navigation", 
+        title: "📊 Analytics",
         items: [
-          { label: "Dashboard", icon: BarChart3, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
-          { label: "Property", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
-          { label: "Finance", icon: DollarSign, href: "/finance-hub", description: "Financial management and analytics" },
-          { label: "Achievements", icon: Trophy, href: "/achievements", description: "Track your progress and unlock rewards" },
+          { label: "Dashboard Hub", icon: LayoutDashboard, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
+        ]
+      },
+      {
+        title: "🏢 Management",
+        items: [
+          { label: "Property Hub", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
+          { label: "Finance Hub", icon: Banknote, href: "/finance-hub", description: "Financial management and analytics" },
+        ]
+      },
+      {
+        title: "⚙️ Settings",
+        items: [
+          { label: "Achievements", icon: Award, href: "/achievements", description: "Track your progress and unlock rewards" },
         ]
       }
     ],
     "retail-agent": [
       {
-        title: "Agent Tools",
+        title: "🎯 Agent Tools",
         items: [
           { label: "Quote Generator", icon: Calculator, href: "/agent/quote-generator", description: "Generate property quotes for clients" },
-          { label: "Commissions", icon: DollarSign, href: "/agent/commissions", description: "Track commission earnings" },
+          { label: "Commissions", icon: Banknote, href: "/agent/commissions", description: "Track commission earnings" },
           { label: "Proposals", icon: FileText, href: "/agent/proposals", description: "Create and manage proposals" },
           { label: "Media Download", icon: Camera, href: "/agent/media-download", description: "Download property media files" },
-          { label: "Leaderboard", icon: Star, href: "/agent/leaderboard", description: "View performance rankings" },
+          { label: "Leaderboard", icon: Award, href: "/agent/leaderboard", description: "View performance rankings" },
         ]
       }
     ],
     "referral-agent": [
       {
-        title: "Agent Tools",
+        title: "🎯 Agent Tools",
         items: [
           { label: "Quote Generator", icon: Calculator, href: "/agent/quote-generator", description: "Generate property quotes for clients" },
-          { label: "Commissions", icon: DollarSign, href: "/agent/commissions", description: "Track commission earnings" },
+          { label: "Commissions", icon: Banknote, href: "/agent/commissions", description: "Track commission earnings" },
           { label: "Proposals", icon: FileText, href: "/agent/proposals", description: "Create and manage proposals" },
           { label: "Media Download", icon: Camera, href: "/agent/media-download", description: "Download property media files" },
-          { label: "Leaderboard", icon: Star, href: "/agent/leaderboard", description: "View performance rankings" },
+          { label: "Leaderboard", icon: Award, href: "/agent/leaderboard", description: "View performance rankings" },
         ]
       }
     ],
     guest: [
       {
-        title: "Guest Portal",
+        title: "🏨 Guest Portal",
         items: [
           { label: "My Stay", icon: Home, href: "/", description: "Guest dashboard and booking information" },
-          { label: "Property Info", icon: Building, href: "/property-info" },
-          { label: "Services", icon: Coffee, href: "/services" },
+          { label: "Property Info", icon: Building, href: "/property-info", description: "Property information and amenities" },
+          { label: "Services", icon: Coffee, href: "/services", description: "Available services and requests" },
         ]
       }
     ]
@@ -419,309 +457,288 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
   }
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full max-h-screen bg-background">
-      {/* Fixed Header - Logo, User Info, and Controls */}
-      <div className="sticky top-0 z-10 bg-background border-b flex-shrink-0">
-        {/* Brand/Logo Section */}
-        <div className="p-3 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Building className="h-5 w-5 text-primary-foreground" />
+    <TooltipProvider>
+      <div className={cn(
+        "flex flex-col h-full max-h-screen bg-background transition-all duration-300",
+        isCollapsed ? "w-16" : "w-80"
+      )}>
+        {/* Fixed Header - Logo and Collapse Toggle */}
+        <div className="sticky top-0 z-10 bg-background border-b flex-shrink-0">
+          {/* Brand/Logo Section */}
+          <div className="p-3 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <Building className="h-5 w-5 text-primary-foreground" />
+                </div>
+                {!isCollapsed && (
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm">HostPilotPro</span>
+                    <span className="text-xs text-muted-foreground">v2.0</span>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col">
-                <span className="font-semibold text-sm">HostPilotPro</span>
-                <span className="text-xs text-muted-foreground">v2.0</span>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* User Info Section */}
-        <div className="p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={(user as any)?.profileImageUrl} />
-              <AvatarFallback>
-                <RoleIcon className="h-5 w-5" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">
-                {(user as any)?.email || "User"}
-              </p>
-              <Badge 
-                variant="secondary" 
-                className={cn("text-xs", roleInfo.color)}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSidebar}
+                className="h-8 w-8 p-0 hover:bg-muted"
               >
-                {roleInfo.name}
-              </Badge>
+                {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              </Button>
             </div>
-            <NotificationBell />
-          </div>
-          
-          {/* Quick Actions */}
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={handleGoBack} className="flex-1">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => {
-                console.log("Settings button clicked");
-                setSettingsOpen(true);
-              }}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
           </div>
         </div>
-      </div>
 
-      {/* Enhanced Navigation Menu with Full Scroll Support */}
-      <div className="flex-1 overflow-hidden">
-        <div className="px-3 py-2 border-b bg-muted/20">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Navigation</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const allCollapsed = Object.values(collapsedSections).every(Boolean);
-                const newState = menuSections.reduce((acc, section) => {
-                  acc[section.title] = !allCollapsed;
-                  return acc;
-                }, {} as Record<string, boolean>);
-                setCollapsedSections(newState);
-              }}
-              className="h-6 w-6 p-0"
-            >
-              {Object.values(collapsedSections).every(Boolean) ? (
-                <PanelLeftOpen className="h-3 w-3" />
-              ) : (
-                <PanelLeftClose className="h-3 w-3" />
-              )}
-            </Button>
-          </div>
-        </div>
-        <ScrollArea className="h-full px-2">
+        {/* Enhanced Navigation Menu */}
+        <ScrollArea className="flex-1 px-2">
           <div className="py-2 space-y-1">
-            {menuSections.map((section, sectionIndex) => {
-              const hasActiveItem = section.items.some(item => location === item.href);
-              const isCollapsed = collapsedSections[section.title];
-              
-              return (
-                <Collapsible
-                  key={sectionIndex}
-                  open={!isCollapsed}
-                  onOpenChange={() => toggleSection(section.title)}
-                >
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "w-full justify-start text-left h-auto py-3 px-3 hover:bg-muted/50 transition-all duration-200",
-                        hasActiveItem && !isCollapsed && "bg-muted/30 border-l-2 border-primary/50"
-                      )}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <h3 className={cn(
-                            "text-sm font-medium transition-colors",
-                            hasActiveItem ? "text-primary" : "text-foreground"
-                          )}>
-                            {section.title}
-                          </h3>
-                          {hasActiveItem && (
-                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {section.items.length > 0 && (
-                            <Badge variant="outline" className="text-xs h-5 px-1.5">
-                              {section.items.length}
-                            </Badge>
-                          )}
-                          {isCollapsed ? (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200" />
-                          )}
-                        </div>
-                      </div>
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-1 pl-3 pr-2 pb-2">
-                    {section.items.map((item, itemIndex) => {
-                      const Icon = item.icon;
-                      // Better active state detection for URLs with parameters
-                      const isActive = (() => {
-                        const currentPath = location.split('?')[0];
-                        const itemPath = item.href.split('?')[0];
-                        
-                        // For exact match (no parameters)
-                        if (location === item.href) return true;
-                        
-                        // For parameter-based URLs, check if base path matches and parameters are correct
-                        if (currentPath === itemPath && item.href.includes('?')) {
-                          const currentParams = new URLSearchParams(location.split('?')[1] || '');
-                          const itemParams = new URLSearchParams(item.href.split('?')[1] || '');
-                          const itemTab = itemParams.get('tab');
-                          const currentTab = currentParams.get('tab');
-                          return itemTab === currentTab;
-                        }
-                        
-                        // Default case - check base path for default tab
-                        if (currentPath === itemPath && !item.href.includes('?') && !location.includes('?')) {
-                          return true;
-                        }
-                        
-                        return false;
-                      })();
-                      return (
-                        <div 
-                          key={itemIndex}
-                          onClick={() => {
-                            console.log('Sidebar link clicked:', item.href);
-                            setMobileMenuOpen(false);
-                            // For hub pages, use instant navigation, for others use regular navigation
-                            if (item.href.includes('-hub')) {
-                              // Use wouter navigation for instant loading
-                              window.history.pushState({}, '', item.href);
-                              window.dispatchEvent(new PopStateEvent('popstate'));
-                            } else if (item.href.includes('/referral-agent')) {
-                              const urlParams = new URLSearchParams(item.href.split('?')[1] || '');
-                              const tab = urlParams.get('tab') || 'services';
-                              console.log('Setting tab to:', tab);
-                              // Dispatch custom event to trigger tab change
-                              window.dispatchEvent(new CustomEvent('changeReferralTab', { detail: { tab } }));
-                            } else {
-                              // Normal navigation for other links
-                              window.location.href = item.href;
-                            }
-                          }}
-                          className="cursor-pointer"
-                        >
+            {isCollapsed ? (
+              // Collapsed view - icons only with tooltips
+              <div className="space-y-2">
+                {menuSections.flatMap(section => 
+                  section.items.map((item, itemIndex) => {
+                    const Icon = item.icon;
+                    const isActive = location === item.href;
+                    
+                    return (
+                      <Tooltip key={itemIndex}>
+                        <TooltipTrigger asChild>
                           <Button
-                            variant={isActive ? "secondary" : "ghost"}
+                            variant={isActive ? "default" : "ghost"}
+                            size="sm"
                             className={cn(
-                              "w-full justify-start text-left h-auto py-2 px-3 hover:bg-muted/80 transition-all duration-200 relative group",
-                              isActive && "bg-primary/15 text-primary border-l-2 border-primary hover:bg-primary/20 shadow-sm"
+                              "w-12 h-12 p-0 mx-auto flex items-center justify-center transition-all duration-200",
+                              isActive 
+                                ? "bg-primary text-primary-foreground shadow-lg" 
+                                : "hover:bg-muted hover:scale-105"
                             )}
+                            onClick={() => {
+                              setMobileMenuOpen(false);
+                              setLocation(item.href);
+                            }}
                           >
-                            {isActive && (
-                              <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-r" />
-                            )}
-                            <Icon className={cn(
-                              "h-4 w-4 mr-3 flex-shrink-0 transition-colors",
-                              isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                            )} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <span className={cn(
-                                  "text-sm truncate transition-colors",
-                                  isActive ? "font-medium" : "group-hover:text-foreground"
-                                )}>
-                                  {item.label}
-                                </span>
-                                <div className="flex items-center gap-1 ml-2">
-                                  {item.badge && (
-                                    <Badge 
-                                      variant={item.badge === "NEW" || item.badge === "Enhanced" ? "destructive" : "secondary"}
-                                      className="text-xs h-4 px-1.5"
-                                    >
-                                      {item.badge}
-                                    </Badge>
-                                  )}
-                                  {isActive && (
-                                    <ChevronRight className="h-3 w-3 text-primary" />
-                                  )}
-                                </div>
-                              </div>
-                              {item.description && (
-                                <p className="text-xs text-muted-foreground mt-0.5 truncate group-hover:text-muted-foreground/80">
-                                  {item.description}
-                                </p>
-                              )}
-                            </div>
+                            <Icon className="h-5 w-5" />
                           </Button>
-                        </div>
-                      );
-                    })}
-                  </CollapsibleContent>
-                </Collapsible>
-              );
-            })}
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="ml-2">
+                          <div className="font-medium">{item.label}</div>
+                          {item.description && (
+                            <div className="text-xs text-muted-foreground mt-1">{item.description}</div>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              // Expanded view - full menu with sections
+              <div className="space-y-4">
+                {menuSections.map((section, sectionIndex) => {
+                  const hasActiveItem = section.items.some(item => location === item.href);
+                  
+                  return (
+                    <div key={sectionIndex} className="space-y-2">
+                      {/* Section Header */}
+                      <div className={cn(
+                        "px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-l-2 transition-colors",
+                        hasActiveItem ? "border-primary text-primary" : "border-transparent"
+                      )}>
+                        {section.title}
+                      </div>
+                      
+                      {/* Section Items */}
+                      <div className="space-y-1">
+                        {section.items.map((item, itemIndex) => {
+                          const Icon = item.icon;
+                          const isActive = location === item.href;
+                          
+                          return (
+                            <Button
+                              key={itemIndex}
+                              variant={isActive ? "default" : "ghost"}
+                              className={cn(
+                                "w-full justify-start h-10 px-3 transition-all duration-200",
+                                isActive 
+                                  ? "bg-primary text-primary-foreground font-semibold shadow-sm" 
+                                  : "hover:bg-muted hover:translate-x-1"
+                              )}
+                              onClick={() => {
+                                setMobileMenuOpen(false);
+                                setLocation(item.href);
+                              }}
+                            >
+                              <Icon className={cn(
+                                "h-4 w-4 mr-3 transition-colors",
+                                isActive ? "text-primary-foreground" : "text-muted-foreground"
+                              )} />
+                              <span className={cn(
+                                "transition-colors",
+                                isActive ? "text-primary-foreground font-semibold" : "text-foreground"
+                              )}>
+                                {item.label}
+                              </span>
+                              {isActive && (
+                                <div className="ml-auto w-2 h-2 bg-primary-foreground rounded-full" />
+                              )}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </ScrollArea>
-      </div>
-
-      {/* Sticky Footer */}
-      <div className="sticky bottom-0 bg-background border-t flex-shrink-0">
-        <div className="p-3">
-          <div className="text-xs text-muted-foreground text-center space-y-1">
-            <div className="flex items-center justify-center gap-1">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-              <span>System Online</span>
+        
+        {/* User Profile Section at Bottom */}
+        <div className="sticky bottom-0 bg-background border-t mt-auto">
+          {isCollapsed ? (
+            // Collapsed user profile
+            <div className="p-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-12 h-12 p-0 mx-auto flex items-center justify-center hover:bg-muted"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={(user as any)?.profileImageUrl} />
+                          <AvatarFallback>
+                            <RoleIcon className="h-4 w-4" />
+                          </AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="right" align="end" className="w-64">
+                      <DropdownMenuLabel>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={(user as any)?.profileImageUrl} />
+                            <AvatarFallback>
+                              <RoleIcon className="h-4 w-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-sm">
+                              {(user as any)?.firstName} {(user as any)?.lastName || 'User'}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {(user as any)?.email}
+                            </span>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant="secondary" 
+                          className={cn("text-xs mt-2", roleInfo.color)}
+                        >
+                          {roleInfo.name}
+                        </Badge>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Logout
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="ml-2">
+                  <div className="font-medium">{(user as any)?.firstName} {(user as any)?.lastName || 'User'}</div>
+                  <div className="text-xs text-muted-foreground">{roleInfo.name}</div>
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <p>© 2025 Property Management</p>
-          </div>
+          ) : (
+            // Expanded user profile
+            <div className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={(user as any)?.profileImageUrl} />
+                  <AvatarFallback>
+                    <RoleIcon className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">
+                    {(user as any)?.firstName} {(user as any)?.lastName || 'User'}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {(user as any)?.email}
+                  </p>
+                  <Badge 
+                    variant="secondary" 
+                    className={cn("text-xs mt-1", roleInfo.color)}
+                  >
+                    {roleInfo.name}
+                  </Badge>
+                </div>
+                <NotificationBell />
+              </div>
+              
+              {/* User Actions */}
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setSettingsOpen(true)}
+                  className="flex-1"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  Settings
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleLogout}
+                  className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 
+  // Mobile Sheet
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className={cn("hidden lg:flex lg:w-80 lg:flex-col lg:fixed lg:inset-y-0 bg-background border-r", className)} style={{ maxHeight: '100vh', overflow: 'hidden' }}>
+      <div className={cn(
+        "hidden lg:flex",
+        isCollapsed ? "w-16" : "w-80",
+        className
+      )}>
         <SidebarContent />
       </div>
 
-      {/* Mobile Menu - Only show mobile sheet when controlled by TopBar */}
-      <div className="lg:hidden">
-        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-          <SheetContent side="left" className="w-[90vw] sm:w-80 md:w-96 p-0 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
-            <SheetHeader className="p-4 border-b flex-shrink-0">
-              <SheetTitle className="flex items-center gap-2">
-                <RoleIcon className="h-5 w-5" />
-                Navigation
-              </SheetTitle>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)' }}>
-              <SidebarContent />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      {/* Mobile Menu Trigger - Only show when not using external mobile menu control */}
-      {isMobileMenuOpen === undefined && (
-        <div className="lg:hidden fixed top-4 left-4 z-50">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMobileMenuOpen(true)}
-            className="bg-background shadow-md"
-          >
-            <Menu className="h-4 w-4" />
+      {/* Mobile Sheet */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetTrigger asChild className="lg:hidden">
+          <Button variant="ghost" size="sm" className="p-2">
+            <Menu className="h-6 w-6" />
           </Button>
-        </div>
-      )}
+        </SheetTrigger>
+        <SheetContent side="left" className="w-80 p-0 border-r">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>
