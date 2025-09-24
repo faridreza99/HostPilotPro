@@ -111,14 +111,14 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
   // All roles get the same simplified hub navigation with better grouping
   const commonMenus = [
     {
-      title: "📊 Analytics",
+      title: "Analytics",
       items: [
         { label: "Dashboard Hub", icon: LayoutDashboard, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
         { label: "Reports", icon: PieChart, href: "/reports", description: "Comprehensive reporting and insights" },
       ]
     },
     {
-      title: "🏢 Management", 
+      title: "Management", 
       items: [
         { label: "Property Hub", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
         { label: "Finance Hub", icon: Banknote, href: "/finance-hub", description: "Financial management and analytics" },
@@ -126,7 +126,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
       ]
     },
     {
-      title: "⚙️ Settings",
+      title: "Settings",
       items: [
         { label: "System Hub", icon: Cog, href: "/system-hub", description: "System settings and administration" },
         { label: "Achievements", icon: Award, href: "/achievements", description: "Track your progress and unlock rewards" },
@@ -139,19 +139,19 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
     "portfolio-manager": commonMenus,
     staff: [
       {
-        title: "📊 Analytics",
+        title: "Analytics",
         items: [
           { label: "Dashboard Hub", icon: LayoutDashboard, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
         ]
       },
       {
-        title: "🏢 Management",
+        title: "Management",
         items: [
           { label: "Property Hub", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
         ]
       },
       {
-        title: "⚙️ Settings",
+        title: "Settings",
         items: [
           { label: "Achievements", icon: Award, href: "/achievements", description: "Track your progress and unlock rewards" },
         ]
@@ -159,20 +159,20 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
     ],
     owner: [
       {
-        title: "📊 Analytics",
+        title: "Analytics",
         items: [
           { label: "Dashboard Hub", icon: LayoutDashboard, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
         ]
       },
       {
-        title: "🏢 Management",
+        title: "Management",
         items: [
           { label: "Property Hub", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
           { label: "Finance Hub", icon: Banknote, href: "/finance-hub", description: "Financial management and analytics" },
         ]
       },
       {
-        title: "⚙️ Settings",
+        title: "Settings",
         items: [
           { label: "Achievements", icon: Award, href: "/achievements", description: "Track your progress and unlock rewards" },
         ]
@@ -180,7 +180,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
     ],
     "retail-agent": [
       {
-        title: "🎯 Agent Tools",
+        title: "Agent Tools",
         items: [
           { label: "Quote Generator", icon: Calculator, href: "/agent/quote-generator", description: "Generate property quotes for clients" },
           { label: "Commissions", icon: Banknote, href: "/agent/commissions", description: "Track commission earnings" },
@@ -192,7 +192,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
     ],
     "referral-agent": [
       {
-        title: "🎯 Agent Tools",
+        title: "Agent Tools",
         items: [
           { label: "Quote Generator", icon: Calculator, href: "/agent/quote-generator", description: "Generate property quotes for clients" },
           { label: "Commissions", icon: Banknote, href: "/agent/commissions", description: "Track commission earnings" },
@@ -204,7 +204,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
     ],
     guest: [
       {
-        title: "🏨 Guest Portal",
+        title: "Guest Portal",
         items: [
           { label: "My Stay", icon: Home, href: "/", description: "Guest dashboard and booking information" },
           { label: "Property Info", icon: Building, href: "/property-info", description: "Property information and amenities" },
@@ -217,7 +217,7 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
   // Default fallback menu for unrecognized roles
   const defaultMenus: MenuSection[] = [
     {
-      title: "📊 Dashboard",
+      title: "Dashboard",
       items: [
         { label: "Dashboard", icon: Home, href: "/", description: "Main dashboard" },
         { label: "Properties", icon: Building, href: "/properties" },
@@ -459,66 +459,72 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
   const SidebarContent = () => (
     <TooltipProvider>
       <div className={cn(
-        "flex flex-col h-full max-h-screen bg-background transition-all duration-300",
-        isCollapsed ? "w-16" : "w-80"
+        "flex flex-col h-full max-h-screen transition-all duration-300",
+        "bg-[var(--sidebar-bg)] bg-[image:var(--sidebar-gradient)] border-r border-[var(--sidebar-border)]",
+        isCollapsed ? "w-16" : "w-72 xl:w-80"
       )}>
         {/* Fixed Header - Logo and Collapse Toggle */}
-        <div className="sticky top-0 z-10 bg-background border-b flex-shrink-0">
+        <div className="sticky top-0 z-10 bg-[var(--sidebar-bg)] border-b border-[var(--sidebar-border)] flex-shrink-0">
           {/* Brand/Logo Section */}
-          <div className="p-3 border-b">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <Building className="h-5 w-5 text-primary-foreground" />
-                </div>
-                {!isCollapsed && (
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-sm">HostPilotPro</span>
-                    <span className="text-xs text-muted-foreground">v2.0</span>
-                  </div>
-                )}
+          <div className="p-3 h-12 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+                <Building className="h-5 w-5 text-primary-foreground" />
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={toggleSidebar}
-                className="h-8 w-8 p-0 hover:bg-muted"
-              >
-                {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-              </Button>
+              {!isCollapsed && (
+                <div className="flex flex-col">
+                  <span className="font-semibold text-sm text-foreground">HostPilotPro</span>
+                  <span className="text-xs text-[var(--sidebar-muted)]">v2.0</span>
+                </div>
+              )}
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSidebar}
+              className="h-8 w-8 p-0 hover:bg-muted/60 rounded-lg"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
 
         {/* Enhanced Navigation Menu */}
-        <ScrollArea className="flex-1 px-2">
-          <div className="py-2 space-y-1">
+        <ScrollArea className="flex-1 px-3 py-2">
+          <div className="space-y-1">
             {isCollapsed ? (
               // Collapsed view - icons only with tooltips
-              <div className="space-y-2">
+              <div className="space-y-2 py-2">
                 {menuSections.flatMap(section => 
                   section.items.map((item, itemIndex) => {
                     const Icon = item.icon;
                     const isActive = location === item.href;
                     
                     return (
-                      <Tooltip key={itemIndex}>
+                      <Tooltip key={itemIndex} delayDuration={200}>
                         <TooltipTrigger asChild>
                           <Button
-                            variant={isActive ? "default" : "ghost"}
+                            variant="ghost"
                             size="sm"
                             className={cn(
-                              "w-12 h-12 p-0 mx-auto flex items-center justify-center transition-all duration-200",
+                              "w-10 h-9 p-0 mx-auto flex items-center justify-center transition-all duration-200 rounded-lg",
                               isActive 
-                                ? "bg-primary text-primary-foreground shadow-lg" 
-                                : "hover:bg-muted hover:scale-105"
+                                ? "bg-primary/10 text-primary ring-1 ring-primary/20 shadow-[var(--sidebar-shadow)]" 
+                                : "hover:bg-muted/60 hover:scale-105"
                             )}
                             onClick={() => {
                               setMobileMenuOpen(false);
                               setLocation(item.href);
                             }}
+                            aria-label={item.label}
+                            data-testid={`link-${item.href.replace('/', '').replace('/', '-') || 'home'}`}
+                            aria-current={isActive ? "page" : undefined}
                           >
-                            <Icon className="h-5 w-5" />
+                            <Icon className={cn(
+                              "h-4 w-4 transition-colors",
+                              isActive ? "text-primary" : "text-muted-foreground"
+                            )} strokeWidth={isActive ? 2.25 : 1.5} />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="right" className="ml-2">
@@ -534,18 +540,26 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
               </div>
             ) : (
               // Expanded view - full menu with sections
-              <div className="space-y-4">
+              <div className="space-y-6 py-2">
                 {menuSections.map((section, sectionIndex) => {
                   const hasActiveItem = section.items.some(item => location === item.href);
                   
                   return (
-                    <div key={sectionIndex} className="space-y-2">
+                    <div key={sectionIndex} className="space-y-3">
+                      {/* Section Divider */}
+                      {sectionIndex > 0 && <Separator className="my-2 opacity-50" />}
+                      
                       {/* Section Header */}
                       <div className={cn(
-                        "px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-l-2 transition-colors",
-                        hasActiveItem ? "border-primary text-primary" : "border-transparent"
+                        "px-2 py-2 relative",
+                        hasActiveItem && "border-l-2 border-primary/60 pl-3"
                       )}>
-                        {section.title}
+                        <div className={cn(
+                          "text-xs uppercase tracking-wider font-medium transition-colors",
+                          hasActiveItem ? "text-primary" : "text-[var(--sidebar-muted)]"
+                        )}>
+                          {section.title}
+                        </div>
                       </div>
                       
                       {/* Section Items */}
@@ -557,30 +571,32 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
                           return (
                             <Button
                               key={itemIndex}
-                              variant={isActive ? "default" : "ghost"}
+                              variant="ghost"
                               className={cn(
-                                "w-full justify-start h-10 px-3 transition-all duration-200",
+                                "w-full justify-start h-9 px-2.5 transition-all duration-200 rounded-lg",
                                 isActive 
-                                  ? "bg-primary text-primary-foreground font-semibold shadow-sm" 
-                                  : "hover:bg-muted hover:translate-x-1"
+                                  ? "bg-primary/10 text-foreground ring-1 ring-primary/20 shadow-[var(--sidebar-shadow)] font-semibold" 
+                                  : "hover:bg-muted/60 hover:translate-x-1"
                               )}
                               onClick={() => {
                                 setMobileMenuOpen(false);
                                 setLocation(item.href);
                               }}
+                              data-testid={`link-${item.href.replace('/', '').replace('/', '-') || 'home'}`}
+                              aria-current={isActive ? "page" : undefined}
                             >
                               <Icon className={cn(
                                 "h-4 w-4 mr-3 transition-colors",
-                                isActive ? "text-primary-foreground" : "text-muted-foreground"
-                              )} />
+                                isActive ? "text-primary" : "text-muted-foreground"
+                              )} strokeWidth={isActive ? 2.25 : 1.5} />
                               <span className={cn(
-                                "transition-colors",
-                                isActive ? "text-primary-foreground font-semibold" : "text-foreground"
+                                "transition-colors text-sm",
+                                isActive ? "font-semibold text-foreground" : "text-foreground"
                               )}>
                                 {item.label}
                               </span>
                               {isActive && (
-                                <div className="ml-auto w-2 h-2 bg-primary-foreground rounded-full" />
+                                <div className="ml-auto w-1.5 h-1.5 bg-primary rounded-full" />
                               )}
                             </Button>
                           );
@@ -595,21 +611,22 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
         </ScrollArea>
         
         {/* User Profile Section at Bottom */}
-        <div className="sticky bottom-0 bg-background border-t mt-auto">
+        <div className="sticky bottom-0 mt-auto p-3">
           {isCollapsed ? (
             // Collapsed user profile
-            <div className="p-2">
-              <Tooltip>
+            <div className="flex justify-center">
+              <Tooltip delayDuration={200}>
                 <TooltipTrigger asChild>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="w-12 h-12 p-0 mx-auto flex items-center justify-center hover:bg-muted"
+                        className="w-10 h-10 p-0 rounded-lg hover:bg-muted/60 transition-colors"
+                        aria-label="User menu"
                       >
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={(user as any)?.profileImageUrl} />
-                          <AvatarFallback>
+                          <AvatarFallback className="bg-primary/10 text-primary border border-primary/20">
                             <RoleIcon className="h-4 w-4" />
                           </AvatarFallback>
                         </Avatar>
@@ -617,35 +634,35 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="right" align="end" className="w-64">
                       <DropdownMenuLabel>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
                             <AvatarImage src={(user as any)?.profileImageUrl} />
-                            <AvatarFallback>
-                              <RoleIcon className="h-4 w-4" />
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                              <RoleIcon className="h-5 w-5" />
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-sm">
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="font-semibold text-sm truncate">
                               {(user as any)?.firstName} {(user as any)?.lastName || 'User'}
                             </span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground truncate">
                               {(user as any)?.email}
                             </span>
                           </div>
                         </div>
                         <Badge 
                           variant="secondary" 
-                          className={cn("text-xs mt-2", roleInfo.color)}
+                          className={cn("text-xs mt-2 font-medium", roleInfo.color)}
                         >
                           {roleInfo.name}
                         </Badge>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                      <DropdownMenuItem onClick={() => setSettingsOpen(true)} className="cursor-pointer">
                         <Settings className="h-4 w-4 mr-2" />
                         Settings
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                      <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
                         <LogOut className="h-4 w-4 mr-2" />
                         Logout
                       </DropdownMenuItem>
@@ -659,50 +676,56 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
               </Tooltip>
             </div>
           ) : (
-            // Expanded user profile
-            <div className="p-4">
+            // Expanded user profile - Compact Card Design
+            <div className="bg-[var(--sidebar-card)] border border-[var(--sidebar-border)] rounded-xl p-3 shadow-[var(--sidebar-shadow)] transition-all duration-200 hover:shadow-lg">
               <div className="flex items-center gap-3 mb-3">
-                <Avatar className="h-10 w-10">
+                <Avatar className="h-9 w-9 ring-2 ring-primary/10">
                   <AvatarImage src={(user as any)?.profileImageUrl} />
-                  <AvatarFallback>
-                    <RoleIcon className="h-5 w-5" />
+                  <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                    <RoleIcon className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
+                  <p className="font-semibold text-sm truncate text-foreground">
                     {(user as any)?.firstName} {(user as any)?.lastName || 'User'}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-[var(--sidebar-muted)] truncate">
                     {(user as any)?.email}
                   </p>
-                  <Badge 
-                    variant="secondary" 
-                    className={cn("text-xs mt-1", roleInfo.color)}
-                  >
-                    {roleInfo.name}
-                  </Badge>
                 </div>
                 <NotificationBell />
               </div>
               
-              {/* User Actions */}
+              {/* Role Badge */}
+              <div className="mb-3">
+                <Badge 
+                  variant="secondary" 
+                  className={cn("text-xs font-medium px-2 py-1", roleInfo.color)}
+                >
+                  <RoleIcon className="h-3 w-3 mr-1" />
+                  {roleInfo.name}
+                </Badge>
+              </div>
+              
+              {/* Quick Actions */}
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => setSettingsOpen(true)}
-                  className="flex-1"
+                  className="flex-1 h-8 text-xs hover:bg-muted/60 border-[var(--sidebar-border)]"
                 >
-                  <Settings className="h-4 w-4 mr-1" />
+                  <Settings className="h-3 w-3 mr-1" />
                   Settings
                 </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={handleLogout}
-                  className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+                  className="h-8 px-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 border-[var(--sidebar-border)]"
+                  aria-label="Logout"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-3 w-3" />
                 </Button>
               </div>
             </div>
