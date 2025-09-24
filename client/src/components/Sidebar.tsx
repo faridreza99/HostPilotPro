@@ -329,7 +329,7 @@ function NotificationBell() {
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto">
-            {allNotifications.slice(0, 5).map((notification: any, index: number) => (
+            {Array.isArray(allNotifications) && allNotifications.slice(0, 5).map((notification: any, index: number) => (
               <DropdownMenuItem 
                 key={notification.id || index} 
                 className="flex flex-col items-start p-3 cursor-pointer"
@@ -353,7 +353,7 @@ function NotificationBell() {
             ))}
           </div>
         )}
-        {allNotifications.length > 5 && (
+        {Array.isArray(allNotifications) && allNotifications.length > 5 && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
