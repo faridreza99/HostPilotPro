@@ -135,7 +135,31 @@ const getRoleBasedMenus = (role: string): MenuSection[] => {
   ];
 
   const roleSpecificMenus: Record<string, MenuSection[]> = {
-    admin: commonMenus,
+    admin: [
+      {
+        title: "Analytics",
+        items: [
+          { label: "Dashboard Hub", icon: LayoutDashboard, href: "/dashboard-hub", description: "Access all dashboard views and analytics" },
+          { label: "Enhanced Admin Dashboard", icon: BarChart3, href: "/dashboard/admin", description: "Advanced admin management with filtering" },
+          { label: "Reports", icon: PieChart, href: "/reports", description: "Comprehensive reporting and insights" },
+        ]
+      },
+      {
+        title: "Management", 
+        items: [
+          { label: "Property Hub", icon: Building2, href: "/property-hub", description: "Complete property management tools" },
+          { label: "Finance Hub", icon: Banknote, href: "/finance-hub", description: "Financial management and analytics" },
+          { label: "Staff Salaries", icon: Calculator, href: "/salaries-wages", description: "Manage staff salaries and wages" },
+        ]
+      },
+      {
+        title: "Settings",
+        items: [
+          { label: "System Hub", icon: Cog, href: "/system-hub", description: "System settings and administration" },
+          { label: "Achievements", icon: Award, href: "/achievements", description: "Track your progress and unlock rewards" },
+        ]
+      }
+    ],
     "portfolio-manager": commonMenus,
     staff: [
       {
