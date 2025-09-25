@@ -57,7 +57,7 @@ export default function EnhancedAdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Properties</p>
-              <p className="text-2xl font-bold">{properties.length}</p>
+              <p className="text-2xl font-bold">{Array.isArray(properties) ? properties.length : 0}</p>
             </div>
             <Building className="h-8 w-8 text-blue-600" />
           </div>
@@ -67,7 +67,7 @@ export default function EnhancedAdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Tasks</p>
-              <p className="text-2xl font-bold">{tasks.length}</p>
+              <p className="text-2xl font-bold">{Array.isArray(tasks) ? tasks.length : 0}</p>
             </div>
             <ListTodo className="h-8 w-8 text-purple-600" />
           </div>
@@ -77,7 +77,7 @@ export default function EnhancedAdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Bookings</p>
-              <p className="text-2xl font-bold">{bookings.length}</p>
+              <p className="text-2xl font-bold">{Array.isArray(bookings) ? bookings.length : 0}</p>
             </div>
             <Calendar className="h-8 w-8 text-green-600" />
           </div>
@@ -87,7 +87,7 @@ export default function EnhancedAdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Revenue (THB)</p>
-              <p className="text-2xl font-bold">{finances.filter(f => f.type === 'revenue').reduce((sum, f) => sum + (f.amount || 0), 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold">{Array.isArray(finances) ? finances.filter(f => f.type === 'revenue').reduce((sum, f) => sum + (f.amount || 0), 0).toLocaleString() : '0'}</p>
             </div>
             <DollarSign className="h-8 w-8 text-orange-600" />
           </div>
@@ -99,7 +99,7 @@ export default function EnhancedAdminDashboard() {
         <div className="bg-white p-6 rounded-lg border shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Recent Properties</h3>
           <div className="space-y-3">
-            {properties.slice(0, 5).map((property) => (
+            {Array.isArray(properties) ? properties.slice(0, 5).map((property) => (
               <div key={property.id} className="flex items-center justify-between p-3 border rounded">
                 <div>
                   <h4 className="font-medium">{property.name}</h4>
@@ -109,14 +109,14 @@ export default function EnhancedAdminDashboard() {
                   {property.status}
                 </span>
               </div>
-            ))}
+            )) : <p className="text-gray-500">No properties available</p>}
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-lg border shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Recent Tasks</h3>
           <div className="space-y-3">
-            {tasks.slice(0, 5).map((task) => (
+            {Array.isArray(tasks) ? tasks.slice(0, 5).map((task) => (
               <div key={task.id} className="flex items-center justify-between p-3 border rounded">
                 <div>
                   <h4 className="font-medium">{task.title}</h4>
@@ -126,7 +126,7 @@ export default function EnhancedAdminDashboard() {
                   {task.status}
                 </span>
               </div>
-            ))}
+            )) : <p className="text-gray-500">No tasks available</p>}
           </div>
         </div>
       </div>
