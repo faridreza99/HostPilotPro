@@ -10,10 +10,7 @@ import {
   Grid3X3,
   ClipboardList,
   RefreshCw,
-  LayoutGrid,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown
+  LayoutGrid
 } from "lucide-react";
 import TopBar from "../components/TopBar";
 import PropertyCard from "../components/PropertyCard";
@@ -36,11 +33,6 @@ interface PropertyFiltersState {
   hasMaintenanceTasks: boolean;
 }
 
-interface SortingState {
-  field: 'name' | 'revenue' | 'roi' | 'occupancy' | 'maintenance';
-  direction: 'asc' | 'desc';
-}
-
 export default function PropertyHub() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState('properties');
@@ -54,11 +46,6 @@ export default function PropertyHub() {
     roiMin: 0,
     roiMax: 50,
     hasMaintenanceTasks: false,
-  });
-
-  const [sorting, setSorting] = useState<SortingState>({
-    field: 'name',
-    direction: 'asc'
   });
 
   const queryClient = useQueryClient();
@@ -120,10 +107,9 @@ export default function PropertyHub() {
   const propertiesArray = Array.isArray(properties) ? properties : [];
   const bookingsArray = Array.isArray(bookings) ? bookings : [];
 
-  // Filter and sort properties
+  // Filter properties
   const filteredProperties = useMemo(() => {
-    // First apply filters
-    const filtered = propertiesArray.filter((property: any) => {
+    return propertiesArray.filter((property: any) => {
       // Search filter
       if (filters.search && !property.name.toLowerCase().includes(filters.search.toLowerCase())) {
         return false;
@@ -161,45 +147,7 @@ export default function PropertyHub() {
       
       return true;
     });
-
-    // Then apply sorting
-    return filtered.sort((a: any, b: any) => {
-      let valueA, valueB;
-      
-      switch (sorting.field) {
-        case 'name':
-          valueA = a.name?.toLowerCase() || '';
-          valueB = b.name?.toLowerCase() || '';
-          break;
-        case 'revenue':
-          valueA = a.monthlyRevenue || Math.floor(Math.random() * 100000) + 50000;
-          valueB = b.monthlyRevenue || Math.floor(Math.random() * 100000) + 50000;
-          break;
-        case 'roi':
-          valueA = parseFloat(a.roi || (Math.random() * 20 + 5).toFixed(1));
-          valueB = parseFloat(b.roi || (Math.random() * 20 + 5).toFixed(1));
-          break;
-        case 'occupancy':
-          valueA = a.occupancyRate || Math.floor(Math.random() * 30) + 60;
-          valueB = b.occupancyRate || Math.floor(Math.random() * 30) + 60;
-          break;
-        case 'maintenance':
-          valueA = a.maintenanceTasks || Math.floor(Math.random() * 5);
-          valueB = b.maintenanceTasks || Math.floor(Math.random() * 5);
-          break;
-        default:
-          return 0;
-      }
-      
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
-        const comparison = valueA.localeCompare(valueB);
-        return sorting.direction === 'asc' ? comparison : -comparison;
-      } else {
-        const comparison = (valueA as number) - (valueB as number);
-        return sorting.direction === 'asc' ? comparison : -comparison;
-      }
-    });
-  }, [propertiesArray, filters, sorting]);
+  }, [propertiesArray, filters]);
 
   // Property selection handlers
   const handlePropertySelect = (property: any, selected: boolean) => {
@@ -224,22 +172,6 @@ export default function PropertyHub() {
 
   const handleViewPropertyDetails = (property: any) => {
     navigate(`/property/${property.id}`);
-  };
-
-  const handleSort = (field: SortingState['field']) => {
-    setSorting(prev => ({
-      field,
-      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
-    }));
-  };
-
-  const getSortIcon = (field: SortingState['field']) => {
-    if (sorting.field !== field) {
-      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
-    }
-    return sorting.direction === 'asc' 
-      ? <ArrowUp className="h-4 w-4 text-white" />
-      : <ArrowDown className="h-4 w-4 text-white" />;
   };
 
 
@@ -349,74 +281,19 @@ export default function PropertyHub() {
                   onRefresh={refetchProperties}
                 />
 
-                {/* Sorting and Select All */}
+                {/* Select All Button */}
                 {filteredProperties.length > 0 && (
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSelectAll}
-                      >
-                        {selectedProperties.length === filteredProperties.length ? 'Deselect All' : 'Select All'}
-                        ({filteredProperties.length})
-                      </Button>
-                      <div className="text-sm text-slate-600">
-                        {selectedProperties.length} of {filteredProperties.length} selected
-                      </div>
-                    </div>
-                    
-                    {/* Sorting Options */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-600 mr-2">Sort by:</span>
-                      <Button
-                        variant={sorting.field === 'name' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleSort('name')}
-                        className={`flex items-center gap-1 transition-all duration-200 ${
-                          sorting.field === 'name' 
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md ring-2 ring-blue-200' 
-                            : 'hover:bg-blue-50 hover:border-blue-300'
-                        }`}
-                      >
-                        Name {getSortIcon('name')}
-                      </Button>
-                      <Button
-                        variant={sorting.field === 'revenue' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleSort('revenue')}
-                        className={`flex items-center gap-1 transition-all duration-200 ${
-                          sorting.field === 'revenue' 
-                            ? 'bg-green-600 hover:bg-green-700 text-white shadow-md ring-2 ring-green-200' 
-                            : 'hover:bg-green-50 hover:border-green-300'
-                        }`}
-                      >
-                        Revenue {getSortIcon('revenue')}
-                      </Button>
-                      <Button
-                        variant={sorting.field === 'roi' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleSort('roi')}
-                        className={`flex items-center gap-1 transition-all duration-200 ${
-                          sorting.field === 'roi' 
-                            ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-md ring-2 ring-purple-200' 
-                            : 'hover:bg-purple-50 hover:border-purple-300'
-                        }`}
-                      >
-                        ROI {getSortIcon('roi')}
-                      </Button>
-                      <Button
-                        variant={sorting.field === 'occupancy' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleSort('occupancy')}
-                        className={`flex items-center gap-1 transition-all duration-200 ${
-                          sorting.field === 'occupancy' 
-                            ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-md ring-2 ring-orange-200' 
-                            : 'hover:bg-orange-50 hover:border-orange-300'
-                        }`}
-                      >
-                        Occupancy {getSortIcon('occupancy')}
-                      </Button>
+                  <div className="flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAll}
+                    >
+                      {selectedProperties.length === filteredProperties.length ? 'Deselect All' : 'Select All'}
+                      ({filteredProperties.length})
+                    </Button>
+                    <div className="text-sm text-slate-600">
+                      {selectedProperties.length} of {filteredProperties.length} selected
                     </div>
                   </div>
                 )}

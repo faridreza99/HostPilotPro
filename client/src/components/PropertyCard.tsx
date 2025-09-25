@@ -5,7 +5,6 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Progress } from './ui/progress';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { 
   Building, 
   Calendar, 
@@ -17,10 +16,7 @@ import {
   Star,
   AlertTriangle,
   CheckCircle,
-  Trash2,
-  Edit,
-  Archive,
-  UserCog
+  Trash2
 } from 'lucide-react';
 
 interface PropertyCardProps {
@@ -29,12 +25,9 @@ interface PropertyCardProps {
   onSelect: (selected: boolean) => void;
   onViewDetails: () => void;
   onDelete?: () => void;
-  onEdit?: () => void;
-  onArchive?: () => void;
-  onAssignManager?: () => void;
 }
 
-export function PropertyCard({ property, isSelected, onSelect, onViewDetails, onDelete, onEdit, onArchive, onAssignManager }: PropertyCardProps) {
+export function PropertyCard({ property, isSelected, onSelect, onViewDetails, onDelete }: PropertyCardProps) {
   const [, navigate] = useLocation();
   
   const formatCurrency = (amount: number) => {
@@ -184,89 +177,18 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
               </Button>
             </div>
             {urgentTasks > 0 && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 bg-red-100 px-2 py-1 rounded-full">
-                    <AlertTriangle className="h-3 w-3 text-red-600" />
-                    <span className="text-xs font-medium text-red-700">
-                      URGENT
-                    </span>
-                  </div>
-                  <span className="text-xs text-red-700">
-                    {urgentTasks} task{urgentTasks > 1 ? 's' : ''} need immediate attention
-                  </span>
-                </div>
-                <Badge variant="destructive" className="text-xs font-bold">
-                  !
-                </Badge>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-3 w-3 text-red-500" />
+                <span className="text-xs text-red-700">
+                  {urgentTasks} urgent task{urgentTasks > 1 ? 's' : ''} require attention
+                </span>
               </div>
             )}
           </div>
         )}
 
-        {/* Quick Actions Row */}
-        <div className="flex items-center justify-between pt-2 mb-2 border-t border-gray-100">
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-slate-500">Quick Actions:</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-7 w-7 p-0 hover:bg-blue-50 hover:text-blue-600"
-                    onClick={onEdit || (() => navigate(`/property/${property.id}/edit`))}
-                  >
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Edit Property Details</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-7 w-7 p-0 hover:bg-purple-50 hover:text-purple-600"
-                    onClick={onAssignManager || (() => navigate(`/property/${property.id}/manager`))}
-                  >
-                    <UserCog className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Assign Property Manager</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-7 w-7 p-0 hover:bg-orange-50 hover:text-orange-600"
-                    onClick={onArchive || (() => console.log('Archive property:', property.id))}
-                  >
-                    <Archive className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Archive Property</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <div className="text-xs text-slate-400">
-            ID: {property.id}
-          </div>
-        </div>
-
         {/* Action Buttons */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 pt-2">
           <Button variant="outline" size="sm" onClick={onViewDetails} className="flex-1">
             View Details
           </Button>

@@ -40,23 +40,6 @@ export default function UpgradedAdminDashboard() {
   const recentBookings = bookings.slice(0, 5);
   const recentFinances = finances.slice(0, 5);
 
-  // Calculate monthly revenue from bookings
-  const calculateMonthlyRevenue = () => {
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
-    
-    return bookings.reduce((total: number, booking: any) => {
-      const bookingDate = new Date(booking.checkInDate || booking.checkIn || booking.createdAt);
-      if (bookingDate.getMonth() === currentMonth && bookingDate.getFullYear() === currentYear) {
-        return total + (booking.totalAmount || 0);
-      }
-      return total;
-    }, 0);
-  };
-
-  const monthlyRevenue = calculateMonthlyRevenue();
-
   // Create property lookup map for bookings
   const propertyMap = new Map();
   properties.forEach((property: any) => {
@@ -68,27 +51,11 @@ export default function UpgradedAdminDashboard() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
-  };
-
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth()) {
-      // Same month and year
-      return `${start.getDate()}–${end.getDate()} ${start.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`;
-    } else if (start.getFullYear() === end.getFullYear()) {
-      // Same year, different months
-      return `${start.getDate()} ${start.toLocaleDateString('en-GB', { month: 'short' })}–${end.getDate()} ${end.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`;
-    } else {
-      // Different years
-      return `${formatDate(startDate)} – ${formatDate(endDate)}`;
-    }
   };
 
   if (isLoading) {
@@ -107,10 +74,10 @@ export default function UpgradedAdminDashboard() {
       <div className="flex-1 flex flex-col lg:ml-0">
         <TopBar title="Enhanced Admin Dashboard" />
         
-        <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <main className="flex-1 overflow-auto p-6 space-y-6">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
                 Enhanced Admin Dashboard
               </h1>
               <p className="text-slate-600 dark:text-slate-400">
@@ -124,7 +91,7 @@ export default function UpgradedAdminDashboard() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -169,22 +136,11 @@ export default function UpgradedAdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-600">Monthly Revenue</p>
-                    <p className="text-2xl font-bold">{formatCurrency(monthlyRevenue)}</p>
-                  </div>
-                  <TrendingUp className="h-8 w-8 text-emerald-500" />
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
@@ -192,7 +148,7 @@ export default function UpgradedAdminDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Properties Overview */}
               <Card>
                 <CardHeader className="pb-3">
@@ -224,19 +180,9 @@ export default function UpgradedAdminDashboard() {
               {/* Recent Tasks */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ListTodo className="h-5 w-5" />
-                      Recent Tasks
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setActiveTab('tasks')}
-                      className="text-xs text-blue-600 hover:text-blue-800"
-                    >
-                      View All Tasks
-                    </Button>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <ListTodo className="h-5 w-5" />
+                    Recent Tasks
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -277,7 +223,7 @@ export default function UpgradedAdminDashboard() {
                           <p className="font-medium text-sm">{booking.guestName}</p>
                           <p className="text-xs text-blue-600 font-medium">{propertyName}</p>
                           <p className="text-xs text-slate-600">
-                            {formatDateRange(booking.checkInDate || booking.checkIn, booking.checkOutDate || booking.checkOut)}
+                            {formatDate(booking.checkInDate || booking.checkIn)} - {formatDate(booking.checkOutDate || booking.checkOut)}
                           </p>
                         </div>
                         <div className="text-right">
@@ -349,7 +295,7 @@ export default function UpgradedAdminDashboard() {
                             Property: {propertyName}
                           </p>
                           <p className="text-sm text-slate-600">
-                            {formatDateRange(booking.checkInDate || booking.checkIn, booking.checkOutDate || booking.checkOut)}
+                            {formatDate(booking.checkInDate || booking.checkIn)} - {formatDate(booking.checkOutDate || booking.checkOut)}
                           </p>
                         </div>
                         <div className="text-right">

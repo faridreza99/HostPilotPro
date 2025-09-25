@@ -3,8 +3,7 @@
  * Shows owner payout calculations with property breakdown
  */
 
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -26,12 +25,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
-  DialogFooter,
-  DialogClose
+  DialogTrigger 
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DollarSign, Eye, CheckCircle, Clock } from "lucide-react";
 import { FinancialFilters } from "@/pages/AdminFinance";
 
@@ -40,10 +35,6 @@ interface OwnerPayoutsTabProps {
 }
 
 export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
-  const [confirmPaymentOwnerId, setConfirmPaymentOwnerId] = useState<string | null>(null);
-  const [confirmPaymentAmount, setConfirmPaymentAmount] = useState<number>(0);
-  const { toast } = useToast();
-  
   // Build query parameters
   const queryParams = new URLSearchParams();
   if (filters.startDate) queryParams.set('startDate', filters.startDate.toISOString());
@@ -55,59 +46,9 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
     queryKey: [`/api/admin/finance/owner-payouts?${queryParams}`],
   });
 
-  const markPaidMutation = useMutation({
-    mutationFn: async ({ stakeholderId, amount }: { stakeholderId: string; amount: number }) => {
-      return apiRequest('/api/admin/finance/mark-paid', {
-        method: 'POST',
-        body: JSON.stringify({
-          stakeholderId,
-          stakeholderType: 'owner',
-          amount,
-          paymentMethod: 'bank_transfer',
-          notes: 'Marked as paid via admin interface'
-        }),
-      });
-    },
-    onSuccess: (data, variables) => {
-      // Show success toast
-      toast({
-        title: "Payment Marked as Paid",
-        description: `Successfully marked payment of ฿${variables.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} as paid.`,
-        duration: 3000,
-      });
-      
-      // Invalidate and refetch owner payouts data - use predicate to match all owner-payouts queries
-      queryClient.invalidateQueries({ 
-        predicate: (query) => query.queryKey[0]?.toString().includes('/api/admin/finance/owner-payouts')
-      });
-      
-      // Close dialog
-      setConfirmPaymentOwnerId(null);
-      setConfirmPaymentAmount(0);
-    },
-    onError: (error) => {
-      console.error('Error marking payment as paid:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mark payment as paid. Please try again.",
-        variant: "destructive",
-        duration: 3000,
-      });
-    }
-  });
-
-  const handleMarkPaidConfirm = () => {
-    if (confirmPaymentOwnerId && confirmPaymentAmount > 0) {
-      markPaidMutation.mutate({
-        stakeholderId: confirmPaymentOwnerId,
-        amount: confirmPaymentAmount
-      });
-    }
-  };
-
-  const openPaymentConfirmation = (ownerId: string, amount: number) => {
-    setConfirmPaymentOwnerId(ownerId);
-    setConfirmPaymentAmount(amount);
+  const handleMarkPaid = (ownerId: string, amount: number) => {
+    // TODO: Implement mark as paid functionality
+    console.log('Mark paid:', ownerId, amount);
   };
 
   const getStatusBadge = (status: string) => {
@@ -131,7 +72,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
     );
   }
 
-  const totalPayout = ownerPayouts.reduce((sum: number, owner: any) => sum + (owner.earnings?.net || 0), 0);
+  const totalPayout = ownerPayouts.reduce((sum: number, owner: any) => sum + owner.earnings.net, 0);
 
   return (
     <div className="space-y-6">
@@ -147,7 +88,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Total Payouts Due</p>
-              <p className="text-2xl font-bold">฿{(totalPayout || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-2xl font-bold">${totalPayout.toLocaleString()}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Number of Owners</p>
@@ -156,7 +97,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
             <div>
               <p className="text-sm text-muted-foreground">Properties Involved</p>
               <p className="text-2xl font-bold">
-                {ownerPayouts.reduce((sum: number, owner: any) => sum + (owner.properties?.length || 0), 0)}
+                {ownerPayouts.reduce((sum: number, owner: any) => sum + owner.properties.length, 0)}
               </p>
             </div>
           </div>
@@ -169,8 +110,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
           <CardTitle>Owner Payouts</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table className="min-w-full">
+          <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Owner</TableHead>
@@ -185,13 +125,13 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
             <TableBody>
               {ownerPayouts.map((owner: any) => (
                 <TableRow key={owner.stakeholderId}>
-                  <TableCell className="min-w-[150px]">
+                  <TableCell>
                     <div>
                       <div className="font-medium">{owner.stakeholderName}</div>
                       <div className="text-sm text-muted-foreground">{owner.stakeholderId}</div>
                     </div>
                   </TableCell>
-                  <TableCell className="min-w-[120px]">
+                  <TableCell>
                     <div className="space-y-1">
                       {owner.properties.slice(0, 2).map((property: any) => (
                         <div key={property.propertyId} className="text-sm">
@@ -205,19 +145,19 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right min-w-[100px]">
-                    ฿{(owner.earnings?.gross || 0).toLocaleString()}
+                  <TableCell className="text-right">
+                    ${owner.earnings.gross.toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right min-w-[100px]">
-                    ฿{(owner.earnings?.deductions || 0).toLocaleString()}
+                  <TableCell className="text-right">
+                    ${owner.earnings.deductions.toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right font-medium min-w-[100px]">
-                    ฿{(owner.earnings?.net || 0).toLocaleString()}
+                  <TableCell className="text-right font-medium">
+                    ${owner.earnings.net.toLocaleString()}
                   </TableCell>
-                  <TableCell className="min-w-[80px]">
+                  <TableCell>
                     {getStatusBadge(owner.earnings.status)}
                   </TableCell>
-                  <TableCell className="min-w-[140px]">
+                  <TableCell>
                     <div className="flex items-center gap-2">
                       <Dialog>
                         <DialogTrigger asChild>
@@ -244,13 +184,13 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
                                   <TableRow key={property.propertyId}>
                                     <TableCell>{property.propertyName}</TableCell>
                                     <TableCell className="text-right">
-                                      ฿{(property.revenue || 0).toLocaleString()}
+                                      ${property.revenue.toLocaleString()}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                      ฿{((property.revenue || 0) - (property.commission || 0)).toLocaleString()}
+                                      ${(property.revenue - property.commission).toLocaleString()}
                                     </TableCell>
                                     <TableCell className="text-right font-medium">
-                                      ฿{(property.commission || 0).toLocaleString()}
+                                      ${property.commission.toLocaleString()}
                                     </TableCell>
                                   </TableRow>
                                 ))}
@@ -263,7 +203,7 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
                       {owner.earnings.status === 'pending' && (
                         <Button
                           size="sm"
-                          onClick={() => openPaymentConfirmation(owner.stakeholderId, owner.earnings?.net || 0)}
+                          onClick={() => handleMarkPaid(owner.stakeholderId, owner.earnings.net)}
                         >
                           Mark Paid
                         </Button>
@@ -274,7 +214,6 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
               ))}
             </TableBody>
           </Table>
-          </div>
 
           {ownerPayouts.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
@@ -283,40 +222,6 @@ export function OwnerPayoutsTab({ filters }: OwnerPayoutsTabProps) {
           )}
         </CardContent>
       </Card>
-
-      {/* Payment Confirmation Dialog */}
-      <Dialog open={!!confirmPaymentOwnerId} onOpenChange={() => setConfirmPaymentOwnerId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Payment</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to mark this payment as paid?
-            </p>
-            <div className="mt-4 p-4 bg-slate-50 rounded-lg">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Payment Amount:</span>
-                <span className="text-lg font-bold text-green-600">
-                  ฿{confirmPaymentAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button 
-              onClick={handleMarkPaidConfirm} 
-              className="bg-green-600 hover:bg-green-700"
-              disabled={markPaidMutation.isPending}
-            >
-              {markPaidMutation.isPending ? 'Processing...' : 'Confirm Payment'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

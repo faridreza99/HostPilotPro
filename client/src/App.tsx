@@ -128,7 +128,6 @@ import EnhancedAdminDashboard from "@/pages/EnhancedAdminDashboard";
 import DocumentCenter from "@/pages/DocumentCenter";
 import PropertyDocumentCenter from "@/pages/PropertyDocumentCenter";
 import PropertyDocumentUpload from "@/pages/PropertyDocumentUpload";
-import PropertyEditPage from "@/pages/PropertyEditPage";
 
 // QueryClient is now imported from lib/queryClient for better performance
 
@@ -160,11 +159,11 @@ function AppRoutes() {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      <main className="lg:pl-72 xl:pl-80 min-h-screen flex flex-col items-stretch justify-start">
+      <div className="lg:pl-80">
+        <div className="lg:hidden h-20"></div>
         <Switch>
         <Route path="/" component={RoleBasedDashboard} />
         <Route path="/properties" component={Properties} />
-        <Route path="/property/:id/edit" component={PropertyEditPage} />
         <Route path="/property/:id" component={PropertyDetailView} />
         <Route path="/tasks" component={UltraFastTasks} />
         <Route path="/bookings" component={Bookings} />
@@ -174,12 +173,8 @@ function AppRoutes() {
         <Route path="/profile" component={ProfilePage} />
         <Route path="/help" component={FastHelp} />
         
-        {/* Dashboard Routes - Order Matters! */}
-        <Route path="/admin" component={EnhancedAdminDashboard} />
-        <Route path="/dashboard/admin" component={EnhancedAdminDashboard} />
-        <Route path="/dashboard-hub" component={DashboardHub} />
-        
         {/* Hub Pages */}
+        <Route path="/dashboard-hub" component={DashboardHub} />
         <Route path="/property-hub" component={PropertyHub} />
         <Route path="/finance-hub" component={FinanceHub} />
         <Route path="/enhanced-finances">
@@ -193,26 +188,7 @@ function AppRoutes() {
           }}
         </Route>
         {/* Admin Finance */}
-        <Route path="/admin/finance">
-          {() => {
-            const AdminFinance = lazy(() => import("./pages/AdminFinance"));
-            return (
-              <Suspense fallback={<div className="p-6"><div className="flex items-center space-x-3"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div><div className="text-lg font-medium text-blue-700">Loading Financial Admin Cockpit...</div></div></div>}>
-                <AdminFinance />
-              </Suspense>
-            );
-          }}
-        </Route>
-        <Route path="/admin-finance">
-          {() => {
-            const AdminFinance = lazy(() => import("./pages/AdminFinance"));
-            return (
-              <Suspense fallback={<div className="p-6"><div className="flex items-center space-x-3"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div><div className="text-lg font-medium text-blue-700">Loading Financial Admin Cockpit...</div></div></div>}>
-                <AdminFinance />
-              </Suspense>
-            );
-          }}
-        </Route>
+        <Route path="/admin/finance" component={lazy(() => import("./pages/AdminFinance"))} />
         
         <Route path="/system-hub" component={ConsolidatedSystemHub} />
         <Route path="/system-hub-old" component={SystemHub} />
@@ -343,7 +319,7 @@ function AppRoutes() {
         
         <Route component={NotFound} />
       </Switch>
-      </main>
+      </div>
     </div>
   );
 }
