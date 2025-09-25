@@ -84,7 +84,7 @@ export default function EnhancedAdminDashboard() {
       utilities: [], // Will be added when utility API is ready
       maintenance: [] // Will be added when maintenance API is ready
     });
-  }, [activeFilters, properties, tasks, bookings, finances]);
+  }, [activeFilters, JSON.stringify(properties), JSON.stringify(tasks), JSON.stringify(bookings), JSON.stringify(finances)]);
 
   const getPropertyName = (id: number) => {
     const propertyNames = { 1: "Villa Samui Breeze", 2: "Villa Tropical Paradise", 3: "Villa Balinese Charm", 4: "Villa Ocean View", 5: "Villa Sunset Dreams" };
@@ -204,7 +204,7 @@ export default function EnhancedAdminDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Revenue (THB)</p>
-                <p className="text-2xl font-bold">{filteredData.finances.filter(f => f.type === 'revenue').reduce((sum, f) => sum + f.amount, 0).toLocaleString()}</p>
+                <p className="text-2xl font-bold">{filteredData.finances.filter(f => f.type === 'revenue').reduce((sum, f) => sum + (f.amount || 0), 0).toLocaleString()}</p>
               </div>
               <DollarSign className="h-8 w-8 text-orange-600" />
             </div>
@@ -338,7 +338,7 @@ export default function EnhancedAdminDashboard() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="font-semibold text-green-600">₹{booking.amount.toLocaleString()}</p>
+                        <p className="font-semibold text-green-600">₹{(booking.amount || 0).toLocaleString()}</p>
                       </div>
                       <Badge variant={getStatusBadgeVariant(booking.status)}>
                         {booking.status}
@@ -376,7 +376,7 @@ export default function EnhancedAdminDashboard() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <p className={`font-semibold ${transaction.type === 'revenue' ? 'text-green-600' : transaction.type === 'expense' ? 'text-red-600' : 'text-blue-600'}`}>
-                          {transaction.type === 'expense' ? '-' : '+'}₹{transaction.amount.toLocaleString()}
+                          {transaction.type === 'expense' ? '-' : '+'}₹{(transaction.amount || 0).toLocaleString()}
                         </p>
                       </div>
                       <Badge variant={transaction.type === 'revenue' ? 'default' : transaction.type === 'expense' ? 'destructive' : 'secondary'}>
@@ -414,7 +414,7 @@ export default function EnhancedAdminDashboard() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="font-semibold">₹{utility.amount.toLocaleString()}</p>
+                        <p className="font-semibold">₹{(utility.amount || 0).toLocaleString()}</p>
                       </div>
                       <Badge variant={getStatusBadgeVariant(utility.status)}>
                         {utility.status}
@@ -449,7 +449,7 @@ export default function EnhancedAdminDashboard() {
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                         <span>{maintenance.property}</span>
-                        <span>Cost: ₹{maintenance.cost.toLocaleString()}</span>
+                        <span>Cost: ₹{(maintenance.cost || 0).toLocaleString()}</span>
                       </div>
                     </div>
                     <Badge variant={getStatusBadgeVariant(maintenance.status)}>
