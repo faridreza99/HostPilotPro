@@ -34,19 +34,6 @@
   --sidebar-muted: hsl(240, 5%, 65%);
   --sidebar-card: hsl(0, 0%, 96%);
   --sidebar-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-
-  /* Enhanced Admin Dashboard - Emerald Theme */
-  --emerald-50: hsl(151, 81%, 96%);
-  --emerald-100: hsl(149, 80%, 90%);
-  --emerald-200: hsl(152, 76%, 80%);
-  --emerald-300: hsl(156, 72%, 67%);
-  --emerald-400: hsl(158, 64%, 52%);
-  --emerald-500: hsl(160, 84%, 39%);
-  --emerald-600: hsl(161, 94%, 30%);
-  --emerald-700: hsl(163, 94%, 24%);
-  --emerald-800: hsl(164, 86%, 20%);
-  --emerald-900: hsl(166, 77%, 17%);
-  --emerald-950: hsl(169, 83%, 9%);
 }
 
 .dark {
@@ -81,19 +68,6 @@
   --sidebar-muted: hsl(240, 5%, 50%);
   --sidebar-card: hsl(240, 5%, 8%);
   --sidebar-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-
-  /* Enhanced Admin Dashboard - Emerald Theme Dark Mode */
-  --emerald-50: hsl(169, 83%, 9%);
-  --emerald-100: hsl(166, 77%, 17%);
-  --emerald-200: hsl(164, 86%, 20%);
-  --emerald-300: hsl(163, 94%, 24%);
-  --emerald-400: hsl(161, 94%, 30%);
-  --emerald-500: hsl(160, 84%, 39%);
-  --emerald-600: hsl(158, 64%, 52%);
-  --emerald-700: hsl(156, 72%, 67%);
-  --emerald-800: hsl(152, 76%, 80%);
-  --emerald-900: hsl(149, 80%, 90%);
-  --emerald-950: hsl(151, 81%, 96%);
 }
 
 @layer base {
@@ -130,27 +104,6 @@
   
   .bg-error {
     background-color: var(--error);
-  }
-
-  /* Enhanced Admin Dashboard Theme Classes */
-  .theme-admin-emerald {
-    --admin-bg: var(--emerald-50);
-    --admin-card: var(--emerald-100);
-    --admin-border: var(--emerald-200);
-    --admin-accent: var(--emerald-500);
-    --admin-accent-hover: var(--emerald-600);
-    --admin-text: var(--emerald-700);
-    --admin-text-light: var(--emerald-600);
-  }
-
-  .dark .theme-admin-emerald {
-    --admin-bg: rgba(5, 46, 22, 0.3);
-    --admin-card: rgba(5, 46, 22, 0.6);
-    --admin-border: var(--emerald-800);
-    --admin-accent: var(--emerald-400);
-    --admin-accent-hover: var(--emerald-300);
-    --admin-text: var(--emerald-300);
-    --admin-text-light: var(--emerald-400);
   }
 }
 
