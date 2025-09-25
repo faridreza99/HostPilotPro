@@ -14,7 +14,18 @@ export default function EnhancedAdminDashboard() {
   const { data: finances = [] } = useQuery({ queryKey: ["/api/finance"] });
 
   return (
-    <div className="w-full bg-gray-50 min-h-screen" style={{ margin: '0', padding: '0' }}>
+    <div 
+      className="w-full bg-gray-50 min-h-screen" 
+      style={{ 
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        right: '0',
+        margin: '0', 
+        padding: '0',
+        zIndex: 1
+      }}
+    >
       <div className="w-full px-4 sm:px-6 lg:px-8 pt-0 pb-4">
         {/* Header Section */}
         <div className="bg-white shadow-sm border p-6 mb-4" style={{ marginTop: '0' }}>
