@@ -176,6 +176,7 @@ function AppRoutes() {
         <Route path="/help" component={FastHelp} />
         
         {/* Hub Pages */}
+        <Route path="/dashboard/admin" component={EnhancedAdminDashboard} />
         <Route path="/dashboard-hub" component={DashboardHub} />
         <Route path="/property-hub" component={PropertyHub} />
         <Route path="/finance-hub" component={FinanceHub} />
@@ -215,7 +216,6 @@ function AppRoutes() {
         <Route path="/system-hub-old" component={SystemHub} />
         
         {/* Enhanced Dashboards */}
-        <Route path="/dashboard/admin" component={EnhancedAdminDashboard} />
         <Route path="/enhanced-admin-dashboard" component={EnhancedAdminDashboard} />
         <Route path="/simple-filtered-financial-dashboard" component={LazyFinancialDashboard} />
         <Route path="/filtered-property-dashboard" component={UltraFastPropertyDashboard} />
