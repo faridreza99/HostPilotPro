@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useFastAuth } from "@/lib/fastAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminGlobalFilterBar, { AdminFilters } from "@/components/AdminGlobalFilterBar";
@@ -26,6 +27,7 @@ interface FilteredData {
 
 export default function EnhancedAdminDashboard() {
   const { user } = useFastAuth();
+  const [location, setLocation] = useLocation();
   const [activeFilters, setActiveFilters] = useState<AdminFilters>({});
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createBookingOpen, setCreateBookingOpen] = useState(false);
@@ -140,12 +142,7 @@ export default function EnhancedAdminDashboard() {
             size="sm"
             className="h-8 w-8 p-0"
             onClick={() => {
-              try {
-                window.location.href = "/settings";
-              } catch (error) {
-                console.error("Settings navigation error:", error);
-                window.location.href = "/simple-settings";
-              }
+              setLocation("/settings");
             }}
             title="Settings"
           >
