@@ -35,16 +35,18 @@ export default function UpgradedAdminDashboard() {
 
   const isLoading = propertiesLoading || tasksLoading || bookingsLoading || financesLoading;
 
-  // Get recent tasks for display
-  const recentTasks = tasks.slice(0, 5);
-  const recentBookings = bookings.slice(0, 5);
-  const recentFinances = finances.slice(0, 5);
+  // Get recent tasks for display - safe array operations
+  const recentTasks = Array.isArray(tasks) ? tasks.slice(0, 5) : [];
+  const recentBookings = Array.isArray(bookings) ? bookings.slice(0, 5) : [];
+  const recentFinances = Array.isArray(finances) ? finances.slice(0, 5) : [];
 
-  // Create property lookup map for bookings
+  // Create property lookup map for bookings - safe array operation
   const propertyMap = new Map();
-  properties.forEach((property: any) => {
-    propertyMap.set(property.id, property.name);
-  });
+  if (Array.isArray(properties)) {
+    properties.forEach((property: any) => {
+      propertyMap.set(property.id, property.name);
+    });
+  }
 
   const formatCurrency = (amount: number) => {
     return `฿${amount?.toLocaleString() || '0'}`;
@@ -288,31 +290,45 @@ export default function UpgradedAdminDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="tasks" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Tasks</CardTitle>
+          <TabsContent value="tasks" className="space-y-6">
+            <Card className="rounded-xl shadow-lg border-2 border-teal-100/50">
+              <CardHeader className="pb-4 px-6 pt-6">
+                <CardTitle className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                  <div className="p-2 bg-teal-100/80 rounded-lg">
+                    <ListTodo className="h-6 w-6 text-teal-600" />
+                  </div>
+                  All Tasks
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-6 pb-6">
                 <div className="space-y-4">
-                  {tasks.map((task: any) => (
-                    <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  {Array.isArray(tasks) && tasks.map((task: any) => (
+                    <div key={task.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-teal-50/50 to-slate-50/80 rounded-xl border-2 border-teal-100/30 hover:border-teal-200/50 transition-all duration-200 hover:shadow-md">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-medium">{task.title}</h3>
-                          <Badge variant="outline">{task.type}</Badge>
+                        <div className="flex items-center gap-3 mb-3">
+                          <h3 className="font-bold text-lg text-slate-800">{task.title}</h3>
+                          <Badge 
+                            variant="outline" 
+                            className="bg-emerald-100/80 text-emerald-700 border-emerald-200 font-semibold"
+                          >
+                            {task.type}
+                          </Badge>
                         </div>
                         <TaskProgressBar 
                           status={task.status} 
                           priority={task.priority}
-                          className="mb-2"
+                          className="mb-3"
                         />
-                        <p className="text-sm text-slate-600">
-                          Assigned to: {task.assignedTo} | Due: {formatDate(task.dueDate)}
+                        <p className="text-sm text-slate-500 font-medium">
+                          Assigned to: <span className="text-slate-700 font-semibold">{task.assignedTo}</span> | Due: <span className="text-slate-700 font-semibold">{formatDate(task.dueDate)}</span>
                         </p>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="h-4 w-4" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="rounded-xl hover:bg-teal-100/50 transition-all duration-200 hover:scale-105"
+                      >
+                        <MoreVertical className="h-5 w-5 text-teal-600" />
                       </Button>
                     </div>
                   ))}
@@ -321,34 +337,48 @@ export default function UpgradedAdminDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="bookings" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Bookings</CardTitle>
+          <TabsContent value="bookings" className="space-y-6">
+            <Card className="rounded-xl shadow-lg border-2 border-cyan-100/50">
+              <CardHeader className="pb-4 px-6 pt-6">
+                <CardTitle className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                  <div className="p-2 bg-cyan-100/80 rounded-lg">
+                    <Calendar className="h-6 w-6 text-cyan-600" />
+                  </div>
+                  All Bookings
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-6 pb-6">
                 <div className="space-y-4">
-                  {bookings.map((booking: any) => {
+                  {Array.isArray(bookings) && bookings.map((booking: any) => {
                     const propertyName = propertyMap.get(booking.propertyId) || `Property #${booking.propertyId}`;
                     return (
-                      <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div key={booking.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-cyan-50/50 to-slate-50/80 rounded-xl border-2 border-cyan-100/30 hover:border-cyan-200/50 transition-all duration-200 hover:shadow-md">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-medium">{booking.guestName}</h3>
-                            <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
+                          <div className="flex items-center gap-3 mb-3">
+                            <h3 className="font-bold text-lg text-slate-800">{booking.guestName}</h3>
+                            <Badge 
+                              variant={booking.status === 'confirmed' ? 'default' : 'secondary'}
+                              className={
+                                booking.status === 'confirmed' 
+                                  ? 'bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold' 
+                                  : booking.status === 'pending'
+                                  ? 'bg-amber-100 text-amber-700 border-amber-200 font-semibold'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200 font-semibold'
+                              }
+                            >
                               {booking.status}
                             </Badge>
                           </div>
-                          <p className="text-sm text-blue-600 font-medium mb-1">
+                          <p className="text-sm text-cyan-600 font-bold mb-2">
                             Property: {propertyName}
                           </p>
-                          <p className="text-sm text-slate-600">
+                          <p className="text-sm text-slate-500 font-medium">
                             {formatDate(booking.checkInDate || booking.checkIn)} - {formatDate(booking.checkOutDate || booking.checkOut)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-lg">{formatCurrency(booking.totalAmount)}</p>
-                          <p className="text-sm text-slate-600">{booking.source || 'Direct'}</p>
+                          <p className="font-bold text-xl text-slate-800 mb-1">{formatCurrency(booking.totalAmount)}</p>
+                          <p className="text-sm text-slate-500 font-medium">{booking.source || 'Direct'}</p>
                         </div>
                       </div>
                     );
