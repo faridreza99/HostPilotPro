@@ -219,7 +219,7 @@ export default function EnhancedAdminDashboard() {
                   <Building className="h-5 w-5" />
                   Properties ({filteredData.properties.length})
                 </CardTitle>
-                <Button onClick={() => setCreatePropertyOpen(true)} size="sm">
+                <Button onClick={() => alert('Property creation coming soon!')} size="sm">
                   <Plus className="h-4 w-4 mr-1" />
                   Add Property
                 </Button>
@@ -265,7 +265,7 @@ export default function EnhancedAdminDashboard() {
                   <ListTodo className="h-5 w-5" />
                   Tasks ({filteredData.tasks.length})
                 </CardTitle>
-                <Button onClick={() => setCreateTaskOpen(true)} size="sm">
+                <Button onClick={() => alert('Task creation coming soon!')} size="sm">
                   <Plus className="h-4 w-4 mr-1" />
                   Create Task
                 </Button>
@@ -307,7 +307,7 @@ export default function EnhancedAdminDashboard() {
                   <Calendar className="h-5 w-5" />
                   Bookings ({filteredData.bookings.length})
                 </CardTitle>
-                <Button onClick={() => setCreateBookingOpen(true)} size="sm">
+                <Button onClick={() => alert('Booking creation coming soon!')} size="sm">
                   <Plus className="h-4 w-4 mr-1" />
                   Create Booking
                 </Button>
