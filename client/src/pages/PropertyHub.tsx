@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { 
   Building2, 
   Calendar, 
@@ -536,53 +537,54 @@ export default function PropertyHub() {
                     }
                   ].map((item) => {
                     const IconComponent = item.icon;
-                    return (
+                    const cardContent = (
                       <Card 
                         key={item.href} 
-                        className={`group cursor-pointer transition-all duration-300 bg-gradient-to-br from-white via-white to-slate-50/30 backdrop-blur-sm border border-slate-200/50 hover:shadow-xl hover:shadow-emerald-500/20 hover:scale-[1.02] hover:-translate-y-1 relative overflow-hidden ${item.isComingSoon ? 'opacity-80' : ''}`}
+                        className={`group cursor-pointer transition-all duration-500 ease-in-out bg-gradient-to-br from-white via-slate-50/40 to-emerald-50/20 backdrop-blur-sm border border-slate-200/60 hover:border-emerald-300/50 hover:shadow-2xl hover:shadow-emerald-500/30 hover:scale-[1.05] hover:-translate-y-2 relative overflow-hidden ${item.isComingSoon ? 'opacity-85' : ''}`}
                         onClick={() => !item.isComingSoon && navigate(item.href)}
                       >
-                        {/* Glassmorphism overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-transparent to-white/30 pointer-events-none" />
+                        {/* Enhanced Glassmorphism overlay with glow effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-emerald-50/30 to-white/40 opacity-80 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                         
                         {/* Coming Soon badge for future cards */}
                         {item.isComingSoon && (
                           <div className="absolute top-2 right-2 z-10">
-                            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs">
+                            <Badge className="bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 border-yellow-400/50 text-xs shadow-lg backdrop-blur-sm">
                               Coming Soon
                             </Badge>
                           </div>
                         )}
                         
-                        <CardHeader className="pb-3 relative">
+                        <CardHeader className="pb-3 relative z-10">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center space-x-3">
-                              <div className="p-3 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-xl shadow-lg group-hover:shadow-emerald-200 group-hover:scale-110 transition-all duration-300">
-                                <IconComponent className="h-6 w-6 text-emerald-700" />
+                              <div className="p-3 bg-gradient-to-br from-emerald-100/80 via-emerald-50/60 to-white/40 backdrop-blur-sm rounded-xl shadow-xl border border-emerald-200/50 group-hover:shadow-emerald-300/60 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 ease-out">
+                                <IconComponent className="h-6 w-6 text-emerald-700 group-hover:text-emerald-800 transition-colors duration-300" />
                               </div>
-                              <CardTitle className="text-lg font-semibold text-slate-800">{item.title}</CardTitle>
+                              <CardTitle className="text-lg font-semibold text-slate-800 group-hover:text-slate-900 transition-colors duration-300">{item.title}</CardTitle>
                             </div>
-                            <Badge className="bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-800 border-emerald-300 shadow-sm">
+                            <Badge className="bg-gradient-to-r from-emerald-100/90 via-emerald-50/70 to-white/50 text-emerald-800 border-emerald-300/60 shadow-lg backdrop-blur-sm group-hover:shadow-emerald-200/80 transition-all duration-300">
                               <span className="mr-1">{item.badgeIcon}</span>
                               {item.badge}
                             </Badge>
                           </div>
                           
-                          {/* Quick Stats */}
-                          <div className="bg-slate-50/50 rounded-lg p-2 border border-slate-200/50">
-                            <p className="text-sm font-medium text-slate-700">{item.stats}</p>
+                          {/* Enhanced Quick Stats */}
+                          <div className="bg-gradient-to-r from-slate-50/80 via-white/60 to-slate-50/80 backdrop-blur-sm rounded-lg p-3 border border-slate-200/60 group-hover:border-emerald-200/60 group-hover:bg-gradient-to-r group-hover:from-emerald-50/40 group-hover:via-white/70 group-hover:to-emerald-50/40 transition-all duration-300">
+                            <p className="text-sm font-medium text-slate-700 group-hover:text-emerald-800 transition-colors duration-300">{item.stats}</p>
                           </div>
                         </CardHeader>
 
-                        <CardContent className="space-y-4 relative">
-                          <p className="text-sm text-slate-600 leading-relaxed">
+                        <CardContent className="space-y-4 relative z-10">
+                          <p className="text-sm text-slate-600 leading-relaxed group-hover:text-slate-700 transition-colors duration-300">
                             {item.description}
                           </p>
                           
-                          {/* Quick Action Button */}
+                          {/* Enhanced Quick Action Button */}
                           <Button 
                             size="sm" 
-                            className={`w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-emerald-500/25 transition-all duration-200 group-hover:scale-105 ${item.isComingSoon ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-500 hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-600 text-white shadow-xl hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1 backdrop-blur-sm border border-emerald-400/30 hover:border-emerald-300/50 ${item.isComingSoon ? 'opacity-60 cursor-not-allowed' : ''}`}
                             disabled={item.isComingSoon}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -595,12 +597,34 @@ export default function PropertyHub() {
                               }
                             }}
                           >
-                            <span className="mr-2">{item.actionIcon}</span>
+                            <span className="mr-2 text-lg group-hover:scale-110 transition-transform duration-200">{item.actionIcon}</span>
                             {item.isComingSoon ? 'Coming Soon' : item.actionText}
                           </Button>
                         </CardContent>
                       </Card>
                     );
+
+                    // Wrap Coming Soon cards with tooltip
+                    if (item.isComingSoon) {
+                      return (
+                        <TooltipProvider key={item.href}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              {cardContent}
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="bg-gradient-to-r from-slate-800 to-slate-700 text-white border border-slate-600 shadow-xl">
+                              <div className="text-center">
+                                <p className="font-semibold text-sm">{item.title}</p>
+                                <p className="text-xs text-slate-300 mt-1">Feature launching soon!</p>
+                                <p className="text-xs text-emerald-300 mt-1">Stay tuned for updates</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    }
+
+                    return cardContent;
                   })}
                 </div>
               </TabsContent>
