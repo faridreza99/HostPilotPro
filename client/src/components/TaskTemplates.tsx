@@ -69,7 +69,6 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [durationFilter, setDurationFilter] = useState<string>('all');
   const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(new Set());
-  const [showQuickCreate, setShowQuickCreate] = useState(false);
   const { toast } = useToast();
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
@@ -496,7 +495,12 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
         <div className="fixed bottom-6 right-6 z-50">
           <Button
             size="lg"
-            onClick={() => setShowQuickCreate(true)}
+            onClick={() => {
+              // Open dialog with first available template pre-selected
+              if (filteredTemplates.length > 0) {
+                handleCreateFromTemplate(filteredTemplates[0]);
+              }
+            }}
             className="rounded-full shadow-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white border-4 border-white hover:scale-110 transition-all duration-300 animate-pulse"
           >
             <Zap className="h-5 w-5 mr-2" />
