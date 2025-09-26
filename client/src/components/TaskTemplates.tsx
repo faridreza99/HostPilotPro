@@ -260,19 +260,60 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
     return stats;
   }, [filteredTemplates]);
 
-  const onSubmit = (data: any) => {
-    if (!selectedTemplate) return;
+  const onSubmit = async (data: any) => {
+    try {
+      // Comprehensive validation
+      if (!selectedTemplate) {
+        toast({
+          title: "Error",
+          description: "No template selected. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const propertyId = parseInt(data.propertyId);
-    if (propertyId && selectedTemplate) {
-      onCreateTask(selectedTemplate, propertyId);
+      if (!data.propertyId) {
+        toast({
+          title: "Error", 
+          description: "Please select a property before creating the task.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const propertyId = parseInt(data.propertyId);
+      if (isNaN(propertyId) || propertyId <= 0) {
+        toast({
+          title: "Error",
+          description: "Invalid property selected. Please choose a valid property.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Try to create the task
+      await onCreateTask(selectedTemplate, propertyId);
+      
+      // Success feedback
       toast({
-        title: "Task Created",
+        title: "✅ Task Created Successfully",
         description: `"${selectedTemplate.title}" has been created for the selected property.`,
       });
+
+      // Clean up and close dialog
       setIsDialogOpen(false);
       setSelectedTemplate(null);
+      setSelectedPropertyId('');
       reset();
+
+    } catch (error) {
+      // Error handling
+      console.error('Error creating task:', error);
+      toast({
+        title: "❌ Failed to Create Task",
+        description: "Something went wrong while creating the task. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
