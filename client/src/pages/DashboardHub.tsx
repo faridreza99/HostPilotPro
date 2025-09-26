@@ -67,16 +67,16 @@ export default function DashboardHub() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Dashboard Hub</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg font-medium">Access all dashboard views and analytics from one central location</p>
+        <h1 className="text-5xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Dashboard Hub</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg font-medium tracking-wide">Access all dashboard views and analytics from one central location</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-10">
         {dashboardItems.map((item) => {
           const IconComponent = item.icon;
           return (
             <Link key={item.href} href={item.href}>
-              <Card className={`cursor-pointer transition-all duration-300 ease-in-out hover:shadow-xl hover:shadow-emerald-100/50 hover:-translate-y-1 hover:scale-[1.02] rounded-xl border-2 shadow-lg ${item.color}`}>
+              <Card className={`cursor-pointer transition-all duration-300 ease-in-out hover:shadow-xl hover:shadow-emerald-100/50 hover:-translate-y-1 hover:scale-[1.02] rounded-2xl border-2 shadow-lg bg-gradient-to-br from-emerald-50/30 to-white ${item.color}`}>
                 <CardHeader className="pb-4 pt-6 px-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -85,7 +85,7 @@ export default function DashboardHub() {
                       </div>
                       <CardTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">{item.title}</CardTitle>
                     </div>
-                    <Badge variant="secondary" className="text-xs font-semibold bg-emerald-100 text-emerald-700 border-emerald-200">
+                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-md px-2 py-0.5 font-semibold text-xs">
                       {item.badge}
                     </Badge>
                   </div>
@@ -99,6 +99,18 @@ export default function DashboardHub() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Optional Footer Section */}
+      <div className="mt-12 pt-6 border-t border-slate-200/50">
+        <div className="flex items-center justify-center gap-4 text-sm text-slate-400 font-medium">
+          <span>Last updated: Today</span>
+          <span>•</span>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>System Online</span>
+          </div>
+        </div>
       </div>
     </div>
   );
