@@ -12900,36 +12900,9 @@ export const insertPropertyInsuranceSchema = createInsertSchema(propertyInsuranc
 export type PropertyInsurance = typeof propertyInsurance.$inferSelect;
 export type InsertPropertyInsurance = z.infer<typeof insertPropertyInsuranceSchema>;
 
-// ===== SMART REMINDER SYSTEM =====
+// ===== SMART REMINDER SYSTEM ADDITIONS =====
 
-// Utility Bill Reminders
-export const utilityBillReminders = pgTable("utility_bill_reminders", {
-  id: serial("id").primaryKey(),
-  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
-  propertyId: integer("property_id").references(() => properties.id).notNull(),
-  billType: varchar("bill_type").notNull(), // electricity, water, gas, internet, etc.
-  providerName: varchar("provider_name"),
-  accountNumber: varchar("account_number"),
-  dueDate: date("due_date").notNull(),
-  recurringMonths: integer("recurring_months").default(1), // How often this bill repeats
-  estimatedAmount: decimal("estimated_amount", { precision: 12, scale: 2 }),
-  currency: varchar("currency").default("THB"),
-  documentUploaded: boolean("document_uploaded").default(false),
-  uploadedAt: timestamp("uploaded_at"),
-  uploadedBy: varchar("uploaded_by").references(() => users.id),
-  documentUrl: text("document_url"),
-  notes: text("notes"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("IDX_utility_bills_org").on(table.organizationId),
-  index("IDX_utility_bills_property").on(table.propertyId),
-  index("IDX_utility_bills_due_date").on(table.dueDate),
-  index("IDX_utility_bills_type").on(table.billType),
-]);
-
-// Payslip Upload Reminders
+// Payslip Upload Reminders (New addition to existing reminder system)
 export const payslipReminders = pgTable("payslip_reminders", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
@@ -12956,7 +12929,7 @@ export const payslipReminders = pgTable("payslip_reminders", {
   index("IDX_payslip_reminders_period").on(table.period),
 ]);
 
-// Reminder Notifications Log
+// Multi-channel Reminder Notifications Log
 export const reminderNotifications = pgTable("reminder_notifications", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
@@ -13002,13 +12975,7 @@ export const reminderSettings = pgTable("reminder_settings", {
   index("IDX_reminder_settings_type").on(table.reminderType),
 ]);
 
-// Create insert schemas and types
-export const insertUtilityBillReminderSchema = createInsertSchema(utilityBillReminders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
+// Create insert schemas and types for new tables
 export const insertPayslipReminderSchema = createInsertSchema(payslipReminders).omit({
   id: true,
   createdAt: true,
@@ -13026,9 +12993,6 @@ export const insertReminderSettingsSchema = createInsertSchema(reminderSettings)
   createdAt: true,
   updatedAt: true,
 });
-
-export type UtilityBillReminder = typeof utilityBillReminders.$inferSelect;
-export type InsertUtilityBillReminder = z.infer<typeof insertUtilityBillReminderSchema>;
 
 export type PayslipReminder = typeof payslipReminders.$inferSelect;
 export type InsertPayslipReminder = z.infer<typeof insertPayslipReminderSchema>;
