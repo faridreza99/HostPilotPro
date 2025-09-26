@@ -275,7 +275,8 @@ Please provide a helpful response based on this data.`;
   private isStaffQuery(question: string): boolean {
     const staffKeywords = [
       'staff', 'employee', 'worker', 'payroll', 'salary', 'wages', 
-      'team member', 'personnel', 'pending', 'payment', 'overtime'
+      'team member', 'personnel', 'pending', 'payment', 'overtime',
+      'department', 'sales', 'operations', 'marketing', 'management'
     ];
     const lowerQuestion = question.toLowerCase();
     
@@ -283,7 +284,11 @@ Please provide a helpful response based on this data.`;
            lowerQuestion.includes('show all staff') ||
            lowerQuestion.includes('staff list') ||
            lowerQuestion.includes('pending salaries') ||
-           lowerQuestion.includes('who works here');
+           lowerQuestion.includes('who works here') ||
+           lowerQuestion.includes('active staff') ||
+           lowerQuestion.includes('show only') ||
+           lowerQuestion.includes('filter by') ||
+           lowerQuestion.includes('show more staff');
   }
 
   /**
@@ -291,7 +296,7 @@ Please provide a helpful response based on this data.`;
    */
   private async processStaffQuery(question: string, context: QueryContext): Promise<string> {
     try {
-      console.log('🧑‍💼 Processing staff query:', question);
+      console.log('🧑‍💼 Processing advanced staff query:', question);
       
       // Fetch live staff data from the new API endpoints
       const [staffResponse, pendingResponse] = await Promise.all([
@@ -299,12 +304,38 @@ Please provide a helpful response based on this data.`;
         this.fetchPendingPayrollData(context)
       ]);
 
+      let staffList = staffResponse.staff || [];
+      
+      // Parse query for filters and advanced options
+      const queryOptions = this.parseStaffQueryOptions(question);
+      console.log('📋 Parsed query options:', queryOptions);
+      
+      // Apply filters
+      if (queryOptions.filters.department) {
+        staffList = staffList.filter((s: any) => 
+          s.department.toLowerCase().includes(queryOptions.filters.department.toLowerCase())
+        );
+      }
+      if (queryOptions.filters.role) {
+        staffList = staffList.filter((s: any) => 
+          s.position.toLowerCase().includes(queryOptions.filters.role.toLowerCase())
+        );
+      }
+      if (queryOptions.filters.status) {
+        staffList = staffList.filter((s: any) => 
+          s.status.toLowerCase() === queryOptions.filters.status.toLowerCase()
+        );
+      }
+
       const staffData = {
-        staff: staffResponse.staff || [],
+        staff: staffList,
         pending: pendingResponse.pending || [],
-        totalStaff: staffResponse.total || 0,
+        totalStaff: staffList.length,
+        originalTotal: staffResponse.total || 0,
         pendingPayments: pendingResponse.total || 0,
-        totalPendingAmount: pendingResponse.totalAmount || 0
+        totalPendingAmount: pendingResponse.totalAmount || 0,
+        isFiltered: queryOptions.hasFilters,
+        filters: queryOptions.filters
       };
 
       // Use OpenAI to analyze the question and provide intelligent response
@@ -334,35 +365,61 @@ FORMAT REQUIREMENTS:
 Current date: ${new Date().toISOString().split('T')[0]}
 Staff Overview: ${staffData.totalStaff} employees, ${staffData.pendingPayments} pending payments (฿${staffData.totalPendingAmount?.toLocaleString()})`;
 
-      // Limit staff display to first 10 for better formatting
-      const staffToShow = staffData.staff.slice(0, 10);
-      const hasMoreStaff = staffData.staff.length > 10;
+      // Determine pagination based on query
+      const pageSize = queryOptions.pagination.pageSize;
+      const currentPage = queryOptions.pagination.page;
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      
+      const staffToShow = staffData.staff.slice(startIndex, endIndex);
+      const hasMoreStaff = staffData.staff.length > endIndex;
+      const hasPreviousStaff = startIndex > 0;
       const pendingToShow = staffData.pending.slice(0, 5);
+      
+      // Generate summary information
+      const summaryInfo = this.generateStaffSummary(staffData, startIndex, endIndex, queryOptions);
       
       const userPrompt = `Question: "${question}"
 
-STAFF ROSTER DATA (Showing ${staffToShow.length} of ${staffData.totalStaff} total):
+${summaryInfo}
 
-${staffToShow.map((s, index) => 
-  `${index + 1}. ${s.name} | ${s.position} | ${s.department} | ฿${s.salary?.toLocaleString()} | ${s.status}`
+STAFF ROSTER DATA:
+${staffToShow.map((s: any, index: number) => 
+  `${startIndex + index + 1}. ${s.name} | ${s.position} | ${s.department} | ฿${s.salary?.toLocaleString()} | ${s.status}`
 ).join('\n')}
 
-${hasMoreStaff ? `\n(${staffData.totalStaff - 10} additional staff members available)` : ''}
+${staffData.isFiltered ? '\n✅ **Results filtered based on your criteria**' : ''}
+
+${hasMoreStaff || hasPreviousStaff ? '\n📄 **Pagination Options**:' : ''}
+${hasPreviousStaff ? '• Type "show previous staff" for earlier entries' : ''}
+${hasMoreStaff ? '• Type "show more staff" for additional entries' : ''}
+${staffData.totalStaff > 20 ? '• Try "first 20 staff" to see more at once' : ''}
 
 PENDING PAYROLL (${staffData.pendingPayments} payments pending):
-${pendingToShow.length > 0 ? pendingToShow.map((p, index) => 
+${pendingToShow.length > 0 ? pendingToShow.map((p: any, index: number) => 
   `${index + 1}. ${p.staffName} | ${p.position} | ฿${p.net?.toLocaleString()} | Due: ${p.dueDate}`
 ).join('\n') : 'No pending payments'}
 
-INSTRUCTIONS FOR RESPONSE:
-- Create a professional markdown table with columns: Employee ID | Name | Position | Department | Salary | Status
-- Start with a summary: "Staff Overview: ${staffData.totalStaff} total employees${staffData.pendingPayments > 0 ? `, ${staffData.pendingPayments} pending payments` : ''}"
-- If showing more than 10 staff, add: "Showing 1-${staffToShow.length} of ${staffData.totalStaff} (type 'show more staff' for additional entries)"
-- Include department breakdown and key insights
-- Format all currency as Thai Baht with proper thousand separators
-- Keep response concise but informative
+AVAILABLE FILTER OPTIONS:
+• "Show only Active staff in Sales department"
+• "Show managers only"  
+• "Show staff in Operations department"
+• "Show card view" for alternative formatting
 
-Please provide a well-formatted, executive-ready staff report.`;
+VIEW OPTIONS:
+- Current: ${queryOptions.viewType === 'table' ? 'Table View 📊' : 'Card View 🗂️'}
+- Alternative: ${queryOptions.viewType === 'table' ? 'Try "show as cards" for card format' : 'Try "show as table" for table format'}
+
+INSTRUCTIONS FOR RESPONSE:
+- Start with the provided summary information exactly as formatted
+- Create professional markdown table: | ID | Name | Position | Department | Salary | Status |
+- Add department insights and team composition analysis
+- Include pagination guidance if applicable
+- Suggest relevant filters or actions based on the data
+- Format all currency as Thai Baht ฿ with comma separators
+- End with actionable next steps for staff management
+
+Provide an enterprise-grade, executive-ready staff analysis.`;
 
       // Use OpenAI Assistant or fallback
       let response;
@@ -415,7 +472,7 @@ Please provide a well-formatted, executive-ready staff report.`;
 
     } catch (error) {
       console.error('Error processing staff query:', error);
-      return `I apologize, but I encountered an error while fetching staff information: ${error.message}. Please try again or contact support if the issue persists.`;
+      return `I apologize, but I encountered an error while fetching staff information: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again or contact support if the issue persists.`;
     }
   }
 
@@ -433,7 +490,7 @@ Please provide a well-formatted, executive-ready staff report.`;
       const staffMembers = organizationUsers.map(user => ({
         id: user.id,
         employeeId: user.id,
-        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.name || user.email,
+        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || 'Unknown User',
         position: this.getRoleDisplayName(user.role),
         department: this.getDepartmentForRole(user.role),
         salary: this.getSalaryForRole(user.role),
@@ -475,7 +532,7 @@ Please provide a well-formatted, executive-ready staff report.`;
           return {
             id: `pending_${user.id}`,
             staffId: user.id,
-            staffName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.name || user.email,
+            staffName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || 'Unknown User',
             position: this.getRoleDisplayName(user.role),
             period: currentMonth,
             baseSalary,
@@ -554,6 +611,112 @@ Please provide a well-formatted, executive-ready staff report.`;
     const now = new Date();
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
     return nextMonth.toISOString().split('T')[0];
+  }
+
+  /**
+   * Parse staff query for advanced options and filters
+   */
+  private parseStaffQueryOptions(question: string): any {
+    const lowerQuestion = question.toLowerCase();
+    const options = {
+      filters: {} as any,
+      hasFilters: false,
+      viewType: 'table', // table or card
+      pagination: {
+        page: 1,
+        pageSize: 10
+      },
+      showMore: false
+    };
+
+    // Parse department filters
+    if (lowerQuestion.includes('sales department') || lowerQuestion.includes('in sales')) {
+      options.filters.department = 'Sales';
+      options.hasFilters = true;
+    } else if (lowerQuestion.includes('operations department') || lowerQuestion.includes('in operations')) {
+      options.filters.department = 'Operations';
+      options.hasFilters = true;
+    } else if (lowerQuestion.includes('marketing department') || lowerQuestion.includes('in marketing')) {
+      options.filters.department = 'Marketing';
+      options.hasFilters = true;
+    } else if (lowerQuestion.includes('management department') || lowerQuestion.includes('in management')) {
+      options.filters.department = 'Management';
+      options.hasFilters = true;
+    }
+
+    // Parse role filters
+    if (lowerQuestion.includes('manager') || lowerQuestion.includes('managers')) {
+      options.filters.role = 'Manager';
+      options.hasFilters = true;
+    } else if (lowerQuestion.includes('agent') || lowerQuestion.includes('agents')) {
+      options.filters.role = 'Agent';
+      options.hasFilters = true;
+    }
+
+    // Parse status filters
+    if (lowerQuestion.includes('active staff') || lowerQuestion.includes('only active')) {
+      options.filters.status = 'Active';
+      options.hasFilters = true;
+    } else if (lowerQuestion.includes('inactive staff') || lowerQuestion.includes('only inactive')) {
+      options.filters.status = 'Inactive';
+      options.hasFilters = true;
+    }
+
+    // Parse view preferences
+    if (lowerQuestion.includes('card view') || lowerQuestion.includes('show as cards')) {
+      options.viewType = 'card';
+    }
+
+    // Parse pagination requests
+    if (lowerQuestion.includes('show more') || lowerQuestion.includes('load more')) {
+      options.showMore = true;
+      options.pagination.page = 2; // Start from page 2 for "show more"
+    }
+
+    // Parse page size requests
+    if (lowerQuestion.includes('first 5')) {
+      options.pagination.pageSize = 5;
+    } else if (lowerQuestion.includes('first 20')) {
+      options.pagination.pageSize = 20;
+    } else if (lowerQuestion.includes('all staff') && !options.hasFilters) {
+      options.pagination.pageSize = 15; // Show more for "all staff" requests
+    }
+
+    return options;
+  }
+
+  /**
+   * Generate comprehensive staff summary information
+   */
+  private generateStaffSummary(staffData: any, startIndex: number, endIndex: number, queryOptions: any): string {
+    const actualEndIndex = Math.min(endIndex, staffData.staff.length);
+    const showingCount = actualEndIndex - startIndex;
+    
+    let summary = `📊 **Staff Overview**: ${staffData.totalStaff} ${staffData.isFiltered ? 'filtered' : 'total'} staff`;
+    
+    if (staffData.isFiltered && staffData.originalTotal !== staffData.totalStaff) {
+      summary += ` (${staffData.originalTotal} total)`;
+    }
+    
+    summary += ` | Showing ${startIndex + 1}-${actualEndIndex} of ${staffData.totalStaff}`;
+    
+    if (staffData.pendingPayments > 0) {
+      summary += ` | ${staffData.pendingPayments} pending payments (฿${staffData.totalPendingAmount?.toLocaleString()})`;
+    }
+
+    // Add filter information
+    if (staffData.isFiltered) {
+      const filterParts = [];
+      if (staffData.filters.department) filterParts.push(`Department: ${staffData.filters.department}`);
+      if (staffData.filters.role) filterParts.push(`Role: ${staffData.filters.role}`);
+      if (staffData.filters.status) filterParts.push(`Status: ${staffData.filters.status}`);
+      
+      if (filterParts.length > 0) {
+        summary += `\n🔍 **Active Filters**: ${filterParts.join(', ')}`;
+      }
+    }
+
+    return summary;
   }
 
   /**
@@ -643,7 +806,7 @@ Please provide a well-formatted financial analysis.`;
 
     } catch (error) {
       console.error('Error processing finance query:', error);
-      return `I apologize, but I encountered an error while fetching financial information: ${error.message}. Please try again or contact support if the issue persists.`;
+      return `I apologize, but I encountered an error while fetching financial information: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again or contact support if the issue persists.`;
     }
   }
 
@@ -729,7 +892,7 @@ Please provide a well-formatted property portfolio analysis.`;
 
     } catch (error) {
       console.error('Error processing property query:', error);
-      return `I apologize, but I encountered an error while fetching property information: ${error.message}. Please try again or contact support if the issue persists.`;
+      return `I apologize, but I encountered an error while fetching property information: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again or contact support if the issue persists.`;
     }
   }
 
