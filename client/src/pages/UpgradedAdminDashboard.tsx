@@ -96,13 +96,13 @@ export default function UpgradedAdminDashboard() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-emerald-100/50 hover:border-emerald-200 bg-gradient-to-br from-emerald-50/30 to-white">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+            <Card className="rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border-2 border-emerald-100/50 hover:border-emerald-200 bg-gradient-to-br from-emerald-50/30 to-white cursor-pointer">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Properties</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">{properties.length}</p>
+                    <p className="text-sm font-semibold text-slate-400">Properties</p>
+                    <p className="text-3xl font-extrabold text-slate-800 mt-2">{properties.length}</p>
                   </div>
                   <div className="p-3 bg-emerald-100/80 rounded-xl">
                     <Building className="h-8 w-8 text-emerald-600" />
@@ -110,12 +110,12 @@ export default function UpgradedAdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-teal-100/50 hover:border-teal-200 bg-gradient-to-br from-teal-50/30 to-white">
+            <Card className="rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border-2 border-teal-100/50 hover:border-teal-200 bg-gradient-to-br from-teal-50/30 to-white cursor-pointer">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Active Tasks</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">{tasks.length}</p>
+                    <p className="text-sm font-semibold text-slate-400">Active Tasks</p>
+                    <p className="text-3xl font-extrabold text-slate-800 mt-2">{tasks.length}</p>
                   </div>
                   <div className="p-3 bg-teal-100/80 rounded-xl">
                     <ListTodo className="h-8 w-8 text-teal-600" />
@@ -123,12 +123,12 @@ export default function UpgradedAdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-cyan-100/50 hover:border-cyan-200 bg-gradient-to-br from-cyan-50/30 to-white">
+            <Card className="rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border-2 border-cyan-100/50 hover:border-cyan-200 bg-gradient-to-br from-cyan-50/30 to-white cursor-pointer">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Bookings</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">{bookings.length}</p>
+                    <p className="text-sm font-semibold text-slate-400">Bookings</p>
+                    <p className="text-3xl font-extrabold text-slate-800 mt-2">{bookings.length}</p>
                   </div>
                   <div className="p-3 bg-cyan-100/80 rounded-xl">
                     <Calendar className="h-8 w-8 text-cyan-600" />
@@ -136,12 +136,12 @@ export default function UpgradedAdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-green-100/50 hover:border-green-200 bg-gradient-to-br from-green-50/30 to-white">
+            <Card className="rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border-2 border-green-100/50 hover:border-green-200 bg-gradient-to-br from-green-50/30 to-white cursor-pointer">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Finances</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1">{finances.length}</p>
+                    <p className="text-sm font-semibold text-slate-400">Finances</p>
+                    <p className="text-3xl font-extrabold text-slate-800 mt-2">{finances.length}</p>
                   </div>
                   <div className="p-3 bg-green-100/80 rounded-xl">
                     <DollarSign className="h-8 w-8 text-green-600" />
