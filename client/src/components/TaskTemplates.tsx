@@ -421,11 +421,6 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
                                 <span className="truncate">{instruction}</span>
                               </li>
                             ))}
-                            {template.instructions.length > 2 && (
-                              <li className="text-slate-400 text-xs font-medium">
-                                +{template.instructions.length - 2} more steps...
-                              </li>
-                            )}
                           </ul>
                         </div>
                       )}
