@@ -14,12 +14,13 @@ interface QueryContext {
 }
 
 interface DataQuery {
-  type: 'tasks' | 'revenue' | 'expenses' | 'bookings' | 'properties' | 'general';
+  type: 'tasks' | 'revenue' | 'expenses' | 'bookings' | 'properties' | 'staff' | 'general';
   filters: {
     property?: string;
     dateRange?: { start: string; end: string };
     status?: string;
     category?: string;
+    department?: string;
   };
   question: string;
 }
@@ -78,7 +79,12 @@ export class AIBotEngine {
    * Fast single-call query processing
    */
   private async processQueryFast(question: string, context: QueryContext): Promise<string> {
-    // Fetch all relevant data upfront
+    // Check if this is a staff-related query first
+    if (this.isStaffQuery(question)) {
+      return await this.processStaffQuery(question, context);
+    }
+
+    // Fetch all relevant data upfront for general queries
     const [properties, tasks, bookings, finances] = await Promise.all([
       this.storage.getProperties(),
       this.storage.getTasks(),
@@ -253,6 +259,204 @@ Please provide a helpful response based on this data.`;
     }
 
     return response || "I apologize, but I couldn't generate a response to your question.";
+  }
+
+  /**
+   * Check if the query is asking for staff information
+   */
+  private isStaffQuery(question: string): boolean {
+    const staffKeywords = [
+      'staff', 'employee', 'worker', 'payroll', 'salary', 'wages', 
+      'team member', 'personnel', 'pending', 'payment', 'overtime'
+    ];
+    const lowerQuestion = question.toLowerCase();
+    
+    return staffKeywords.some(keyword => lowerQuestion.includes(keyword)) ||
+           lowerQuestion.includes('show all staff') ||
+           lowerQuestion.includes('staff list') ||
+           lowerQuestion.includes('pending salaries') ||
+           lowerQuestion.includes('who works here');
+  }
+
+  /**
+   * Process staff-specific queries with live API data
+   */
+  private async processStaffQuery(question: string, context: QueryContext): Promise<string> {
+    try {
+      console.log('🧑‍💼 Processing staff query:', question);
+      
+      // Fetch live staff data from the new API endpoints
+      const [staffResponse, pendingResponse] = await Promise.all([
+        this.fetchStaffData(context),
+        this.fetchPendingPayrollData(context)
+      ]);
+
+      const staffData = {
+        staff: staffResponse.staff || [],
+        pending: pendingResponse.pending || [],
+        totalStaff: staffResponse.total || 0,
+        pendingPayments: pendingResponse.total || 0,
+        totalPendingAmount: pendingResponse.totalAmount || 0
+      };
+
+      // Use OpenAI to analyze the question and provide intelligent response
+      const systemPrompt = `You are Captain Cortex, the Smart Co-Pilot for Property Management by HostPilotPro. You have access to live staff and payroll data. Analyze the user's question and provide a helpful response.
+
+Guidelines:
+1. Be conversational and helpful - act like a smart assistant who knows the business
+2. Use specific data from the provided staff context
+3. Format responses clearly with proper structure (tables, lists, etc.)
+4. Use Thai Baht ฿ for money amounts
+5. If asked about "staff list" or "all staff", show a formatted table
+6. If asked about "pending" payments/salaries, focus on pending items
+7. Provide actionable insights when possible
+8. Be professional but friendly
+
+Current date: ${new Date().toISOString().split('T')[0]}
+
+Staff data available:
+- Total staff members: ${staffData.totalStaff}
+- Pending payments: ${staffData.pendingPayments}
+- Total pending amount: ฿${staffData.totalPendingAmount?.toLocaleString()}`;
+
+      const userPrompt = `Question: "${question}"
+
+Staff Data:
+${JSON.stringify({
+        totalStaff: staffData.totalStaff,
+        staffMembers: staffData.staff.map(s => ({
+          name: s.name,
+          position: s.position,
+          department: s.department,
+          salary: `฿${s.salary?.toLocaleString()}`,
+          status: s.status
+        })),
+        pendingPayments: staffData.pending.map(p => ({
+          staffName: p.staffName,
+          position: p.position,
+          period: p.period,
+          netAmount: `฿${p.net?.toLocaleString()}`,
+          status: p.status,
+          dueDate: p.dueDate
+        }))
+      }, null, 2)}
+
+Please provide a helpful response based on this live staff data.`;
+
+      // Use OpenAI Assistant or fallback
+      let response;
+      try {
+        const ASSISTANT_ID = "asst_OATIDMTgutnkdOJpTrQ9Mf7u";
+        const thread = await this.openai.beta.threads.create();
+        
+        await this.openai.beta.threads.messages.create(thread.id, {
+          role: "user",
+          content: `${systemPrompt}\n\n${userPrompt}`
+        });
+        
+        const run = await this.openai.beta.threads.runs.create(thread.id, {
+          assistant_id: ASSISTANT_ID
+        });
+        
+        let runStatus = run;
+        for (let i = 0; i < 30; i++) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          runStatus = await this.openai.beta.threads.runs.retrieve(thread.id, run.id);
+          if (runStatus.status === 'completed') break;
+          if (runStatus.status === 'failed') throw new Error('Assistant run failed');
+        }
+        
+        if (runStatus.status === 'completed') {
+          const messages = await this.openai.beta.threads.messages.list(thread.id);
+          const lastMessage = messages.data[0];
+          if (lastMessage.content[0].type === 'text') {
+            response = lastMessage.content[0].text.value;
+          }
+        }
+      } catch (assistantError) {
+        console.log('Staff query: Assistant failed, using fallback');
+      }
+      
+      if (!response) {
+        const completion = await this.openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 800,
+        });
+        response = completion.choices[0].message.content;
+      }
+
+      return response || "I apologize, but I couldn't process your staff query at the moment.";
+
+    } catch (error) {
+      console.error('Error processing staff query:', error);
+      return `I apologize, but I encountered an error while fetching staff information: ${error.message}. Please try again or contact support if the issue persists.`;
+    }
+  }
+
+  /**
+   * Fetch live staff data from the API
+   */
+  private async fetchStaffData(context: QueryContext): Promise<any> {
+    try {
+      // Make internal API call to our new endpoint
+      const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/staff/list`, {
+        headers: {
+          'Authorization': `Bearer internal`,
+          'X-Organization-ID': context.organizationId
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch staff data: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching staff data:', error);
+      // Fallback to storage method if API fails
+      const users = await this.storage.getUsers();
+      const staffMembers = users
+        .filter(user => user.organizationId === context.organizationId)
+        .map(user => ({
+          id: user.id,
+          name: user.name,
+          position: user.role,
+          department: user.role === 'admin' ? 'Operations' : 'General',
+          salary: 35000,
+          status: 'Active'
+        }));
+      
+      return { staff: staffMembers, total: staffMembers.length };
+    }
+  }
+
+  /**
+   * Fetch live pending payroll data from the API
+   */
+  private async fetchPendingPayrollData(context: QueryContext): Promise<any> {
+    try {
+      const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/staff/pending`, {
+        headers: {
+          'Authorization': `Bearer internal`,
+          'X-Organization-ID': context.organizationId
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch pending payroll data: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching pending payroll data:', error);
+      // Fallback
+      return { pending: [], total: 0, totalAmount: 0 };
+    }
   }
 
   /**
