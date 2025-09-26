@@ -51,6 +51,35 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
   const lastBookingDate = property.lastBookingDate || '2024-12-15';
   const roi = property.roi || (Math.random() * 20 + 5).toFixed(1);
 
+  // Smart Analytics Tags
+  const getAnalyticsTags = () => {
+    const tags = [];
+    
+    // High ROI (>15%)
+    if (parseFloat(roi) > 15) {
+      tags.push({ label: 'High ROI', color: 'bg-emerald-100 text-emerald-700 border-emerald-300', icon: '📈' });
+    }
+    
+    // Low Occupancy (<70%)
+    if (occupancyRate < 70) {
+      tags.push({ label: 'Low Occupancy', color: 'bg-orange-100 text-orange-700 border-orange-300', icon: '📊' });
+    }
+    
+    // Urgent Maintenance (>3 tasks)
+    if (maintenanceTasks > 3) {
+      tags.push({ label: 'Urgent Maintenance', color: 'bg-red-100 text-red-700 border-red-300', icon: '🚨' });
+    }
+    
+    // Premium Property (high revenue)
+    if (monthlyRevenue > 120000) {
+      tags.push({ label: 'Premium', color: 'bg-purple-100 text-purple-700 border-purple-300', icon: '⭐' });
+    }
+    
+    return tags.slice(0, 2); // Show max 2 tags to avoid clutter
+  };
+  
+  const analyticsTags = getAnalyticsTags();
+
   // Status colors
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -66,7 +95,7 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
   const urgentTasks = Math.floor(maintenanceTasks * 0.3);
 
   return (
-    <Card className="hover:shadow-xl hover:shadow-emerald-500/20 hover:scale-[1.02] transition-all duration-300 relative bg-white/90 backdrop-blur-sm border border-slate-200/50">
+    <Card className="group hover:shadow-xl hover:shadow-emerald-500/20 hover:scale-[1.02] transition-all duration-300 relative bg-white/90 backdrop-blur-sm border border-slate-200/50">
       <div className="absolute top-4 left-4 z-10">
         <Checkbox 
           checked={isSelected} 
@@ -74,6 +103,61 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
           className="bg-white/90 border-2 border-emerald-200 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
         />
       </div>
+      
+      {/* Quick Action Buttons - Appear on Hover */}
+      <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 flex gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 bg-white/90 backdrop-blur-sm shadow-sm hover:bg-emerald-50 hover:scale-110 transition-all duration-200"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/property/${property.id}/edit`);
+          }}
+          title="Edit Property"
+        >
+          ✏️
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 bg-white/90 backdrop-blur-sm shadow-sm hover:bg-emerald-50 hover:scale-110 transition-all duration-200"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate('/bookings');
+          }}
+          title="View Calendar"
+        >
+          📅
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 bg-white/90 backdrop-blur-sm shadow-sm hover:bg-emerald-50 hover:scale-110 transition-all duration-200"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/finance-hub?property=${property.id}`);
+          }}
+          title="View Reports"
+        >
+          🧾
+        </Button>
+      </div>
+      
+      {/* Analytics Tags */}
+      {analyticsTags.length > 0 && (
+        <div className="absolute top-16 left-4 z-10 flex flex-col gap-1">
+          {analyticsTags.map((tag, index) => (
+            <Badge 
+              key={index}
+              variant="outline" 
+              className={`${tag.color} text-xs font-medium px-2 py-1 rounded-full shadow-sm animate-pulse`}
+            >
+              {tag.icon} {tag.label}
+            </Badge>
+          ))}
+        </div>
+      )}
       
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between pl-8">
