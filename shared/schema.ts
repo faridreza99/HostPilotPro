@@ -12899,3 +12899,142 @@ export const insertPropertyInsuranceSchema = createInsertSchema(propertyInsuranc
 
 export type PropertyInsurance = typeof propertyInsurance.$inferSelect;
 export type InsertPropertyInsurance = z.infer<typeof insertPropertyInsuranceSchema>;
+
+// ===== SMART REMINDER SYSTEM =====
+
+// Utility Bill Reminders
+export const utilityBillReminders = pgTable("utility_bill_reminders", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id).notNull(),
+  billType: varchar("bill_type").notNull(), // electricity, water, gas, internet, etc.
+  providerName: varchar("provider_name"),
+  accountNumber: varchar("account_number"),
+  dueDate: date("due_date").notNull(),
+  recurringMonths: integer("recurring_months").default(1), // How often this bill repeats
+  estimatedAmount: decimal("estimated_amount", { precision: 12, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  documentUploaded: boolean("document_uploaded").default(false),
+  uploadedAt: timestamp("uploaded_at"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  documentUrl: text("document_url"),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_utility_bills_org").on(table.organizationId),
+  index("IDX_utility_bills_property").on(table.propertyId),
+  index("IDX_utility_bills_due_date").on(table.dueDate),
+  index("IDX_utility_bills_type").on(table.billType),
+]);
+
+// Payslip Upload Reminders
+export const payslipReminders = pgTable("payslip_reminders", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  staffId: varchar("staff_id").references(() => users.id).notNull(),
+  period: varchar("period").notNull(), // "2025-01", "Jan 2025", etc.
+  dueDate: date("due_date").notNull(),
+  payslipUploaded: boolean("payslip_uploaded").default(false),
+  uploadedAt: timestamp("uploaded_at"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  documentUrl: text("document_url"),
+  proofOfPaymentUploaded: boolean("proof_of_payment_uploaded").default(false),
+  proofOfPaymentUrl: text("proof_of_payment_url"),
+  amount: decimal("amount", { precision: 12, scale: 2 }),
+  currency: varchar("currency").default("THB"),
+  notes: text("notes"),
+  status: varchar("status").default("pending"), // pending, partial, completed
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_payslip_reminders_org").on(table.organizationId),
+  index("IDX_payslip_reminders_staff").on(table.staffId),
+  index("IDX_payslip_reminders_due_date").on(table.dueDate),
+  index("IDX_payslip_reminders_period").on(table.period),
+]);
+
+// Reminder Notifications Log
+export const reminderNotifications = pgTable("reminder_notifications", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  reminderType: varchar("reminder_type").notNull(), // utility_bill, payslip
+  reminderItemId: integer("reminder_item_id").notNull(), // ID of the reminder item
+  recipientUserId: varchar("recipient_user_id").references(() => users.id).notNull(),
+  notificationChannel: varchar("notification_channel").notNull(), // in_app, email, sms, whatsapp, slack
+  status: varchar("status").default("pending"), // pending, sent, failed, delivered, read
+  sentAt: timestamp("sent_at"),
+  readAt: timestamp("read_at"),
+  errorMessage: text("error_message"),
+  messageContent: text("message_content"),
+  externalId: varchar("external_id"), // For tracking external service IDs (SMS, email, etc.)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_reminder_notifications_org").on(table.organizationId),
+  index("IDX_reminder_notifications_user").on(table.recipientUserId),
+  index("IDX_reminder_notifications_type").on(table.reminderType),
+  index("IDX_reminder_notifications_status").on(table.status),
+  index("IDX_reminder_notifications_sent").on(table.sentAt),
+]);
+
+// Smart Reminder Configuration per Organization
+export const reminderSettings = pgTable("reminder_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  reminderType: varchar("reminder_type").notNull(), // utility_bill, payslip
+  daysBeforeDue: integer("days_before_due").default(7), // Send reminder X days before due date
+  channels: jsonb("channels").$type<{
+    inApp: boolean;
+    email: boolean;
+    sms: boolean;
+    whatsapp: boolean;
+    slack: boolean;
+  }>().default({ inApp: true, email: true, sms: false, whatsapp: false, slack: false }),
+  escalationDays: integer("escalation_days").default(2), // Send escalation reminder after X days overdue
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_reminder_settings_org").on(table.organizationId),
+  index("IDX_reminder_settings_type").on(table.reminderType),
+]);
+
+// Create insert schemas and types
+export const insertUtilityBillReminderSchema = createInsertSchema(utilityBillReminders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPayslipReminderSchema = createInsertSchema(payslipReminders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertReminderNotificationSchema = createInsertSchema(reminderNotifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertReminderSettingsSchema = createInsertSchema(reminderSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UtilityBillReminder = typeof utilityBillReminders.$inferSelect;
+export type InsertUtilityBillReminder = z.infer<typeof insertUtilityBillReminderSchema>;
+
+export type PayslipReminder = typeof payslipReminders.$inferSelect;
+export type InsertPayslipReminder = z.infer<typeof insertPayslipReminderSchema>;
+
+export type ReminderNotification = typeof reminderNotifications.$inferSelect;
+export type InsertReminderNotification = z.infer<typeof insertReminderNotificationSchema>;
+
+export type ReminderSettings = typeof reminderSettings.$inferSelect;
+export type InsertReminderSettings = z.infer<typeof insertReminderSettingsSchema>;
