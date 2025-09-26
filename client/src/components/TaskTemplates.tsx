@@ -64,6 +64,7 @@ interface TaskTemplatesProps {
 export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplatesProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TaskTemplate | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -71,7 +72,7 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
   const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
 
   const commonTemplates: TaskTemplate[] = [
     {
