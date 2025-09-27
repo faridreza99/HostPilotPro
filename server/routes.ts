@@ -21365,14 +21365,90 @@ async function processGuestIssueForAI(issueReport: any) {
   app.post("/api/finance-export", isDemoAuthenticated, async (req: any, res) => {
     try {
       const { organizationId, id: userId } = req.user;
+      const { exportType, format, dateRange, filters } = req.body;
       
-      const result = await storage.exportFinancialData(organizationId, {
-        ...req.body,
-        requestedBy: userId
-      });
-      res.json(result);
+      console.log(`📋 Finance export requested: ${exportType} format by user ${userId}`);
+      
+      // Get financial data
+      const finances = await storage.getFinances();
+      const organizationFinances = finances.filter(f => 
+        f.organizationId === organizationId || 
+        f.organizationId === 'default-org' || 
+        f.organizationId === 'demo-org'
+      );
+      
+      console.log(`📊 Found ${organizationFinances.length} financial records for export`);
+      
+      if (exportType === 'csv') {
+        // Generate CSV content
+        const csvHeaders = ['Date', 'Type', 'Amount', 'Category', 'Description', 'Property', 'Status'];
+        const csvRows = organizationFinances.map(f => [
+          f.date || new Date().toISOString().split('T')[0],
+          f.type || 'income',
+          f.amount || '0',
+          f.category || 'General',
+          f.description || 'Transaction',
+          f.propertyName || 'General',
+          f.status || 'confirmed'
+        ]);
+        
+        const csvContent = [
+          csvHeaders.join(','),
+          ...csvRows.map(row => row.map(field => `"${field}"`).join(','))
+        ].join('\n');
+        
+        // Set proper headers for CSV download
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="financial_export.csv"');
+        res.send(csvContent);
+        
+        console.log(`✅ CSV export completed: ${csvContent.length} characters`);
+        
+      } else if (exportType === 'pdf') {
+        // Generate PDF content (simplified - in production use a proper PDF library)
+        const totalRevenue = organizationFinances
+          .filter(f => f.type === 'income')
+          .reduce((sum, f) => sum + (parseFloat(f.amount?.toString() || '0') || 0), 0);
+          
+        const totalExpenses = organizationFinances
+          .filter(f => f.type === 'expense')
+          .reduce((sum, f) => sum + (parseFloat(f.amount?.toString() || '0') || 0), 0);
+        
+        const pdfContent = `Financial Report
+=================
+
+Summary:
+--------
+Total Revenue: ฿${totalRevenue.toLocaleString()}
+Total Expenses: ฿${totalExpenses.toLocaleString()}
+Net Profit: ฿${(totalRevenue - totalExpenses).toLocaleString()}
+Total Transactions: ${organizationFinances.length}
+
+Generated on: ${new Date().toLocaleDateString()}
+Organization: ${organizationId}
+
+Recent Transactions:
+-------------------
+${organizationFinances.slice(0, 10).map(f => 
+  `${f.date || 'N/A'} | ${f.type?.toUpperCase() || 'INCOME'} | ฿${f.amount || '0'} | ${f.category || 'General'}`
+).join('\n')}
+
+${organizationFinances.length > 10 ? `\n... and ${organizationFinances.length - 10} more transactions` : ''}
+`;
+        
+        // Set proper headers for PDF download (text-based for now)
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="financial_report.pdf"');
+        res.send(pdfContent);
+        
+        console.log(`✅ PDF export completed: ${pdfContent.length} characters`);
+        
+      } else {
+        res.status(400).json({ message: "Unsupported export type" });
+      }
+      
     } catch (error) {
-      console.error("Error exporting financial data:", error);
+      console.error("❌ Error exporting financial data:", error);
       res.status(500).json({ message: "Failed to export financial data" });
     }
   });
