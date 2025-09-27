@@ -294,8 +294,20 @@ const CaptainCortex = () => {
               {response.startsWith('FINANCIAL_DATA:') ? (
                 (() => {
                   try {
-                    const financialData = JSON.parse(response.substring('FINANCIAL_DATA:'.length));
+                    const jsonStr = response.substring('FINANCIAL_DATA:'.length);
+                    console.log('Parsing financial data:', jsonStr.substring(0, 200) + '...');
+                    const financialData = JSON.parse(jsonStr);
+                    
+                    if (!financialData || !financialData.data) {
+                      throw new Error('Invalid financial data structure');
+                    }
+                    
                     const { metrics, transactions, hasMoreTransactions, totalTransactions, insights } = financialData.data;
+                    
+                    // Validate metrics exist and have numbers
+                    if (!metrics || typeof metrics.totalRevenue !== 'number' || typeof metrics.totalExpenses !== 'number') {
+                      throw new Error('Invalid financial metrics');
+                    }
                     
                     return (
                       <div className="space-y-4">
@@ -421,9 +433,14 @@ const CaptainCortex = () => {
                       </div>
                     );
                   } catch (error) {
+                    console.error('Financial data parsing error:', error);
+                    console.error('Raw response:', response.substring(0, 500));
                     return (
                       <div className="p-3 border border-red-200 dark:border-red-800 rounded bg-red-50 dark:bg-red-900/20 text-sm text-red-700 dark:text-red-300">
-                        Error parsing financial data. Please try again.
+                        <p className="font-medium">Error parsing financial data</p>
+                        <p className="text-xs mt-1 opacity-75">
+                          {error instanceof Error ? error.message : 'Invalid data format'}. Please try asking again.
+                        </p>
                       </div>
                     );
                   }

@@ -1117,23 +1117,29 @@ ${payrollEntries.join('\n\n')}
         this.fetchFinanceAnalytics(context)
       ]);
 
+      // Validate all data before creating response to prevent NaN issues
+      const safeRevenue = typeof analyticsData.totalRevenue === 'number' && !isNaN(analyticsData.totalRevenue) ? analyticsData.totalRevenue : 0;
+      const safeExpenses = typeof analyticsData.totalExpenses === 'number' && !isNaN(analyticsData.totalExpenses) ? analyticsData.totalExpenses : 0;
+      const safeNetProfit = safeRevenue - safeExpenses;
+      const safeAvgSize = typeof analyticsData.avgTransactionSize === 'number' && !isNaN(analyticsData.avgTransactionSize) ? analyticsData.avgTransactionSize : 0;
+      
       // Return structured data for frontend to render professionally
       const structuredResponse = {
         type: 'financial_summary',
         data: {
           metrics: {
-            totalRevenue: analyticsData.totalRevenue || 0,
-            totalExpenses: analyticsData.totalExpenses || 0,
-            netProfit: (analyticsData.totalRevenue || 0) - (analyticsData.totalExpenses || 0),
+            totalRevenue: safeRevenue,
+            totalExpenses: safeExpenses,
+            netProfit: safeNetProfit,
             transactionCount: financeData.length,
-            averageTransactionSize: analyticsData.avgTransactionSize || 0
+            averageTransactionSize: safeAvgSize
           },
           transactions: financeData.slice(0, 10).map(tx => ({
-            id: tx.id,
-            date: tx.date,
-            type: tx.type,
-            amount: tx.amount || 0,
-            category: tx.category,
+            id: tx.id || `tx_${Math.random().toString(36).substr(2, 9)}`,
+            date: tx.date || new Date().toISOString().split('T')[0],
+            type: tx.type || 'income',
+            amount: typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0,
+            category: tx.category || 'General',
             description: tx.description || 'Transaction',
             status: tx.status || 'confirmed',
             propertyName: tx.propertyName || 'General'
@@ -1141,8 +1147,8 @@ ${payrollEntries.join('\n\n')}
           hasMoreTransactions: financeData.length > 10,
           totalTransactions: financeData.length,
           insights: [
-            `Revenue performance is ${analyticsData.totalRevenue > 500000 ? 'strong' : 'moderate'} with ฿${analyticsData.totalRevenue?.toLocaleString()} total`,
-            `Operating efficiency shows ${((analyticsData.totalRevenue - analyticsData.totalExpenses) / analyticsData.totalRevenue * 100).toFixed(1)}% profit margin`,
+            `Revenue performance is ${safeRevenue > 500000 ? 'strong' : 'moderate'} with ฿${safeRevenue.toLocaleString()} total`,
+            `Operating efficiency shows ${safeRevenue > 0 ? ((safeNetProfit / safeRevenue) * 100).toFixed(1) : '0.0'}% profit margin`,
             `Transaction volume of ${financeData.length} indicates ${financeData.length > 1000 ? 'high' : 'moderate'} business activity`
           ]
         }
@@ -1286,21 +1292,34 @@ Please provide a well-formatted property portfolio analysis.`;
         f.organizationId === 'demo-org' // Include demo org data where financial records actually exist
       );
       
-      // Calculate analytics manually (same as Finance Hub does in analytics endpoint)
+      // Calculate analytics manually with proper null/NaN validation
       const totalRevenue = organizationFinances
         .filter(f => f.type === 'income')
-        .reduce((sum, f) => sum + (f.amount || 0), 0);
+        .reduce((sum, f) => {
+          const amount = typeof f.amount === 'number' && !isNaN(f.amount) ? f.amount : 0;
+          return sum + amount;
+        }, 0);
         
       const totalExpenses = organizationFinances
         .filter(f => f.type === 'expense')
-        .reduce((sum, f) => sum + (f.amount || 0), 0);
+        .reduce((sum, f) => {
+          const amount = typeof f.amount === 'number' && !isNaN(f.amount) ? f.amount : 0;
+          return sum + amount;
+        }, 0);
+      
+      // Ensure no NaN values in calculations
+      const validRevenue = typeof totalRevenue === 'number' && !isNaN(totalRevenue) ? totalRevenue : 0;
+      const validExpenses = typeof totalExpenses === 'number' && !isNaN(totalExpenses) ? totalExpenses : 0;
+      const netProfit = validRevenue - validExpenses;
+      const transactionCount = organizationFinances.length;
+      const avgSize = transactionCount > 0 ? (validRevenue + validExpenses) / transactionCount : 0;
       
       const result = {
-        totalRevenue,
-        totalExpenses,
-        netProfit: totalRevenue - totalExpenses,
-        transactionCount: organizationFinances.length,
-        avgTransactionSize: organizationFinances.length > 0 ? (totalRevenue + totalExpenses) / organizationFinances.length : 0,
+        totalRevenue: validRevenue,
+        totalExpenses: validExpenses,
+        netProfit: typeof netProfit === 'number' && !isNaN(netProfit) ? netProfit : 0,
+        transactionCount,
+        avgTransactionSize: typeof avgSize === 'number' && !isNaN(avgSize) ? avgSize : 0,
         monthlyGrowth: 0
       };
       
