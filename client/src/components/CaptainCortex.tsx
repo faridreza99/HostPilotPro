@@ -31,19 +31,37 @@ const CaptainCortex = () => {
       
       // Debug keyword matching
       console.log(`🔍 Export keywords detected for ${exportFormat.toUpperCase()}`);
-      console.log(`📋 Staff match: ${staffKeywords.test(queryText)}`);
-      console.log(`🏢 Property match: ${propertyKeywords.test(queryText)}`);
-      console.log(`💰 Finance match: ${financeKeywords.test(queryText)}`);
       
-      // Priority-based detection: Staff > Properties > Finance (default)
+      // Check current query keywords
+      const currentStaffMatch = staffKeywords.test(queryText);
+      const currentPropertyMatch = propertyKeywords.test(queryText);
+      const currentFinanceMatch = financeKeywords.test(queryText);
+      
+      console.log(`📋 Staff match: ${currentStaffMatch}`);
+      console.log(`🏢 Property match: ${currentPropertyMatch}`);
+      console.log(`💰 Finance match: ${currentFinanceMatch}`);
+      
+      // Check conversation context from last query if current query doesn't specify data type
+      const contextStaffMatch = lastQuery ? staffKeywords.test(lastQuery) : false;
+      const contextPropertyMatch = lastQuery ? propertyKeywords.test(lastQuery) : false;
+      const contextFinanceMatch = lastQuery ? financeKeywords.test(lastQuery) : false;
+      
+      console.log(`📋 Context Staff match: ${contextStaffMatch}`);
+      console.log(`🏢 Context Property match: ${contextPropertyMatch}`);
+      console.log(`💰 Context Finance match: ${contextFinanceMatch}`);
+      
+      // Priority-based detection: Current query > Conversation context > Finance (default)
       let dataType = 'finance'; // default
       
-      if (staffKeywords.test(queryText)) {
+      if (currentStaffMatch || (!currentPropertyMatch && !currentFinanceMatch && contextStaffMatch)) {
         dataType = 'staff';
-        console.log(`✅ Detected Staff ${exportFormat.toUpperCase()} export command`);
-      } else if (propertyKeywords.test(queryText)) {
+        console.log(`✅ Detected Staff ${exportFormat.toUpperCase()} export command ${currentStaffMatch ? '(direct)' : '(from context)'}`);
+      } else if (currentPropertyMatch || (!currentStaffMatch && !currentFinanceMatch && contextPropertyMatch)) {
         dataType = 'properties';
-        console.log(`✅ Detected Property ${exportFormat.toUpperCase()} export command`);
+        console.log(`✅ Detected Property ${exportFormat.toUpperCase()} export command ${currentPropertyMatch ? '(direct)' : '(from context)'}`);
+      } else if (currentFinanceMatch || (!currentStaffMatch && !currentPropertyMatch && contextFinanceMatch)) {
+        dataType = 'finance';
+        console.log(`✅ Detected Finance ${exportFormat.toUpperCase()} export command ${currentFinanceMatch ? '(direct)' : '(from context)'}`);
       } else {
         console.log(`✅ Detected Finance ${exportFormat.toUpperCase()} export command (default fallback)`);
       }
