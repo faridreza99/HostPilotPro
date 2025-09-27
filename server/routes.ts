@@ -21405,7 +21405,10 @@ async function processGuestIssueForAI(issueReport: any) {
         console.log(`✅ CSV export completed: ${csvContent.length} characters`);
         
       } else if (exportType === 'pdf') {
-        // Generate PDF content (simplified - in production use a proper PDF library)
+        // Generate proper PDF using jsPDF
+        const { jsPDF } = await import('jspdf');
+        const doc = new jsPDF();
+        
         const totalRevenue = organizationFinances
           .filter(f => f.type === 'income')
           .reduce((sum, f) => sum + (parseFloat(f.amount?.toString() || '0') || 0), 0);
@@ -21414,34 +21417,64 @@ async function processGuestIssueForAI(issueReport: any) {
           .filter(f => f.type === 'expense')
           .reduce((sum, f) => sum + (parseFloat(f.amount?.toString() || '0') || 0), 0);
         
-        const pdfContent = `Financial Report
-=================
-
-Summary:
---------
-Total Revenue: ฿${totalRevenue.toLocaleString()}
-Total Expenses: ฿${totalExpenses.toLocaleString()}
-Net Profit: ฿${(totalRevenue - totalExpenses).toLocaleString()}
-Total Transactions: ${organizationFinances.length}
-
-Generated on: ${new Date().toLocaleDateString()}
-Organization: ${organizationId}
-
-Recent Transactions:
--------------------
-${organizationFinances.slice(0, 10).map(f => 
-  `${f.date || 'N/A'} | ${f.type?.toUpperCase() || 'INCOME'} | ฿${f.amount || '0'} | ${f.category || 'General'}`
-).join('\n')}
-
-${organizationFinances.length > 10 ? `\n... and ${organizationFinances.length - 10} more transactions` : ''}
-`;
+        // Add title
+        doc.setFontSize(20);
+        doc.text('Financial Report', 20, 30);
         
-        // Set proper headers for PDF download (text-based for now)
+        // Add subtitle
+        doc.setFontSize(12);
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 45);
+        doc.text(`Organization: ${organizationId}`, 20, 55);
+        
+        // Add summary section
+        doc.setFontSize(16);
+        doc.text('Summary', 20, 75);
+        doc.setFontSize(12);
+        doc.text(`Total Revenue: ฿${totalRevenue.toLocaleString()}`, 20, 90);
+        doc.text(`Total Expenses: ฿${totalExpenses.toLocaleString()}`, 20, 100);
+        doc.text(`Net Profit: ฿${(totalRevenue - totalExpenses).toLocaleString()}`, 20, 110);
+        doc.text(`Total Transactions: ${organizationFinances.length}`, 20, 120);
+        
+        // Add transactions section
+        doc.setFontSize(16);
+        doc.text('Recent Transactions', 20, 140);
+        doc.setFontSize(10);
+        
+        let yPosition = 155;
+        const recentTransactions = organizationFinances.slice(0, 15);
+        
+        recentTransactions.forEach((transaction, index) => {
+          const date = transaction.date || 'N/A';
+          const type = transaction.type?.toUpperCase() || 'INCOME';
+          const amount = `฿${transaction.amount || '0'}`;
+          const category = transaction.category || 'General';
+          
+          const line = `${date} | ${type} | ${amount} | ${category}`;
+          doc.text(line, 20, yPosition);
+          yPosition += 8;
+          
+          // Add new page if needed
+          if (yPosition > 270) {
+            doc.addPage();
+            yPosition = 20;
+          }
+        });
+        
+        if (organizationFinances.length > 15) {
+          yPosition += 5;
+          doc.text(`... and ${organizationFinances.length - 15} more transactions`, 20, yPosition);
+        }
+        
+        // Generate PDF buffer
+        const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+        
+        // Set proper headers for PDF download
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="financial_report.pdf"');
-        res.send(pdfContent);
+        res.setHeader('Content-Length', pdfBuffer.length.toString());
+        res.send(pdfBuffer);
         
-        console.log(`✅ PDF export completed: ${pdfContent.length} characters`);
+        console.log(`✅ PDF export completed: ${pdfBuffer.length} bytes`);
         
       } else {
         res.status(400).json({ message: "Unsupported export type" });
