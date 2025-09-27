@@ -1292,20 +1292,38 @@ Please provide a well-formatted property portfolio analysis.`;
         f.organizationId === 'demo-org' // Include demo org data where financial records actually exist
       );
       
-      // Calculate analytics manually with proper null/NaN validation
-      const totalRevenue = organizationFinances
-        .filter(f => f.type === 'income')
-        .reduce((sum, f) => {
-          const amount = typeof f.amount === 'number' && !isNaN(f.amount) ? f.amount : 0;
-          return sum + amount;
-        }, 0);
+      // Debug: Check what data we actually have
+      console.log(`🔍 Debug: First 3 finance records:`, organizationFinances.slice(0, 3).map(f => ({
+        id: f.id,
+        type: f.type,
+        amount: f.amount,
+        amountType: typeof f.amount,
+        category: f.category
+      })));
+      
+      // Debug: Check unique types
+      const uniqueTypes = [...new Set(organizationFinances.map(f => f.type))];
+      console.log(`🔍 Debug: Unique transaction types found:`, uniqueTypes);
+      
+      // Calculate analytics manually with proper null/NaN validation and decimal conversion
+      const incomeRecords = organizationFinances.filter(f => f.type === 'income');
+      const expenseRecords = organizationFinances.filter(f => f.type === 'expense');
+      
+      console.log(`🔍 Debug: Income records: ${incomeRecords.length}, Expense records: ${expenseRecords.length}`);
+      
+      const totalRevenue = incomeRecords.reduce((sum, f) => {
+        // Convert decimal string to number if needed
+        const amount = typeof f.amount === 'string' ? parseFloat(f.amount) : f.amount;
+        const validAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+        return sum + validAmount;
+      }, 0);
         
-      const totalExpenses = organizationFinances
-        .filter(f => f.type === 'expense')
-        .reduce((sum, f) => {
-          const amount = typeof f.amount === 'number' && !isNaN(f.amount) ? f.amount : 0;
-          return sum + amount;
-        }, 0);
+      const totalExpenses = expenseRecords.reduce((sum, f) => {
+        // Convert decimal string to number if needed
+        const amount = typeof f.amount === 'string' ? parseFloat(f.amount) : f.amount;
+        const validAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+        return sum + validAmount;
+      }, 0);
       
       // Ensure no NaN values in calculations
       const validRevenue = typeof totalRevenue === 'number' && !isNaN(totalRevenue) ? totalRevenue : 0;
