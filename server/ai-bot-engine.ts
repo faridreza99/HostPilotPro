@@ -44,6 +44,22 @@ export class AIBotEngine {
     });
     
     this.storage = new DatabaseStorage();
+    
+    // Clear finance-related cache on startup to ensure fresh data after fixes
+    this.clearFinanceCache();
+  }
+  
+  /**
+   * Clear finance-related cached responses to force fresh data retrieval
+   */
+  private clearFinanceCache(): void {
+    for (const [key] of this.cache) {
+      if (key.includes('finance') || key.includes('revenue') || key.includes('expense') || 
+          key.includes('financial') || key.includes('money') || key.includes('profit')) {
+        this.cache.delete(key);
+        console.log('🗑️ Cleared cached finance response for key:', key);
+      }
+    }
   }
 
   /**
@@ -88,6 +104,8 @@ export class AIBotEngine {
     }
     
     if (this.isFinanceQuery(question)) {
+      // Clear any cached finance responses to ensure fresh data
+      this.clearFinanceCache();
       return await this.processFinanceQuery(question, context);
     }
     
