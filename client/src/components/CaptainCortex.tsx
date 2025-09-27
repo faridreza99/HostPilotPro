@@ -77,11 +77,14 @@ const CaptainCortex = () => {
       setIsLoading(true);
       setResponse(`Preparing ${exportType.toUpperCase()} export...`);
       
+      console.log(`🚀 Starting ${exportType.toUpperCase()} export...`);
+      
       const response = await fetch('/api/finance-export', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies/session for authentication
         body: JSON.stringify({
           exportType: exportType,
           format: exportType === 'csv' ? 'standard' : 'detailed',
@@ -90,14 +93,42 @@ const CaptainCortex = () => {
         }),
       });
 
+      console.log(`📊 Export response status: ${response.status}`);
+      console.log(`📊 Export response headers:`, Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error(`Failed to export: ${response.statusText}`);
+        // Check if we got JSON error response (authentication/validation error)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          console.error(`❌ Server error:`, errorData);
+          throw new Error(errorData.message || `Export failed: ${response.statusText}`);
+        } else {
+          // Probably got HTML instead of expected response
+          const htmlContent = await response.text();
+          console.error(`❌ Unexpected response content:`, htmlContent.substring(0, 200));
+          throw new Error(`Export failed: Got HTML instead of ${exportType.toUpperCase()} data. Please check authentication.`);
+        }
       }
 
-      // Backend now returns actual file content, not JSON
+      // Check content type to ensure we got the expected file
+      const contentType = response.headers.get('content-type');
+      const expectedTypes = {
+        csv: 'text/csv',
+        pdf: 'text/html' // PDF export returns HTML for printing
+      };
+      
+      if (!contentType || !contentType.includes(expectedTypes[exportType])) {
+        console.warn(`⚠️ Unexpected content type: ${contentType}, expected: ${expectedTypes[exportType]}`);
+      }
+
+      // Backend returns actual file content
       const blob = await response.blob();
       const contentDisposition = response.headers.get('Content-Disposition');
-      const fileName = contentDisposition?.match(/filename="(.+)"/)?.[1] || `financial_export.${exportType}`;
+      const fileName = contentDisposition?.match(/filename="(.+)"/)?.[1] || 
+        `financial_export_${new Date().toISOString().split('T')[0]}.${exportType === 'pdf' ? 'html' : exportType}`;
+      
+      console.log(`📄 Downloaded file: ${fileName}, size: ${blob.size} bytes`);
       
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -109,11 +140,11 @@ const CaptainCortex = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      setResponse(`✅ ${exportType.toUpperCase()} export completed successfully! Downloaded: ${fileName}`);
+      setResponse(`✅ ${exportType.toUpperCase()} export completed successfully! Downloaded: ${fileName} (${Math.round(blob.size / 1024)}KB)`);
       
     } catch (error) {
-      console.error(`Error exporting ${exportType}:`, error);
-      setResponse(`❌ Failed to export ${exportType.toUpperCase()}. Please try again.`);
+      console.error(`❌ Error exporting ${exportType}:`, error);
+      setResponse(`❌ Failed to export ${exportType.toUpperCase()}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
