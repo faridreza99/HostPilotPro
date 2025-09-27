@@ -220,7 +220,7 @@ export function registerFastDashboardRoutes(app: Express) {
           const rowData = [
             transaction.date || 'N/A',
             (transaction.type || 'income').toUpperCase(),
-            `฿${transaction.amount || '0'}`,
+            `฿${parseFloat(transaction.amount?.toString() || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             transaction.category || 'General',
             (transaction.description || 'Transaction').substring(0, 30) + 
               (transaction.description && transaction.description.length > 30 ? '...' : '')
@@ -260,6 +260,292 @@ export function registerFastDashboardRoutes(app: Express) {
     } catch (error) {
       console.error("❌ Error exporting financial data:", error);
       res.status(500).json({ message: "Failed to export financial data" });
+    }
+  });
+
+  // Staff Export Endpoint
+  app.post('/api/staff-export', async (req: any, res) => {
+    try {
+      console.log("🧑‍💼 Starting staff export...");
+      const { exportType, format, filters } = req.body;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      // Get staff data from storage
+      const allStaff = await storage.getStaffMembers(organizationId);
+      
+      if (exportType === 'csv') {
+        console.log(`📊 Generating staff CSV export...`);
+        
+        const csvHeaders = ['ID', 'First Name', 'Last Name', 'Email', 'Department', 'Position', 'Salary', 'Status', 'Hire Date'];
+        
+        const csvRows = allStaff.map(staff => {
+          return [
+            staff.id || '',
+            staff.firstName || '',
+            staff.lastName || '', 
+            staff.email || '',
+            staff.department || 'General',
+            staff.position || 'Staff',
+            staff.salary ? `฿${parseFloat(staff.salary.toString()).toLocaleString()}` : '฿0',
+            staff.status || 'active',
+            staff.hireDate || ''
+          ].map(field => `"${String(field).replace(/"/g, '""')}"`);
+        });
+        
+        const BOM = '\uFEFF';
+        const csvContent = BOM + [
+          csvHeaders.join(','),
+          ...csvRows.map(row => row.join(','))
+        ].join('\r\n');
+        
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="staff_export.csv"');
+        res.setHeader('Content-Length', Buffer.byteLength(csvContent, 'utf8').toString());
+        res.send(csvContent);
+        
+        console.log(`✅ Staff CSV export completed: ${csvRows.length} staff members`);
+        
+      } else if (exportType === 'pdf') {
+        console.log(`📄 Generating staff PDF export...`);
+        
+        // Import PDFKit dynamically
+        const PDFDocument = (await import('pdfkit')).default;
+        
+        // Create PDF document
+        const doc = new PDFDocument({ margin: 50 });
+        
+        // Set response headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="staff_report.pdf"');
+        
+        // Pipe PDF to response
+        doc.pipe(res);
+        
+        // Add content to PDF
+        doc.fontSize(20).font('Helvetica-Bold').text('Staff Report', { align: 'center' });
+        doc.moveDown(0.5);
+        
+        // Add metadata
+        doc.fontSize(12).font('Helvetica')
+          .text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'left' })
+          .text(`Organization: ${organizationId}`)
+          .text(`Total Staff: ${allStaff.length}`)
+          .moveDown(1);
+        
+        // Add staff table
+        doc.fontSize(16).font('Helvetica-Bold').text('Staff Members');
+        doc.moveDown(0.5);
+        
+        // Add table headers
+        const startY = doc.y;
+        const colWidths = [100, 100, 120, 80, 100];
+        const headers = ['Name', 'Email', 'Department', 'Position', 'Status'];
+        
+        let currentX = doc.page.margins.left;
+        headers.forEach((header, i) => {
+          doc.fontSize(10).font('Helvetica-Bold').text(header, currentX, startY, { width: colWidths[i] });
+          currentX += colWidths[i];
+        });
+        
+        doc.moveTo(doc.page.margins.left, startY + 15)
+          .lineTo(doc.page.width - doc.page.margins.right, startY + 15)
+          .stroke();
+        
+        // Add staff rows
+        let rowY = startY + 25;
+        
+        for (let i = 0; i < Math.min(20, allStaff.length); i++) {
+          const staff = allStaff[i];
+          currentX = doc.page.margins.left;
+          
+          if (rowY > doc.page.height - 100) {
+            doc.addPage();
+            rowY = doc.page.margins.top;
+          }
+          
+          const rowData = [
+            `${staff.firstName || ''} ${staff.lastName || ''}`.trim(),
+            staff.email || 'N/A',
+            staff.department || 'General',
+            staff.position || 'Staff',
+            (staff.status || 'active').toUpperCase()
+          ];
+          
+          rowData.forEach((data, j) => {
+            const color = j === 4 ? (staff.status === 'active' ? '#22c55e' : '#ef4444') : '#000000';
+            doc.fontSize(9).font('Helvetica').fillColor(color)
+              .text(data, currentX, rowY, { width: colWidths[j] });
+            currentX += colWidths[j];
+          });
+          
+          rowY += 20;
+        }
+        
+        if (allStaff.length > 20) {
+          doc.fillColor('#666666').fontSize(10)
+            .text(`... and ${allStaff.length - 20} more staff members`, 
+                  doc.page.margins.left, rowY + 10);
+        }
+        
+        // Add footer
+        doc.fillColor('#999999').fontSize(8)
+          .text('Report generated by HostPilotPro Staff Management System', 
+                doc.page.margins.left, doc.page.height - 50);
+        
+        doc.end();
+        
+        console.log(`✅ Staff PDF export completed: ${allStaff.length} staff processed`);
+        
+      } else {
+        res.status(400).json({ message: "Unsupported export type" });
+      }
+      
+    } catch (error) {
+      console.error("❌ Error exporting staff data:", error);
+      res.status(500).json({ message: "Failed to export staff data" });
+    }
+  });
+
+  // Properties Export Endpoint
+  app.post('/api/properties-export', async (req: any, res) => {
+    try {
+      console.log("🏢 Starting properties export...");
+      const { exportType, format, filters } = req.body;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      // Get properties data from storage
+      const allProperties = await storage.getProperties(organizationId);
+      
+      if (exportType === 'csv') {
+        console.log(`📊 Generating properties CSV export...`);
+        
+        const csvHeaders = ['ID', 'Name', 'Address', 'Type', 'Bedrooms', 'Bathrooms', 'Status', 'Owner', 'Created Date'];
+        
+        const csvRows = allProperties.map(property => {
+          return [
+            property.id || '',
+            property.name || '',
+            property.address || '',
+            property.type || 'Apartment',
+            property.bedrooms || '0',
+            property.bathrooms || '0',
+            property.status || 'active',
+            property.ownerId || 'Unassigned',
+            property.createdAt ? new Date(property.createdAt).toLocaleDateString() : ''
+          ].map(field => `"${String(field).replace(/"/g, '""')}"`);
+        });
+        
+        const BOM = '\uFEFF';
+        const csvContent = BOM + [
+          csvHeaders.join(','),
+          ...csvRows.map(row => row.join(','))
+        ].join('\r\n');
+        
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="properties_export.csv"');
+        res.setHeader('Content-Length', Buffer.byteLength(csvContent, 'utf8').toString());
+        res.send(csvContent);
+        
+        console.log(`✅ Properties CSV export completed: ${csvRows.length} properties`);
+        
+      } else if (exportType === 'pdf') {
+        console.log(`📄 Generating properties PDF export...`);
+        
+        // Import PDFKit dynamically
+        const PDFDocument = (await import('pdfkit')).default;
+        
+        // Create PDF document
+        const doc = new PDFDocument({ margin: 50 });
+        
+        // Set response headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="properties_report.pdf"');
+        
+        // Pipe PDF to response
+        doc.pipe(res);
+        
+        // Add content to PDF
+        doc.fontSize(20).font('Helvetica-Bold').text('Properties Report', { align: 'center' });
+        doc.moveDown(0.5);
+        
+        // Add metadata
+        doc.fontSize(12).font('Helvetica')
+          .text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'left' })
+          .text(`Organization: ${organizationId}`)
+          .text(`Total Properties: ${allProperties.length}`)
+          .moveDown(1);
+        
+        // Add properties table
+        doc.fontSize(16).font('Helvetica-Bold').text('Property Listings');
+        doc.moveDown(0.5);
+        
+        // Add table headers
+        const startY = doc.y;
+        const colWidths = [120, 150, 80, 60, 90];
+        const headers = ['Name', 'Address', 'Type', 'Rooms', 'Status'];
+        
+        let currentX = doc.page.margins.left;
+        headers.forEach((header, i) => {
+          doc.fontSize(10).font('Helvetica-Bold').text(header, currentX, startY, { width: colWidths[i] });
+          currentX += colWidths[i];
+        });
+        
+        doc.moveTo(doc.page.margins.left, startY + 15)
+          .lineTo(doc.page.width - doc.page.margins.right, startY + 15)
+          .stroke();
+        
+        // Add property rows
+        let rowY = startY + 25;
+        
+        for (let i = 0; i < Math.min(15, allProperties.length); i++) {
+          const property = allProperties[i];
+          currentX = doc.page.margins.left;
+          
+          if (rowY > doc.page.height - 100) {
+            doc.addPage();
+            rowY = doc.page.margins.top;
+          }
+          
+          const rowData = [
+            property.name || 'Unnamed Property',
+            (property.address || 'No address').substring(0, 25) + (property.address && property.address.length > 25 ? '...' : ''),
+            property.type || 'Apartment',
+            `${property.bedrooms || 0}BR/${property.bathrooms || 0}BA`,
+            (property.status || 'active').toUpperCase()
+          ];
+          
+          rowData.forEach((data, j) => {
+            const color = j === 4 ? (property.status === 'active' ? '#22c55e' : '#ef4444') : '#000000';
+            doc.fontSize(9).font('Helvetica').fillColor(color)
+              .text(data, currentX, rowY, { width: colWidths[j] });
+            currentX += colWidths[j];
+          });
+          
+          rowY += 20;
+        }
+        
+        if (allProperties.length > 15) {
+          doc.fillColor('#666666').fontSize(10)
+            .text(`... and ${allProperties.length - 15} more properties`, 
+                  doc.page.margins.left, rowY + 10);
+        }
+        
+        // Add footer
+        doc.fillColor('#999999').fontSize(8)
+          .text('Report generated by HostPilotPro Property Management System', 
+                doc.page.margins.left, doc.page.height - 50);
+        
+        doc.end();
+        
+        console.log(`✅ Properties PDF export completed: ${allProperties.length} properties processed`);
+        
+      } else {
+        res.status(400).json({ message: "Unsupported export type" });
+      }
+      
+    } catch (error) {
+      console.error("❌ Error exporting properties data:", error);
+      res.status(500).json({ message: "Failed to export properties data" });
     }
   });
 }

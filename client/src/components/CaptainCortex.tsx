@@ -17,18 +17,38 @@ const CaptainCortex = () => {
     // Detect export commands and handle them directly
     const exportCSVKeywords = /\b(?:export|download|save)\s+(?:to\s+)?csv\b/i;
     const exportPDFKeywords = /\b(?:export|download|save)\s+(?:to\s+)?pdf\b/i;
+    
+    // Detect data type for export
+    const staffKeywords = /\b(?:staff|employee|user|team|personnel|worker)\b/i;
     const financeKeywords = /\b(?:financial?|finance|transaction|revenue|expense|income|money|payment|budget)\b/i;
+    const propertyKeywords = /\b(?:property|properties|building|accommodation|listing)\b/i;
     
     if (exportCSVKeywords.test(queryText)) {
-      console.log('🔍 Detected CSV export command, routing to handleFinancialExport');
-      handleFinancialExport('csv');
+      if (staffKeywords.test(queryText)) {
+        console.log('🔍 Detected Staff CSV export command');
+        handleDataExport('csv', 'staff');
+      } else if (propertyKeywords.test(queryText)) {
+        console.log('🔍 Detected Property CSV export command');
+        handleDataExport('csv', 'properties');
+      } else {
+        console.log('🔍 Detected Finance CSV export command (default)');
+        handleDataExport('csv', 'finance');
+      }
       if (!question) setPrompt(""); // Clear input only for manual queries
       return;
     }
     
     if (exportPDFKeywords.test(queryText)) {
-      console.log('🔍 Detected PDF export command, routing to handleFinancialExport');
-      handleFinancialExport('pdf');
+      if (staffKeywords.test(queryText)) {
+        console.log('🔍 Detected Staff PDF export command');
+        handleDataExport('pdf', 'staff');
+      } else if (propertyKeywords.test(queryText)) {
+        console.log('🔍 Detected Property PDF export command');
+        handleDataExport('pdf', 'properties');
+      } else {
+        console.log('🔍 Detected Finance PDF export command (default)');
+        handleDataExport('pdf', 'finance');
+      }
       if (!question) setPrompt(""); // Clear input only for manual queries
       return;
     }
@@ -91,14 +111,21 @@ const CaptainCortex = () => {
     }
   };
 
-  const handleFinancialExport = async (exportType: 'csv' | 'pdf') => {
+  const handleDataExport = async (exportType: 'csv' | 'pdf', dataType: 'finance' | 'staff' | 'properties') => {
     try {
       setIsLoading(true);
-      setResponse(`Preparing ${exportType.toUpperCase()} export...`);
+      setResponse(`Preparing ${dataType} ${exportType.toUpperCase()} export...`);
       
-      console.log(`🚀 Starting ${exportType.toUpperCase()} export...`);
+      console.log(`🚀 Starting ${dataType} ${exportType.toUpperCase()} export...`);
       
-      const response = await fetch('/api/finance-export', {
+      // Map data types to API endpoints
+      const apiEndpoints = {
+        'finance': '/api/finance-export',
+        'staff': '/api/staff-export',
+        'properties': '/api/properties-export'
+      };
+      
+      const response = await fetch(apiEndpoints[dataType], {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -145,7 +172,7 @@ const CaptainCortex = () => {
       const blob = await response.blob();
       const contentDisposition = response.headers.get('Content-Disposition');
       const fileName = contentDisposition?.match(/filename="(.+)"/)?.[1] || 
-        `financial_export_${new Date().toISOString().split('T')[0]}.${exportType}`;
+        `${dataType}_export_${new Date().toISOString().split('T')[0]}.${exportType}`;
       
       console.log(`📄 Downloaded file: ${fileName}, size: ${blob.size} bytes`);
       
@@ -159,14 +186,19 @@ const CaptainCortex = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      setResponse(`✅ ${exportType.toUpperCase()} export completed successfully! Downloaded: ${fileName} (${Math.round(blob.size / 1024)}KB)`);
+      setResponse(`✅ ${dataType.charAt(0).toUpperCase() + dataType.slice(1)} ${exportType.toUpperCase()} export completed successfully! Downloaded: ${fileName} (${Math.round(blob.size / 1024)}KB)`);
       
     } catch (error) {
-      console.error(`❌ Error exporting ${exportType}:`, error);
-      setResponse(`❌ Failed to export ${exportType.toUpperCase()}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(`❌ Error exporting ${dataType} ${exportType}:`, error);
+      setResponse(`❌ Failed to export ${dataType} ${exportType.toUpperCase()}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Legacy function for backward compatibility
+  const handleFinancialExport = async (exportType: 'csv' | 'pdf') => {
+    return handleDataExport(exportType, 'finance');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
