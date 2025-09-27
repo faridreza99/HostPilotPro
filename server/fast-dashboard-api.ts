@@ -270,6 +270,9 @@ export function registerFastDashboardRoutes(app: Express) {
       const { exportType, format, filters } = req.body;
       const organizationId = req.user?.organizationId || "default-org";
       
+      // Import storage dynamically
+      const { storage } = await import('./storage');
+      
       // Get staff data from storage
       const allStaff = await storage.getStaffMembers(organizationId);
       
@@ -412,6 +415,9 @@ export function registerFastDashboardRoutes(app: Express) {
       console.log("🏢 Starting properties export...");
       const { exportType, format, filters } = req.body;
       const organizationId = req.user?.organizationId || "default-org";
+      
+      // Import storage dynamically
+      const { storage } = await import('./storage');
       
       // Get properties data from storage
       const allProperties = await storage.getProperties(organizationId);
