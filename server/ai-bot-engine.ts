@@ -1255,7 +1255,8 @@ Please provide a well-formatted property portfolio analysis.`;
       // Filter by organization ID after fetching (same as Finance Hub does)
       const organizationFinances = allFinances.filter(f => 
         f.organizationId === context.organizationId || 
-        f.organizationId === 'default-org' // Include default org data
+        f.organizationId === 'default-org' || // Include default org data
+        f.organizationId === 'demo-org' // Include demo org data where financial records actually exist
       );
       
       console.log(`✅ Found ${organizationFinances.length} finance records for organization ${context.organizationId} (from ${allFinances.length} total)`);
@@ -1280,7 +1281,8 @@ Please provide a well-formatted property portfolio analysis.`;
       // Filter by organization ID (same as Finance Hub does)
       const organizationFinances = allFinances.filter(f => 
         f.organizationId === context.organizationId || 
-        f.organizationId === 'default-org' // Include default org data
+        f.organizationId === 'default-org' || // Include default org data
+        f.organizationId === 'demo-org' // Include demo org data where financial records actually exist
       );
       
       // Calculate analytics manually (same as Finance Hub does in analytics endpoint)
