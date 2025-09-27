@@ -950,8 +950,8 @@ ${csvData.slice(0, 3).map((row, i) =>
     const maxCount = Math.max(...Object.values(departmentCounts));
     const departmentChart = Object.entries(departmentCounts)
       .map(([dept, count]) => {
-        const barLength = Math.round((count / maxCount) * 20);
-        const bar = '█'.repeat(barLength) + '░'.repeat(20 - barLength);
+        const barLength = Math.max(0, Math.min(20, Math.round((count / maxCount) * 20)));
+        const bar = '█'.repeat(barLength) + '░'.repeat(Math.max(0, 20 - barLength));
         return `${dept.padEnd(12)} │${bar}│ ${count}`;
       })
       .join('\n');
@@ -966,9 +966,9 @@ ${csvData.slice(0, 3).map((row, i) =>
     const salaryChart = Object.entries(deptSalaries)
       .map(([dept, salaries]) => {
         const avg = Math.round(salaries.reduce((a, b) => a + b, 0) / salaries.length);
-        const barLength = Math.round((avg / 60000) * 15); // Assuming max salary ~60k
-        const bar = '▓'.repeat(Math.max(1, barLength)) + '░'.repeat(15 - barLength);
-        return `${dept.padEnd(12)} │${bar}│ ฿${avg.toLocaleString()}`;
+        const barLength = Math.max(0, Math.min(15, Math.round((avg / 60000) * 15))); // Assuming max salary ~60k
+        const bar = '▓'.repeat(Math.max(0, barLength)) + '░'.repeat(Math.max(0, 15 - barLength));
+        return `${dept.padEnd(12)} │${bar}│ THB ${avg.toLocaleString()}`;
       })
       .join('\n');
 
