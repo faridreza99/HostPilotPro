@@ -37,11 +37,20 @@ const CaptainCortex = () => {
   };
 
   const handleQuickAction = (action: string, target?: string) => {
+    // Handle export actions directly with API calls
+    if (action === 'finance-export-csv') {
+      handleFinancialExport('csv');
+      return;
+    }
+    if (action === 'finance-export-pdf') {
+      handleFinancialExport('pdf');
+      return;
+    }
+    
+    // Handle other actions with AI queries
     const queries = {
       'export-csv': 'Export staff list to CSV',
       'export-pdf': 'Export to PDF',
-      'finance-export-csv': 'Export financial data to CSV',
-      'finance-export-pdf': 'Export financial summary to PDF',
       'concise': `${lastQuery} - concise mode`,
       'detailed': `${lastQuery} - show detailed view`,
       'drill-sales': 'Show only Sales department staff',
@@ -60,6 +69,49 @@ const CaptainCortex = () => {
         exportFormat: action.includes('export') ? action.split('-')[2] || action.split('-')[1] : undefined,
         viewMode: action === 'concise' ? 'concise' : 'detailed'
       });
+    }
+  };
+
+  const handleFinancialExport = async (exportType: 'csv' | 'pdf') => {
+    try {
+      setIsLoading(true);
+      setResponse(`Preparing ${exportType.toUpperCase()} export...`);
+      
+      const response = await fetch('/api/finance-export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          exportType: exportType,
+          format: exportType === 'csv' ? 'standard' : 'detailed',
+          dateRange: 'all',
+          filters: {}
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to export: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.fileUrl) {
+        // Create download link
+        const link = document.createElement('a');
+        link.href = result.fileUrl;
+        link.download = result.fileName || `financial_export.${exportType}`;
+        link.click();
+        
+        setResponse(`✅ ${exportType.toUpperCase()} export completed successfully! Downloaded: ${result.fileName}`);
+      } else {
+        setResponse(`✅ ${exportType.toUpperCase()} export initiated. File will be ready shortly.`);
+      }
+    } catch (error) {
+      console.error(`Error exporting ${exportType}:`, error);
+      setResponse(`❌ Failed to export ${exportType.toUpperCase()}. Please try again.`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
