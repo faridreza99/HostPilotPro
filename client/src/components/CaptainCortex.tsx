@@ -134,7 +134,7 @@ const CaptainCortex = () => {
       const contentType = response.headers.get('content-type');
       const expectedTypes = {
         csv: 'text/csv',
-        pdf: 'text/html' // PDF export returns HTML for printing
+        pdf: 'application/pdf' // PDF export returns actual PDF binary data
       };
       
       if (!contentType || !contentType.includes(expectedTypes[exportType])) {
@@ -145,7 +145,7 @@ const CaptainCortex = () => {
       const blob = await response.blob();
       const contentDisposition = response.headers.get('Content-Disposition');
       const fileName = contentDisposition?.match(/filename="(.+)"/)?.[1] || 
-        `financial_export_${new Date().toISOString().split('T')[0]}.${exportType === 'pdf' ? 'html' : exportType}`;
+        `financial_export_${new Date().toISOString().split('T')[0]}.${exportType}`;
       
       console.log(`📄 Downloaded file: ${fileName}, size: ${blob.size} bytes`);
       
