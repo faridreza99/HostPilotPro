@@ -128,15 +128,8 @@ export function useFastAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Immediately check local storage first
-    const storedSession = FastAuthSessionManager.getSession();
-    if (storedSession) {
-      setUser(storedSession.user);
-      setIsLoading(false);
-      return;
-    }
-
-    // Only then check server if no local session
+    // Always check server to ensure session is valid
+    // Don't rely solely on localStorage as server session may have expired
     checkServerAuth();
   }, []);
 
