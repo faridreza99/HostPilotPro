@@ -29,7 +29,12 @@ const CaptainCortex = () => {
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ API Error:', res.status, errorData);
-        setResponse(`Error (${res.status}): ${errorData.error || errorData.message || 'Failed to get response from AI assistant. Please make sure you are logged in.'}`);
+        
+        if (res.status === 401) {
+          setResponse(`🔒 Authentication required. Please refresh the page to log in automatically, then try again.`);
+        } else {
+          setResponse(`Error (${res.status}): ${errorData.error || errorData.message || 'Failed to get response from AI assistant.'}`);
+        }
         return;
       }
       

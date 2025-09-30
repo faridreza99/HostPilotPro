@@ -85,10 +85,13 @@ export function getDemoSession() {
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    name: 'hostpilot.sid', // Explicit session name
     cookie: {
       httpOnly: true,
       secure: false, // Set to false for development
+      sameSite: 'lax', // Allow cookies to be sent with navigation
       maxAge: sessionTtl,
+      path: '/', // Ensure cookie is available for all paths
     },
   });
 }
