@@ -235,19 +235,28 @@ export class AIBotEngine {
       .filter((a: any) => a.organizationId === context.organizationId)
       .slice(0, 10);
 
-    // Calculate property metrics (occupancy, ROI, revenue, last booking)
+    // Calculate property metrics (occupancy, ROI, revenue, last booking) using ALL data without org filtering
     const propertyMetrics = filteredProperties.map((property: any) => {
-      // Get bookings for this property
+      // Get ALL bookings for this property (no org filter - match by property ID or name)
       const propertyBookings = bookings.filter((b: any) => 
         b.propertyId === property.id || b.propertyName === property.name
       );
       
-      // Get finances for this property
-      const propertyFinances = finances.filter((f: any) => f.propertyId === property.id);
+      // Get ALL finances for this property (no org filter - match by property ID or name)
+      const propertyFinances = finances.filter((f: any) => 
+        f.propertyId === property.id || f.propertyName === property.name
+      );
       
-      // Calculate monthly revenue
-      const monthlyRevenue = propertyFinances
+      // Calculate total revenue (all time)
+      const totalRevenue = propertyFinances
         .filter((f: any) => f.type === 'income')
+        .reduce((sum: number, f: any) => sum + parseFloat(f.amount || 0), 0);
+      
+      // Calculate monthly revenue (last 30 days)
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const monthlyRevenue = propertyFinances
+        .filter((f: any) => f.type === 'income' && new Date(f.date) >= thirtyDaysAgo)
         .reduce((sum: number, f: any) => sum + parseFloat(f.amount || 0), 0);
       
       // Calculate last booking date
@@ -257,9 +266,7 @@ export class AIBotEngine {
           )[0]
         : null;
       
-      // Calculate occupancy rate (simplified - based on recent bookings)
-      const now = new Date();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      // Calculate occupancy rate (based on last 30 days bookings)
       const recentBookings = propertyBookings.filter((b: any) => 
         new Date(b.checkIn) >= thirtyDaysAgo
       );
@@ -271,8 +278,7 @@ export class AIBotEngine {
       }, 0);
       const occupancyRate = Math.min(100, Math.round((bookedDays / 30) * 100));
       
-      // Calculate ROI (simplified - revenue vs property value if available)
-      const totalRevenue = monthlyRevenue;
+      // Calculate ROI (profit margin)
       const totalExpenses = propertyFinances
         .filter((f: any) => f.type === 'expense')
         .reduce((sum: number, f: any) => sum + parseFloat(f.amount || 0), 0);
@@ -282,9 +288,11 @@ export class AIBotEngine {
         ...property,
         occupancyRate,
         monthlyRevenue,
+        totalRevenue,
         lastBookingDate: lastBooking ? lastBooking.checkIn : null,
         roi: Math.round(roi * 10) / 10,
-        bookingCount: propertyBookings.length
+        bookingCount: propertyBookings.length,
+        recentBookingCount: recentBookings.length
       };
     });
 
@@ -340,9 +348,19 @@ Available data across ALL modules:
 - Property Documents: ${organizationData.propertyDocuments.length} documents
 - Invoices: ${organizationData.invoices.length} invoices`;
 
+    // Log property metrics for debugging
+    console.log('🏠 Property Metrics Sample:', organizationData.properties.slice(0, 3).map((p: any) => ({
+      name: p.name,
+      occupancy: p.occupancyRate,
+      roi: p.roi,
+      monthlyRevenue: p.monthlyRevenue,
+      totalRevenue: p.totalRevenue,
+      bookings: p.bookingCount
+    })));
+
     // Create a more concise data summary to reduce token usage
     const dataSummary = `Properties (${organizationData.properties.length}):
-${organizationData.properties.map((p: any) => `- ${p.name}: ${p.bedrooms}BR/${p.bathrooms}BA, ฿${p.pricePerNight}/night, Status: ${p.status}, Occupancy: ${p.occupancyRate}%, ROI: ${p.roi}%, Monthly Revenue: ฿${p.monthlyRevenue}, Last Booking: ${p.lastBookingDate || 'None'}, Bookings: ${p.bookingCount}`).join('\n')}
+${organizationData.properties.map((p: any) => `- ${p.name}: ${p.bedrooms}BR/${p.bathrooms}BA, ฿${p.pricePerNight?.toLocaleString()}/night, Status: ${p.status}, Occupancy: ${p.occupancyRate}%, ROI: ${p.roi}%, Monthly Revenue: ฿${p.monthlyRevenue?.toLocaleString()}, Total Revenue: ฿${p.totalRevenue?.toLocaleString()}, Last Booking: ${p.lastBookingDate || 'None'}, Total Bookings: ${p.bookingCount}, Recent Bookings (30d): ${p.recentBookingCount}`).join('\n')}
 
 Recent Tasks (${organizationData.tasks.length}):
 ${organizationData.tasks.map(t => `- ${t.title} (${t.status}, ${t.priority}, ${t.propertyName}, due: ${t.dueDate})`).join('\n')}

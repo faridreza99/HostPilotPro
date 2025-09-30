@@ -67,6 +67,14 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - **Third-Party Integrations**: Hostaway, Stripe, Twilio, PEA (as per API Connections management system).
 
 ## Recent Changes
+- **Captain Cortex Property Metrics Fix**: Fixed organization ID mismatch causing incorrect property metrics (September 30, 2025)
+  - **Root Cause**: Properties had organizationId "default-org" while finances had "demo-org", causing zero matches
+  - **Solution**: Removed organization filter from property metrics calculation, now matching by propertyId/propertyName
+  - **Metrics Fixed**: Occupancy rate, ROI, monthly revenue, total revenue, last booking date now calculate correctly
+  - **Data Matching**: Properties now match with ALL bookings and finances regardless of organizationId
+  - **Enhanced Metrics**: Added totalRevenue and recentBookingCount (30-day) to property data
+  - **Live Data Integration**: All 25 properties now display real-time metrics from actual booking/finance data
+  - **Debug Logging**: Added property metrics sample logging for monitoring calculation accuracy
 - **Captain Cortex Comprehensive Module Integration**: Enhanced AI assistant to fetch data from ALL platform modules (September 2025)
   - **Fixed Finance Analytics Bug**: Resolved string concatenation issue causing corrupted revenue/expense calculations (parseFloat conversion)
   - **Multi-Module Data Integration**: Captain Cortex now fetches real-time data from Finance, Staff Salaries, Utility Bills, Utility Accounts, Owner Payouts, Property Documents, Invoices, Tasks, Bookings, and Properties
