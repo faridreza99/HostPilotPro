@@ -84,9 +84,24 @@ export class AIBotEngine {
       this.storage.getTasks(),
       this.storage.getBookings(),
       this.storage.getFinances(),
-      this.storage.getStaffMembers(context.organizationId).catch(() => []),
-      this.storage.getUsers().catch(() => [])
+      this.storage.getStaffMembers(context.organizationId).catch((error) => {
+        console.error('⚠️ Error fetching staff members:', error.message);
+        return [];
+      }),
+      this.storage.getUsers().catch((error) => {
+        console.error('⚠️ Error fetching users:', error.message);
+        return [];
+      })
     ]);
+    
+    console.log('📊 Raw data counts:', {
+      properties: properties.length,
+      tasks: tasks.length,
+      bookings: bookings.length,
+      finances: finances.length,
+      staffMembers: staffMembers.length,
+      users: users.length
+    });
 
     // Filter by organization and show only main demo properties for clean demo experience
     const mainDemoPropertyNames = [
