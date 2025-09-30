@@ -78,12 +78,16 @@ export class AIBotEngine {
    * Fast single-call query processing
    */
   private async processQueryFast(question: string, context: QueryContext): Promise<string> {
-    // Fetch all relevant data upfront
-    const [properties, tasks, bookings, finances, staffMembers, users] = await Promise.all([
+    // Fetch all relevant data upfront including finance analytics
+    const [properties, tasks, bookings, finances, financeAnalytics, staffMembers, users] = await Promise.all([
       this.storage.getProperties(),
       this.storage.getTasks(),
       this.storage.getBookings(),
       this.storage.getFinances(),
+      this.storage.getFinanceAnalytics({ organizationId: context.organizationId }).catch((error) => {
+        console.log('ℹ️  Finance analytics not available, using basic calculations');
+        return null;
+      }),
       this.storage.getStaffMembers(context.organizationId).catch((error) => {
         console.log('ℹ️  Staff members table not available, will use users with staff role instead');
         return [];
@@ -100,8 +104,19 @@ export class AIBotEngine {
       bookings: bookings.length,
       finances: finances.length,
       staffMembers: staffMembers.length,
-      users: users.length
+      users: users.length,
+      hasFinanceAnalytics: !!financeAnalytics
     });
+    
+    // Log finance analytics summary if available
+    if (financeAnalytics) {
+      console.log('💰 Finance Analytics:', {
+        totalRevenue: financeAnalytics.totalRevenue,
+        totalExpenses: financeAnalytics.totalExpenses,
+        netProfit: financeAnalytics.netProfit,
+        transactionCount: financeAnalytics.transactionCount
+      });
+    }
 
     // Filter by organization and show only main demo properties for clean demo experience
     const mainDemoPropertyNames = [
@@ -199,6 +214,7 @@ export class AIBotEngine {
       tasks: recentTasks,
       bookings: recentBookings,
       finances: recentFinances,
+      financeAnalytics: financeAnalytics,
       staffMembers: filteredStaffMembers,
       staffUsers: staffUsers
     };
@@ -228,6 +244,7 @@ Available data summary:
 - Recent Tasks: ${organizationData.tasks.length} tasks (last 20)
 - Recent Bookings: ${organizationData.bookings.length} bookings (last 15)
 - Recent Financial records: ${organizationData.finances.length} records (last 20)
+- Finance Analytics: ${financeAnalytics ? 'Available with comprehensive metrics' : 'Not available'}
 - Staff Members: ${organizationData.staffMembers.length} staff profiles
 - Staff Users: ${organizationData.staffUsers.length} users with staff role`;
 
@@ -243,6 +260,13 @@ ${organizationData.bookings.map(b => `- ${b.guestName} at ${b.propertyName} (${b
 
 Recent Finance Records (${organizationData.finances.length}):
 ${organizationData.finances.map(f => `- ${f.type}: ${f.category} ฿${f.amount} (${f.date})`).join('\n')}
+
+Finance Analytics Summary:
+${financeAnalytics ? `- Total Revenue: ฿${financeAnalytics.totalRevenue?.toLocaleString() || 0}
+- Total Expenses: ฿${financeAnalytics.totalExpenses?.toLocaleString() || 0}
+- Net Profit: ฿${financeAnalytics.netProfit?.toLocaleString() || 0}
+- Profit Margin: ${(financeAnalytics.netProfit && financeAnalytics.totalRevenue) ? ((financeAnalytics.netProfit / financeAnalytics.totalRevenue) * 100).toFixed(1) : 0}%
+- Total Transactions: ${financeAnalytics.transactionCount || 0}` : 'Finance analytics not available'}
 
 Staff Members (${organizationData.staffMembers.length}):
 ${organizationData.staffMembers.length > 0 ? organizationData.staffMembers.map(s => `- ${s.fullName} (${s.position || s.department}), ${s.email}, Status: ${s.status}, Hired: ${s.hireDate}`).join('\n') : 'No staff member profiles found'}
