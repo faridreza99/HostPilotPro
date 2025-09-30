@@ -125,6 +125,12 @@ export class AIBotEngine {
       hasFinanceAnalytics: !!financeAnalytics
     });
     
+    // Debug: Show what property IDs exist in bookings and finances
+    const bookingPropertyIds = [...new Set(bookings.map((b: any) => b.propertyId))].filter(id => id);
+    const financePropertyIds = [...new Set(finances.map((f: any) => f.propertyId))].filter(id => id);
+    console.log('🔍 Unique booking propertyIds:', bookingPropertyIds);
+    console.log('🔍 Unique finance propertyIds:', financePropertyIds.slice(0, 10));
+    
     // Log finance analytics summary if available
     if (financeAnalytics) {
       console.log('💰 Finance Analytics:', {
