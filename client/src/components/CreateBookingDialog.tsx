@@ -103,7 +103,7 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
       checkIn: formData.checkIn,
       checkOut: formData.checkOut,
       guests: parseInt(formData.guests) || 1,
-      totalAmount: formData.totalAmount ? parseFloat(formData.totalAmount) : 0,
+      totalAmount: formData.totalAmount || "0", // Keep as string for decimal field
       specialRequests: formData.specialRequests || null,
     };
 
