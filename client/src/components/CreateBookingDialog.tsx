@@ -37,10 +37,15 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/bookings", data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create booking");
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({
         title: "Success",
         description: "Booking created successfully",
@@ -58,10 +63,11 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
         specialRequests: "",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error("Booking creation error:", error);
       toast({
         title: "Error",
-        description: "Failed to create booking",
+        description: error.message || "Failed to create booking",
         variant: "destructive",
       });
     },
@@ -70,11 +76,35 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!formData.propertyId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a property",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!formData.guestName) {
+      toast({
+        title: "Validation Error",
+        description: "Guest name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const data = {
-      ...formData,
       propertyId: parseInt(formData.propertyId),
-      guests: parseInt(formData.guests),
-      totalAmount: formData.totalAmount || "0",
+      guestName: formData.guestName,
+      guestEmail: formData.guestEmail || null,
+      guestPhone: formData.guestPhone || null,
+      checkIn: formData.checkIn,
+      checkOut: formData.checkOut,
+      guests: parseInt(formData.guests) || 1,
+      totalAmount: formData.totalAmount ? parseFloat(formData.totalAmount) : 0,
+      specialRequests: formData.specialRequests || null,
     };
 
     createMutation.mutate(data);

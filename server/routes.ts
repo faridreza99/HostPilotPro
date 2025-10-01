@@ -2134,14 +2134,29 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/bookings", isDemoAuthenticated, async (req, res) => {
+  app.post("/api/bookings", isDemoAuthenticated, async (req: any, res) => {
     try {
-      const bookingData = insertBookingSchema.parse(req.body);
+      const { organizationId } = req.user;
+      
+      // Add organizationId and default status from authenticated user context
+      const bookingData = insertBookingSchema.parse({
+        ...req.body,
+        organizationId,
+        status: req.body.status || "confirmed",
+      });
+      
       const booking = await storage.createBooking(bookingData);
       res.status(201).json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid booking data", errors: error.errors });
+        console.error("Booking validation errors:", error.errors);
+        return res.status(400).json({ 
+          message: "Invalid booking data", 
+          errors: error.errors.map((err: any) => ({
+            field: err.path.join('.'),
+            message: err.message
+          }))
+        });
       }
       console.error("Error creating booking:", error);
       res.status(500).json({ message: "Failed to create booking" });
