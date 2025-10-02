@@ -4965,7 +4965,7 @@ export class DatabaseStorage implements IStorage {
       // Create the user with hashed password
       const [newUser] = await db.insert(users).values({
         ...user,
-        passwordHash: hashedPassword,
+        password: hashedPassword,
         isActive: true,
       }).returning();
       
