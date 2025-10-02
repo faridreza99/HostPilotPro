@@ -47,15 +47,23 @@ export default function CreatePropertyDialog({ open, onOpenChange }: CreatePrope
     },
     onSuccess: (data) => {
       console.log("🎉 Frontend: Property creation successful, invalidating cache");
+      
+      // Invalidate ALL property-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] }); // Also update dashboard stats
-      // Force refresh by clearing all property-related cache
-      queryClient.removeQueries({ queryKey: ["/api/properties"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      
+      // Force immediate refetch to update UI
+      queryClient.refetchQueries({ queryKey: ["/api/properties"] });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard"] });
       
       toast({
         title: "Success", 
-        description: `Property "${data.name}" created successfully! (ID: ${data.id})`,
+        description: `Property "${data.name}" created successfully!`,
       });
+      
+      // Reset form and close dialog
       onOpenChange(false);
       setFormData({
         name: "",
@@ -67,14 +75,6 @@ export default function CreatePropertyDialog({ open, onOpenChange }: CreatePrope
         pricePerNight: "",
         status: "active",
       });
-      
-      // Force refresh without page reload
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-        queryClient.refetchQueries({ queryKey: ["/api/properties"] });
-        queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
-      }, 500);
     },
     onError: (error: any) => {
       console.error("❌ Frontend: Property creation error:", error);

@@ -43,13 +43,24 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (newBooking) => {
+      // Invalidate ALL booking-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/recent-bookings"] });
+      
+      // Force immediate refetch to update UI
+      queryClient.refetchQueries({ queryKey: ["/api/bookings"] });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard/recent-bookings"] });
+      
       toast({
         title: "Success",
-        description: "Booking created successfully",
+        description: `Booking created successfully for ${newBooking.guestName}`,
       });
+      
+      // Reset form and close dialog
       onOpenChange(false);
       setFormData({
         propertyId: "",
