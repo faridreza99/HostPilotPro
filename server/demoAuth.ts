@@ -263,7 +263,12 @@ export async function setupDemoAuth(app: Express) {
 // Seed demo users into database
 async function seedDemoUsers() {
   try {
+    const bcrypt = await import('bcrypt');
+    
     for (const demoUser of DEMO_USERS) {
+      // Hash the password before storing
+      const hashedPassword = await bcrypt.hash(demoUser.password, 12);
+      
       await storage.upsertUser({
         id: demoUser.id,
         email: demoUser.email,
@@ -272,9 +277,10 @@ async function seedDemoUsers() {
         role: demoUser.role,
         organizationId: demoUser.organizationId,
         profileImageUrl: demoUser.profileImageUrl,
+        password: hashedPassword,
       });
     }
-    console.log("Demo users seeded successfully");
+    console.log("Demo users seeded successfully with hashed passwords");
   } catch (error) {
     console.error("Error seeding demo users:", error);
   }
