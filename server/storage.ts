@@ -717,6 +717,7 @@ import {
 
 import { db } from "./db";
 import { eq, and, or, desc, asc, lt, gte, lte, isNull, sql, sum, count, avg, max } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -724,6 +725,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  createUser(user: UpsertUser & { password: string }): Promise<User>;
 
   // Property operations
   getProperties(): Promise<Property[]>;
@@ -4951,6 +4953,26 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching users:', error);
       return [];
+    }
+  }
+
+  // Create new user with hashed password
+  async createUser(user: UpsertUser & { password: string }): Promise<User> {
+    try {
+      // Hash the password with bcrypt (12 salt rounds)
+      const hashedPassword = await bcrypt.hash(user.password, 12);
+      
+      // Create the user with hashed password
+      const [newUser] = await db.insert(users).values({
+        ...user,
+        passwordHash: hashedPassword,
+        isActive: true,
+      }).returning();
+      
+      return newUser;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw new Error('Failed to create user');
     }
   }
 
