@@ -19,6 +19,8 @@ import {
   Clock,
   Eye
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import CreateBookingDialog from "@/components/CreateBookingDialog";
 
 const sampleBookings = [
   {
@@ -127,6 +129,24 @@ export default function Bookings() {
   const [filterArea, setFilterArea] = useState('all');
   const [filterManager, setFilterManager] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+
+  // Fetch real data from API
+  const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ['/api/bookings'],
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: properties = [], isLoading: propertiesLoading } = useQuery({
+    queryKey: ['/api/properties'],
+    staleTime: 0,
+  });
+
+  // Type assertions for safety
+  const bookingsArray = Array.isArray(bookings) ? bookings : [];
+  const propertiesArray = Array.isArray(properties) ? properties : [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -141,20 +161,30 @@ export default function Bookings() {
     }
   };
 
-  const filteredBookings = sampleBookings.filter(booking =>
-    (search === '' || 
-     booking.property.toLowerCase().includes(search.toLowerCase()) ||
-     booking.guest.toLowerCase().includes(search.toLowerCase())) &&
-    (filterArea === 'all' || booking.area === filterArea) &&
-    (filterManager === 'all' || booking.manager === filterManager) &&
-    (filterStatus === 'all' || booking.status === filterStatus)
-  );
+  const filteredBookings = bookingsArray.filter((booking: any) => {
+    const property = propertiesArray.find((p: any) => p.id === booking.propertyId);
+    const propertyName = property?.name || '';
+    const propertyLocation = property?.location || '';
+    
+    return (
+      (search === '' || 
+       propertyName.toLowerCase().includes(search.toLowerCase()) ||
+       (booking.guestName && booking.guestName.toLowerCase().includes(search.toLowerCase()))) &&
+      (filterArea === 'all' || propertyLocation === filterArea) &&
+      (filterStatus === 'all' || booking.status === filterStatus)
+    );
+  });
 
-  const filteredProperties = sampleProperties.filter(property =>
-    (search === '' || property.property.toLowerCase().includes(search.toLowerCase())) &&
-    (filterArea === 'all' || property.area === filterArea) &&
-    (filterManager === 'all' || property.manager === filterManager)
-  );
+  // Group bookings by property for calendar view
+  const propertiesWithBookings = propertiesArray.map((property: any) => ({
+    ...property,
+    bookings: bookingsArray.filter((b: any) => b.propertyId === property.id)
+  })).filter((p: any) => {
+    return (
+      (search === '' || p.name.toLowerCase().includes(search.toLowerCase())) &&
+      (filterArea === 'all' || p.location === filterArea)
+    );
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -169,11 +199,20 @@ export default function Bookings() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button className="gap-2">
+            <Button 
+              className="gap-2"
+              onClick={() => setIsBookingDialogOpen(true)}
+              data-testid="button-new-booking"
+            >
               <Plus className="w-4 h-4" />
               New Booking
             </Button>
-            <Button variant="outline" className="gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => setActiveTab("live")}
+              data-testid="button-live-calendar"
+            >
               <Eye className="w-4 h-4" />
               Live Calendar
             </Button>
@@ -295,91 +334,125 @@ export default function Bookings() {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Individual Bookings ({filteredBookings.length})</h3>
               <Badge variant="outline">
-                Total Revenue: ฿{filteredBookings.reduce((sum, b) => sum + b.amount, 0).toLocaleString()}
+                Total Revenue: ฿{filteredBookings.reduce((sum: number, b: any) => sum + (parseFloat(b.totalAmount) || 0), 0).toLocaleString()}
               </Badge>
             </div>
 
-            {viewMode === "list" ? (
+            {bookingsLoading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Loading bookings...</p>
+              </div>
+            ) : filteredBookings.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Bookings Found</h3>
+                <p className="text-muted-foreground mb-4">
+                  {search || filterArea !== 'all' || filterStatus !== 'all' 
+                    ? 'Try adjusting your filters' 
+                    : 'Create your first booking to get started'}
+                </p>
+                <Button onClick={() => setIsBookingDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Booking
+                </Button>
+              </div>
+            ) : viewMode === "list" ? (
               <div className="space-y-3">
-                {filteredBookings.map((booking) => (
-                  <Card key={booking.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <Users className="w-6 h-6 text-primary" />
+                {filteredBookings.map((booking: any) => {
+                  const property = propertiesArray.find((p: any) => p.id === booking.propertyId);
+                  const checkInDate = booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A';
+                  const checkOutDate = booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A';
+                  const nights = booking.checkInDate && booking.checkOutDate 
+                    ? Math.ceil((new Date(booking.checkOutDate).getTime() - new Date(booking.checkInDate).getTime()) / (1000 * 60 * 60 * 24))
+                    : 0;
+                  
+                  return (
+                    <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                              <Users className="w-6 h-6 text-primary" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium">{booking.guestName || 'Guest'}</h4>
+                              <p className="text-sm text-muted-foreground">{property?.name || 'Property'}</p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="font-medium">{booking.guest}</h4>
-                            <p className="text-sm text-muted-foreground">{booking.property}</p>
+                          
+                          <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              <span>{property?.location || 'N/A'}</span>
+                            </div>
+                            {property?.bedrooms && (
+                              <div className="flex items-center gap-1">
+                                <Bed className="w-4 h-4" />
+                                <span>{property.bedrooms} BR</span>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-sm">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            <span>{booking.area}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Bed className="w-4 h-4" />
-                            <span>{booking.bedrooms} BR</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
-                            <span>{booking.manager}</span>
-                          </div>
-                        </div>
 
-                        <div className="text-right">
-                          <p className="font-medium">฿{booking.amount.toLocaleString()}</p>
-                          <p className="text-sm text-muted-foreground">{booking.nights} nights</p>
-                        </div>
+                          <div className="text-right">
+                            <p className="font-medium">฿{parseFloat(booking.totalAmount || 0).toLocaleString()}</p>
+                            {nights > 0 && <p className="text-sm text-muted-foreground">{nights} nights</p>}
+                          </div>
 
-                        <div className="text-right">
-                          <p className="text-sm">{booking.checkin} → {booking.checkout}</p>
+                          <div className="text-right">
+                            <p className="text-sm">{checkInDate} → {checkOutDate}</p>
+                            <Badge className={getStatusColor(booking.status)}>
+                              {booking.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredBookings.map((booking: any) => {
+                  const property = propertiesArray.find((p: any) => p.id === booking.propertyId);
+                  const checkInDate = booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A';
+                  const checkOutDate = booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A';
+                  
+                  return (
+                    <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{booking.guestName || 'Guest'}</CardTitle>
                           <Badge className={getStatusColor(booking.status)}>
                             {booking.status}
                           </Badge>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredBookings.map((booking) => (
-                  <Card key={booking.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{booking.guest}</CardTitle>
-                        <Badge className={getStatusColor(booking.status)}>
-                          {booking.status}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="font-medium">{booking.property}</p>
-                          <p className="text-sm text-muted-foreground">{booking.area} • {booking.bedrooms} BR</p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="font-medium">{property?.name || 'Property'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {property?.location || 'N/A'}
+                              {property?.bedrooms && ` • ${property.bedrooms} BR`}
+                            </p>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Check-in:</span>
+                            <span className="text-sm font-medium">{checkInDate}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Check-out:</span>
+                            <span className="text-sm font-medium">{checkOutDate}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm">Amount:</span>
+                            <span className="text-sm font-medium">฿{parseFloat(booking.totalAmount || 0).toLocaleString()}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm">Check-in:</span>
-                          <span className="text-sm font-medium">{booking.checkin}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm">Check-out:</span>
-                          <span className="text-sm font-medium">{booking.checkout}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm">Amount:</span>
-                          <span className="text-sm font-medium">฿{booking.amount.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -387,59 +460,87 @@ export default function Bookings() {
           {/* Multi-Property Calendar View */}
           <TabsContent value="calendar" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Multi-Property Calendar ({filteredProperties.length} properties)</h3>
+              <h3 className="text-lg font-semibold">Multi-Property Calendar ({propertiesWithBookings.length} properties)</h3>
               <Badge variant="outline">
-                Total Bookings: {filteredProperties.reduce((sum, villa) => sum + villa.bookings.length, 0)}
+                Total Bookings: {propertiesWithBookings.reduce((sum: number, p: any) => sum + p.bookings.length, 0)}
               </Badge>
             </div>
 
-            <div className="space-y-4">
-              {filteredProperties.map((villa, i) => (
-                <Card key={i} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-xl">{villa.property}</CardTitle>
-                      <Badge variant="secondary">{villa.bookings.length} Booking{villa.bookings.length !== 1 ? 's' : ''}</Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        <span>Manager: {villa.manager}</span>
+            {propertiesLoading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Loading properties...</p>
+              </div>
+            ) : propertiesWithBookings.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Properties Found</h3>
+                <p className="text-muted-foreground">
+                  {search || filterArea !== 'all' ? 'Try adjusting your filters' : 'No properties available'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {propertiesWithBookings.map((property: any) => (
+                  <Card key={property.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-xl">{property.name}</CardTitle>
+                        <Badge variant="secondary">{property.bookings.length} Booking{property.bookings.length !== 1 ? 's' : ''}</Badge>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        <span>Area: {villa.area}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Bed className="w-4 h-4" />
-                        <span>{villa.bedrooms} Bedrooms</span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    <div className="space-y-3">
-                      {villa.bookings.map((booking, j) => (
-                        <div key={j} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-                          <div className="flex items-center gap-3">
-                            <Users className="w-4 h-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{booking.guest}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {booking.checkin} → {booking.checkout}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(booking.status)}>
-                            {booking.status}
-                          </Badge>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          <span>Location: {property.location || 'N/A'}</span>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                        {property.bedrooms && (
+                          <div className="flex items-center gap-1">
+                            <Bed className="w-4 h-4" />
+                            <span>{property.bedrooms} Bedrooms</span>
+                          </div>
+                        )}
+                        {property.bathrooms && (
+                          <div className="flex items-center gap-1">
+                            <span>{property.bathrooms} Bathrooms</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent>
+                      {property.bookings.length === 0 ? (
+                        <div className="text-center py-4 text-muted-foreground">
+                          No bookings for this property
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {property.bookings.map((booking: any) => {
+                            const checkInDate = booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A';
+                            const checkOutDate = booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A';
+                            
+                            return (
+                              <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                                <div className="flex items-center gap-3">
+                                  <Users className="w-4 h-4 text-muted-foreground" />
+                                  <div>
+                                    <p className="font-medium">{booking.guestName || 'Guest'}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {checkInDate} → {checkOutDate}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Badge className={getStatusColor(booking.status)}>
+                                  {booking.status}
+                                </Badge>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Live Calendar View */}
@@ -474,19 +575,25 @@ export default function Bookings() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>
-                Showing {activeTab === 'bookings' ? filteredBookings.length : filteredProperties.length} 
+                Showing {activeTab === 'bookings' ? filteredBookings.length : propertiesWithBookings.length} 
                 {activeTab === 'bookings' ? ' bookings' : ' properties'}
               </span>
               <span>
                 {activeTab === 'bookings' 
-                  ? `Total Revenue: ฿${filteredBookings.reduce((sum, b) => sum + b.amount, 0).toLocaleString()}`
-                  : `Total Properties: ${filteredProperties.length}`
+                  ? `Total Revenue: ฿${filteredBookings.reduce((sum: number, b: any) => sum + (parseFloat(b.totalAmount) || 0), 0).toLocaleString()}`
+                  : `Total Properties: ${propertiesWithBookings.length}`
                 }
               </span>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Booking Dialog */}
+      <CreateBookingDialog 
+        open={isBookingDialogOpen} 
+        onOpenChange={setIsBookingDialogOpen} 
+      />
     </div>
   );
 }
