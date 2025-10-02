@@ -19,6 +19,9 @@ import PropertyFilters from "../components/PropertyFilters";
 import BulkActionPanel from "../components/BulkActionPanel";
 import MultiPropertyCalendar from "../components/MultiPropertyCalendar";
 import TaskTemplates from "../components/TaskTemplates";
+import CreatePropertyDialog from "../components/CreatePropertyDialog";
+import CreateBookingDialog from "../components/CreateBookingDialog";
+import CreateTaskDialog from "../components/CreateTaskDialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest } from "../lib/queryClient";
@@ -58,6 +61,11 @@ export default function PropertyHub() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12); // Show 12 properties per page
+
+  // Dialog states for quick actions
+  const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -597,11 +605,19 @@ export default function PropertyHub() {
                             onClick={(e) => {
                               e.stopPropagation();
                               if (!item.isComingSoon) {
-                                // Handle quick actions here
-                                toast({
-                                  title: "Quick Action",
-                                  description: `${item.actionText} functionality coming soon!`,
-                                });
+                                // Handle quick actions - open respective dialogs
+                                if (item.actionText === "Add Property") {
+                                  setIsPropertyDialogOpen(true);
+                                } else if (item.actionText === "Create Booking") {
+                                  setIsBookingDialogOpen(true);
+                                } else if (item.actionText === "Add Task") {
+                                  setIsTaskDialogOpen(true);
+                                } else {
+                                  toast({
+                                    title: "Quick Action",
+                                    description: `${item.actionText} functionality coming soon!`,
+                                  });
+                                }
                               }
                             }}
                           >
@@ -665,6 +681,20 @@ export default function PropertyHub() {
           </footer>
         </main>
       </div>
+
+      {/* Quick Action Dialogs */}
+      <CreatePropertyDialog 
+        open={isPropertyDialogOpen} 
+        onOpenChange={setIsPropertyDialogOpen} 
+      />
+      <CreateBookingDialog 
+        open={isBookingDialogOpen} 
+        onOpenChange={setIsBookingDialogOpen} 
+      />
+      <CreateTaskDialog 
+        isOpen={isTaskDialogOpen} 
+        onOpenChange={setIsTaskDialogOpen} 
+      />
     </div>
   );
 }
