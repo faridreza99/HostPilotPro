@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
+import BookingCalendar from "@/components/BookingCalendar";
 
 const sampleBookings = [
   {
@@ -545,26 +546,76 @@ export default function Bookings() {
 
           {/* Live Calendar View */}
           <TabsContent value="live" className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Live Booking Calendar
+              </h3>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setIsBookingDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Booking
+                </Button>
+              </div>
+            </div>
+
+            {bookingsLoading ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <p className="text-muted-foreground">Loading calendar...</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <BookingCalendar 
+                bookings={bookingsArray.map((booking: any) => ({
+                  ...booking,
+                  checkIn: booking.checkInDate,
+                  checkOut: booking.checkOutDate,
+                }))}
+              />
+            )}
+
+            {/* Booking List Below Calendar */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Live Booking Calendar
-                </CardTitle>
+                <CardTitle>Upcoming Bookings ({filteredBookings.length})</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Interactive Calendar View</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Full calendar interface with drag-and-drop booking management, 
-                    availability checking, and real-time updates would be implemented here.
-                  </p>
-                  <Button className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    Launch Full Calendar Interface
-                  </Button>
-                </div>
+                {filteredBookings.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No bookings to display
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredBookings.slice(0, 10).map((booking: any) => {
+                      const property = propertiesArray.find((p: any) => p.id === booking.propertyId);
+                      const checkInDate = booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A';
+                      const checkOutDate = booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A';
+                      
+                      return (
+                        <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{booking.guestName || 'Guest'}</p>
+                              <p className="text-sm text-muted-foreground">{property?.name || 'Property'}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{checkInDate} → {checkOutDate}</p>
+                            <p className="text-sm text-muted-foreground">฿{parseFloat(booking.totalAmount || 0).toLocaleString()}</p>
+                          </div>
+                          <Badge className={getStatusColor(booking.status)}>
+                            {booking.status}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
