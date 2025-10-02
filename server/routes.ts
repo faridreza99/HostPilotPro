@@ -13282,6 +13282,10 @@ Be specific and actionable in your recommendations.`;
       // Generate new user ID
       const userId = `user-${Date.now()}`;
       
+      // Hash the password before storing
+      const bcrypt = await import('bcrypt');
+      const hashedPassword = await bcrypt.hash(password, 12);
+      
       // Create new user in database
       const userData = {
         id: userId,
@@ -13291,10 +13295,10 @@ Be specific and actionable in your recommendations.`;
         role: role as any,
         organizationId,
         isActive: true,
-        password // In real implementation, this would be hashed
+        password: hashedPassword
       };
       
-      const newUser = await storage.createUser(userData);
+      const newUser = await storage.upsertUser(userData);
       console.log("User created successfully:", newUser.id);
       
       // Return user data without password

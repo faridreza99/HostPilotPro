@@ -297,6 +297,33 @@ export default function ConsolidatedSystemHub() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Administration Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-indigo-600" />
+              System Administration
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <a 
+                href="/admin/user-management" 
+                className="block p-4 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-200 rounded-lg transition-all cursor-pointer group"
+                data-testid="link-user-management"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <Users className="h-6 w-6 text-blue-600 group-hover:scale-110 transition-transform" />
+                  <h3 className="font-semibold text-blue-900">User Management</h3>
+                </div>
+                <p className="text-sm text-blue-700">
+                  Create and manage user accounts with role-based access control
+                </p>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
