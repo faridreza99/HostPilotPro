@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Plus } from "lucide-react";
 
 // Simple demo data
-const demoStaff = [
+const initialStaff = [
   {
     id: 1,
     employeeId: 'EMP001',
@@ -58,6 +64,16 @@ const demoPayroll = [
 
 export default function SimpleSalariesWages() {
   const [activeTab, setActiveTab] = useState('staff');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [staffList, setStaffList] = useState(initialStaff);
+  
+  // Form state
+  const [newStaff, setNewStaff] = useState({
+    name: '',
+    position: '',
+    department: '',
+    salary: ''
+  });
 
   const formatCurrency = (amount: number) => {
     return `฿${amount.toLocaleString()}`;
@@ -69,6 +85,36 @@ export default function SimpleSalariesWages() {
       : 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs';
   };
 
+  const handleAddStaff = () => {
+    if (!newStaff.name || !newStaff.position || !newStaff.department || !newStaff.salary) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    const nextId = Math.max(...staffList.map(s => s.id)) + 1;
+    const nextEmpId = `EMP${String(nextId).padStart(3, '0')}`;
+    
+    const staff = {
+      id: nextId,
+      employeeId: nextEmpId,
+      name: newStaff.name,
+      position: newStaff.position,
+      department: newStaff.department,
+      salary: parseInt(newStaff.salary),
+      status: 'Active'
+    };
+
+    setStaffList([...staffList, staff]);
+    setIsDialogOpen(false);
+    setNewStaff({ name: '', position: '', department: '', salary: '' });
+  };
+
+  // Calculate statistics
+  const totalStaff = staffList.length;
+  const monthlyPayroll = staffList.reduce((sum, s) => sum + s.salary, 0);
+  const averageSalary = Math.round(monthlyPayroll / totalStaff);
+  const pendingPayments = demoPayroll.filter(p => p.status === 'Pending').length;
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -79,9 +125,13 @@ export default function SimpleSalariesWages() {
             Admin-only staff salary and wage management system
           </p>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-          ➕ Add Staff Member
-        </button>
+        <Button 
+          onClick={() => setIsDialogOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Staff Member
+        </Button>
       </div>
 
       {/* Analytics Cards */}
@@ -90,7 +140,7 @@ export default function SimpleSalariesWages() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Staff</p>
-              <p className="text-2xl font-bold">3</p>
+              <p className="text-2xl font-bold">{totalStaff}</p>
             </div>
             <div className="text-blue-600">👥</div>
           </div>
@@ -100,7 +150,7 @@ export default function SimpleSalariesWages() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Monthly Payroll</p>
-              <p className="text-2xl font-bold">฿112,000</p>
+              <p className="text-2xl font-bold">{formatCurrency(monthlyPayroll)}</p>
             </div>
             <div className="text-green-600">💰</div>
           </div>
@@ -110,7 +160,7 @@ export default function SimpleSalariesWages() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Average Salary</p>
-              <p className="text-2xl font-bold">฿37,333</p>
+              <p className="text-2xl font-bold">{formatCurrency(averageSalary)}</p>
             </div>
             <div className="text-purple-600">📊</div>
           </div>
@@ -120,7 +170,7 @@ export default function SimpleSalariesWages() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Pending Payments</p>
-              <p className="text-2xl font-bold">1</p>
+              <p className="text-2xl font-bold">{pendingPayments}</p>
             </div>
             <div className="text-orange-600">⏰</div>
           </div>
@@ -183,7 +233,7 @@ export default function SimpleSalariesWages() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {demoStaff.map((staff) => (
+                    {staffList.map((staff) => (
                       <tr key={staff.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{staff.employeeId}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{staff.name}</td>
@@ -227,7 +277,7 @@ export default function SimpleSalariesWages() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {demoPayroll.map((record) => {
-                      const staff = demoStaff.find(s => s.id === record.staffId);
+                      const staff = staffList.find(s => s.id === record.staffId);
                       return (
                         <tr key={record.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.period}</td>
@@ -258,11 +308,11 @@ export default function SimpleSalariesWages() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Staff Count:</span>
-                      <span className="font-medium">1</span>
+                      <span className="font-medium">{staffList.filter(s => s.department === 'Operations').length}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Total Salary:</span>
-                      <span className="font-medium">฿45,000</span>
+                      <span className="font-medium">{formatCurrency(staffList.filter(s => s.department === 'Operations').reduce((sum, s) => sum + s.salary, 0))}</span>
                     </div>
                   </div>
                 </div>
@@ -271,11 +321,11 @@ export default function SimpleSalariesWages() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Staff Count:</span>
-                      <span className="font-medium">1</span>
+                      <span className="font-medium">{staffList.filter(s => s.department === 'Maintenance').length}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Total Salary:</span>
-                      <span className="font-medium">฿35,000</span>
+                      <span className="font-medium">{formatCurrency(staffList.filter(s => s.department === 'Maintenance').reduce((sum, s) => sum + s.salary, 0))}</span>
                     </div>
                   </div>
                 </div>
@@ -284,11 +334,11 @@ export default function SimpleSalariesWages() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Staff Count:</span>
-                      <span className="font-medium">1</span>
+                      <span className="font-medium">{staffList.filter(s => s.department === 'Customer Service').length}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Total Salary:</span>
-                      <span className="font-medium">฿32,000</span>
+                      <span className="font-medium">{formatCurrency(staffList.filter(s => s.department === 'Customer Service').reduce((sum, s) => sum + s.salary, 0))}</span>
                     </div>
                   </div>
                 </div>
@@ -297,6 +347,73 @@ export default function SimpleSalariesWages() {
           )}
         </div>
       </div>
+
+      {/* Add Staff Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Staff Member</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                placeholder="Enter staff name"
+                value={newStaff.name}
+                onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="position">Position</Label>
+              <Input
+                id="position"
+                placeholder="Enter position"
+                value={newStaff.position}
+                onChange={(e) => setNewStaff({...newStaff, position: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="department">Department</Label>
+              <Select value={newStaff.department} onValueChange={(value) => setNewStaff({...newStaff, department: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Operations">Operations</SelectItem>
+                  <SelectItem value="Maintenance">Maintenance</SelectItem>
+                  <SelectItem value="Customer Service">Customer Service</SelectItem>
+                  <SelectItem value="Finance">Finance</SelectItem>
+                  <SelectItem value="Management">Management</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="salary">Monthly Salary (฿)</Label>
+              <Input
+                id="salary"
+                type="number"
+                placeholder="Enter salary amount"
+                value={newStaff.salary}
+                onChange={(e) => setNewStaff({...newStaff, salary: e.target.value})}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddStaff} className="bg-blue-600 hover:bg-blue-700">
+              Add Staff Member
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
