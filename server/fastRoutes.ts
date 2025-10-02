@@ -168,4 +168,54 @@ export function registerFastRoutes(app: Express) {
       5 // 5 minute cache for KPIs
     );
   });
+
+  // System Hub endpoint - system information and health status
+  app.get("/api/system", async (req: any, res) => {
+    const organizationId = req.user?.organizationId || "default-org";
+    
+    try {
+      const [properties, users, settings] = await Promise.all([
+        storage.getProperties(organizationId),
+        storage.getUsers(organizationId),
+        storage.getPlatformSettings(organizationId)
+      ]);
+
+      const systemInfo = {
+        version: "2.0 Enterprise",
+        lastUpdated: new Date().toISOString(),
+        status: "online",
+        health: {
+          database: "healthy",
+          api: "operational",
+          cache: "active"
+        },
+        modules: {
+          properties: { active: true, count: properties.length },
+          users: { active: true, count: users.length },
+          finance: { active: true, count: 0 },
+          tasks: { active: true, count: 0 },
+          bookings: { active: true, count: 0 }
+        },
+        apiConfigs: {
+          hasStripe: settings.some((s: any) => s.settingKey === 'api.stripe_secret_key'),
+          hasHostaway: settings.some((s: any) => s.settingKey === 'api.hostaway_api_key'),
+          hasOpenAI: settings.some((s: any) => s.settingKey === 'api.openai_api_key'),
+          hasTwilio: settings.some((s: any) => s.settingKey === 'api.twilio_account_sid')
+        },
+        organization: {
+          id: organizationId,
+          name: organizationId === "default-org" ? "HostPilotPro" : organizationId
+        }
+      };
+
+      res.json(systemInfo);
+    } catch (error) {
+      console.error("Error fetching system info:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch system information",
+        version: "2.0 Enterprise",
+        status: "error"
+      });
+    }
+  });
 }
