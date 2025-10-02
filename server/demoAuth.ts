@@ -133,13 +133,46 @@ export async function setupDemoAuth(app: Express) {
     try {
       const { email, password } = req.body;
       
+      // First check demo users
       const demoUser = DEMO_USERS.find(u => u.email === email && u.password === password);
-      if (!demoUser) {
+      if (demoUser) {
+        req.session.userId = demoUser.id;
+        req.session.save((err: any) => {
+          if (err) {
+            console.error("Session save error:", err);
+            return res.status(500).json({ message: "Login failed" });
+          }
+          
+          res.json({ 
+            message: "Login successful", 
+            redirectUrl: "/",
+            user: {
+              id: demoUser.id,
+              email: demoUser.email,
+              firstName: demoUser.firstName,
+              lastName: demoUser.lastName,
+              role: demoUser.role,
+            }
+          });
+        });
+        return;
+      }
+
+      // If not a demo user, check database
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Verify password with bcrypt
+      const bcrypt = await import('bcrypt');
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Create session
-      req.session.userId = demoUser.id;
+      req.session.userId = user.id;
       req.session.save((err: any) => {
         if (err) {
           console.error("Session save error:", err);
@@ -150,11 +183,11 @@ export async function setupDemoAuth(app: Express) {
           message: "Login successful", 
           redirectUrl: "/",
           user: {
-            id: demoUser.id,
-            email: demoUser.email,
-            firstName: demoUser.firstName,
-            lastName: demoUser.lastName,
-            role: demoUser.role,
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
           }
         });
       });
