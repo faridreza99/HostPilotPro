@@ -1,38 +1,38 @@
 import React, { useEffect, lazy, Suspense } from "react";
 import { Route, Switch } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import Sidebar from "@/components/Sidebar";
-import { useFastAuth } from "@/lib/fastAuth";
-import { warmCache } from "@/lib/sessionCache";
-import { CacheProvider } from "@/context/CacheContext";
+import { queryClient } from "./lib/queryClient";
+import { Toaster } from "./components/ui/toaster";
+import { TooltipProvider } from "./components/ui/tooltip";
+import Sidebar from "./components/Sidebar";
+import { useFastAuth } from "./lib/fastAuth";
+import { warmCache } from "./lib/sessionCache";
+import { CacheProvider } from "./context/CacheContext";
 
 // Import existing pages with lazy loading for performance
-import { LazyDashboard, LazyFinancialDashboard, LazyPropertyDashboard } from "@/components/LazyDashboard";
-import UltraFastPropertyDashboard from "@/pages/UltraFastPropertyDashboard";
-import UltraFastTasks from "@/pages/UltraFastTasks";
-import RoleBasedDashboard from "@/components/RoleBasedDashboard";
-import Properties from "@/pages/Properties";
-import Tasks from "@/pages/Tasks";
-import Bookings from "@/pages/Bookings";
-import Services from "@/pages/Services";
+import { LazyDashboard, LazyFinancialDashboard, LazyPropertyDashboard } from "./components/LazyDashboard";
+import UltraFastPropertyDashboard from "./pages/UltraFastPropertyDashboard";
+import UltraFastTasks from "./pages/UltraFastTasks";
+import RoleBasedDashboard from "./components/RoleBasedDashboard";
+import Properties from "./pages/Properties";
+import Tasks from "./pages/Tasks";
+import Bookings from "./pages/Bookings";
+import Services from "./pages/Services";
 import SimpleFinances from "./pages/SimpleFinances";
 import SimpleSettings from "./pages/SimpleSettings";
-import LoginPage from "@/pages/LoginPage";
-import ProfilePage from "@/pages/ProfilePage";
-import Landing from "@/pages/Landing";
-import NotFound from "@/pages/not-found";
+import LoginPage from "./pages/LoginPage";
+import ProfilePage from "./pages/ProfilePage";
+import Landing from "./pages/Landing";
+import NotFound from "./pages/not-found";
 
 import SimpleLiveBookingCalendar from "./pages/SimpleLiveBookingCalendar";
 import SimpleMaintenanceSuggestions from "./pages/SimpleMaintenanceSuggestions";
-import CheckInCheckOutWorkflow from "@/pages/CheckInCheckOutWorkflow";
-import GuestCheckInCheckOutTracker from "@/pages/GuestCheckInCheckOutTracker";
-import DailyOperationsDashboard from "@/pages/DailyOperationsDashboard";
-import SandboxTestingDashboard from "@/pages/SandboxTestingDashboard";
-import GuestPortalSmartRequests from "@/pages/GuestPortalSmartRequests";
-import GuestActivityRecommendations from "@/pages/GuestActivityRecommendations";
+import CheckInCheckOutWorkflow from "./pages/CheckInCheckOutWorkflow";
+import GuestCheckInCheckOutTracker from "./pages/GuestCheckInCheckOutTracker";
+import DailyOperationsDashboard from "./pages/DailyOperationsDashboard";
+import SandboxTestingDashboard from "./pages/SandboxTestingDashboard";
+import GuestPortalSmartRequests from "./pages/GuestPortalSmartRequests";
+import GuestActivityRecommendations from "./pages/GuestActivityRecommendations";
 import SimpleHelp from "./pages/SimpleHelp";
 import FastHelp from "./pages/FastHelp";
 import HelpCenter from "./pages/HelpCenter";
@@ -68,66 +68,66 @@ import StaffCashCollection from "./pages/StaffCashCollection";
 import StaffExpenseManagement from "./pages/StaffExpenseManagement";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffPermissionManagement from "./pages/StaffPermissionManagement";
-import CaptainCortex from "@/components/CaptainCortex";
-import { InstantPageSwitcher } from "@/components/InstantPageSwitcher";
+import CaptainCortex from "./components/CaptainCortex";
+import { InstantPageSwitcher } from "./components/InstantPageSwitcher";
 
 // Import SaaS pages
-import SignupRequest from "@/pages/public/SignupRequest";
-import SaasManagement from "@/pages/admin/SaasManagement";
+import SignupRequest from "./pages/public/SignupRequest";
+import SaasManagement from "./pages/admin/SaasManagement";
 
 // Import Achievement System
-import AchievementsPage from "@/pages/AchievementsPage";
+import AchievementsPage from "./pages/AchievementsPage";
 
 // Import Salaries & Wages Management
-import SimpleSalariesWages from "@/pages/SimpleSalariesWages";
+import SimpleSalariesWages from "./pages/SimpleSalariesWages";
 
 // Import Property Appliances Management
-import PropertyAppliancesManagement from "@/pages/PropertyAppliancesManagement";
-import TaskOverview from "@/pages/TaskOverview";
-import DailyOperations from "@/pages/DailyOperations";
-import AlertManagement from "@/pages/AlertManagement";
-import UpgradedAdminDashboard from "@/pages/UpgradedAdminDashboard";
-import AutomationManagement from "@/pages/AutomationManagement";
-import CurrencyTaxManagement from "@/pages/CurrencyTaxManagement";
-import UpsellRecommendationsManagement from "@/pages/UpsellRecommendationsManagement";
-import { AIBotPage } from "@/pages/AIBotPage";
+import PropertyAppliancesManagement from "./pages/PropertyAppliancesManagement";
+import TaskOverview from "./pages/TaskOverview";
+import DailyOperations from "./pages/DailyOperations";
+import AlertManagement from "./pages/AlertManagement";
+import UpgradedAdminDashboard from "./pages/UpgradedAdminDashboard";
+import AutomationManagement from "./pages/AutomationManagement";
+import CurrencyTaxManagement from "./pages/CurrencyTaxManagement";
+import UpsellRecommendationsManagement from "./pages/UpsellRecommendationsManagement";
+import { AIBotPage } from "./pages/AIBotPage";
 
 // Import new agent pages
-import QuoteGenerator from "@/pages/agent/QuoteGenerator";
-import Commissions from "@/pages/agent/Commissions";
-import Proposals from "@/pages/agent/Proposals";
-import MediaDownload from "@/pages/agent/MediaDownload";
-import Leaderboard from "@/pages/agent/Leaderboard";
-import RetailAgentHub from "@/pages/agent/RetailAgentHub";
+import QuoteGenerator from "./pages/agent/QuoteGenerator";
+import Commissions from "./pages/agent/Commissions";
+import Proposals from "./pages/agent/Proposals";
+import MediaDownload from "./pages/agent/MediaDownload";
+import Leaderboard from "./pages/agent/Leaderboard";
+import RetailAgentHub from "./pages/agent/RetailAgentHub";
 
 // Import new hub pages
-import DashboardHub from "@/pages/DashboardHub";
-import PropertyHub from "@/pages/PropertyHub";
-import OptimizedPropertyHub from "@/pages/OptimizedPropertyHub";
-import FinanceHub from "@/pages/FinanceHub";
-import SystemHub from "@/pages/SystemHub";
-import ConsolidatedSystemHub from "@/pages/ConsolidatedSystemHub";
-import OptimizedFinanceHub from "@/pages/OptimizedFinanceHub";
-import OptimizedSystemHub from "@/pages/OptimizedSystemHub";
+import DashboardHub from "./pages/DashboardHub";
+import PropertyHub from "./pages/PropertyHub";
+import OptimizedPropertyHub from "./pages/OptimizedPropertyHub";
+import FinanceHub from "./pages/FinanceHub";
+import SystemHub from "./pages/SystemHub";
+import ConsolidatedSystemHub from "./pages/ConsolidatedSystemHub";
+import OptimizedFinanceHub from "./pages/OptimizedFinanceHub";
+import OptimizedSystemHub from "./pages/OptimizedSystemHub";
 
 // Import agent dashboards
-import RetailAgentBooking from "@/pages/RetailAgentBooking";
-import ReferralAgentDashboard from "@/pages/ReferralAgentDashboard";
+import RetailAgentBooking from "./pages/RetailAgentBooking";
+import ReferralAgentDashboard from "./pages/ReferralAgentDashboard";
 
 // Import additional settings page
-import AdditionalSettings from "@/pages/AdditionalSettings";
+import AdditionalSettings from "./pages/AdditionalSettings";
 
 // Import missing components for 404 fixes
-import SmartPricingPerformanceToolkit from "@/pages/SmartPricingPerformanceToolkit";
-import OwnerInvoicingPayouts from "@/pages/OwnerInvoicingPayouts";
-import PortfolioManagerDashboard from "@/pages/PortfolioManagerDashboard";
-import OwnerDashboard from "@/pages/OwnerDashboard";
-import GuestPortal from "@/pages/GuestPortal";
-import PropertySettingsModule from "@/pages/PropertySettingsModule";
-import EnhancedAdminDashboard from "@/pages/EnhancedAdminDashboard";
-import DocumentCenter from "@/pages/DocumentCenter";
-import PropertyDocumentCenter from "@/pages/PropertyDocumentCenter";
-import PropertyDocumentUpload from "@/pages/PropertyDocumentUpload";
+import SmartPricingPerformanceToolkit from "./pages/SmartPricingPerformanceToolkit";
+import OwnerInvoicingPayouts from "./pages/OwnerInvoicingPayouts";
+import PortfolioManagerDashboard from "./pages/PortfolioManagerDashboard";
+import OwnerDashboard from "./pages/OwnerDashboard";
+import GuestPortal from "./pages/GuestPortal";
+import PropertySettingsModule from "./pages/PropertySettingsModule";
+import EnhancedAdminDashboard from "./pages/EnhancedAdminDashboard";
+import DocumentCenter from "./pages/DocumentCenter";
+import PropertyDocumentCenter from "./pages/PropertyDocumentCenter";
+import PropertyDocumentUpload from "./pages/PropertyDocumentUpload";
 
 // QueryClient is now imported from lib/queryClient for better performance
 
