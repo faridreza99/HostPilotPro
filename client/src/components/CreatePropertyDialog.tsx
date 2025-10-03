@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { Plus, ExternalLink, Loader2 } from "lucide-react";
+import { fastCache } from "../lib/fastCache";
 
 // Add debugging for property creation issues
 console.log("🏠 Property Dialog component loaded");
@@ -47,6 +48,12 @@ export default function CreatePropertyDialog({ open, onOpenChange }: CreatePrope
     },
     onSuccess: (data) => {
       console.log("🎉 Frontend: Property creation successful, invalidating cache");
+      
+      // CRITICAL: Clear fastCache entries FIRST before invalidating TanStack queries
+      fastCache.delete("/api/properties");
+      fastCache.delete("/api/dashboard/stats");
+      fastCache.delete("/api/dashboard");
+      console.log("✅ FastCache cleared for properties and dashboard");
       
       // Invalidate ALL property-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
