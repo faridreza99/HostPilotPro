@@ -289,14 +289,11 @@ function UploadDocumentDialog({ propertyId, onSuccess }: { propertyId: string; o
 
   const uploadMutation = useMutation({
     mutationFn: async (data: z.infer<typeof documentUploadSchema>) => {
-      return apiRequest("/api/property-documents", {
-        method: "POST",
-        body: JSON.stringify({
-          ...data,
-          propertyId: parseInt(propertyId),
-          organizationId: (user as any)?.organizationId || "default-org",
-          uploadedBy: (user as any)?.id || "unknown",
-        }),
+      return apiRequest("POST", "/api/property-documents", {
+        ...data,
+        propertyId: parseInt(propertyId),
+        organizationId: (user as any)?.organizationId || "default-org",
+        uploadedBy: (user as any)?.id || "unknown",
       });
     },
     onSuccess: () => {
@@ -421,13 +418,10 @@ function AddInsuranceDialog({ propertyId, onSuccess }: { propertyId: string; onS
 
   const insuranceMutation = useMutation({
     mutationFn: async (data: z.infer<typeof insuranceSchema>) => {
-      return apiRequest("/api/property-insurance", {
-        method: "POST",
-        body: JSON.stringify({
-          ...data,
-          propertyId: parseInt(propertyId),
-          uploadedBy: (user as any)?.id || "unknown",
-        }),
+      return apiRequest("POST", "/api/property-insurance", {
+        ...data,
+        propertyId: parseInt(propertyId),
+        uploadedBy: (user as any)?.id || "unknown",
       });
     },
     onSuccess: () => {
