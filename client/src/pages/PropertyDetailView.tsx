@@ -307,10 +307,10 @@ function UploadDocumentDialog({ propertyId, onSuccess }: { propertyId: string; o
       
       // Invalidate and refetch immediately
       queryClient.invalidateQueries({ queryKey: ["/api/property-documents"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/properties/${propertyId}/documents`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/property-documents/property/${propertyId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/property-documents/expiring?days=30"] });
       queryClient.refetchQueries({ queryKey: ["/api/property-documents/expiring?days=30"] });
-      queryClient.refetchQueries({ queryKey: [`/api/properties/${propertyId}/documents`] });
+      queryClient.refetchQueries({ queryKey: [`/api/property-documents/property/${propertyId}`] });
       
       form.reset();
       setIsOpen(false);
@@ -437,10 +437,10 @@ function AddInsuranceDialog({ propertyId, onSuccess }: { propertyId: string; onS
       
       // Invalidate and refetch immediately
       queryClient.invalidateQueries({ queryKey: ["/api/property-insurance"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/properties/${propertyId}/insurance`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/property-insurance/property/${propertyId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/property-insurance/expiring/30"] });
       queryClient.refetchQueries({ queryKey: ["/api/property-insurance/expiring/30"] });
-      queryClient.refetchQueries({ queryKey: [`/api/properties/${propertyId}/insurance`] });
+      queryClient.refetchQueries({ queryKey: [`/api/property-insurance/property/${propertyId}`] });
       
       form.reset();
       setIsOpen(false);
@@ -550,14 +550,14 @@ export default function PropertyDetailView() {
 
   // Fetch property documents
   const { data: documents = [] } = useQuery({
-    queryKey: [`/api/properties/${propertyId}/documents`],
+    queryKey: [`/api/property-documents/property/${propertyId}`],
     enabled: !!propertyId,
     staleTime: 0,
   });
 
   // Fetch property insurance
   const { data: insurance = [] } = useQuery({
-    queryKey: [`/api/properties/${propertyId}/insurance`],
+    queryKey: [`/api/property-insurance/property/${propertyId}`],
     enabled: !!propertyId,
     staleTime: 0,
   });
