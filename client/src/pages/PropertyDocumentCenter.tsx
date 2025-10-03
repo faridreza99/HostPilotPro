@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { fastCache } from "@/lib/fastCache";
 
 const documentUploadSchema = z.object({
   fileName: z.string().min(1, "File name is required"),
@@ -76,11 +77,15 @@ export default function PropertyDocumentCenter() {
       return await apiRequest("POST", "/api/property-documents", data);
     },
     onSuccess: () => {
+      // Clear fastCache for expiring documents to show alerts immediately
+      fastCache.delete("/api/property-documents/expiring?days=30");
+      
       toast({
         title: "Document Uploaded",
         description: "Document has been uploaded successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/property-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/property-documents/expiring?days=30"] });
       setIsUploadDialogOpen(false);
     },
     onError: (error: Error) => {
