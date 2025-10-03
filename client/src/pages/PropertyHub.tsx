@@ -162,10 +162,43 @@ export default function PropertyHub() {
     staleTime: 10 * 60 * 1000,
   });
 
+  // Fetch expiring documents and insurance for all properties
+  const { data: expiringDocuments = [] } = useQuery({
+    queryKey: ["/api/property-documents/expiring?days=30"],
+    staleTime: 0,
+  });
+
+  const { data: expiringInsurance = [] } = useQuery({
+    queryKey: ["/api/property-insurance/expiring/30"],
+    staleTime: 0,
+  });
+
 
   // Type assertions for safety
   const propertiesArray = Array.isArray(properties) ? properties : [];
   const bookingsArray = Array.isArray(bookings) ? bookings : [];
+
+  // Helper function to check if property has expiring items
+  const getPropertyExpiryStatus = (propertyId: number) => {
+    const hasExpiringDoc = (expiringDocuments as any[]).some((doc: any) => doc.propertyId === propertyId);
+    const hasExpiringIns = (expiringInsurance as any[]).some((ins: any) => ins.propertyId === propertyId);
+    
+    if (hasExpiringDoc || hasExpiringIns) {
+      // Check if any are already expired (past today)
+      const expiredDoc = (expiringDocuments as any[]).find(
+        (doc: any) => doc.propertyId === propertyId && new Date(doc.expiryDate) < new Date()
+      );
+      const expiredIns = (expiringInsurance as any[]).find(
+        (ins: any) => ins.propertyId === propertyId && new Date(ins.expiryDate) < new Date()
+      );
+      
+      if (expiredDoc || expiredIns) {
+        return 'expired';
+      }
+      return 'expiring';
+    }
+    return null;
+  };
 
   // Filter properties
   const filteredProperties = useMemo(() => {
@@ -455,6 +488,7 @@ export default function PropertyHub() {
                       onSelect={(selected) => handlePropertySelect(property, selected)}
                       onViewDetails={() => handleViewPropertyDetails(property)}
                       onDelete={() => handleDeleteProperty(property.id)}
+                      expiryStatus={getPropertyExpiryStatus(property.id)}
                     />
                   ))}
                 </div>

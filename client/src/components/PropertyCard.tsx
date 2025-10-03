@@ -25,9 +25,10 @@ interface PropertyCardProps {
   onSelect: (selected: boolean) => void;
   onViewDetails: () => void;
   onDelete?: () => void;
+  expiryStatus?: 'expiring' | 'expired' | null;
 }
 
-export function PropertyCard({ property, isSelected, onSelect, onViewDetails, onDelete }: PropertyCardProps) {
+export function PropertyCard({ property, isSelected, onSelect, onViewDetails, onDelete, expiryStatus }: PropertyCardProps) {
   const [, navigate] = useLocation();
   
   const formatCurrency = (amount: number) => {
@@ -58,6 +59,13 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
   // Smart Analytics Tags
   const getAnalyticsTags = () => {
     const tags = [];
+    
+    // Expiry Status (highest priority - show first)
+    if (expiryStatus === 'expired') {
+      tags.push({ label: 'Document Expired', color: 'bg-red-100 text-red-700 border-red-300', icon: '🔴' });
+    } else if (expiryStatus === 'expiring') {
+      tags.push({ label: 'Expiring Soon', color: 'bg-orange-100 text-orange-700 border-orange-300', icon: '🟠' });
+    }
     
     // High ROI (>15%)
     if (parseFloat(roi) > 15) {
