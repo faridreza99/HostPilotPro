@@ -307,8 +307,10 @@ function UploadDocumentDialog({ propertyId, onSuccess }: { propertyId: string; o
       
       // Invalidate and refetch immediately
       queryClient.invalidateQueries({ queryKey: ["/api/property-documents"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/properties/${propertyId}/documents`] });
       queryClient.invalidateQueries({ queryKey: ["/api/property-documents/expiring?days=30"] });
       queryClient.refetchQueries({ queryKey: ["/api/property-documents/expiring?days=30"] });
+      queryClient.refetchQueries({ queryKey: [`/api/properties/${propertyId}/documents`] });
       
       form.reset();
       setIsOpen(false);
@@ -435,8 +437,10 @@ function AddInsuranceDialog({ propertyId, onSuccess }: { propertyId: string; onS
       
       // Invalidate and refetch immediately
       queryClient.invalidateQueries({ queryKey: ["/api/property-insurance"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/properties/${propertyId}/insurance`] });
       queryClient.invalidateQueries({ queryKey: ["/api/property-insurance/expiring/30"] });
       queryClient.refetchQueries({ queryKey: ["/api/property-insurance/expiring/30"] });
+      queryClient.refetchQueries({ queryKey: [`/api/properties/${propertyId}/insurance`] });
       
       form.reset();
       setIsOpen(false);
@@ -542,6 +546,20 @@ export default function PropertyDetailView() {
   const { data: property, isLoading } = useQuery({
     queryKey: [`/api/properties/${propertyId}`],
     enabled: !!propertyId,
+  });
+
+  // Fetch property documents
+  const { data: documents = [] } = useQuery({
+    queryKey: [`/api/properties/${propertyId}/documents`],
+    enabled: !!propertyId,
+    staleTime: 0,
+  });
+
+  // Fetch property insurance
+  const { data: insurance = [] } = useQuery({
+    queryKey: [`/api/properties/${propertyId}/insurance`],
+    enabled: !!propertyId,
+    staleTime: 0,
   });
 
   if (isLoading) {
@@ -797,6 +815,37 @@ export default function PropertyDetailView() {
                   // Success handled by mutation
                 }} 
               />
+              
+              {/* Documents List */}
+              {documents.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <h4 className="font-semibold text-sm">Uploaded Documents</h4>
+                  {documents.map((doc: any) => {
+                    const isExpiring = doc.expiryDate && new Date(doc.expiryDate) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    const isExpired = doc.expiryDate && new Date(doc.expiryDate) < new Date();
+                    
+                    return (
+                      <div key={doc.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg" data-testid={`document-${doc.id}`}>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{doc.docType}</div>
+                          <div className="text-xs text-muted-foreground">{doc.fileUrl}</div>
+                          {doc.expiryDate && (
+                            <div className="text-xs mt-1">
+                              Expires: {new Date(doc.expiryDate).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                        {isExpired && (
+                          <Badge variant="destructive" className="ml-2">🔴 Expired</Badge>
+                        )}
+                        {isExpiring && !isExpired && (
+                          <Badge variant="secondary" className="ml-2 bg-orange-500 text-white">🟠 Expiring Soon</Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -818,6 +867,39 @@ export default function PropertyDetailView() {
                   // Success handled by mutation
                 }} 
               />
+              
+              {/* Insurance List */}
+              {insurance.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <h4 className="font-semibold text-sm">Insurance Policies</h4>
+                  {insurance.map((ins: any) => {
+                    const isExpiring = ins.expiryDate && new Date(ins.expiryDate) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    const isExpired = ins.expiryDate && new Date(ins.expiryDate) < new Date();
+                    
+                    return (
+                      <div key={ins.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg" data-testid={`insurance-${ins.id}`}>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{ins.insurerName}</div>
+                          {ins.policyNumber && (
+                            <div className="text-xs text-muted-foreground">Policy: {ins.policyNumber}</div>
+                          )}
+                          {ins.expiryDate && (
+                            <div className="text-xs mt-1">
+                              Expires: {new Date(ins.expiryDate).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                        {isExpired && (
+                          <Badge variant="destructive" className="ml-2">🔴 Expired</Badge>
+                        )}
+                        {isExpiring && !isExpired && (
+                          <Badge variant="secondary" className="ml-2 bg-orange-500 text-white">🟠 Expiring Soon</Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
