@@ -31718,10 +31718,12 @@ async function processGuestIssueForAI(issueReport: any) {
       const { propertyId } = req.params;
       const organizationId = req.user?.organizationId || "default-org";
       
+      console.log(`🔍 API Route - Fetching documents for property ${propertyId}, org ${organizationId}`);
       const documents = await storage.getDocumentsByProperty(
         organizationId, 
         parseInt(propertyId)
       );
+      console.log(`✅ API Route - Got ${documents?.length || 0} documents:`, JSON.stringify(documents));
       res.json(documents);
     } catch (error) {
       console.error("Error fetching documents by property:", error);

@@ -3258,11 +3258,6 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
-  async getDocumentsByProperty(propertyId: number): Promise<PropertyDocument[]> {
-    return await db.select().from(propertyDocuments)
-      .where(eq(propertyDocuments.propertyId, propertyId))
-      .orderBy(desc(propertyDocuments.createdAt));
-  }
 
   async getExpiringDocuments(organizationId: string, days: number = 30): Promise<PropertyDocument[]> {
     const futureDate = new Date();
@@ -22900,29 +22895,6 @@ Plant Care:
     return result.rowCount > 0;
   }
 
-  // Document access control
-  async getDocumentsByProperty(propertyId: number, userRole?: string): Promise<PropertyDocument[]> {
-    let query = db.select().from(propertyDocuments)
-      .where(and(
-        eq(propertyDocuments.propertyId, propertyId),
-        eq(propertyDocuments.isActive, true)
-      ));
-
-    // Apply role-based visibility filtering
-    if (userRole === 'owner') {
-      query = db.select().from(propertyDocuments)
-        .where(and(
-          eq(propertyDocuments.propertyId, propertyId),
-          eq(propertyDocuments.isActive, true),
-          or(
-            eq(propertyDocuments.visibility, 'visible_to_owner'),
-            eq(propertyDocuments.uploadedByRole, 'owner')
-          )
-        ));
-    }
-
-    return await query.orderBy(desc(propertyDocuments.createdAt));
-  }
 
   async getDocumentsByCategory(organizationId: string, category: string): Promise<PropertyDocument[]> {
     return await db.select().from(propertyDocuments)
@@ -36095,7 +36067,9 @@ Plant Care:
 
   async getDocumentsByProperty(organizationId: string, propertyId: number) {
     try {
-      return await this.db
+      console.log(`📄 getDocumentsByProperty called - orgId: ${organizationId}, propertyId: ${propertyId}`);
+      
+      const result = await this.db
         .select({
           id: propertyDocuments.id,
           docType: propertyDocuments.docType,
@@ -36103,13 +36077,8 @@ Plant Care:
           expiryDate: propertyDocuments.expiryDate,
           uploadedBy: propertyDocuments.uploadedBy,
           createdAt: propertyDocuments.createdAt,
-          uploaderName: sql<string>`COALESCE(uploader_users.username, ${propertyDocuments.uploadedBy})`,
-          daysUntilExpiry: sql<number>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN DATE_PART('day', ${propertyDocuments.expiryDate} - CURRENT_DATE) ELSE NULL END`,
-          isExpired: sql<boolean>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN ${propertyDocuments.expiryDate} < CURRENT_DATE ELSE FALSE END`,
-          isExpiringSoon: sql<boolean>`CASE WHEN ${propertyDocuments.expiryDate} IS NOT NULL THEN ${propertyDocuments.expiryDate} <= CURRENT_DATE + INTERVAL '30 days' ELSE FALSE END`,
         })
         .from(propertyDocuments)
-        .leftJoin(users.as('uploader_users'), eq(propertyDocuments.uploadedBy, users.id))
         .where(
           and(
             eq(propertyDocuments.organizationId, organizationId),
@@ -36117,8 +36086,11 @@ Plant Care:
           )
         )
         .orderBy(desc(propertyDocuments.createdAt));
+      
+      console.log(`📄 getDocumentsByProperty result - found ${result.length} documents:`, result);
+      return result;
     } catch (error) {
-      console.error("Error fetching documents by property:", error);
+      console.error("❌ Error fetching documents by property:", error);
       throw error;
     }
   }
