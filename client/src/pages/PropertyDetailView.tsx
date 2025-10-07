@@ -808,7 +808,7 @@ export default function PropertyDetailView() {
               />
               <ActionButton 
                 label="Documents" 
-                href="#documents" 
+                href="#documents-section" 
                 icon={FileText}
                 variant="outline"
                 onClick={() => {
