@@ -22868,6 +22868,16 @@ Plant Care:
     return document;
   }
 
+  async createPropertyDocument(organizationId: string, documentData: any): Promise<PropertyDocument> {
+    const [newDocument] = await db.insert(propertyDocuments)
+      .values({
+        ...documentData,
+        organizationId,
+      })
+      .returning();
+    return newDocument;
+  }
+
   async updatePropertyDocument(id: number, document: Partial<InsertPropertyDocument>): Promise<PropertyDocument | undefined> {
     const [updatedDocument] = await db.update(propertyDocuments)
       .set(document)
@@ -28776,4 +28786,4 @@ Plant Care:
   }
 }
 
-export const storage = new DbStorage();
+export const storage = new DatabaseStorage();
