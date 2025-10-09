@@ -81,11 +81,8 @@ export default function SimpleSettings() {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest(`/api/users/${user?.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const response = await apiRequest('PATCH', `/api/users/${user?.id}`, data);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
