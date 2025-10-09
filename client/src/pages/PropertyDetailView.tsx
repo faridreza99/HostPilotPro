@@ -772,15 +772,9 @@ export default function PropertyDetailView() {
               />
               <ActionButton 
                 label="Edit Property" 
-                href="/property-edit" 
+                href={`/property/${property?.id}/edit`}
                 icon={Settings}
                 propertyId={property?.id}
-                onClick={() => {
-                  toast({
-                    title: "Property Edit",
-                    description: "Property editing interface will be available soon. Use the admin dashboard to edit properties for now.",
-                  });
-                }}
               />
               <ActionButton 
                 label="View Utilities" 

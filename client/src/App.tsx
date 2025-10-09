@@ -59,6 +59,7 @@ import UtilityTracker from "./pages/UtilityTracker";
 import AiNotificationsReminders from "./pages/AiNotificationsReminders";
 import FinanceEngine from "./pages/FinanceEngine";
 import PropertyDetailView from "./pages/PropertyDetailView";
+import PropertyEdit from "./pages/PropertyEdit";
 
 import MultiPropertyCalendar from "./pages/MultiPropertyCalendar";
 import AITest from "./pages/AITest";
@@ -164,6 +165,7 @@ function AppRoutes() {
         <Switch>
         <Route path="/" component={RoleBasedDashboard} />
         <Route path="/properties" component={Properties} />
+        <Route path="/property/:id/edit" component={PropertyEdit} />
         <Route path="/property/:id" component={PropertyDetailView} />
         <Route path="/tasks" component={UltraFastTasks} />
         <Route path="/bookings" component={Bookings} />
