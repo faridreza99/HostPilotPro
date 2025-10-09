@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -73,6 +74,14 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
   const { toast } = useToast();
   
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
+
+  // Fetch all properties for the dialog
+  const { data: allProperties = [] } = useQuery({
+    queryKey: ['/api/properties'],
+  });
+
+  // Use selected properties if available, otherwise use all properties
+  const propertiesToShow = selectedProperties.length > 0 ? selectedProperties : (Array.isArray(allProperties) ? allProperties : []);
 
   const commonTemplates: TaskTemplate[] = [
     {
@@ -473,17 +482,11 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
                     size="sm" 
                     onClick={() => handleCreateFromTemplate(template)}
                     className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-emerald-500/25 transition-all duration-200 hover:scale-105"
-                    disabled={selectedProperties.length === 0}
+                    data-testid={`button-create-task-${template.id}`}
                   >
                     <Plus className="h-3 w-3 mr-1" />
                     Create Task
                   </Button>
-                  
-                  {selectedProperties.length === 0 && (
-                    <p className="text-xs text-slate-500 text-center bg-yellow-50 border border-yellow-200 rounded p-2">
-                      💡 Select properties to create tasks
-                    </p>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -552,13 +555,13 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
             <DialogHeader>
               <DialogTitle>Create Task from Template</DialogTitle>
               <DialogDescription>
-                {selectedTemplate && `Create "${selectedTemplate.title}" for a selected property.`}
+                {selectedTemplate && `Create "${selectedTemplate.title}" task. Select a property and assign the task.`}
               </DialogDescription>
             </DialogHeader>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Select Property</label>
+                <label className="text-sm font-medium mb-2 block">Select Property *</label>
                 <Select
                   value={selectedPropertyId}
                   onValueChange={(value) => {
@@ -566,17 +569,22 @@ export function TaskTemplates({ onCreateTask, selectedProperties }: TaskTemplate
                     setValue('propertyId', value);
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose property" />
+                  <SelectTrigger data-testid="select-task-property">
+                    <SelectValue placeholder="Choose a property" />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedProperties.map((property) => (
+                    {propertiesToShow.map((property: any) => (
                       <SelectItem key={property.id} value={property.id.toString()}>
                         {property.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedProperties.length === 0 && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Showing all {propertiesToShow.length} properties
+                  </p>
+                )}
               </div>
 
               <div>
