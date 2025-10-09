@@ -416,8 +416,13 @@ export default function UltraFastTasks() {
           </Button>
           <div className="flex gap-2">
             <Button 
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={() => {
+                console.log('Create Task button clicked');
+                setIsCreateDialogOpen(true);
+                console.log('Dialog state should be:', true);
+              }}
               className="gap-2"
+              data-testid="button-create-task"
             >
               <Plus className="h-4 w-4" />
               Create Task

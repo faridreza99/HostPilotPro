@@ -91,6 +91,11 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Debug: Log when dialog open state changes
+  React.useEffect(() => {
+    console.log('CreateTaskDialog - isOpen changed to:', isOpen);
+  }, [isOpen]);
+
   // Fetch properties for selection
   const { data: properties = [] } = useQuery({
     queryKey: ['/api/properties'],
