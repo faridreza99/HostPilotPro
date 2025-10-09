@@ -201,6 +201,7 @@ function AppRoutes() {
         <Route path="/filtered-property-dashboard" component={UltraFastPropertyDashboard} />
         
         {/* Core Management */}
+        <Route path="/multi-property-calendar" component={MultiPropertyCalendar} />
         <Route path="/maintenance-suggestions" component={SimpleMaintenanceSuggestions} />
         <Route path="/checkin-checkout-workflow" component={CheckInCheckOutWorkflow} />
         <Route path="/daily-operations" component={DailyOperationsDashboard} />
