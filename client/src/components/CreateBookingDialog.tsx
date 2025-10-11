@@ -44,16 +44,17 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
       return response.json();
     },
     onSuccess: (newBooking) => {
-      // Invalidate ALL booking-related queries
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/recent-bookings"] });
+      console.log("✅ Booking created successfully:", newBooking);
+      
+      // Invalidate ALL booking-related queries (exact: false to catch all variants)
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"], exact: false });
+      
+      console.log("🔄 Cache invalidated, triggering refetch...");
       
       // Force immediate refetch to update UI
-      queryClient.refetchQueries({ queryKey: ["/api/bookings"] });
-      queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.refetchQueries({ queryKey: ["/api/dashboard/recent-bookings"] });
+      queryClient.refetchQueries({ queryKey: ["/api/bookings"], exact: false });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard"], exact: false });
       
       toast({
         title: "Success",

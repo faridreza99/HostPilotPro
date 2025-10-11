@@ -63,9 +63,12 @@ export default function Dashboard() {
 
   const { data: bookings = [] } = useQuery({
     queryKey: ["/api/bookings"],
-    staleTime: 30 * 1000, // 30 seconds cache - allow fresh data to show
+    staleTime: 0, // No cache - always show fresh data
     refetchOnMount: true, // Always refetch on mount to show latest bookings
   });
+
+  // Debug: Log bookings data changes
+  console.log("📅 Dashboard - Bookings data:", bookings, "Count:", bookings.length);
 
   // Fetch expiring documents (within 30 days)
   const { data: expiringDocuments = [] } = useQuery({
