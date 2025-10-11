@@ -756,7 +756,7 @@ export interface IStorage {
   createTaskHistory(history: InsertTaskHistory): Promise<TaskHistory>;
 
   // Booking operations
-  getBookings(): Promise<Booking[]>;
+  getBookings(organizationId: string): Promise<Booking[]>;
   getBookingsByProperty(propertyId: number): Promise<Booking[]>;
   getBookingsWithSource(organizationId: string, propertyId?: number): Promise<any[]>;
   getBooking(id: number): Promise<Booking | undefined>;
@@ -2425,8 +2425,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Booking operations
-  async getBookings(): Promise<Booking[]> {
-    return await db.select().from(bookings).orderBy(desc(bookings.createdAt));
+  async getBookings(organizationId: string): Promise<Booking[]> {
+    return await db.select().from(bookings)
+      .where(eq(bookings.organizationId, organizationId))
+      .orderBy(desc(bookings.createdAt));
   }
 
   async getBookingsByProperty(propertyId: number): Promise<Booking[]> {
@@ -28777,13 +28779,4 @@ Plant Care:
         sentimentCategory: "negative",
         flaggedForReview: true,
         submittedAt: "2025-01-03T11:00:00Z",
-        incentiveOffered: null,
-        incentiveRedeemed: false
-      }
-    ];
-    
-    return surveys;
-  }
-}
-
-export const storage = new DatabaseStorage();
+        ince

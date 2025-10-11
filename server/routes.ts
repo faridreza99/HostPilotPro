@@ -2149,7 +2149,9 @@ Be specific and actionable in your recommendations.`;
       
       // Clear bookings cache to ensure new booking appears immediately
       const { clearCache } = await import("./performanceOptimizer");
+      console.log(`🗑️ Clearing bookings cache for organizationId: ${organizationId}`);
       clearCache("bookings");
+      console.log(`✅ Bookings cache cleared after creating booking ID ${booking.id}`);
       
       res.status(201).json(booking);
     } catch (error) {
@@ -28477,10 +28479,4 @@ async function processGuestIssueForAI(issueReport: any) {
       });
 
       res.json(bookings);
-    } catch (error) {
-      console.error("Error fetching booking revenue data:", error);
-      res.status(500).json({ message: "Failed to fetch booking revenue data" });
     }
-  });
-
-  //
