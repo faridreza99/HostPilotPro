@@ -178,6 +178,8 @@ export default function CreateFinanceDialog({ open, onOpenChange }: CreateFinanc
       const financeData = {
         ...data,
         amount: parseFloat(data.amount),
+        date: new Date(data.date).toISOString(),
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
         propertyId: data.propertyId ? parseInt(data.propertyId) : null,
         bookingId: data.bookingId ? parseInt(data.bookingId) : null,
         processedBy: (user as any)?.id,
@@ -194,12 +196,17 @@ export default function CreateFinanceDialog({ open, onOpenChange }: CreateFinanc
         headers: { "Content-Type": "application/json" },
       });
     },
-    onSuccess: () => {
-      // Invalidate all finance-related queries to ensure data refresh everywhere
-      queryClient.invalidateQueries({ queryKey: ["/api/finances"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/finance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/finance/analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+    onSuccess: async () => {
+      // Invalidate and refetch all finance-related queries to ensure instant data refresh
+      await queryClient.invalidateQueries({ queryKey: ["/api/finances"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/finance"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/finance/analytics"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      
+      await queryClient.refetchQueries({ queryKey: ["/api/finances"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/finance"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/finance/analytics"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/dashboard"] });
       
       toast({
         title: "Finance Record Created",
