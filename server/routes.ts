@@ -2142,7 +2142,7 @@ Be specific and actionable in your recommendations.`;
       const bookingData = insertBookingSchema.parse({
         ...req.body,
         organizationId,
-        status: req.body.status || "confirmed",
+        status: req.body.status || "pending",
       });
       
       const booking = await storage.createBooking(bookingData);
@@ -28478,26 +28478,4 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  // Get revenue analytics
-  app.get("/api/revenue/analytics", isDemoAuthenticated, async (req: any, res) => {
-    try {
-      const { organizationId, role } = req.user;
-      const { platform, dateRange } = req.query;
-
-      if (!['admin', 'portfolio-manager', 'owner'].includes(role)) {
-        return res.status(403).json({ message: "Insufficient permissions" });
-      }
-
-      const analytics = await storage.getRevenueAnalytics(organizationId, {
-        platform,
-        dateRange,
-        ownerId: role === 'owner' ? req.user.id : undefined
-      });
-
-      res.json(analytics);
-    } catch (error) {
-      console.error("Error fetching revenue analytics:", error);
-      res.status(500).json({ message: "Failed to fetch revenue analytics" });
-    }
-  });
-}
+  //
