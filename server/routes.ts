@@ -2163,6 +2163,34 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
+  // Get single booking by ID
+  app.get("/api/bookings/:id", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const { organizationId } = req.user;
+      const bookingId = parseInt(req.params.id);
+      
+      if (isNaN(bookingId)) {
+        return res.status(400).json({ message: "Invalid booking ID" });
+      }
+
+      const booking = await storage.getBooking(bookingId);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Verify booking belongs to user's organization
+      if (booking.organizationId !== organizationId) {
+        return res.status(403).json({ message: "Unauthorized to access this booking" });
+      }
+
+      res.json(booking);
+    } catch (error) {
+      console.error("Error fetching booking:", error);
+      res.status(500).json({ message: "Failed to fetch booking" });
+    }
+  });
+
   // Update booking status
   app.patch("/api/bookings/:id", isDemoAuthenticated, async (req: any, res) => {
     try {
