@@ -2219,6 +2219,11 @@ Be specific and actionable in your recommendations.`;
 
       // Update booking with provided fields
       const updatedBooking = await storage.updateBooking(bookingId, req.body);
+      
+      // Clear bookings cache to ensure updated status appears immediately
+      const { clearCache } = await import("./performanceOptimizer");
+      clearCache("bookings");
+      
       res.json(updatedBooking);
     } catch (error) {
       console.error("Error updating booking:", error);
