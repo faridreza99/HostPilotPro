@@ -86,7 +86,7 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
       description: task.description,
       type: task.type,
       priority: task.priority,
-      assigneeId: task.assigneeId,
+      assignedTo: task.assignedTo,
       dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
     });
   };
@@ -100,10 +100,10 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
     }
   };
 
-  const handleAssigneeChange = (taskId: number, assigneeId: string) => {
+  const handleAssigneeChange = (taskId: number, assignedTo: string) => {
     updateTaskMutation.mutate({
       id: taskId,
-      data: { assigneeId }
+      data: { assignedTo }
     });
   };
 
@@ -166,7 +166,7 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => {
-                  const assignedUser = users.find((user: any) => user.id === task.assigneeId);
+                  const assignedUser = users.find((user: any) => user.id === task.assignedTo);
                   const staffMembers = users.filter((user: any) => user.role === 'staff' || user.role === 'admin');
                   
                   return (
@@ -178,6 +178,7 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
                             <button
                               onClick={() => handleEditTask(task)}
                               className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer text-left"
+                              data-testid={`button-edit-task-${task.id}`}
                             >
                               {task.title}
                             </button>
@@ -193,10 +194,10 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={task.assigneeId || ''}
+                          value={task.assignedTo || ''}
                           onValueChange={(value) => handleAssigneeChange(task.id, value)}
                         >
-                          <SelectTrigger className="w-32">
+                          <SelectTrigger className="w-32" data-testid={`select-assignee-${task.id}`}>
                             <SelectValue>
                               <div className="flex items-center">
                                 <Avatar className="h-5 w-5 mr-2">
@@ -346,8 +347,8 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
             <div>
               <Label htmlFor="assignee">Assignee</Label>
               <Select
-                value={editForm.assigneeId || ''}
-                onValueChange={(value) => setEditForm(prev => ({ ...prev, assigneeId: value }))}
+                value={editForm.assignedTo || ''}
+                onValueChange={(value) => setEditForm(prev => ({ ...prev, assignedTo: value }))}
               >
                 <SelectTrigger>
                   <SelectValue />
