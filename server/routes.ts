@@ -975,9 +975,9 @@ Be specific and actionable in your recommendations.`;
   
   // Apply ultra-fast middleware to critical endpoints
   const { ultraFastCache } = await import("./ultraFastMiddleware");
-  // URGENT FIX: Disable cache for properties and bookings to fix data saving issues
+  // URGENT FIX: Disable cache for properties, bookings, and tasks to fix data saving issues
   // app.use("/api/properties", ultraFastCache(15)); // DISABLED
-  app.use("/api/tasks", ultraFastCache(5));
+  // app.use("/api/tasks", ultraFastCache(5)); // DISABLED - need fresh task data after create/update
   // app.use("/api/bookings", ultraFastCache(10)); // DISABLED - need fresh booking data
   app.use("/api/dashboard/stats", ultraFastCache(30));
 
@@ -28492,33 +28492,12 @@ async function processGuestIssueForAI(issueReport: any) {
       if (billingRoute) filters.billingRoute = billingRoute as string;
       if (fromDate) filters.fromDate = new Date(fromDate as string);
       if (toDate) filters.toDate = new Date(toDate as string);
-
+      
       const refills = await waterRefillStorage.getWaterRefills(filters);
       res.json(refills);
     } catch (error) {
-      console.error("Error fetching water refills:", error);
-      res.status(500).json({ message: "Failed to fetch water refills" });
-    }
-  });
-
-  // Get specific water refill
-  app.get("/api/water-refills/:id", isDemoAuthenticated, requireWaterRefillAccess, async (req: any, res) => {
-    try {
-      const organizationId = req.user.organizationId || "default-org";
-      const { WaterRefillStorage } = await import("./waterRefillStorage");
-      const waterRefillStorage = new WaterRefillStorage(organizationId);
-      const id = parseInt(req.params.id);
-      
-      const refill = await waterRefillStorage.getWaterRefill(id);
-      
-      if (!refill) {
-        return res.status(404).json({ message: "Water refill not found" });
-      }
-      
-      res.json(refill);
-    } catch (error) {
-      console.error("Error getting water refill:", error);
-      res.status(500).json({ message: "Failed to get water refill" });
+      console.error("Error getting water refills:", error);
+      res.status(500).json({ message: "Failed to get water refills" });
     }
   });
 
