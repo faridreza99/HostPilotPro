@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 import TopBar from "@/components/TopBar";
 import StatsCard from "@/components/StatsCard";
@@ -27,6 +28,7 @@ interface AdminFilters {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -72,12 +74,36 @@ export default function Dashboard() {
     refetchOnMount: true,
   });
 
+  // Debug: Log expiring documents data
+  console.log("📋 Dashboard - Expiring Documents:", expiringDocuments, "Count:", expiringDocuments.length);
+
   // Fetch expiring insurance (within 30 days)
   const { data: expiringInsurance = [] } = useQuery({
     queryKey: ["/api/property-insurance/expiring/30"],
     staleTime: 0, // Always refetch to ensure alerts are up-to-date
     refetchOnMount: true,
   });
+
+  // Toast notifications for expired documents on Dashboard
+  useEffect(() => {
+    if (expiringDocuments && Array.isArray(expiringDocuments) && expiringDocuments.length > 0) {
+      const now = new Date();
+      const expiredDocs = expiringDocuments.filter((doc: any) => {
+        if (!doc.expiryDate) return false;
+        const expiryDate = new Date(doc.expiryDate);
+        return expiryDate < now;
+      });
+
+      if (expiredDocs.length > 0) {
+        // Show one toast with total count
+        toast({
+          title: "⚠️ Documents Expired",
+          description: `${expiredDocs.length} property document${expiredDocs.length > 1 ? 's have' : ' has'} expired. Check the dashboard for details.`,
+          variant: "destructive",
+        });
+      }
+    }
+  }, [expiringDocuments, toast]);
 
   // Use real bookings from API, sorted by creation date (most recent first)
   const recentBookings = bookings
@@ -191,15 +217,18 @@ export default function Dashboard() {
               color="success"
             />
             <StatsCard
-              title="High Priority Tasks"
-              value={taskStats.highPriority || 0}
+              title="Expired Documents"
+              value={expiringDocuments.filter((doc: any) => {
+                if (!doc.expiryDate) return false;
+                return new Date(doc.expiryDate) < new Date();
+              }).length}
               icon={AlertTriangle}
               color="warning"
             />
             <StatsCard
-              title="Total Properties"
-              value={filteredProperties.length}
-              icon={DollarSign}
+              title="High Priority Tasks"
+              value={taskStats.highPriority || 0}
+              icon={AlertTriangle}
               color="accent"
             />
           </div>
