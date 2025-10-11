@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -564,6 +564,7 @@ export default function PropertyDetailView() {
   const propertyId = params?.id;
   const { user } = useAuth();
   const userRole = (user as any)?.role || "guest";
+  const { toast } = useToast();
 
   const { data: property, isLoading } = useQuery({
     queryKey: [`/api/properties/${propertyId}`],
@@ -587,6 +588,50 @@ export default function PropertyDetailView() {
   });
 
   console.log("🛡️ Insurance data:", insurance, "Length:", Array.isArray(insurance) ? insurance.length : "not array");
+
+  // Toast notifications for expired documents
+  useEffect(() => {
+    if (documents && Array.isArray(documents) && documents.length > 0) {
+      const now = new Date();
+      const expiredDocs = documents.filter((doc: any) => {
+        if (!doc.expiryDate) return false;
+        const expiryDate = new Date(doc.expiryDate);
+        return expiryDate < now;
+      });
+
+      if (expiredDocs.length > 0) {
+        expiredDocs.forEach((doc: any) => {
+          toast({
+            title: "⚠️ Document Expired",
+            description: `${doc.docType} for ${property?.name || 'this property'} expired on ${new Date(doc.expiryDate).toLocaleDateString()}`,
+            variant: "destructive",
+          });
+        });
+      }
+    }
+  }, [documents, property, toast]);
+
+  // Toast notifications for expired insurance
+  useEffect(() => {
+    if (insurance && Array.isArray(insurance) && insurance.length > 0) {
+      const now = new Date();
+      const expiredIns = insurance.filter((ins: any) => {
+        if (!ins.expiryDate) return false;
+        const expiryDate = new Date(ins.expiryDate);
+        return expiryDate < now;
+      });
+
+      if (expiredIns.length > 0) {
+        expiredIns.forEach((ins: any) => {
+          toast({
+            title: "⚠️ Insurance Expired",
+            description: `${ins.insuranceType} for ${property?.name || 'this property'} expired on ${new Date(ins.expiryDate).toLocaleDateString()}`,
+            variant: "destructive",
+          });
+        });
+      }
+    }
+  }, [insurance, property, toast]);
 
   if (isLoading) {
     return (

@@ -3,7 +3,7 @@ import { storage } from "./storage";
 import { isDemoAuthenticated } from "./demoAuth";
 import { db } from "./db";
 import { propertyDocuments } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, lte, sql } from "drizzle-orm";
 
 export const propertyDocRouter = express.Router();
 
@@ -26,6 +26,36 @@ propertyDocRouter.post("/", isDemoAuthenticated, async (req, res) => {
   } catch (err) {
     console.error("[ALT-ROUTE] ERROR creating document:", err);
     res.status(500).json({ message: "Server error creating document" });
+  }
+});
+
+propertyDocRouter.get("/expiring", isDemoAuthenticated, async (req, res) => {
+  console.log("[ALT-ROUTE] GET /api/property-documents/expiring hit");
+  try {
+    const orgId = req.user?.organizationId || "default-org";
+    const days = parseInt(req.query.days as string) || 30;
+    
+    // Calculate future date threshold
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + days);
+    const futureDateStr = futureDate.toISOString().split('T')[0];
+    
+    console.log(`[ALT-ROUTE] Checking for documents expiring before ${futureDateStr} for org ${orgId}`);
+    
+    // Direct database query - fetch documents with expiryDate <= futureDate (includes expired and soon-to-expire)
+    const expiringDocs = await db.select()
+      .from(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.organizationId, orgId),
+        lte(propertyDocuments.expiryDate, futureDateStr)
+      ))
+      .orderBy(propertyDocuments.expiryDate);
+    
+    console.log(`[ALT-ROUTE] Found ${expiringDocs.length} expiring/expired documents:`, JSON.stringify(expiringDocs));
+    res.json(expiringDocs);
+  } catch (err) {
+    console.error("[ALT-ROUTE] ERROR fetching expiring documents:", err);
+    res.status(500).json({ message: "Server error fetching expiring documents" });
   }
 });
 
