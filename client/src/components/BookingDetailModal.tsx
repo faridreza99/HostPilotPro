@@ -35,6 +35,13 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
   // Fetch booking details
   const { data: booking, isLoading } = useQuery({
     queryKey: ["/api/bookings", bookingId],
+    queryFn: async () => {
+      const response = await fetch(`/api/bookings/${bookingId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch booking');
+      }
+      return response.json();
+    },
     enabled: !!bookingId && open,
   });
 
