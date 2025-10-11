@@ -22,6 +22,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import BookingCalendar from "@/components/BookingCalendar";
+import BookingDetailModal from "@/components/BookingDetailModal";
 
 const sampleBookings = [
   {
@@ -131,6 +132,8 @@ export default function Bookings() {
   const [filterManager, setFilterManager] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // Fetch real data from API
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
@@ -148,6 +151,11 @@ export default function Bookings() {
   // Type assertions for safety
   const bookingsArray = Array.isArray(bookings) ? bookings : [];
   const propertiesArray = Array.isArray(properties) ? properties : [];
+
+  const handleBookingClick = (bookingId: number) => {
+    setSelectedBookingId(bookingId);
+    setIsDetailModalOpen(true);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -380,7 +388,12 @@ export default function Bookings() {
                     : 0;
                   
                   return (
-                    <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                    <Card 
+                      key={booking.id} 
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleBookingClick(booking.id)}
+                      data-testid={`booking-card-${booking.id}`}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
@@ -431,7 +444,12 @@ export default function Bookings() {
                   const checkOutDate = booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A';
                   
                   return (
-                    <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                    <Card 
+                      key={booking.id} 
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => handleBookingClick(booking.id)}
+                      data-testid={`booking-card-grid-${booking.id}`}
+                    >
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-lg">{booking.guestName || 'Guest'}</CardTitle>
@@ -656,6 +674,13 @@ export default function Bookings() {
       <CreateBookingDialog 
         open={isBookingDialogOpen} 
         onOpenChange={setIsBookingDialogOpen} 
+      />
+
+      {/* Booking Detail Modal */}
+      <BookingDetailModal
+        open={isDetailModalOpen}
+        onOpenChange={setIsDetailModalOpen}
+        bookingId={selectedBookingId}
       />
     </div>
   );
