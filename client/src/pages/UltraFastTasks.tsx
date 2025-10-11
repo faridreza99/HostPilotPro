@@ -275,8 +275,9 @@ export default function UltraFastTasks() {
     mutationFn: async (taskId: number) => {
       return await apiRequest('PUT', `/api/tasks/${taskId}`, { status: 'completed' });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/tasks'] });
       toast({
         title: 'Success',
         description: 'Task completed successfully',
@@ -296,8 +297,9 @@ export default function UltraFastTasks() {
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
       return await apiRequest('PUT', `/api/tasks/${id}`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/tasks'] });
       setIsEditDialogOpen(false);
       setEditingTask(null);
       setEditForm({});
