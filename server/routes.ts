@@ -31653,7 +31653,11 @@ async function processGuestIssueForAI(issueReport: any) {
   });
 
   // Create new property document
-  app.post("/api/property-documents", async (req, res) => {
+  // Create new property document
+  app.post("/api/property-documents", isDemoAuthenticated, async (req, res) => {
+    console.log("🚨 PROPERTY DOCUMENT POST ENDPOINT HIT!");
+    console.log("📄 Request body:", JSON.stringify(req.body, null, 2));
+    console.log("📄 User:", req.user);
     try {
       const organizationId = req.user?.organizationId || "default-org";
       const documentData = req.body;
@@ -31668,7 +31672,7 @@ async function processGuestIssueForAI(issueReport: any) {
 
       console.log("✅ Validation passed, calling storage.createPropertyDocument...");
       const created = await storage.createPropertyDocument(organizationId, documentData);
-      console.log("📄 Document created successfully:", created);
+      console.log("📄 Document created successfully:", JSON.stringify(created, null, 2));
       res.json(created);
     } catch (error) {
       console.error("❌ Error creating property document:", error);
