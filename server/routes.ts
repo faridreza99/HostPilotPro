@@ -2006,9 +2006,10 @@ Be specific and actionable in your recommendations.`;
       // Clear BOTH cache systems to ensure updates appear immediately
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
-      clearCache("tasks");
-      clearUltraFastCache("/api/tasks");
-      clearUltraFastCache("/api/dashboard");
+      clearCache("tasks");  // Clears memory cache with pattern matching
+      clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
+      clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
     } catch (error) {
@@ -2033,9 +2034,10 @@ Be specific and actionable in your recommendations.`;
       // Clear BOTH cache systems to ensure updates appear immediately
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
-      clearCache("tasks");
-      clearUltraFastCache("/api/tasks");
-      clearUltraFastCache("/api/dashboard");
+      clearCache("tasks");  // Clears memory cache with pattern matching
+      clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
+      clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
     } catch (error) {
@@ -2063,9 +2065,10 @@ Be specific and actionable in your recommendations.`;
       // Clear BOTH cache systems to ensure updates appear immediately
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
-      clearCache("tasks");
-      clearUltraFastCache("/api/tasks");
-      clearUltraFastCache("/api/dashboard");
+      clearCache("tasks");  // Clears memory cache with pattern matching
+      clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
+      clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
     } catch (error) {
@@ -2093,9 +2096,10 @@ Be specific and actionable in your recommendations.`;
       // Clear BOTH cache systems to ensure updates appear immediately
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
-      clearCache("tasks");
-      clearUltraFastCache("/api/tasks");
-      clearUltraFastCache("/api/dashboard");
+      clearCache("tasks");  // Clears memory cache with pattern matching
+      clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
+      clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
     } catch (error) {
@@ -2118,9 +2122,10 @@ Be specific and actionable in your recommendations.`;
       // Clear BOTH cache systems to ensure updates appear immediately
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
-      clearCache("tasks");
-      clearUltraFastCache("/api/tasks");
-      clearUltraFastCache("/api/dashboard");
+      clearCache("tasks");  // Clears memory cache with pattern matching
+      clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
+      clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
     } catch (error) {
