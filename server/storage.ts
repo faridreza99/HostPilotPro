@@ -28779,4 +28779,17 @@ Plant Care:
         sentimentCategory: "negative",
         flaggedForReview: true,
         submittedAt: "2025-01-03T11:00:00Z",
-        ince
+        incentiveOffered: null,
+        incentiveRedeemed: false
+      }
+    ];
+
+    for (const survey of demoSurveys) {
+      await this.createGuestDepartureSurvey(survey);
+    }
+
+    console.log("Demo guest departure surveys created successfully");
+  }
+}
+// Export storage instance
+export const storage = new DatabaseStorage();

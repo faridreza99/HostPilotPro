@@ -28479,4 +28479,9 @@ async function processGuestIssueForAI(issueReport: any) {
       });
 
       res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching booking revenue data:", error);
+      res.status(500).json({ message: "Failed to fetch booking revenue data" });
     }
+  });
+}
