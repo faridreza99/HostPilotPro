@@ -80,6 +80,7 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
   });
 
   const handleEditTask = (task: any) => {
+    console.log("🔧 Edit task clicked:", task.id, task.title);
     setEditingTask(task);
     setEditForm({
       title: task.title,
@@ -269,7 +270,11 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
                             <Button 
                               variant="default" 
                               size="sm"
-                              onClick={() => updateTaskMutation.mutate({ id: task.id, data: { status: 'completed' } })}
+                              onClick={() => {
+                                console.log("✅ Complete task clicked:", task.id, task.title);
+                                updateTaskMutation.mutate({ id: task.id, data: { status: 'completed' } });
+                              }}
+                              data-testid={`button-complete-task-${task.id}`}
                             >
                               Complete
                             </Button>
