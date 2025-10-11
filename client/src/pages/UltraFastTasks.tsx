@@ -141,6 +141,9 @@ export default function UltraFastTasks() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -288,6 +291,30 @@ export default function UltraFastTasks() {
     },
   });
 
+  // Task update mutation
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      return await apiRequest('PUT', `/api/tasks/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      setIsEditDialogOpen(false);
+      setEditingTask(null);
+      setEditForm({});
+      toast({
+        title: 'Success',
+        description: 'Task updated successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update task',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Refresh tasks mutation
   const refreshTasksMutation = useMutation({
     mutationFn: async () => {
@@ -375,12 +402,31 @@ export default function UltraFastTasks() {
   };
 
   const handleEditTask = (taskId: number) => {
-    // Future: Open edit dialog
     console.log("🔧 Edit task button clicked! Task ID:", taskId);
-    toast({
-      title: "Edit Task",
-      description: `Task ${taskId} edit functionality coming soon!`,
-    });
+    const task = enhancedTasks.find((t: any) => t.id === taskId);
+    if (task) {
+      setEditingTask(task);
+      setEditForm({
+        title: task.title || '',
+        description: task.description || '',
+        type: task.type || 'maintenance',
+        priority: task.priority || 'medium',
+        status: task.status || 'pending',
+        assignedTo: task.assignedTo || '',
+        dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+        propertyId: task.propertyId || '',
+      });
+      setIsEditDialogOpen(true);
+    }
+  };
+
+  const handleSaveTask = () => {
+    if (editingTask) {
+      updateTaskMutation.mutate({
+        id: editingTask.id,
+        data: editForm
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -752,6 +798,165 @@ export default function UltraFastTasks() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)}>
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>
+              Update task details and save changes
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="title" className="text-right font-medium">
+                Title
+              </label>
+              <Input
+                id="title"
+                value={editForm.title || ''}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="description" className="text-right font-medium">
+                Description
+              </label>
+              <Input
+                id="description"
+                value={editForm.description || ''}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="type" className="text-right font-medium">
+                Type
+              </label>
+              <Select
+                value={editForm.type || 'maintenance'}
+                onValueChange={(value) => setEditForm({ ...editForm, type: value })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cleaning">Cleaning</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="inspection">Inspection</SelectItem>
+                  <SelectItem value="repair">Repair</SelectItem>
+                  <SelectItem value="setup">Setup</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="priority" className="text-right font-medium">
+                Priority
+              </label>
+              <Select
+                value={editForm.priority || 'medium'}
+                onValueChange={(value) => setEditForm({ ...editForm, priority: value })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="status" className="text-right font-medium">
+                Status
+              </label>
+              <Select
+                value={editForm.status || 'pending'}
+                onValueChange={(value) => setEditForm({ ...editForm, status: value })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="assignedTo" className="text-right font-medium">
+                Assignee
+              </label>
+              <Select
+                value={editForm.assignedTo || ''}
+                onValueChange={(value) => setEditForm({ ...editForm, assignedTo: value })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {usersArray.filter((user: any) => user.role === 'staff' || user.role === 'admin').map((user: any) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="dueDate" className="text-right font-medium">
+                Due Date
+              </label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={editForm.dueDate || ''}
+                onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="propertyId" className="text-right font-medium">
+                Property
+              </label>
+              <Select
+                value={editForm.propertyId?.toString() || ''}
+                onValueChange={(value) => setEditForm({ ...editForm, propertyId: parseInt(value) })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select property" />
+                </SelectTrigger>
+                <SelectContent>
+                  {propertiesArray.map((property: any) => (
+                    <SelectItem key={property.id} value={property.id.toString()}>
+                      {property.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveTask}
+              disabled={updateTaskMutation.isPending}
+            >
+              {updateTaskMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
