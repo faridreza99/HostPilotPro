@@ -370,12 +370,17 @@ export default function UltraFastTasks() {
   });
 
   const handleCompleteTask = (taskId: number) => {
+    console.log("✅ Complete task button clicked! Task ID:", taskId);
     completeTaskMutation.mutate(taskId);
   };
 
   const handleEditTask = (taskId: number) => {
     // Future: Open edit dialog
-    console.log(`Editing task ${taskId}`);
+    console.log("🔧 Edit task button clicked! Task ID:", taskId);
+    toast({
+      title: "Edit Task",
+      description: `Task ${taskId} edit functionality coming soon!`,
+    });
   };
 
   const handleRefresh = () => {
