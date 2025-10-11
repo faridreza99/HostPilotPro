@@ -31652,7 +31652,8 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  // Create new property document
+  console.log("DEBUG: Registering POST /api/property-documents route...");
+  
   // Create new property document
   app.post("/api/property-documents", isDemoAuthenticated, async (req, res) => {
     console.log("[PROPERTY-DOCS] POST endpoint hit");
@@ -31679,6 +31680,9 @@ async function processGuestIssueForAI(issueReport: any) {
       res.status(500).json({ message: "Failed to create property document" });
     }
   });
+  
+  console.log("DEBUG: POST /api/property-documents route registered successfully");
+
   // Update property document
   app.put("/api/property-documents/:documentId", async (req, res) => {
     try {
