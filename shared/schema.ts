@@ -12898,4 +12898,3 @@ export const insertPropertyInsuranceSchema = createInsertSchema(propertyInsuranc
 });
 
 export type PropertyInsurance = typeof propertyInsurance.$inferSelect;
-export type InsertPropertyInsurance = z.infer<typeof insertPropertyInsuranceSchema>;
