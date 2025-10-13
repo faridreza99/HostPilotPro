@@ -87,6 +87,11 @@ app.use((req, res, next) => {
   mountIntegrationRoutes(app);
   mountPmsRoutes(app);
   
+  // Register Achievements routes
+  const { setupAchievementRoutes } = await import('./achievement-routes');
+  setupAchievementRoutes(app);
+  console.log("[INIT] Achievement routes mounted ✅");
+  
   // Register Property Document routes using Express Router (isolated from routes.ts errors)
   const { propertyDocRouter } = await import('./property-document-routes');
   app.use("/api/property-documents", propertyDocRouter);
