@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,116 +87,23 @@ function getNextLevelProgress(points: number): { current: number; next: number; 
 }
 
 export default function AchievementSystem({ userId, organizationId }: AchievementSystemProps) {
-  const [userStats, setUserStats] = useState<UserGameStats>({
-    totalPoints: 0,
-    level: 1,
-    currentStreak: 0,
-    longestStreak: 0,
-    tasksCompleted: 0,
-    bookingsProcessed: 0,
-    propertiesManaged: 0,
-  });
-  
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [userAchievements, setUserAchievements] = useState<Achievement[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
-  // Mock data for demonstration
-  useEffect(() => {
-    // Simulate loading achievements and user data
-    const mockUserStats: UserGameStats = {
-      totalPoints: 850,
-      level: calculateLevel(850),
-      currentStreak: 7,
-      longestStreak: 12,
-      tasksCompleted: 45,
-      bookingsProcessed: 23,
-      propertiesManaged: 8,
-    };
+  // Fetch user game stats
+  const { data: userStats, isLoading: statsLoading } = useQuery<UserGameStats>({
+    queryKey: ['/api/achievements/user', userId],
+    enabled: !!userId,
+  });
 
-    const mockAchievements: Achievement[] = [
-      {
-        id: 1,
-        name: "First Steps",
-        description: "Complete your first task",
-        category: "task",
-        type: "milestone",
-        points: 10,
-        badgeColor: "#3B82F6",
-        isActive: true,
-        isEarned: true,
-        earnedAt: "2025-01-15T10:30:00Z"
-      },
-      {
-        id: 2,
-        name: "Task Master",
-        description: "Complete 50 tasks",
-        category: "task",
-        type: "milestone",
-        points: 100,
-        badgeColor: "#3B82F6",
-        isActive: true,
-        progress: 90,
-        isEarned: false
-      },
-      {
-        id: 3,
-        name: "Booking Pro",
-        description: "Process 25 bookings",
-        category: "booking",
-        type: "milestone",
-        points: 75,
-        badgeColor: "#10B981",
-        isActive: true,
-        isEarned: true,
-        earnedAt: "2025-01-20T14:15:00Z"
-      },
-      {
-        id: 4,
-        name: "Finance Wizard",
-        description: "Manage finances for 3 consecutive months",
-        category: "finance",
-        type: "streak",
-        points: 150,
-        badgeColor: "#F59E0B",
-        isActive: true,
-        progress: 66,
-        isEarned: false
-      },
-      {
-        id: 5,
-        name: "Property Expert",
-        description: "Manage 10 properties",
-        category: "property",
-        type: "milestone",
-        points: 200,
-        badgeColor: "#8B5CF6",
-        isActive: true,
-        progress: 80,
-        isEarned: false
-      },
-      {
-        id: 6,
-        name: "Week Warrior",
-        description: "7-day activity streak",
-        category: "system",
-        type: "streak",
-        points: 50,
-        badgeColor: "#EF4444",
-        isActive: true,
-        isEarned: true,
-        earnedAt: "2025-01-25T09:00:00Z"
-      }
-    ];
+  // Fetch all achievements with earned status
+  const { data: achievements = [], isLoading: achievementsLoading } = useQuery<Achievement[]>({
+    queryKey: ['/api/achievements/definitions'],
+  });
 
-    setUserStats(mockUserStats);
-    setAchievements(mockAchievements);
-    setUserAchievements(mockAchievements.filter(a => a.isEarned));
-    setIsLoading(false);
-  }, [userId, organizationId]);
+  const isLoading = statsLoading || achievementsLoading;
+  const userAchievements = achievements.filter(a => a.isEarned);
 
-  const levelProgress = getNextLevelProgress(userStats.totalPoints);
+  const levelProgress = getNextLevelProgress(userStats?.totalPoints || 0);
   const filteredAchievements = selectedCategory === "all" 
     ? achievements 
     : achievements.filter(a => a.category === selectedCategory);
@@ -225,19 +133,19 @@ export default function AchievementSystem({ userId, organizationId }: Achievemen
                 <Crown className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Level {userStats.level}</h3>
-                <p className="text-sm text-muted-foreground">{userStats.totalPoints} total points</p>
+                <h3 className="text-lg font-semibold">Level {userStats?.level || 1}</h3>
+                <p className="text-sm text-muted-foreground">{userStats?.totalPoints || 0} total points</p>
               </div>
             </div>
             <Badge variant="outline" className="flex items-center gap-1">
               <Flame className="h-3 w-3" />
-              {userStats.currentStreak} day streak
+              {userStats?.currentStreak || 0} day streak
             </Badge>
           </div>
           
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Progress to Level {userStats.level + 1}</span>
+              <span>Progress to Level {(userStats?.level || 1) + 1}</span>
               <span>{Math.round(levelProgress.progress)}%</span>
             </div>
             <Progress value={levelProgress.progress} className="h-2" />
@@ -254,7 +162,7 @@ export default function AchievementSystem({ userId, organizationId }: Achievemen
         <Card>
           <CardContent className="p-4 text-center">
             <CheckCircle className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{userStats.tasksCompleted}</div>
+            <div className="text-2xl font-bold">{userStats?.tasksCompleted || 0}</div>
             <div className="text-sm text-muted-foreground">Tasks Completed</div>
           </CardContent>
         </Card>
@@ -262,7 +170,7 @@ export default function AchievementSystem({ userId, organizationId }: Achievemen
         <Card>
           <CardContent className="p-4 text-center">
             <Calendar className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{userStats.bookingsProcessed}</div>
+            <div className="text-2xl font-bold">{userStats?.bookingsProcessed || 0}</div>
             <div className="text-sm text-muted-foreground">Bookings Processed</div>
           </CardContent>
         </Card>
@@ -270,7 +178,7 @@ export default function AchievementSystem({ userId, organizationId }: Achievemen
         <Card>
           <CardContent className="p-4 text-center">
             <Target className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{userStats.propertiesManaged}</div>
+            <div className="text-2xl font-bold">{userStats?.propertiesManaged || 0}</div>
             <div className="text-sm text-muted-foreground">Properties Managed</div>
           </CardContent>
         </Card>
