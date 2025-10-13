@@ -67,6 +67,14 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - **Third-Party Integrations**: Hostaway, Stripe, Twilio, PEA (as per API Connections management system).
 
 ## Recent Changes
+- **Finance Hub Transaction Creation Fix**: Resolved finance record creation validation errors (October 13, 2025)
+  - **Root Cause**: Frontend sending `amount` as number (via parseFloat), but Drizzle-zod validates decimal fields as strings
+  - **Solution**: Removed parseFloat conversion - now sending amount as string to match backend validation schema
+  - **Data Cleaning**: Implemented conditional field inclusion - only sending fields with actual values (no empty strings)
+  - **Validation Success**: Finance records now create successfully with status 201, instant UI updates
+  - **Real-time Updates**: Dashboard analytics (revenue, expenses, net profit) update immediately after record creation
+  - **Cache Strategy**: Dual invalidation (invalidateQueries + refetchQueries) ensures instant data refresh across all finance views
+  - **User Verified**: Full testing confirmed - income/expense creation, toast notifications, persistence, error handling all working
 - **Captain Cortex Property Metrics Fix**: Fixed schema mismatch causing incorrect property metrics (September 30, 2025)
   - **Root Cause**: Property matching used non-existent `propertyName` field - schema only has `propertyId` (integer) foreign keys
   - **Solution**: Changed matching from `b.propertyId === property.id || b.propertyName === property.name` to `b.propertyId === property.id`
