@@ -1989,8 +1989,6 @@ Be specific and actionable in your recommendations.`;
 
   app.put("/api/tasks/:id", isDemoAuthenticated, async (req, res) => {
     try {
-      const userData = req.user as any;
-      const userId = userData.claims.sub;
       const id = parseInt(req.params.id);
       const taskData = req.body;
       
@@ -2016,9 +2014,13 @@ Be specific and actionable in your recommendations.`;
       // Trigger achievement check if task status changed to completed or approved
       if (taskData.status === 'completed' || taskData.status === 'approved') {
         try {
-          const { checkAchievements } = await import('./achievement-routes');
-          await checkAchievements(userId, storage);
-          console.log(`✅ Achievement check triggered for user ${userId} after task ${id} status: ${taskData.status}`);
+          const userData = req.user as any;
+          const userId = userData?.claims?.sub || userData?.id;
+          if (userId) {
+            const { checkAchievements } = await import('./achievement-routes');
+            await checkAchievements(userId, storage);
+            console.log(`✅ Achievement check triggered for user ${userId} after task ${id} status: ${taskData.status}`);
+          }
         } catch (achievementError) {
           console.error('Achievement check failed:', achievementError);
           // Don't fail the request if achievement check fails
