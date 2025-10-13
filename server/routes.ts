@@ -13518,24 +13518,44 @@ Be specific and actionable in your recommendations.`;
   app.get("/api/system", isDemoAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.user?.organizationId || "default-org";
+      console.log("[SYSTEM-HUB] Fetching system info for organizationId:", organizationId);
       
       // Use direct count queries for accurate counts
-      const propertiesCount = await storage.getProperties(organizationId).then(p => p.length);
-      const usersCount = await storage.getUsers({ organizationId }).then(u => u.length);
+      const properties = await storage.getProperties(organizationId);
+      console.log("[SYSTEM-HUB] Properties retrieved:", properties.length);
+      const propertiesCount = properties.length;
       
-      // Use optimized count methods that are working correctly
+      const users = await storage.getUsers({ organizationId });
+      console.log("[SYSTEM-HUB] Users retrieved:", users.length);
+      const usersCount = users.length;
+      
+      // Debug finance count
       const financeCount = await storage.getFinanceCount({ organizationId });
-      const bookingsCount = await storage.getBookings(organizationId).then(b => b.length);
+      console.log("[SYSTEM-HUB] Finance count from getFinanceCount:", financeCount);
       
-      // Get all tasks and filter by organization
+      // Debug bookings
+      const bookings = await storage.getBookings(organizationId);
+      console.log("[SYSTEM-HUB] Bookings retrieved:", bookings.length);
+      const bookingsCount = bookings.length;
+      
+      // Debug tasks
       const allTasks = await storage.getTasks();
-      const tasksCount = allTasks.filter(t => t.organizationId === organizationId).length;
+      console.log("[SYSTEM-HUB] All tasks retrieved:", allTasks.length);
+      const filteredTasks = allTasks.filter(t => t.organizationId === organizationId);
+      console.log("[SYSTEM-HUB] Tasks filtered for org:", filteredTasks.length);
+      const tasksCount = filteredTasks.length;
       
       // Build system info response
       const systemInfo = {
-        version: "2.0 Enterprise",
+        version: "2.0 Enterprise DEBUG-V2",
         lastUpdated: new Date().toISOString(),
         status: "online",
+        debug: {
+          propertiesRetrieved: properties.length,
+          usersRetrieved: users.length,
+          bookingsRetrieved: bookings.length,
+          tasksRetrieved: allTasks.length
+        },
         health: {
           database: "healthy",
           api: "operational",
@@ -28475,7 +28495,7 @@ async function processGuestIssueForAI(issueReport: any) {
       
       if (!updatedSuggestion) {
         return res.status(404).json({ message: "Water upgrade suggestion not found" });
-  }
+      }
 
       res.json(updatedSuggestion);
     } catch (error) {
@@ -28484,45 +28504,6 @@ async function processGuestIssueForAI(issueReport: any) {
     }
   });
 
-  // Review water upgrade suggestion
-  app.put("/api/water-upgrade-suggestions/:id/review", isDemoAuthenticated, requireWaterDeliveryManagement, async (req: any, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { status } = req.body;
-      const reviewedBy = req.user.id;
-
-      const updatedSuggestion = await storage.reviewWaterUpgradeSuggestion(id, reviewedBy, status);
-      
-      if (!updatedSuggestion) {
-        return res.status(404).json({ message: "Water upgrade suggestion not found" });
-      }
-
-      res.json(updatedSuggestion);
-    } catch (error) {
-      console.error("Error reviewing water upgrade suggestion:", error);
-      res.status(500).json({ message: "Failed to review water upgrade suggestion" });
-    }
-  });
-
-  // Get water management analytics
-  app.get("/api/water-management-analytics", isDemoAuthenticated, requireWaterDeliveryAccess, async (req: any, res) => {
-    try {
-      const organizationId = req.user.organizationId || "default-org";
-      const { propertyId } = req.query;
-
-      const analytics = await storage.getWaterManagementAnalytics(
-        organizationId,
-        propertyId ? parseInt(propertyId as string) : undefined
-      );
-      res.json(analytics);
-    } catch (error) {
-      console.error("Error fetching water management analytics:", error);
-      res.status(500).json({ message: "Failed to fetch water management analytics" });
-    }
-  });
-
-  // ===== WATER UTILITY EMERGENCY TRUCK REFILL LOG ROUTES =====
-
-  // Middleware for water refill access control
+  const httpServer = createServer(app);
+  return httpServer;
 }
-
