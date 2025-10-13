@@ -53,24 +53,33 @@ export function setupAchievementRoutes(app: Express) {
           .returning();
       }
 
-      // Calculate real-time stats from actual data
+      // Calculate real-time stats from actual data (filtered by user)
       const [taskStats] = await db
         .select({ count: sql<number>`COUNT(*)` })
         .from(tasks)
         .where(and(
           eq(tasks.organizationId, organizationId),
+          eq(tasks.assignedTo, userId),
           eq(tasks.status, 'completed')
         ));
-
-      const [bookingStats] = await db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(bookings)
-        .where(eq(bookings.organizationId, organizationId));
 
       const [propertyStats] = await db
         .select({ count: sql<number>`COUNT(*)` })
         .from(properties)
-        .where(eq(properties.organizationId, organizationId));
+        .where(and(
+          eq(properties.organizationId, organizationId),
+          eq(properties.ownerId, userId)
+        ));
+
+      // Count bookings for properties owned by this user
+      const [bookingStats] = await db
+        .select({ count: sql<number>`COUNT(DISTINCT ${bookings.id})` })
+        .from(bookings)
+        .innerJoin(properties, eq(bookings.propertyId, properties.id))
+        .where(and(
+          eq(bookings.organizationId, organizationId),
+          eq(properties.ownerId, userId)
+        ));
 
       // Calculate points based on activities
       const tasksCompleted = Number(taskStats?.count || 0);
@@ -211,23 +220,13 @@ export function setupAchievementRoutes(app: Express) {
         if (earnedIds.has(achievement.id)) continue;
 
         if (checkAchievementCriteria(achievement, userStats)) {
-          // Award achievement
+          // Award achievement (points and level are calculated from activity in the stats endpoint)
           await db.insert(userAchievements).values({
             userId,
             organizationId,
             achievementId: achievement.id,
             progress: 100,
           });
-
-          // Update total points
-          await db
-            .update(userGameStats)
-            .set({
-              totalPoints: sql`${userGameStats.totalPoints} + ${achievement.points}`,
-              level: sql`${calculateLevel(userStats.totalPoints + achievement.points)}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(userGameStats.id, userStats.id));
 
           newAchievements.push(achievement);
         }
