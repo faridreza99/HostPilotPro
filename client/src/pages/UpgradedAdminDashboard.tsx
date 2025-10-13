@@ -29,7 +29,7 @@ export default function UpgradedAdminDashboard() {
   });
 
   const { data: finances = [], isLoading: financesLoading } = useQuery({
-    queryKey: ['/api/finance'],
+    queryKey: ['/api/finances'],
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 

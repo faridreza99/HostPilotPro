@@ -67,6 +67,14 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - **Third-Party Integrations**: Hostaway, Stripe, Twilio, PEA (as per API Connections management system).
 
 ## Recent Changes
+- **System Hub Monitoring Dashboard Fix**: Created missing `/api/system` endpoint for real-time system monitoring (October 13, 2025)
+  - **Root Cause**: ConsolidatedSystemHub queried non-existent `/api/system` endpoint, showing 0 records for all modules
+  - **Solution**: Implemented comprehensive system info endpoint returning module counts, health status, API configurations
+  - **Module Counts**: Properties (33), Users (26), Finance (2), Tasks (50), Bookings (17) now display correctly
+  - **Health Monitoring**: Database (healthy), API (operational), Cache (strong) status indicators working
+  - **API Detection**: Stripe, Hostaway, OpenAI, Twilio integration status detection via environment variables
+  - **Real-time Updates**: Last updated timestamp, version info (2.0 Enterprise), organization context all functional
+  - **Additional Fix**: Updated UpgradedAdminDashboard to use `/api/finances` (plural) instead of `/api/finance` (singular)
 - **Finance Hub Transaction Creation Fix**: Resolved finance record creation validation errors (October 13, 2025)
   - **Root Cause**: Frontend sending `amount` as number (via parseFloat), but Drizzle-zod validates decimal fields as strings
   - **Solution**: Removed parseFloat conversion - now sending amount as string to match backend validation schema

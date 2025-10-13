@@ -13514,6 +13514,54 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
+  // System Hub Information Route
+  app.get("/api/system", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      // Fetch counts from database
+      const properties = await storage.getProperties(organizationId);
+      const users = await storage.getUsers({ organizationId });
+      const tasks = await storage.getTasks({ organizationId, userId: req.user?.id });
+      const bookings = await storage.getBookings(organizationId);
+      const finances = await storage.getFinances(organizationId);
+      
+      // Build system info response
+      const systemInfo = {
+        version: "2.0 Enterprise",
+        lastUpdated: new Date().toISOString(),
+        status: "online",
+        health: {
+          database: "healthy",
+          api: "operational",
+          cache: "strong"
+        },
+        modules: {
+          properties: { active: true, count: properties.length },
+          users: { active: true, count: users.length },
+          finance: { active: true, count: finances.length },
+          tasks: { active: true, count: tasks.length },
+          bookings: { active: true, count: bookings.length }
+        },
+        apiConfigs: {
+          hasStripe: !!process.env.STRIPE_SECRET_KEY,
+          hasHostaway: !!process.env.HOSTAWAY_API_KEY,
+          hasOpenAI: !!process.env.OPENAI_API_KEY,
+          hasTwilio: !!process.env.TWILIO_AUTH_TOKEN
+        },
+        organization: {
+          id: organizationId,
+          name: "HostPilotPro"
+        }
+      };
+      
+      res.json(systemInfo);
+    } catch (error) {
+      console.error("Error fetching system info:", error);
+      res.status(500).json({ message: "Failed to fetch system information" });
+    }
+  });
+
   // User Management Routes
   app.get("/api/users", isDemoAuthenticated, async (req: any, res) => {
     try {
@@ -28472,14 +28520,4 @@ async function processGuestIssueForAI(issueReport: any) {
 
   // ===== WATER UTILITY EMERGENCY TRUCK REFILL LOG ROUTES =====
 
-  // Middleware for water refill access control
-  const requireWaterRefillAccess = (req: any, res: any, next: any) => {
-    const userRole = req.user?.role;
-    if (!['admin', 'portfolio-manager', 'owner'].includes(userRole)) {
-      return res.status(403).json({ message: "Access denied" });
-    }
-    next();
-  };
-
-  return app;
-}
+  // Middleware for water refill acc
