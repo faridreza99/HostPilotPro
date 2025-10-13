@@ -67,12 +67,15 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - **Third-Party Integrations**: Hostaway, Stripe, Twilio, PEA (as per API Connections management system).
 
 ## Recent Changes
-- **System Hub Monitoring Dashboard Fix**: Created missing `/api/system` endpoint for real-time system monitoring (October 13, 2025)
-  - **Root Cause**: ConsolidatedSystemHub queried non-existent `/api/system` endpoint, showing 0 records for all modules
-  - **Solution**: Implemented comprehensive system info endpoint returning module counts, health status, API configurations
+- **System Hub Route Shadowing Fix**: Resolved duplicate `/api/system` endpoint causing incorrect data display (October 13, 2025)
+  - **Root Cause**: `server/fastRoutes.ts` had duplicate `/api/system` handler with hardcoded 0 counts, overriding `routes.ts` implementation
+  - **Route Conflict**: Express uses last matching handler, so fastRoutes.ts (registered after routes.ts) shadowed the correct implementation
+  - **Parameter Bug**: Fixed method calls to use object format `{ organizationId }` instead of string for filtered queries
+  - **Solution**: Updated fastRoutes.ts to fetch real data from storage layer with correct parameter format
   - **Module Counts**: Properties (33), Users (26), Finance (2), Tasks (50), Bookings (17) now display correctly
   - **Health Monitoring**: Database (healthy), API (operational), Cache (strong) status indicators working
   - **API Detection**: Stripe, Hostaway, OpenAI, Twilio integration status detection via environment variables
+  - **Key Learning**: TSX caching was NOT the issue - route registration order matters in Express middleware chain
   - **Real-time Updates**: Last updated timestamp, version info (2.0 Enterprise), organization context all functional
   - **Additional Fix**: Updated UpgradedAdminDashboard to use `/api/finances` (plural) instead of `/api/finance` (singular)
 - **Finance Hub Transaction Creation Fix**: Resolved finance record creation validation errors (October 13, 2025)

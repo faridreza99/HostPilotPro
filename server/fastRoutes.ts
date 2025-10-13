@@ -174,14 +174,17 @@ export function registerFastRoutes(app: Express) {
     const organizationId = req.user?.organizationId || "default-org";
     
     try {
-      const [properties, users, settings] = await Promise.all([
+      const [properties, users, settings, finances, tasks, bookings] = await Promise.all([
         storage.getProperties(organizationId),
-        storage.getUsers(organizationId),
-        storage.getPlatformSettings(organizationId)
+        storage.getUsers({ organizationId }),
+        storage.getPlatformSettings(organizationId),
+        storage.getFinances({ organizationId }),
+        storage.getTasks().then(t => t.filter(task => task.organizationId === organizationId)),
+        storage.getBookings(organizationId)
       ]);
 
       const systemInfo = {
-        version: "2.0 Enterprise",
+        version: "2.0 Enterprise FIXED",
         lastUpdated: new Date().toISOString(),
         status: "online",
         health: {
@@ -192,9 +195,9 @@ export function registerFastRoutes(app: Express) {
         modules: {
           properties: { active: true, count: properties.length },
           users: { active: true, count: users.length },
-          finance: { active: true, count: 0 },
-          tasks: { active: true, count: 0 },
-          bookings: { active: true, count: 0 }
+          finance: { active: true, count: finances.length },
+          tasks: { active: true, count: tasks.length },
+          bookings: { active: true, count: bookings.length }
         },
         apiConfigs: {
           hasStripe: settings.some((s: any) => s.settingKey === 'api.stripe_secret_key'),
