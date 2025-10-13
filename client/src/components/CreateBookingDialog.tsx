@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useFastAuth } from "@/lib/fastAuth";
 
 interface CreateBookingDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useFastAuth();
 
   const { data: properties = [] } = useQuery({
     queryKey: ["/api/properties"],
@@ -43,7 +45,7 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
       }
       return response.json();
     },
-    onSuccess: (newBooking) => {
+    onSuccess: async (newBooking) => {
       console.log("✅ Booking created successfully:", newBooking);
       
       // Invalidate ALL booking-related queries (exact: false to catch all variants)
@@ -55,6 +57,18 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
       // Force immediate refetch to update UI
       queryClient.refetchQueries({ queryKey: ["/api/bookings"], exact: false });
       queryClient.refetchQueries({ queryKey: ["/api/dashboard"], exact: false });
+      
+      // Trigger achievement check for booking creation
+      if (user?.id) {
+        try {
+          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
+          // Invalidate achievement queries to refetch updated stats
+          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
+        } catch (error) {
+          console.error("Achievement check failed:", error);
+        }
+      }
       
       toast({
         title: "Success",
