@@ -333,11 +333,22 @@ export default function MaintenanceTaskSystem() {
   // Mutations
   const createTask = useMutation({
     mutationFn: async (data: any) => apiRequest("POST", "/api/tasks", data),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Task created successfully" });
       setShowCreateTaskDialog(false);
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       resetNewTask();
+      
+      // Trigger achievement check
+      if (user?.id) {
+        try {
+          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
+          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
+        } catch (error) {
+          console.error("Achievement check failed:", error);
+        }
+      }
     },
     onError: (error) => {
       toast({ title: "Error creating task", description: error.message, variant: "destructive" });
@@ -355,10 +366,21 @@ export default function MaintenanceTaskSystem() {
 
   const completeTask = useMutation({
     mutationFn: async ({ taskId, data }: any) => apiRequest("POST", `/api/tasks/${taskId}/complete`, data),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Task completed successfully" });
       setShowCompleteTaskDialog(false);
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      
+      // Trigger achievement check
+      if (user?.id) {
+        try {
+          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
+          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
+        } catch (error) {
+          console.error("Achievement check failed:", error);
+        }
+      }
     },
   });
 
