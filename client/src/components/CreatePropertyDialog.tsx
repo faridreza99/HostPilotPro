@@ -67,16 +67,10 @@ export default function CreatePropertyDialog({ open, onOpenChange }: CreatePrope
       queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
       queryClient.refetchQueries({ queryKey: ["/api/dashboard"] });
       
-      // Trigger achievement check for property creation
+      // Invalidate achievement cache - backend recalculates on GET request
       if (user?.id) {
-        try {
-          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
-          // Invalidate achievement queries to refetch updated stats
-          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
-          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
-        } catch (error) {
-          console.error("Achievement check failed:", error);
-        }
+        queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
       }
       
       toast({

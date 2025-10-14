@@ -339,15 +339,10 @@ export default function MaintenanceTaskSystem() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       resetNewTask();
       
-      // Trigger achievement check
+      // Invalidate achievement cache - backend recalculates on GET request
       if (user?.id) {
-        try {
-          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
-          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
-          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
-        } catch (error) {
-          console.error("Achievement check failed:", error);
-        }
+        queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
       }
     },
     onError: (error) => {
@@ -371,15 +366,10 @@ export default function MaintenanceTaskSystem() {
       setShowCompleteTaskDialog(false);
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       
-      // Trigger achievement check
+      // Invalidate achievement cache - backend recalculates on GET request
       if (user?.id) {
-        try {
-          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
-          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
-          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
-        } catch (error) {
-          console.error("Achievement check failed:", error);
-        }
+        queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
       }
     },
   });

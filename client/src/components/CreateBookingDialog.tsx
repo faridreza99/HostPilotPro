@@ -58,16 +58,10 @@ export default function CreateBookingDialog({ open, onOpenChange }: CreateBookin
       queryClient.refetchQueries({ queryKey: ["/api/bookings"], exact: false });
       queryClient.refetchQueries({ queryKey: ["/api/dashboard"], exact: false });
       
-      // Trigger achievement check for booking creation
+      // Invalidate achievement cache - backend recalculates on GET request
       if (user?.id) {
-        try {
-          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
-          // Invalidate achievement queries to refetch updated stats
-          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
-          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
-        } catch (error) {
-          console.error("Achievement check failed:", error);
-        }
+        queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
       }
       
       toast({
