@@ -53,13 +53,12 @@ export function setupAchievementRoutes(app: Express) {
           .returning();
       }
 
-      // Calculate real-time stats from actual data (filtered by user)
+      // Calculate real-time stats from actual data (ALL completed tasks in organization)
       const [taskStats] = await db
         .select({ count: sql<number>`COUNT(*)` })
         .from(tasks)
         .where(and(
           eq(tasks.organizationId, organizationId),
-          eq(tasks.assignedTo, userId),
           eq(tasks.status, 'completed')
         ));
 
