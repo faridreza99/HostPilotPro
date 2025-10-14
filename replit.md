@@ -1,7 +1,7 @@
 # HostPilotPro - Hospitality Management Platform
 
 ## Overview
-HostPilotPro is a comprehensive, multi-tenant property management platform designed for licensing to hospitality professionals. It offers complete organization isolation, role-based access control, property management, task tracking, booking systems, and financial oversight with source attribution. The platform includes "Captain Cortex AI bot" - The Smart Co-Pilot for Property Management by HostPilotPro, providing intelligent assistance. It is built for scalable multi-tenant deployment with separate company domains, encrypted API key storage, and subscription-based licensing, aiming for a significant presence in the hospitality tech market.
+HostPilotPro is a comprehensive, multi-tenant property management platform designed for licensing to hospitality professionals. It offers complete organization isolation, role-based access control, property management, task tracking, booking systems, and financial oversight with source attribution. The platform includes an AI bot, "Captain Cortex AI bot," providing intelligent assistance. It is built for scalable multi-tenant deployment with separate company domains, encrypted API key storage, and subscription-based licensing, aiming for a significant presence in the hospitality tech market.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -18,43 +18,22 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - **API Design**: RESTful endpoints with role-based authorization.
 - **Multi-Tenant Architecture**: Supports separate company domains, encrypted API key storage per organization, and tenant-aware database queries.
 - **Performance Optimization**: Multi-layer caching (in-memory, React Query), fast API endpoints, and lazy loading for modules ensure instant navigation.
-- **AI Integration**: Custom OpenAI Assistant (`asst_OATIDMTgutnkdOJpTrQ9Mf7u`) for the Captain Cortex AI bot, with intelligent fallback and response caching.
+- **AI Integration**: Custom OpenAI Assistant (`asst_OATIDMTgutnkdOJpTrQ9Mf7u`) for the Captain Cortex AI bot, with intelligent fallback and response caching and a data-grounded Q&A system.
 
 ### Feature Specifications
-- **Authentication**: Replit Auth with OIDC, persistent sessions, and seven distinct user roles (admin, portfolio-manager, owner, staff, retail-agent, referral-agent, guest) with granular authorization.
+- **Authentication**: Replit Auth with OIDC, persistent sessions, and seven distinct user roles with granular authorization.
 - **Navigation**: Modular, hierarchical system with role-based visibility (Core, Property Management, Guest Services, Financial, Administration).
-- **Property Management**: Full CRUD for properties, status tracking, and owner assignment. Includes features like property appliances management, insurance tracking, and property documents system with expiry alerts.
-- **Task Management**: Maintenance, cleaning, inspection tasks with priority, status workflow, assignment, and property association. Includes AI auto-assignment, task attachments, and a comprehensive offline cache system.
-- **Booking System**: Guest management, calendar integration, financial tracking, and property association. Enhanced with agent booking integration and a secure guest ID verification system (OCR).
-- **Financial Management**: Transaction types (income, expense, commission), revenue reporting, cost tracking, and commission management. Features include an automated invoice creator, booking income rules with commission structures, and a finance engine for advanced management.
-- **Platform Administration**: Global settings (currency, VAT, commission rules), auto-billing toggles, task automation, and API credential management. Includes audit trail, admin override controls, and SaaS management tools (signup, tenant provisioning).
+- **Property Management**: Full CRUD for properties, status tracking, owner assignment, appliances, insurance, and document management with expiry alerts.
+- **Task Management**: Maintenance, cleaning, inspection tasks with priority, status workflow, assignment, property association, AI auto-assignment, attachments, and offline cache.
+- **Booking System**: Guest management, calendar integration, financial tracking, property association, agent booking integration, and secure guest ID verification.
+- **Financial Management**: Transaction types, revenue reporting, cost tracking, commission management, automated invoice creation, booking income rules, and an advanced finance engine.
+- **Platform Administration**: Global settings, auto-billing, task automation, API credential management, audit trail, admin override, and SaaS management tools.
 - **Guest Services**: Guest portal with smart requests (AI chat), AI utility alerts, guest departure surveys, and a streamlined check-out wizard.
-- **Advanced Modules**:
-    - **Smart Inventory & Supply Chain Tracker**: Property-specific inventory, supplier coordination, automated purchase orders, and AI-powered demand forecasting.
-    - **Maintenance Log, Warranty Tracker & AI Repair Cycle Alerts**: Comprehensive job tracking, warranty monitoring, and AI-powered service cycle predictions.
-    - **Auto-Scheduling Rules & Recurring Task Generator**: Automated task scheduling based on rules, recurring task generation, and analytics.
-    - **Guest Check-In / Check-Out Tracker**: Automated workflows for guest arrival/departure, passport documentation, and electricity meter readings (OCR).
-    - **Maintenance, Utilities & Renovation Tracker**: Management of maintenance issues, utility accounts, bill tracking, and AI-driven suggestions.
-    - **Owner Dashboard Enhancement Suite**: Onboarding wizard, document upload, property settings, maintenance module, and task history.
-    - **Agent Dashboards**: Live booking engines, commission tracking, and marketing tools for retail and referral agents.
-    - **Property Reviews Management System**: Aggregation of guest reviews with AI sentiment analysis and summary generation.
-    - **Staff Skills Certification System**: Tracking of staff qualifications and certification expiry.
-    - **Property Investments System**: Tracking capital investments and ROI management.
-    - **Task AI Scan Results System**: Automated photo analysis for quality control in task completion.
-    - **Shared Costs Management System**: Splitting building-level costs across properties/owners.
-    - **Property Chat Messages System**: Multi-language communication with automatic translation.
-    - **Dynamic Pricing Recommendations System**: AI-powered rate optimization based on market sources.
-    - **Seasonal Forecasting System**: AI-powered occupancy and rate predictions based on seasonality.
-    - **WhatsApp Bot Logging System**: Analytics for user interaction and command usage.
-    - **Vendor Management & Supply Ordering System**: Managing vendors and procurement lifecycle.
-    - **Security Deposits & Damage Management System**: Tracking deposits, documenting damages, and automating deductions.
-    - **Portfolio Health Scoring System**: Holistic property performance monitoring with weighted scoring factors.
-    - **Sustainability Metrics Tracking System**: Environmental monitoring, carbon footprint management, and recommendations.
+- **Advanced Modules**: Includes Smart Inventory & Supply Chain Tracker, Maintenance Log & Warranty Tracker, Auto-Scheduling Rules, Guest Check-In/Check-Out Tracker, Maintenance/Utilities/Renovation Tracker, Owner & Agent Dashboard Enhancements, Property Reviews Management, Staff Skills Certification, Property Investments, Task AI Scan Results, Shared Costs Management, Property Chat Messages, Dynamic Pricing Recommendations, Seasonal Forecasting, WhatsApp Bot Logging, Vendor Management, Security Deposits & Damage Management, Portfolio Health Scoring, and Sustainability Metrics Tracking.
 
 ## External Dependencies
-- **Database**: Neon PostgreSQL serverless database (primary).
-- **Real-time Features**: Supabase client integration (secondary).
-- **Deployment**: Railway CLI integration for production deployment.
+- **Database**: Neon PostgreSQL serverless database (primary), Supabase client integration (secondary).
+- **Deployment**: Railway CLI integration.
 - **ORM**: Drizzle ORM.
 - **State Management**: TanStack React Query.
 - **UI Components**: Radix UI.
@@ -65,59 +44,3 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - **Language**: TypeScript.
 - **AI**: OpenAI API.
 - **Third-Party Integrations**: Hostaway, Stripe, Twilio, PEA (as per API Connections management system).
-
-## Recent Changes
-- **System Hub Route Shadowing Fix**: Resolved duplicate `/api/system` endpoint causing incorrect data display (October 13, 2025)
-  - **Root Cause**: `server/fastRoutes.ts` had duplicate `/api/system` handler with hardcoded 0 counts, overriding `routes.ts` implementation
-  - **Route Conflict**: Express uses last matching handler, so fastRoutes.ts (registered after routes.ts) shadowed the correct implementation
-  - **Parameter Bug**: Fixed method calls to use object format `{ organizationId }` instead of string for filtered queries
-  - **Solution**: Updated fastRoutes.ts to fetch real data from storage layer with correct parameter format
-  - **Module Counts**: Properties (33), Users (26), Finance (2), Tasks (50), Bookings (17) now display correctly
-  - **Health Monitoring**: Database (healthy), API (operational), Cache (strong) status indicators working
-  - **API Detection**: Stripe, Hostaway, OpenAI, Twilio integration status detection via environment variables
-  - **Key Learning**: TSX caching was NOT the issue - route registration order matters in Express middleware chain
-  - **Real-time Updates**: Last updated timestamp, version info (2.0 Enterprise), organization context all functional
-  - **Additional Fix**: Updated UpgradedAdminDashboard to use `/api/finances` (plural) instead of `/api/finance` (singular)
-- **Finance Hub Transaction Creation Fix**: Resolved finance record creation validation errors (October 13, 2025)
-  - **Root Cause**: Frontend sending `amount` as number (via parseFloat), but Drizzle-zod validates decimal fields as strings
-  - **Solution**: Removed parseFloat conversion - now sending amount as string to match backend validation schema
-  - **Data Cleaning**: Implemented conditional field inclusion - only sending fields with actual values (no empty strings)
-  - **Validation Success**: Finance records now create successfully with status 201, instant UI updates
-  - **Real-time Updates**: Dashboard analytics (revenue, expenses, net profit) update immediately after record creation
-  - **Cache Strategy**: Dual invalidation (invalidateQueries + refetchQueries) ensures instant data refresh across all finance views
-  - **User Verified**: Full testing confirmed - income/expense creation, toast notifications, persistence, error handling all working
-- **Captain Cortex Property Metrics Fix**: Fixed schema mismatch causing incorrect property metrics (September 30, 2025)
-  - **Root Cause**: Property matching used non-existent `propertyName` field - schema only has `propertyId` (integer) foreign keys
-  - **Solution**: Changed matching from `b.propertyId === property.id || b.propertyName === property.name` to `b.propertyId === property.id`
-  - **Schema Alignment**: Bookings/finances both use `propertyId: integer` referencing `properties.id: serial` - now properly matched
-  - **Metrics Fixed**: Occupancy rate, ROI, monthly revenue, total revenue, last booking date now calculate correctly
-  - **Data Matching**: Properties now match with ALL bookings and finances using correct integer ID comparison
-  - **Enhanced Metrics**: Added totalRevenue and recentBookingCount (30-day) to property data
-  - **Live Data Integration**: All 25 properties now display real-time metrics from actual booking/finance data (2,043 transactions, 8 bookings)
-  - **Debug Logging**: Added first-property matching debug to monitor calculation accuracy
-- **Captain Cortex Comprehensive Module Integration**: Enhanced AI assistant to fetch data from ALL platform modules (September 2025)
-  - **Fixed Finance Analytics Bug**: Resolved string concatenation issue causing corrupted revenue/expense calculations (parseFloat conversion)
-  - **Multi-Module Data Integration**: Captain Cortex now fetches real-time data from Finance, Staff Salaries, Utility Bills, Utility Accounts, Owner Payouts, Property Documents, Invoices, Tasks, Bookings, and Properties
-  - **Property-Level Breakdowns**: AI can now provide detailed per-property metrics and cross-module analysis
-  - **Enhanced AI Prompts**: Updated system prompts to handle comprehensive multi-module queries with data-rich responses
-  - **Graceful Fallbacks**: Improved error handling for missing modules with graceful degradation
-  - **Performance**: All module data fetched in parallel with proper organization filtering
-  - **Real Finance Metrics**: Captain Cortex now accurately reports Total Revenue ฿534.6K, Expenses ฿206.7K, Net Profit ฿327.8K, Profit Margin 61.3%, and 2,043 transactions
-- **Streamlined PMS Integration System**: Clean, simplified Property Management System integration with minimal complexity (August 2025)
-  - **Simplified Architecture**: Removed complex middleware layers in favor of clean, minimal API design
-  - **Essential Endpoints**: Streamlined to core functionality - GET /me, POST /connect, DELETE /connect for integrations
-  - **Role-Based Access**: Clean requireRole middleware with granular permissions (admin, portfolio-manager, retail-agent, owner)
-  - **Organization Context**: Automatic multi-tenant isolation via orgContext middleware
-  - **File-Based Storage**: AES-256-GCM encrypted credential storage in data/integrations.json with organization isolation
-  - **Credential Testing**: Automatic connection validation before saving credentials (Hostaway adapter ready)
-  - **Performance**: Consistently achieving 1-3ms response times with structured data responses
-  - **Multi-Provider Support**: Demo adapter (immediate testing), Hostaway adapter (production-ready), extensible factory pattern
-- **SystemHub Crash Resolution**: Fixed all missing component imports causing SystemHub crashes (August 2025)
-- **Dashboard Enhancement**: Connected Dashboard to real property data showing all 24 properties instead of 4 demo properties
-- **Error Tracking**: Added comprehensive JavaScript error tracking and button interaction debugging
-- **Performance Optimization**: Application routes responding in 17-99ms with 100% success rate
-- **Testing Suite**: Implemented comprehensive test suite validating all core functionality
-- **Database Integration**: Successfully integrated Supabase client alongside Neon primary database
-- **Railway Deployment**: Added comprehensive Railway deployment configuration with CLI tools
-- **Multi-Platform Setup**: Dual database approach (Neon primary + Supabase for enhanced features)
-- **Production Ready**: Railway configuration optimized for production deployment
