@@ -195,22 +195,7 @@ export class AIBotEngine {
         propertyId: f.propertyId
       }));
 
-    // Process staff data - combine staffMembers and users with staff role
-    const filteredStaffMembers = staffMembers
-      .filter((s: any) => s.organizationId === context.organizationId)
-      .map((s: any) => ({
-        id: s.id,
-        employeeId: s.employeeId,
-        fullName: s.fullName,
-        department: s.department,
-        position: s.position,
-        email: s.email,
-        phone: s.phone,
-        status: s.status,
-        hireDate: s.hireDate
-      }));
-    
-    // Also get users with staff role
+    // Get users with staff role
     const staffUsers = users
       .filter((u: any) => 
         u.organizationId === context.organizationId && 
@@ -315,7 +300,6 @@ export class AIBotEngine {
       bookings: recentBookings,
       finances: recentFinances,
       financeAnalytics: financeAnalytics,
-      staffMembers: filteredStaffMembers,
       staffUsers: staffUsers,
       staffSalaries: filteredSalaries,
       utilityBills: filteredUtilityBills,
@@ -352,7 +336,6 @@ Available data across ALL modules:
 - Bookings: ${organizationData.bookings.length} bookings (recent)
 - Financial Records: ${organizationData.finances.length} transactions (recent)
 - Finance Analytics: ${financeAnalytics ? 'Available with comprehensive metrics' : 'Not available'}
-- Staff Members: ${organizationData.staffMembers.length} staff profiles
 - Staff Users: ${organizationData.staffUsers.length} users with staff role
 - Staff Salaries: ${organizationData.staffSalaries.length} salary records
 - Utility Bills: ${organizationData.utilityBills.length} utility bills
@@ -390,9 +373,6 @@ ${financeAnalytics ? `- Total Revenue: ฿${financeAnalytics.totalRevenue?.toLoc
 - Net Profit: ฿${financeAnalytics.netProfit?.toLocaleString() || 0}
 - Profit Margin: ${(financeAnalytics.netProfit && financeAnalytics.totalRevenue) ? ((financeAnalytics.netProfit / financeAnalytics.totalRevenue) * 100).toFixed(1) : 0}%
 - Total Transactions: ${financeAnalytics.transactionCount || 0}` : 'Finance analytics not available'}
-
-Staff Members (${organizationData.staffMembers.length}):
-${organizationData.staffMembers.length > 0 ? organizationData.staffMembers.map(s => `- ${s.fullName} (${s.position || s.department}), ${s.email}, Status: ${s.status}, Hired: ${s.hireDate}`).join('\n') : 'No staff member profiles found'}
 
 Staff Users with Staff Role (${organizationData.staffUsers.length}):
 ${organizationData.staffUsers.length > 0 ? organizationData.staffUsers.map(s => `- ${s.name}, Email: ${s.email}, Active: ${s.isActive}`).join('\n') : 'No users with staff role found'}
