@@ -2059,6 +2059,8 @@ Be specific and actionable in your recommendations.`;
               eq(tasksTable.status, 'completed')
             ));
 
+          console.log('🔍 Task stats query result:', taskStats);
+
           const [propertyStats] = await db
             .select({ count: sql<number>`COUNT(*)` })
             .from(properties)
@@ -2078,6 +2080,7 @@ Be specific and actionable in your recommendations.`;
 
           // Calculate updated stats
           const tasksCompleted = Number(taskStats?.count || 0);
+          console.log('🔍 Calculated tasksCompleted:', tasksCompleted, 'from raw count:', taskStats?.count);
           const bookingsProcessed = Number(bookingStats?.count || 0);
           const propertiesManaged = Number(propertyStats?.count || 0);
           const totalPoints = (tasksCompleted * 10) + (bookingsProcessed * 25) + (propertiesManaged * 50);
@@ -28476,4 +28479,7 @@ async function processGuestIssueForAI(issueReport: any) {
     next();
   };
 
-  const requireWaterDeliveryManagement = (r
+
+  const httpServer = createServer(app);
+  return httpServer;
+}

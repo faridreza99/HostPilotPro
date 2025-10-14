@@ -49,15 +49,11 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
         description: "Task updated successfully",
       });
 
-      // Trigger achievement check if task was marked completed or approved
+      // Invalidate achievement cache if task was marked completed or approved
+      // Backend already recalculates achievements in PUT /api/tasks/:id
       if ((data.status === 'completed' || data.status === 'approved') && user?.id) {
-        try {
-          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
-          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
-          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
-        } catch (error) {
-          console.error("Achievement check failed:", error);
-        }
+        queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
       }
     },
     onError: () => {
@@ -80,15 +76,10 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
         description: "Task has been approved and can now be started",
       });
 
-      // Trigger achievement check for task approval
+      // Invalidate achievement cache - backend already recalculates achievements
       if (user?.id) {
-        try {
-          await apiRequest("POST", "/api/achievements/check", { userId: user.id });
-          queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
-          queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
-        } catch (error) {
-          console.error("Achievement check failed:", error);
-        }
+        queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+        queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
       }
     },
   });
