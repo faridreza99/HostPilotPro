@@ -2019,11 +2019,10 @@ Be specific and actionable in your recommendations.`;
       // Trigger achievement check if task was marked completed or approved
       if ((taskData.status === 'completed' || taskData.status === 'approved') && userId) {
         try {
-          // Recalculate achievement progress for the user
           const organizationId = userData?.organizationId || "default-org";
           
-          // Get user stats
-          const [userStats] = await db
+          // Get or create user stats
+          let [userStats] = await db
             .select()
             .from(userGameStats)
             .where(and(
@@ -2031,49 +2030,112 @@ Be specific and actionable in your recommendations.`;
               eq(userGameStats.organizationId, organizationId)
             ));
 
-          if (userStats) {
-            // Get all achievements not yet earned
-            const allAchievements = await db
+          if (!userStats) {
+            [userStats] = await db
+              .insert(userGameStats)
+              .values({
+                userId,
+                organizationId,
+                totalPoints: 0,
+                level: 1,
+                currentStreak: 0,
+                longestStreak: 0,
+                tasksCompleted: 0,
+                bookingsProcessed: 0,
+                propertiesManaged: 0,
+              })
+              .returning();
+          }
+
+          // Calculate real-time stats from actual data
+          const { tasks: tasksTable, properties, bookings } = await import("@shared/schema");
+          const { sql } = await import("drizzle-orm");
+          
+          const [taskStats] = await db
+            .select({ count: sql<number>`COUNT(*)` })
+            .from(tasksTable)
+            .where(and(
+              eq(tasksTable.organizationId, organizationId),
+              eq(tasksTable.assignedTo, userId),
+              eq(tasksTable.status, 'completed')
+            ));
+
+          const [propertyStats] = await db
+            .select({ count: sql<number>`COUNT(*)` })
+            .from(properties)
+            .where(and(
+              eq(properties.organizationId, organizationId),
+              eq(properties.ownerId, userId)
+            ));
+
+          const [bookingStats] = await db
+            .select({ count: sql<number>`COUNT(DISTINCT ${bookings.id})` })
+            .from(bookings)
+            .innerJoin(properties, eq(bookings.propertyId, properties.id))
+            .where(and(
+              eq(bookings.organizationId, organizationId),
+              eq(properties.ownerId, userId)
+            ));
+
+          // Calculate updated stats
+          const tasksCompleted = Number(taskStats?.count || 0);
+          const bookingsProcessed = Number(bookingStats?.count || 0);
+          const propertiesManaged = Number(propertyStats?.count || 0);
+          const totalPoints = (tasksCompleted * 10) + (bookingsProcessed * 25) + (propertiesManaged * 50);
+          const level = Math.floor(Math.log2(totalPoints / 100 + 1)) + 1;
+
+          // Update user stats with real-time data
+          await db
+            .update(userGameStats)
+            .set({
+              tasksCompleted,
+              bookingsProcessed,
+              propertiesManaged,
+              totalPoints,
+              level,
+              updatedAt: new Date(),
+            })
+            .where(eq(userGameStats.id, userStats.id));
+
+          // Get all achievements not yet earned
+          const allAchievements = await db
+            .select()
+            .from(achievements)
+            .where(eq(achievements.organizationId, organizationId));
+
+          // Check each achievement with UPDATED stats
+          for (const achievement of allAchievements) {
+            const alreadyEarned = await db
               .select()
-              .from(achievements)
-              .where(eq(achievements.organizationId, organizationId));
+              .from(userAchievements)
+              .where(and(
+                eq(userAchievements.userId, userId),
+                eq(userAchievements.achievementId, achievement.id)
+              ));
 
-            // Check each achievement
-            for (const achievement of allAchievements) {
-              const alreadyEarned = await db
-                .select()
-                .from(userAchievements)
-                .where(and(
-                  eq(userAchievements.userId, userId),
-                  eq(userAchievements.achievementId, achievement.id)
-                ));
+            if (alreadyEarned.length === 0) {
+              let earned = false;
+              
+              if (achievement.type === 'task' && tasksCompleted >= achievement.threshold) {
+                earned = true;
+              } else if (achievement.type === 'booking' && bookingsProcessed >= achievement.threshold) {
+                earned = true;
+              } else if (achievement.type === 'property' && propertiesManaged >= achievement.threshold) {
+                earned = true;
+              }
 
-              if (alreadyEarned.length === 0) {
-                let earned = false;
-                
-                if (achievement.type === 'task' && userStats.tasksCompleted >= achievement.threshold) {
-                  earned = true;
-                } else if (achievement.type === 'booking' && userStats.bookingsProcessed >= achievement.threshold) {
-                  earned = true;
-                } else if (achievement.type === 'property' && userStats.propertiesManaged >= achievement.threshold) {
-                  earned = true;
-                } else if (achievement.type === 'finance' && userStats.revenueGenerated >= achievement.threshold) {
-                  earned = true;
-                }
-
-                if (earned) {
-                  await db.insert(userAchievements).values({
-                    userId,
-                    achievementId: achievement.id,
-                    organizationId,
-                    unlockedAt: new Date()
-                  });
-                }
+              if (earned) {
+                await db.insert(userAchievements).values({
+                  userId,
+                  achievementId: achievement.id,
+                  organizationId,
+                  earnedAt: new Date()
+                });
               }
             }
           }
           
-          console.log(`✅ Achievement check completed for user ${userId} after task update`);
+          console.log(`✅ Achievement check completed for user ${userId}: ${tasksCompleted} tasks completed`);
         } catch (achievementError) {
           console.error("Achievement check failed:", achievementError);
           // Don't fail the task update if achievement check fails
