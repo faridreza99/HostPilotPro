@@ -95,7 +95,7 @@ export class AIBotEngine {
     ] = await Promise.all([
       this.storage.getProperties(),
       this.storage.getTasks(),
-      this.storage.getBookings(),
+      this.storage.getBookings(context.organizationId),
       this.storage.getFinances(),
       this.storage.getFinanceAnalytics().catch(() => null),
       this.storage.getUsers().catch(() => []),
