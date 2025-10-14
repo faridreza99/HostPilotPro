@@ -52,8 +52,11 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
       // Invalidate achievement cache if task was marked completed or approved
       // Backend already recalculates achievements in PUT /api/tasks/:id
       if ((data.status === 'completed' || data.status === 'approved') && user?.id) {
+        console.log('🎮 Invalidating achievement cache for user:', user.id, 'status:', data.status);
         queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
         queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
+        // Force refetch to update UI immediately
+        queryClient.refetchQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
       }
     },
     onError: () => {
@@ -78,8 +81,11 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
 
       // Invalidate achievement cache - backend already recalculates achievements
       if (user?.id) {
+        console.log('🎮 Invalidating achievement cache for user:', user.id, 'status: approved');
         queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
         queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
+        // Force refetch to update UI immediately
+        queryClient.refetchQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
       }
     },
   });
