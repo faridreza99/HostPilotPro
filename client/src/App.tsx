@@ -62,6 +62,7 @@ import PropertyDetailView from "./pages/PropertyDetailView";
 import PropertyEdit from "./pages/PropertyEdit";
 
 import MultiPropertyCalendar from "./pages/MultiPropertyCalendar";
+import AdvancedFinancialAnalytics from "./pages/AdvancedFinancialAnalytics";
 import AITest from "./pages/AITest";
 import AIFeatureDashboard from "./pages/AIFeatureDashboard";
 import StaffWalletPettyCash from "./pages/StaffWalletPettyCash";
@@ -171,6 +172,7 @@ function AppRoutes() {
         <Route path="/bookings" component={Bookings} />
         <Route path="/services" component={Services} />
         <Route path="/finances" component={SimpleFinances} />
+        <Route path="/advanced-analytics" component={AdvancedFinancialAnalytics} />
         <Route path="/settings" component={SimpleSettings} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/help" component={FastHelp} />
