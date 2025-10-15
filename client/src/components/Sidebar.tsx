@@ -499,7 +499,7 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
       </div>
 
       {/* Enhanced Navigation Menu with Full Scroll Support */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto">
         <div className="px-4 py-3 border-b border-slate-200/50 bg-slate-50/50">
           <div className="flex items-center justify-between pb-2 mb-2">
             <span className="text-slate-400 uppercase tracking-wide text-xs font-semibold">Main Navigation</span>
@@ -524,8 +524,7 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
             </Button>
           </div>
         </div>
-        <ScrollArea className="h-full px-2">
-          <div className="py-2 space-y-1">
+        <div className="px-2 py-2 space-y-1 pb-8">
             {menuSections.map((section, sectionIndex) => {
               const hasActiveItem = section.items.some(item => location === item.href);
               const isCollapsed = collapsedSections[section.title];
@@ -669,8 +668,7 @@ export default function Sidebar({ className, isMobileMenuOpen, setIsMobileMenuOp
                 </Collapsible>
               );
             })}
-          </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Sticky Footer */}
