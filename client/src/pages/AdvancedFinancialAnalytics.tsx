@@ -158,12 +158,15 @@ export default function AdvancedFinancialAnalytics() {
 
   // Monthly Trend (Line Chart Data)
   const monthlyTrendData = useMemo(() => {
-    const monthMap = new Map<string, { revenue: number; expenses: number }>();
+    const monthMap = new Map<string, { revenue: number; expenses: number; sortDate: Date }>();
     
     filteredFinances.forEach(f => {
       if (!f.date) return;
-      const month = format(parseISO(f.date), 'MMM yyyy');
-      const current = monthMap.get(month) || { revenue: 0, expenses: 0 };
+      const dateObj = parseISO(f.date);
+      const monthStart = startOfMonth(dateObj);
+      const monthKey = monthStart.toISOString();
+      
+      const current = monthMap.get(monthKey) || { revenue: 0, expenses: 0, sortDate: monthStart };
       
       if (f.type === 'income') {
         current.revenue += parseFloat(f.amount || '0');
@@ -171,21 +174,18 @@ export default function AdvancedFinancialAnalytics() {
         current.expenses += parseFloat(f.amount || '0');
       }
       
-      monthMap.set(month, current);
+      monthMap.set(monthKey, current);
     });
     
     return Array.from(monthMap.entries())
-      .map(([month, data]) => ({
-        month,
+      .map(([monthKey, data]) => ({
+        month: format(data.sortDate, 'MMM yyyy'),
         revenue: data.revenue,
         expenses: data.expenses,
-        profit: data.revenue - data.expenses
+        profit: data.revenue - data.expenses,
+        sortDate: data.sortDate
       }))
-      .sort((a, b) => {
-        const dateA = parseISO(a.month);
-        const dateB = parseISO(b.month);
-        return dateA.getTime() - dateB.getTime();
-      });
+      .sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
   }, [filteredFinances]);
 
   // Top performing properties
