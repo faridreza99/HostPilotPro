@@ -2014,16 +2014,26 @@ Be specific and actionable in your recommendations.`;
   app.delete("/api/properties/:id", isDemoAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      console.log(`🗑️ DELETE request for property ${id}`);
+      
       const success = await storage.deleteProperty(id);
       
       if (!success) {
+        console.log(`❌ Property ${id} not found`);
         return res.status(404).json({ message: "Property not found" });
       }
       
+      console.log(`✅ Successfully deleted property ${id}`);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting property:", error);
-      res.status(500).json({ message: "Failed to delete property" });
+      console.error(`❌ Error deleting property ${id}:`, error);
+      console.error("Error details:", error.message);
+      console.error("Error stack:", error.stack);
+      res.status(500).json({ 
+        message: "Failed to delete property", 
+        error: error.message,
+        details: error.detail || error.toString()
+      });
     }
   });
 

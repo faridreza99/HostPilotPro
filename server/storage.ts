@@ -2240,16 +2240,58 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProperty(id: number): Promise<boolean> {
-    // Delete all related records first to avoid foreign key constraints
-    await db.delete(bookings).where(eq(bookings.propertyId, id));
-    await db.delete(tasks).where(eq(tasks.propertyId, id));
-    await db.delete(propertyDocuments).where(eq(propertyDocuments.propertyId, id));
-    await db.delete(propertyInsurance).where(eq(propertyInsurance.propertyId, id));
-    await db.delete(finance).where(eq(finance.propertyId, id));
-    
-    // Now delete the property
-    const result = await db.delete(properties).where(eq(properties.id, id));
-    return result.rowCount > 0;
+    try {
+      console.log(`🗑️ Deleting property ${id} and all related records...`);
+      
+      // Delete from ALL tables that reference properties (in order to avoid foreign key constraints)
+      // Core property data
+      await db.delete(bookings).where(eq(bookings.propertyId, id));
+      await db.delete(tasks).where(eq(tasks.propertyId, id));
+      await db.delete(finance).where(eq(finance.propertyId, id));
+      await db.delete(propertyDocuments).where(eq(propertyDocuments.propertyId, id));
+      await db.delete(propertyInsurance).where(eq(propertyInsurance.propertyId, id));
+      
+      // Property operational data
+      await db.delete(propertyAppliances).where(eq(propertyAppliances.propertyId, id));
+      await db.delete(propertyUtilities).where(eq(propertyUtilities.propertyId, id));
+      await db.delete(propertyUtilityAccounts).where(eq(propertyUtilityAccounts.propertyId, id));
+      await db.delete(propertyReviews).where(eq(propertyReviews.propertyId, id));
+      await db.delete(propertyAmenities).where(eq(propertyAmenities.propertyId, id));
+      
+      // Property media and content
+      await db.delete(propertyMedia).where(eq(propertyMedia.propertyId, id));
+      await db.delete(propertyGuides).where(eq(propertyGuides.propertyId, id));
+      
+      // Maintenance and service
+      await db.delete(maintenanceLog).where(eq(maintenanceLog.propertyId, id));
+      await db.delete(propertyMaintenanceHistory).where(eq(propertyMaintenanceHistory.propertyId, id));
+      await db.delete(propertyServiceHistory).where(eq(propertyServiceHistory.propertyId, id));
+      
+      // Guest services
+      await db.delete(guestCheckIns).where(eq(guestCheckIns.propertyId, id));
+      await db.delete(guestCheckOuts).where(eq(guestCheckOuts.propertyId, id));
+      await db.delete(guestServiceRequests).where(eq(guestServiceRequests.propertyId, id));
+      
+      // Financial tracking
+      await db.delete(ownerBalanceTrackers).where(eq(ownerBalanceTrackers.propertyId, id));
+      await db.delete(securityDeposits).where(eq(securityDeposits.propertyId, id));
+      await db.delete(utilityBills).where(eq(utilityBills.propertyId, id));
+      
+      // Property management
+      await db.delete(propertyTimeline).where(eq(propertyTimeline.propertyId, id));
+      await db.delete(propertyInternalNotes).where(eq(propertyInternalNotes.propertyId, id));
+      await db.delete(propertyAlerts).where(eq(propertyAlerts.propertyId, id));
+      
+      console.log(`✅ Deleted all related records for property ${id}`);
+      
+      // Now delete the property itself
+      const result = await db.delete(properties).where(eq(properties.id, id));
+      console.log(`✅ Deleted property ${id}`);
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error(`❌ Error deleting property ${id}:`, error);
+      throw error;
+    }
   }
 
   // Task operations
