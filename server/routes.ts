@@ -1833,28 +1833,99 @@ Be specific and actionable in your recommendations.`;
   // Property routes - CACHE DISABLED FOR DEBUGGING
   app.get("/api/properties", isDemoAuthenticated, async (req: any, res) => {
     try {
-      console.log("🏠 GET /api/properties - Fetching fresh properties (cache disabled)...");
+      console.log("🏠 GET /api/properties - Fetching properties with stats...");
       
       // Clear any cached responses
       const { clearCache } = await import("./performanceOptimizer");
       clearCache("properties");
       
-      // Get all properties directly
-      const allProperties = await storage.getProperties();
-      console.log(`🏠 Found ${allProperties.length} total properties`);
-      console.log(`🏠 First property name: ${allProperties[0]?.name || 'No properties'}`);
+      // Get all properties and bookings
+      const [allProperties, allBookings, allTasks] = await Promise.all([
+        storage.getProperties(),
+        storage.getBookings(),
+        storage.getTasks()
+      ]);
+      
+      // Get current month date range (INCLUSIVE of last day)
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      // Enhance each property with booking stats
+      const enhancedProperties = allProperties.map((property: any) => {
+        // Filter bookings for this property
+        const propertyBookings = allBookings.filter((b: any) => b.propertyId === property.id && b.status !== 'cancelled');
+        
+        // Calculate last booking date (most recent checkOut)
+        const lastBookingDate = propertyBookings.length > 0
+          ? propertyBookings
+              .filter((b: any) => b.checkOut)
+              .sort((a: any, b: any) => new Date(b.checkOut).getTime() - new Date(a.checkOut).getTime())[0]?.checkOut || null
+          : null;
+        
+        // Calculate monthly revenue (current month bookings)
+        const monthlyRevenue = propertyBookings
+          .filter((b: any) => {
+            const checkIn = new Date(b.checkIn);
+            return checkIn >= startOfMonth && checkIn <= endOfMonth;
+          })
+          .reduce((sum: number, b: any) => sum + parseFloat(b.platformPayout || b.totalAmount || '0'), 0);
+        
+        // Calculate occupancy rate for current month
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        let occupiedDays = 0;
+        
+        propertyBookings.forEach((booking: any) => {
+          const checkIn = new Date(booking.checkIn);
+          const checkOut = new Date(booking.checkOut);
+          
+          // Clamp dates to current month (inclusive end)
+          const rangeStart = checkIn < startOfMonth ? startOfMonth : checkIn;
+          const rangeEnd = checkOut > endOfMonth ? endOfMonth : checkOut;
+          
+          if (rangeStart <= rangeEnd && rangeStart <= endOfMonth && rangeEnd >= startOfMonth) {
+            const days = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24));
+            occupiedDays += days;
+          }
+        });
+        
+        const occupancyRate = Math.min(100, Math.round((occupiedDays / daysInMonth) * 100));
+        
+        // Count maintenance tasks for this property
+        const maintenanceTasks = allTasks.filter((t: any) => 
+          t.propertyId === property.id && 
+          (t.status === 'pending' || t.status === 'in-progress') &&
+          t.type === 'maintenance'
+        ).length;
+        
+        // Return property with computed stats
+        return {
+          ...property,
+          lastBookingDate,
+          monthlyRevenue,
+          occupancyRate,
+          maintenanceTasks,
+          maintenanceCosts: 0,
+          roi: 0
+        };
+      });
+      
+      console.log(`🏠 Enhanced ${enhancedProperties.length} properties with booking stats`);
       
       // Set no-cache headers to prevent browser caching
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
       
-      res.json(allProperties);
+      res.json(enhancedProperties);
     } catch (error) {
       console.error("❌ Error fetching properties:", error);
       res.status(500).json({ message: "Failed to fetch properties" });
     }
   });
+
+      
+
 
   app.get("/api/properties/:id", isDemoAuthenticated, async (req, res) => {
     try {

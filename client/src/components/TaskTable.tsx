@@ -177,7 +177,7 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
         {tasks.length === 0 ? (
           <p className="text-gray-500 text-center py-8">No tasks found</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[calc(100vh-300px)]">
             <Table>
               <TableHeader>
                 <TableRow>
