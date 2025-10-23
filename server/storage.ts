@@ -2247,7 +2247,7 @@ export class DatabaseStorage implements IStorage {
       // Core data
       await db.delete(bookings).where(eq(bookings.propertyId, id));
       await db.delete(tasks).where(eq(tasks.propertyId, id));
-      await db.delete(finance).where(eq(finance.propertyId, id));
+      await db.delete(finances).where(eq(finances.propertyId, id));
       
       // Property documentation and insurance
       await db.delete(propertyDocuments).where(eq(propertyDocuments.propertyId, id));

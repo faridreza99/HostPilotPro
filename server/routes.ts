@@ -2039,17 +2039,25 @@ Be specific and actionable in your recommendations.`;
         console.log(`❌ Property ${id} not found`);
         return res.status(404).json({ message: "Property not found" });
       }
+
+      // Clear properties cache for real-time UI sync
+      const { clearCache } = await import("./performanceOptimizer");
+      clearCache("properties");
       
       console.log(`✅ Successfully deleted property ${id}`);
       res.status(204).send();
     } catch (error) {
       console.error(`❌ Error deleting property ${id}:`, error);
-      console.error("Error details:", error.message);
+      console.error("Error message:", error.message);
+      console.error("Error details:", error.detail || error.toString());
       console.error("Error stack:", error.stack);
       res.status(500).json({ 
         message: "Failed to delete property", 
         error: error.message,
         details: error.detail || error.toString()
+      });
+    }
+  });
       });
     }
   });
