@@ -52,9 +52,11 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
   const lastBookingDate = property.lastBookingDate || null;
   const roi = property.roi || 0;
   
-  // Priority maintenance tasks - Initialize with 0, not random values
+  // Task statistics - all task types, not just maintenance
   const maintenanceTasks = property.maintenanceTasks || 0;
-  const urgentTasks = Math.floor(maintenanceTasks * 0.3);
+  const highPriorityTasks = property.highPriorityTasks || 0;
+  const taskAssignee = property.taskAssignee || null;
+  const totalAssignedTasks = property.totalAssignedTasks || 0;
 
   // Smart Analytics Tags
   const getAnalyticsTags = () => {
@@ -67,6 +69,11 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
       tags.push({ label: 'Expiring Soon', color: 'bg-orange-100 text-orange-700 border-orange-300', icon: '🟠' });
     }
     
+    // High-Priority Tasks (NEW - show immediately)
+    if (highPriorityTasks > 0) {
+      tags.push({ label: `${highPriorityTasks} High Priority`, color: 'bg-red-100 text-red-700 border-red-300', icon: '⚠️' });
+    }
+    
     // High ROI (>15%)
     if (parseFloat(roi) > 15) {
       tags.push({ label: 'High ROI', color: 'bg-emerald-100 text-emerald-700 border-emerald-300', icon: '📈' });
@@ -77,9 +84,9 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
       tags.push({ label: 'Low Occupancy', color: 'bg-orange-100 text-orange-700 border-orange-300', icon: '📊' });
     }
     
-    // Urgent Maintenance (>3 tasks)
+    // Many Tasks (>3 tasks)
     if (maintenanceTasks > 3) {
-      tags.push({ label: 'Urgent Maintenance', color: 'bg-red-100 text-red-700 border-red-300', icon: '🚨' });
+      tags.push({ label: `${maintenanceTasks} Active Tasks`, color: 'bg-orange-100 text-orange-700 border-orange-300', icon: '📋' });
     }
     
     // Premium Property (high revenue)
@@ -269,12 +276,12 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
           </div>
         </div>
 
-        {/* Maintenance Tasks Priority */}
+        {/* Active Tasks with Priority and Assignee Info */}
         {maintenanceTasks > 0 && (
           <div 
             className="p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200 cursor-pointer hover:bg-gradient-to-r hover:from-orange-100 hover:to-amber-100 hover:scale-[1.02] transition-all duration-200 shadow-sm"
-            onClick={() => navigate(`/tasks?property=${property.id}&filter=maintenance`)}
-            title="🔧 Click to view maintenance tasks for this property"
+            onClick={() => navigate(`/tasks?property=${property.id}`)}
+            title="📋 Click to view all active tasks for this property"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -282,7 +289,7 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
                   <Wrench className="h-4 w-4 text-orange-600" />
                 </div>
                 <span className="text-sm font-semibold text-orange-800">
-                  🔧 {maintenanceTasks} Maintenance Tasks
+                  📋 {maintenanceTasks} Active Task{maintenanceTasks > 1 ? 's' : ''}
                 </span>
               </div>
               <Button
@@ -291,17 +298,25 @@ export function PropertyCard({ property, isSelected, onSelect, onViewDetails, on
                 className="h-6 px-2 text-xs text-orange-700 hover:text-orange-900 hover:bg-orange-200/50 rounded-full"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/tasks?property=${property.id}&filter=maintenance`);
+                  navigate(`/tasks?property=${property.id}`);
                 }}
               >
                 View →
               </Button>
             </div>
-            {urgentTasks > 0 && (
-              <div className="flex items-center gap-2 animate-pulse">
-                <AlertTriangle className="h-3 w-3 text-red-500 animate-pulse" />
+            {highPriorityTasks > 0 && (
+              <div className="flex items-center gap-2 mb-1 animate-pulse">
+                <AlertTriangle className="h-3 w-3 text-red-500" />
                 <span className="text-xs text-red-700 font-medium">
-                  🚨 {urgentTasks} urgent task{urgentTasks > 1 ? 's' : ''} require attention
+                  ⚠️ {highPriorityTasks} high priority task{highPriorityTasks > 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+            {totalAssignedTasks > 0 && taskAssignee && (
+              <div className="flex items-center gap-2">
+                <Users className="h-3 w-3 text-slate-500" />
+                <span className="text-xs text-slate-600">
+                  {totalAssignedTasks} assigned{totalAssignedTasks > 1 ? '' : ''} to staff
                 </span>
               </div>
             )}

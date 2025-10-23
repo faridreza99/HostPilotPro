@@ -1892,12 +1892,26 @@ Be specific and actionable in your recommendations.`;
         
         const occupancyRate = Math.min(100, Math.round((occupiedDays / daysInMonth) * 100));
         
-        // Count maintenance tasks for this property
-        const maintenanceTasks = allTasks.filter((t: any) => 
+        // Count ALL tasks for this property (not just maintenance)
+        const propertyTasks = allTasks.filter((t: any) => 
           t.propertyId === property.id && 
-          (t.status === 'pending' || t.status === 'in-progress') &&
-          t.type === 'maintenance'
+          (t.status === 'pending' || t.status === 'in-progress')
+        );
+        
+        const maintenanceTasks = propertyTasks.length;
+        
+        // Count high-priority tasks
+        const highPriorityTasks = propertyTasks.filter((t: any) => 
+          t.priority === 'high' || t.priority === 'urgent'
         ).length;
+        
+        // Get assignee information (most recent assigned task)
+        const recentAssignedTask = propertyTasks
+          .filter((t: any) => t.assignedTo)
+          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        
+        const taskAssignee = recentAssignedTask?.assignedTo || null;
+        const totalAssignedTasks = propertyTasks.filter((t: any) => t.assignedTo).length;
         
         // Return property with computed stats
         return {
@@ -1906,6 +1920,9 @@ Be specific and actionable in your recommendations.`;
           monthlyRevenue,
           occupancyRate,
           maintenanceTasks,
+          highPriorityTasks,
+          taskAssignee,
+          totalAssignedTasks,
           maintenanceCosts: 0,
           roi: 0
         };
@@ -2102,9 +2119,11 @@ Be specific and actionable in your recommendations.`;
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
       clearCache("tasks");
+      clearCache("properties");  // Clear properties cache for real-time sync
       clearUltraFastCache("/api/tasks");
+      clearUltraFastCache("/api/properties");  // Clear properties cache
       clearUltraFastCache("/api/dashboard");
-      console.log("✅ All task caches cleared after creating task ID", task.id);
+      console.log("✅ All caches (tasks + properties) cleared after creating task ID", task.id);
       
       // Send notification to assigned user if different from creator
       if (task.assignedTo && task.assignedTo !== userId) {
@@ -2146,8 +2165,10 @@ Be specific and actionable in your recommendations.`;
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
       clearCache("tasks");  // Clears memory cache with pattern matching
+      clearCache("properties");  // Clear properties cache for real-time sync
       clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
       clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/properties");  // Clear properties cache
       clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       // Trigger achievement check if task was marked completed or approved
@@ -2302,8 +2323,10 @@ Be specific and actionable in your recommendations.`;
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
       clearCache("tasks");  // Clears memory cache with pattern matching
+      clearCache("properties");  // Clear properties cache for real-time sync
       clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
       clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/properties");  // Clear properties cache
       clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
@@ -2333,8 +2356,10 @@ Be specific and actionable in your recommendations.`;
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
       clearCache("tasks");  // Clears memory cache with pattern matching
+      clearCache("properties");  // Clear properties cache for real-time sync
       clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
       clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/properties");  // Clear properties cache
       clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
@@ -2364,8 +2389,10 @@ Be specific and actionable in your recommendations.`;
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
       clearCache("tasks");  // Clears memory cache with pattern matching
+      clearCache("properties");  // Clear properties cache for real-time sync
       clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
       clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/properties");  // Clear properties cache
       clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
@@ -2390,8 +2417,10 @@ Be specific and actionable in your recommendations.`;
       const { clearCache } = await import("./performanceOptimizer");
       const { clearUltraFastCache } = await import("./ultraFastMiddleware");
       clearCache("tasks");  // Clears memory cache with pattern matching
+      clearCache("properties");  // Clear properties cache for real-time sync
       clearUltraFastCache("tasks");  // Clears ultra-fast cache (includes tasks-admin-demo-admin, etc.)
       clearUltraFastCache("/api/tasks");  // Clears route-based cache
+      clearUltraFastCache("/api/properties");  // Clear properties cache
       clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
       
       res.json(task);
