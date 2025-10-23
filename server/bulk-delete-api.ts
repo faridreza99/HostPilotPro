@@ -75,18 +75,21 @@ async function deleteOldTasks(organizationId: string) {
 }
 
 export function registerBulkDeleteRoutes(app: Express) {
-  // Middleware for demo authentication
+  // Middleware for authentication - check req.user set by passport/auth system
   const isDemoAuthenticated = (req: any, res: any, next: any) => {
-    if (!req.session?.user) {
+    console.log('🔍 Bulk delete auth check - req.user:', req.user ? 'EXISTS' : 'NULL', req.user?.id || 'N/A');
+    if (!req.user) {
+      console.log('❌ Bulk delete - No user found, returning 401');
       return res.status(401).json({ message: 'Unauthorized' });
     }
+    console.log('✅ Bulk delete - User authenticated:', req.user.id);
     next();
   };
 
   // Bulk delete routes for tasks with organization filtering and cache invalidation
   app.delete('/api/tasks/bulk-delete/expired', isDemoAuthenticated, async (req: any, res) => {
     try {
-      const organizationId = req.session.user.organizationId;
+      const organizationId = req.user?.organizationId || 'default-org';
       const deletedCount = await deleteExpiredTasks(organizationId);
       
       // Clear caches for real-time UI updates
@@ -108,7 +111,7 @@ export function registerBulkDeleteRoutes(app: Express) {
 
   app.delete('/api/tasks/bulk-delete/completed', isDemoAuthenticated, async (req: any, res) => {
     try {
-      const organizationId = req.session.user.organizationId;
+      const organizationId = req.user?.organizationId || 'default-org';
       const deletedCount = await deleteCompletedTasks(organizationId);
       
       // Clear caches for real-time UI updates
@@ -130,7 +133,7 @@ export function registerBulkDeleteRoutes(app: Express) {
 
   app.delete('/api/tasks/bulk-delete/old', isDemoAuthenticated, async (req: any, res) => {
     try {
-      const organizationId = req.session.user.organizationId;
+      const organizationId = req.user?.organizationId || 'default-org';
       const deletedCount = await deleteOldTasks(organizationId);
       
       // Clear caches for real-time UI updates
