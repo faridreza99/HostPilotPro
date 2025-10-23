@@ -2012,8 +2012,8 @@ Be specific and actionable in your recommendations.`;
   });
 
   app.delete("/api/properties/:id", isDemoAuthenticated, async (req, res) => {
+    const id = parseInt(req.params.id);
     try {
-      const id = parseInt(req.params.id);
       console.log(`🗑️ DELETE request for property ${id}`);
       
       const success = await storage.deleteProperty(id);
