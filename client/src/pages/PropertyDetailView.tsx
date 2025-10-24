@@ -739,7 +739,7 @@ export default function PropertyDetailView() {
               </div>
               <div className="flex items-center gap-1">
                 <DollarSign className="w-4 h-4" />
-                <span>{formatCurrency(property.pricePerNight)}/night</span>
+                <span>{formatCurrency(parseFloat(property.pricePerNight || '0'))}/night</span>
               </div>
             </div>
           </div>
