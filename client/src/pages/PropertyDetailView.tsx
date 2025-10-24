@@ -54,7 +54,30 @@ const mockBookingSources = [
 function extractUrlFromIframe(iframeHtml: string): string {
   const srcMatch = iframeHtml.match(/src="([^"]+)"/);
   if (srcMatch && srcMatch[1]) {
-    return srcMatch[1];
+    const embedUrl = srcMatch[1];
+    
+    // Convert embed URL to a proper shareable Google Maps URL
+    // Extract coordinates or place ID from the embed URL
+    const pbMatch = embedUrl.match(/pb=([^&]+)/);
+    if (pbMatch) {
+      // If it's an embed URL with pb parameter, convert it to a regular maps URL
+      // The pb parameter is complex, so we'll construct a simpler URL
+      // Try to extract coordinates if present
+      const coordMatch = embedUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+      if (coordMatch) {
+        const lat = coordMatch[1];
+        const lng = coordMatch[2];
+        return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      }
+    }
+    
+    // If the src is already a regular maps URL, return it
+    if (embedUrl.includes('maps.google.com') && !embedUrl.includes('/embed')) {
+      return embedUrl;
+    }
+    
+    // Otherwise return the embed URL as fallback
+    return embedUrl;
   }
   // If we can't extract URL, return the original string
   return iframeHtml;
@@ -130,7 +153,7 @@ function EditMapLinkDialog({ property, onUpdate }: EditMapLinkDialogProps) {
 
   const updatePropertyMutation = useMutation({
     mutationFn: async (data: { googleMapsLink: string }) => {
-      return apiRequest("PATCH", `/api/properties/${property.id}`, data);
+      return apiRequest("PUT", `/api/properties/${property.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
