@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import TopBar from "@/components/TopBar";
@@ -78,6 +78,20 @@ export default function Finances() {
     queryKey: ["/api/properties"],
   });
 
+  // Check for property filter from URL parameter (property-specific view)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyId = urlParams.get('propertyId');
+    if (propertyId) {
+      setFilterProperty(propertyId);
+    }
+  }, []);
+
+  // Get the selected property details for display
+  const selectedProperty = filterProperty !== "all" 
+    ? (properties as any[]).find(p => p.id.toString() === filterProperty)
+    : null;
+
   // Get unique categories for filter
   const uniqueCategories = Array.from(new Set((finances as any[]).map(f => f.category).filter(Boolean)));
 
@@ -144,11 +158,11 @@ export default function Finances() {
       
       <div className="flex-1 flex flex-col">
         <TopBar 
-          title="Admin's Financial Dashboard" 
-          subtitle="Track income, expenses, and source attribution"
+          title={selectedProperty ? `${selectedProperty.name} - Finances` : "Admin's Financial Dashboard"} 
+          subtitle={selectedProperty ? "Property-specific financial records" : "Track income, expenses, and source attribution"}
           onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           action={
-            <Button onClick={() => setCreateDialogOpen(true)}>
+            <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-add-finance">
               <Plus className="w-4 h-4 mr-2" />
               Add Record
             </Button>

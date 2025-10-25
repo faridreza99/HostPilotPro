@@ -849,7 +849,7 @@ export default function PropertyDetailView() {
               />
               <ActionButton 
                 label="View Finances" 
-                href="/finances" 
+                href={`/finances?propertyId=${property.id}`}
                 icon={DollarSign}
                 variant="outline"
               />
