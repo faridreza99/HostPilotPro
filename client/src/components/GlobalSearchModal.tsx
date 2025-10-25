@@ -48,7 +48,8 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
     queryKey: ['/api/global-search', searchQuery],
     queryFn: async () => {
       if (!searchQuery.trim()) return [];
-      return apiRequest(`/api/global-search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await apiRequest("GET", `/api/global-search?q=${encodeURIComponent(searchQuery)}`);
+      return response.json();
     },
     enabled: searchQuery.length > 2,
   });

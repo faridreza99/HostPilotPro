@@ -13908,6 +13908,119 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
+
+  // Global search endpoint
+  app.get("/api/global-search", isDemoAuthenticated, async (req: any, res) => {
+    try {
+      const query = req.query.q as string;
+      const organizationId = req.user?.organizationId || "default-org";
+      
+      if (!query || query.trim().length < 3) {
+        return res.json([]);
+      }
+
+      const searchTerm = query.toLowerCase().trim();
+      const results: any[] = [];
+
+      // Search properties
+      const properties = await storage.getProperties(organizationId);
+      properties.forEach(property => {
+        if (
+          property.name?.toLowerCase().includes(searchTerm) ||
+          property.address?.toLowerCase().includes(searchTerm) ||
+          property.externalId?.toLowerCase().includes(searchTerm)
+        ) {
+          results.push({
+            id: property.id.toString(),
+            type: 'property',
+            title: property.name,
+            subtitle: property.address,
+            status: property.status,
+            path: `/property/${property.id}`,
+            badge: {
+              text: property.status || 'active',
+              variant: property.status === 'active' ? 'default' : 'secondary'
+            }
+          });
+        }
+      });
+
+      // Search bookings
+      const bookings = await storage.getBookings(organizationId);
+      bookings.forEach(booking => {
+        if (
+          booking.guestName?.toLowerCase().includes(searchTerm) ||
+          booking.guestEmail?.toLowerCase().includes(searchTerm) ||
+          booking.bookingReference?.toLowerCase().includes(searchTerm)
+        ) {
+          results.push({
+            id: booking.id.toString(),
+            type: 'booking',
+            title: `Booking: ${booking.guestName}`,
+            subtitle: `${booking.checkIn} - ${booking.checkOut}`,
+            status: booking.status,
+            path: `/bookings`,
+            badge: {
+              text: booking.status || 'pending',
+              variant: booking.status === 'confirmed' ? 'default' : 'secondary'
+            }
+          });
+        }
+      });
+
+      // Search tasks
+      const tasks = await storage.getTasks();
+      tasks.forEach(task => {
+        if (
+          task.title?.toLowerCase().includes(searchTerm) ||
+          task.description?.toLowerCase().includes(searchTerm)
+        ) {
+          results.push({
+            id: task.id.toString(),
+            type: 'task',
+            title: task.title,
+            subtitle: task.description,
+            status: task.status,
+            path: `/tasks`,
+            badge: {
+              text: task.priority || 'normal',
+              variant: task.priority === 'urgent' ? 'destructive' : 'default'
+            }
+          });
+        }
+      });
+
+      // Search users
+      const users = await storage.getUsers(organizationId);
+      users.forEach(user => {
+        const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+        if (
+          fullName.includes(searchTerm) ||
+          user.email?.toLowerCase().includes(searchTerm) ||
+          user.id?.toLowerCase().includes(searchTerm)
+        ) {
+          results.push({
+            id: user.id,
+            type: 'user',
+            title: `${user.firstName} ${user.lastName}`,
+            subtitle: user.email,
+            status: user.role,
+            path: `/users`,
+            badge: {
+              text: user.role || 'staff',
+              variant: 'outline'
+            }
+          });
+        }
+      });
+
+      // Limit results to 20
+      res.json(results.slice(0, 20));
+    } catch (error) {
+      console.error("Global search error:", error);
+      res.status(500).json({ error: "Search failed" });
+    }
+  });
   app.get("/api/users", isDemoAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.user?.organizationId || "default-org";

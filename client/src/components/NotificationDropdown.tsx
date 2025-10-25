@@ -53,7 +53,7 @@ export function NotificationDropdown() {
 
   const markReadMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/notifications/${id}/read`, "POST");
+      return apiRequest("POST", `/api/notifications/${id}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
@@ -63,7 +63,7 @@ export function NotificationDropdown() {
 
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/notifications/read-all", "POST");
+      return apiRequest("POST", "/api/notifications/read-all");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
@@ -73,7 +73,7 @@ export function NotificationDropdown() {
 
   const deleteNotificationMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/notifications/${id}`, "DELETE");
+      return apiRequest("DELETE", `/api/notifications/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
@@ -137,14 +137,18 @@ export function NotificationDropdown() {
     };
 
     if (isOpen) {
-      document.addEventListener('click', handleDocumentClick);
+      // Delay adding click handler to avoid catching the click that opened the dropdown
+      const timer = setTimeout(() => {
+        document.addEventListener('click', handleDocumentClick);
+      }, 0);
       document.addEventListener('keydown', handleEscapeKey);
+      
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('click', handleDocumentClick);
+        document.removeEventListener('keydown', handleEscapeKey);
+      };
     }
-
-    return () => {
-      document.removeEventListener('click', handleDocumentClick);
-      document.removeEventListener('keydown', handleEscapeKey);
-    };
   }, [isOpen]);
 
   return (
