@@ -40,6 +40,8 @@ interface Booking {
   propertyId: number;
   propertyName: string;
   guestName: string;
+  guestEmail?: string;
+  guestPhone?: string;
   checkIn: string;
   checkOut: string;
   status: 'confirmed' | 'pending' | 'cancelled' | 'checked-in' | 'completed';
@@ -322,10 +324,14 @@ export function MultiPropertyCalendar({ properties, bookings, onBookingReschedul
       // Navigate to guest profile if guestId exists
       navigate(`/guests/${booking.guestId}`);
     } else {
-      // Show toast that guest profile is not available
+      // Show toast with actual guest contact information from booking
+      const contactInfo: string[] = [];
+      if (booking.guestEmail) contactInfo.push(`Email: ${booking.guestEmail}`);
+      if (booking.guestPhone) contactInfo.push(`Phone: ${booking.guestPhone}`);
+      
       toast({
-        title: "Guest Profile",
-        description: `Guest: ${booking.guestName}\nEmail/Phone information would be displayed here.`,
+        title: `Guest: ${booking.guestName}`,
+        description: contactInfo.length > 0 ? contactInfo.join('\n') : 'No contact information available',
       });
     }
   };
@@ -496,6 +502,7 @@ export function MultiPropertyCalendar({ properties, bookings, onBookingReschedul
                                 className="group cursor-pointer"
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, booking)}
+                                onClick={(e) => handleViewBookingDetails(e, booking)}
                               >
                                 <div className={`text-xs p-1 rounded border transition-all hover:shadow-md group-hover:shadow-emerald-200 ${getStatusColor(booking.status)} ${draggedBooking?.id === booking.id ? 'opacity-50 scale-95' : ''}`}>
                                   <div className="font-medium truncate flex items-center gap-1">
