@@ -129,8 +129,7 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
           </div>
         </div>
 
-        <ScrollArea className="max-h-96">
-          <div className="px-6 py-4">
+        <div className="px-6 py-4 overflow-y-auto" style={{ maxHeight: "400px" }}>
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -210,8 +209,7 @@ export function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModalProps) {
                 })}
               </div>
             )}
-          </div>
-        </ScrollArea>
+        </div>
 
         {searchResults.length > 0 && (
           <div className="px-6 py-3 border-t bg-muted/30">

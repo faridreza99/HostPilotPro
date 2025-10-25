@@ -122,35 +122,6 @@ export function NotificationDropdown() {
     }
   };
 
-  // Force close on escape or outside click
-  useEffect(() => {
-    const handleDocumentClick = (event: MouseEvent) => {
-      if (isOpen && !(event.target as Element)?.closest('[data-radix-popper-content-wrapper]')) {
-        handleOpenChange(false);
-      }
-    };
-
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
-        handleOpenChange(false);
-      }
-    };
-
-    if (isOpen) {
-      // Delay adding click handler to avoid catching the click that opened the dropdown
-      const timer = setTimeout(() => {
-        document.addEventListener('click', handleDocumentClick);
-      }, 0);
-      document.addEventListener('keydown', handleEscapeKey);
-      
-      return () => {
-        clearTimeout(timer);
-        document.removeEventListener('click', handleDocumentClick);
-        document.removeEventListener('keydown', handleEscapeKey);
-      };
-    }
-  }, [isOpen]);
-
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
