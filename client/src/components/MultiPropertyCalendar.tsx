@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -15,6 +16,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import { useToast } from '../hooks/use-toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/queryClient';
@@ -54,11 +61,14 @@ interface MultiPropertyCalendarProps {
 }
 
 export function MultiPropertyCalendar({ properties, bookings, onBookingReschedule }: MultiPropertyCalendarProps) {
+  const [, navigate] = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [draggedBooking, setDraggedBooking] = useState<Booking | null>(null);
   const [dragOverDate, setDragOverDate] = useState<Date | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [isBookingDetailOpen, setIsBookingDetailOpen] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -305,6 +315,41 @@ export function MultiPropertyCalendar({ properties, bookings, onBookingReschedul
     return `฿${amount?.toLocaleString() || '0'}`;
   };
 
+  // Action handlers for booking quick actions
+  const handleViewGuestProfile = (e: React.MouseEvent, booking: Booking) => {
+    e.stopPropagation();
+    if (booking.guestId) {
+      // Navigate to guest profile if guestId exists
+      navigate(`/guests/${booking.guestId}`);
+    } else {
+      // Show toast that guest profile is not available
+      toast({
+        title: "Guest Profile",
+        description: `Guest: ${booking.guestName}\nEmail/Phone information would be displayed here.`,
+      });
+    }
+  };
+
+  const handleViewInvoice = (e: React.MouseEvent, booking: Booking) => {
+    e.stopPropagation();
+    if (booking.invoiceId) {
+      // Navigate to invoice page if invoiceId exists
+      navigate(`/finance?invoice=${booking.invoiceId}`);
+    } else {
+      // Show toast with booking financial summary
+      toast({
+        title: "Booking Invoice",
+        description: `Booking #${booking.id}\nAmount: ${formatCurrency(booking.totalAmount)}\nStatus: ${booking.status}`,
+      });
+    }
+  };
+
+  const handleViewBookingDetails = (e: React.MouseEvent, booking: Booking) => {
+    e.stopPropagation();
+    setSelectedBooking(booking);
+    setIsBookingDetailOpen(true);
+  };
+
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
@@ -472,6 +517,8 @@ export function MultiPropertyCalendar({ properties, bookings, onBookingReschedul
                                     variant="ghost" 
                                     className="h-6 px-1 text-xs hover:bg-emerald-100"
                                     title="View Guest Profile"
+                                    onClick={(e) => handleViewGuestProfile(e, booking)}
+                                    data-testid={`button-guest-${booking.id}`}
                                   >
                                     <User className="h-3 w-3" />
                                   </Button>
@@ -480,6 +527,8 @@ export function MultiPropertyCalendar({ properties, bookings, onBookingReschedul
                                     variant="ghost" 
                                     className="h-6 px-1 text-xs hover:bg-emerald-100"
                                     title="View Invoice"
+                                    onClick={(e) => handleViewInvoice(e, booking)}
+                                    data-testid={`button-invoice-${booking.id}`}
                                   >
                                     <FileText className="h-3 w-3" />
                                   </Button>
@@ -488,6 +537,8 @@ export function MultiPropertyCalendar({ properties, bookings, onBookingReschedul
                                     variant="ghost" 
                                     className="h-6 px-1 text-xs hover:bg-emerald-100"
                                     title="View Details"
+                                    onClick={(e) => handleViewBookingDetails(e, booking)}
+                                    data-testid={`button-details-${booking.id}`}
                                   >
                                     <Eye className="h-3 w-3" />
                                   </Button>
@@ -605,6 +656,102 @@ export function MultiPropertyCalendar({ properties, bookings, onBookingReschedul
           </div>
         </div>
       </CardContent>
+
+      {/* Booking Detail Dialog */}
+      <Dialog open={isBookingDetailOpen} onOpenChange={setIsBookingDetailOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+          </DialogHeader>
+          {selectedBooking && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Guest Name</div>
+                  <div className="text-lg font-semibold">{selectedBooking.guestName}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Property</div>
+                  <div className="text-lg font-semibold">{selectedBooking.propertyName}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Check-in</div>
+                  <div className="text-lg">
+                    {new Date(selectedBooking.checkIn).toLocaleDateString('en-US', { 
+                      weekday: 'short', 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Check-out</div>
+                  <div className="text-lg">
+                    {new Date(selectedBooking.checkOut).toLocaleDateString('en-US', { 
+                      weekday: 'short', 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Status</div>
+                  <div>
+                    <Badge className={getStatusColor(selectedBooking.status)}>
+                      {selectedBooking.status.charAt(0).toUpperCase() + selectedBooking.status.slice(1)}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Total Amount</div>
+                  <div className="text-lg font-bold text-emerald-600">
+                    {formatCurrency(selectedBooking.totalAmount)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Booking ID</div>
+                  <div className="text-sm font-mono">#{selectedBooking.id}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Nights</div>
+                  <div className="text-lg">
+                    {Math.ceil(
+                      (new Date(selectedBooking.checkOut).getTime() - 
+                       new Date(selectedBooking.checkIn).getTime()) / 
+                      (1000 * 60 * 60 * 24)
+                    )} night(s)
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setIsBookingDetailOpen(false);
+                    navigate(`/bookings?id=${selectedBooking.id}`);
+                  }}
+                >
+                  View Full Booking
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setIsBookingDetailOpen(false);
+                    navigate(`/property/${selectedBooking.propertyId}`);
+                  }}
+                >
+                  View Property
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
