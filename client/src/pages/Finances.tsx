@@ -64,11 +64,22 @@ export default function Finances() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [filterSource, setFilterSource] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [filterProperty, setFilterProperty] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: finances = [] } = useQuery({
     queryKey: ["/api/finances"],
   });
+
+  const { data: properties = [] } = useQuery({
+    queryKey: ["/api/properties"],
+  });
+
+  // Get unique categories for filter
+  const uniqueCategories = Array.from(new Set((finances as any[]).map(f => f.category).filter(Boolean)));
 
   // Filter finances based on search and filters
   const filteredFinances = (finances as any[]).filter((finance) => {
@@ -79,8 +90,14 @@ export default function Finances() {
     
     const matchesSource = filterSource === "all" || finance.source === filterSource;
     const matchesType = filterType === "all" || finance.type === filterType;
+    const matchesProperty = filterProperty === "all" || finance.propertyId?.toString() === filterProperty;
+    const matchesCategory = filterCategory === "all" || finance.category === filterCategory;
     
-    return matchesSearch && matchesSource && matchesType;
+    // Date range filtering
+    const matchesDateFrom = !dateFrom || new Date(finance.date) >= new Date(dateFrom);
+    const matchesDateTo = !dateTo || new Date(finance.date) <= new Date(dateTo);
+    
+    return matchesSearch && matchesSource && matchesType && matchesProperty && matchesCategory && matchesDateFrom && matchesDateTo;
   });
 
   // Calculate summary stats by source
@@ -239,44 +256,122 @@ export default function Finances() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col md:flex-row gap-4 mb-6">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by description, category, or reference..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
+              <div className="space-y-4 mb-6">
+                {/* First row: Search and Type/Source filters */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by description, category, or reference..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                        data-testid="input-search-finance"
+                      />
+                    </div>
                   </div>
-                </div>
-                
-                <Select value={filterSource} onValueChange={setFilterSource}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sources</SelectItem>
-                    {Object.entries(sourceConfig).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  
+                  <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="w-40" data-testid="select-filter-type">
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="expense">Expense</SelectItem>
+                      <SelectItem value="commission">Commission</SelectItem>
+                      <SelectItem value="fee">Fee</SelectItem>
+                      <SelectItem value="payout">Payout</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Filter by type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="expense">Expense</SelectItem>
-                    <SelectItem value="commission">Commission</SelectItem>
-                    <SelectItem value="fee">Fee</SelectItem>
-                    <SelectItem value="payout">Payout</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <Select value={filterSource} onValueChange={setFilterSource}>
+                    <SelectTrigger className="w-48" data-testid="select-filter-source">
+                      <SelectValue placeholder="Filter by source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Sources</SelectItem>
+                      {Object.entries(sourceConfig).map(([key, config]) => (
+                        <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Second row: Property, Category, and Date Range filters */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <Select value={filterProperty} onValueChange={setFilterProperty}>
+                    <SelectTrigger className="w-full md:w-56" data-testid="select-filter-property">
+                      <SelectValue placeholder="All Properties" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Properties</SelectItem>
+                      {(properties as any[]).map((property) => (
+                        <SelectItem key={property.id} value={property.id.toString()}>
+                          {property.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterCategory} onValueChange={setFilterCategory}>
+                    <SelectTrigger className="w-full md:w-56" data-testid="select-filter-category">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {uniqueCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex gap-2 flex-1">
+                    <div className="flex-1">
+                      <Input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        placeholder="From Date"
+                        className="w-full"
+                        data-testid="input-date-from"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        placeholder="To Date"
+                        className="w-full"
+                        data-testid="input-date-to"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  {(filterProperty !== "all" || filterCategory !== "all" || dateFrom || dateTo || filterSource !== "all" || filterType !== "all" || searchTerm) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setFilterProperty("all");
+                        setFilterCategory("all");
+                        setFilterSource("all");
+                        setFilterType("all");
+                        setDateFrom("");
+                        setDateTo("");
+                        setSearchTerm("");
+                      }}
+                      className="whitespace-nowrap"
+                      data-testid="button-clear-filters"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Financial Records Table */}
