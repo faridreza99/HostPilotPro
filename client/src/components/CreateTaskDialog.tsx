@@ -86,6 +86,54 @@ const DEPARTMENTS = [
   { value: 'technology', label: 'Technology' }
 ];
 
+const TASK_TEMPLATES = [
+  {
+    name: 'Deep Clean',
+    title: 'Deep Cleaning Service',
+    description: 'Complete deep cleaning including floors, windows, bathrooms, kitchen, furniture, and all surfaces. Remove all stains and sanitize all areas.',
+    type: 'cleaning',
+    department: 'housekeeping',
+    priority: 'medium' as const,
+    estimatedCost: 150,
+  },
+  {
+    name: 'Steam Clean',
+    title: 'Steam Cleaning Service',
+    description: 'Professional steam cleaning of carpets, upholstery, mattresses, and curtains. Deep sanitization using high-temperature steam.',
+    type: 'cleaning',
+    department: 'housekeeping',
+    priority: 'medium' as const,
+    estimatedCost: 120,
+  },
+  {
+    name: 'General Maintenance',
+    title: 'General Property Maintenance',
+    description: 'Routine maintenance check including plumbing, electrical, HVAC, locks, doors, windows, and general property condition assessment.',
+    type: 'maintenance',
+    department: 'maintenance',
+    priority: 'low' as const,
+    estimatedCost: 80,
+  },
+  {
+    name: 'Pool Service',
+    title: 'Pool Cleaning & Maintenance',
+    description: 'Complete pool service including water testing, chemical balancing, skimming, vacuuming, filter cleaning, and equipment check.',
+    type: 'pool-service',
+    department: 'pool',
+    priority: 'medium' as const,
+    estimatedCost: 100,
+  },
+  {
+    name: 'Garden Care',
+    title: 'Garden Maintenance',
+    description: 'Lawn mowing, hedge trimming, weeding, plant care, and general garden tidying to keep property landscape pristine.',
+    type: 'garden',
+    department: 'landscaping',
+    priority: 'low' as const,
+    estimatedCost: 90,
+  },
+];
+
 export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: CreateTaskDialogProps) {
   const [date, setDate] = useState<Date>();
   const { toast } = useToast();
@@ -120,7 +168,7 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
       priority: 'medium',
       propertyId: 0,
       assignedTo: 'unassigned',
-      estimatedCost: 0,
+      estimatedCost: undefined, // Blank by default instead of 0
       isRecurring: false,
       recurringInterval: 1,
     },
@@ -181,6 +229,23 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
     },
   });
 
+  const applyTemplate = (templateName: string) => {
+    const template = TASK_TEMPLATES.find(t => t.name === templateName);
+    if (template) {
+      form.setValue('title', template.title);
+      form.setValue('description', template.description);
+      form.setValue('type', template.type);
+      form.setValue('department', template.department);
+      form.setValue('priority', template.priority);
+      form.setValue('estimatedCost', template.estimatedCost);
+      
+      toast({
+        title: 'Template Applied',
+        description: `"${template.name}" template has been applied. You can still modify the fields.`,
+      });
+    }
+  };
+
   const onSubmit = (data: CreateTaskForm) => {
     console.log('Form submitted with data:', data);
     createTaskMutation.mutate(data);
@@ -194,6 +259,27 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
           Add a new task to be assigned and tracked in the system.
         </DialogDescription>
       </DialogHeader>
+
+      {/* Task Templates Section */}
+      <div className="border-b pb-4 mb-2">
+        <label className="text-sm font-medium mb-2 block">Quick Templates</label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {TASK_TEMPLATES.map((template) => (
+            <Button
+              key={template.name}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => applyTemplate(template.name)}
+              className="text-xs h-auto py-2"
+              data-testid={`button-template-${template.name.toLowerCase().replace(' ', '-')}`}
+            >
+              {template.name}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">Click a template to auto-fill the form</p>
+      </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

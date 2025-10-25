@@ -19,6 +19,7 @@ export default function Tasks() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState("all"); // New: Time-based filter
   const [globalFilters, setGlobalFilters] = useGlobalFilters("tasks-filters");
   const { user } = useAuth();
 
@@ -68,7 +69,33 @@ export default function Tasks() {
   const filteredTasks = globalFilteredTasks.filter((task: any) => {
     const statusMatch = statusFilter === "all" || task.status === statusFilter;
     const typeMatch = typeFilter === "all" || task.type === typeFilter;
-    return statusMatch && typeMatch;
+    
+    // Time-based filtering
+    let timeMatch = true;
+    if (timeFilter !== "all" && task.dueDate) {
+      const taskDate = new Date(task.dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const endOfWeek = new Date(today);
+      endOfWeek.setDate(endOfWeek.getDate() + (7 - today.getDay()));
+      endOfWeek.setHours(23, 59, 59, 999);
+      
+      if (timeFilter === "today") {
+        timeMatch = taskDate >= today && taskDate < tomorrow;
+      } else if (timeFilter === "this-week") {
+        timeMatch = taskDate >= today && taskDate <= endOfWeek;
+      } else if (timeFilter === "upcoming") {
+        timeMatch = taskDate > endOfWeek;
+      }
+    } else if (timeFilter !== "all" && !task.dueDate) {
+      timeMatch = false; // Exclude tasks without due dates when time filter is active
+    }
+    
+    return statusMatch && typeMatch && timeMatch;
   });
 
   return (
@@ -143,6 +170,21 @@ export default function Tasks() {
           <Card className="mb-6">
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-1">Due Date</Label>
+                  <Select value={timeFilter} onValueChange={setTimeFilter} data-testid="select-time-filter">
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Tasks" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Tasks</SelectItem>
+                      <SelectItem value="today">Due Today</SelectItem>
+                      <SelectItem value="this-week">This Week</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-1">Status</Label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
