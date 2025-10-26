@@ -452,6 +452,20 @@ export default function UltraFastTasks() {
     if (!files) return;
 
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const MAX_PHOTOS = 6;
+    const MAX_WIDTH = 794; // 8.27 inches at 96 DPI
+    const MAX_HEIGHT = 1122; // 11.69 inches at 96 DPI
+
+    // Check if adding these files would exceed max photos
+    if (evidencePhotos.length + files.length > MAX_PHOTOS) {
+      toast({
+        title: "Too many photos",
+        description: `You can upload a maximum of ${MAX_PHOTOS} photos per task. Currently have ${evidencePhotos.length} photo(s).`,
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
 
     Array.from(files).forEach((file) => {
       if (!allowedTypes.includes(file.type)) {
@@ -466,7 +480,21 @@ export default function UltraFastTasks() {
       const reader = new FileReader();
       reader.onloadend = () => {
         if (reader.result) {
-          setEvidencePhotos(prev => [...prev, reader.result as string]);
+          const img = new Image();
+          img.onload = () => {
+            // Check dimensions (max A4 size: 8.27" x 11.69" at 96 DPI)
+            if (img.width > MAX_WIDTH || img.height > MAX_HEIGHT) {
+              toast({
+                title: "Photo too large",
+                description: `Photo dimensions must not exceed ${MAX_WIDTH}×${MAX_HEIGHT} pixels (A4 paper size). This photo is ${img.width}×${img.height} pixels.`,
+                variant: "destructive",
+              });
+              return;
+            }
+
+            setEvidencePhotos(prev => [...prev, reader.result as string]);
+          };
+          img.src = reader.result as string;
         }
       };
       reader.readAsDataURL(file);
@@ -1055,7 +1083,7 @@ export default function UltraFastTasks() {
           </div>
           
           <DialogFooter className="flex justify-between items-center">
-            <div>
+            <div className="flex items-center gap-2">
               <input
                 type="file"
                 id="evidence-upload"
@@ -1069,11 +1097,15 @@ export default function UltraFastTasks() {
                 variant="outline" 
                 onClick={() => document.getElementById('evidence-upload')?.click()}
                 className="bg-blue-600 text-white hover:bg-blue-700"
+                disabled={evidencePhotos.length >= 6}
                 data-testid="button-upload-evidence"
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Evidence
               </Button>
+              <span className="text-xs text-gray-500">
+                {evidencePhotos.length}/6 photos
+              </span>
             </div>
             <div className="flex space-x-2">
               <Button 
