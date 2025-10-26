@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, XCircle, Edit, User } from "lucide-react";
+import { CheckCircle, XCircle, Edit, User, DollarSign } from "lucide-react";
+import { Link } from "wouter";
 
 interface TaskTableProps {
   tasks: any[];
@@ -201,13 +203,21 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
                         <div className="flex items-center">
                           <div className={`flex-shrink-0 h-2 w-2 rounded-full mr-3 ${getStatusDot(task.status)}`} />
                           <div>
-                            <button
-                              onClick={() => handleEditTask(task)}
-                              className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer text-left"
-                              data-testid={`button-edit-task-${task.id}`}
-                            >
-                              {task.title}
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEditTask(task)}
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer text-left"
+                                data-testid={`button-edit-task-${task.id}`}
+                              >
+                                {task.title}
+                              </button>
+                              {task.financeRecordId && (
+                                <Badge variant="outline" className="ml-2 text-xs px-2 py-0 bg-green-50 text-green-700 border-green-300">
+                                  <DollarSign className="w-3 h-3 mr-1" />
+                                  Finance Linked
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-sm text-gray-500">{task.description}</div>
                           </div>
                         </div>
@@ -401,6 +411,34 @@ export default function TaskTable({ tasks, isLoading }: TaskTableProps) {
                 onChange={(e) => setEditForm(prev => ({ ...prev, dueDate: e.target.value }))}
               />
             </div>
+            
+            {/* Finance Link Information */}
+            {editingTask?.financeRecordId && (
+              <Alert className="bg-green-50 border-green-200">
+                <DollarSign className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <strong>Finance Record Linked</strong>
+                      <p className="text-sm mt-1">
+                        This task has been automatically linked to Finance Hub as an expense record.
+                        {editingTask?.financeLinkedAt && (
+                          <span className="text-xs text-green-600 block mt-1">
+                            Linked on: {new Date(editingTask.financeLinkedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <Link href="/finance">
+                      <Button variant="outline" size="sm" className="ml-2">
+                        View in Finance Hub
+                      </Button>
+                    </Link>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setEditingTask(null)}>
                 Cancel
