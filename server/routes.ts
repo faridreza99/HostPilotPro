@@ -2306,11 +2306,14 @@ Be specific and actionable in your recommendations.`;
       
       
       // Auto-create finance record when task is completed with cost
-      if ((taskData.status === 'completed' || taskData.status === 'approved') && task.actualCost && parseFloat(task.actualCost) > 0) {
+      // Use actualCost if provided, otherwise fall back to estimatedCost
+      const taskCost = task.actualCost || task.estimatedCost;
+      if ((taskData.status === 'completed' || taskData.status === 'approved') && taskCost && parseFloat(String(taskCost)) > 0) {
         try {
           const organizationId = userData?.organizationId || "default-org";
+          const costAmount = parseFloat(String(taskCost));
           
-          console.log(`💰 Auto-creating finance record for completed task ${task.id} with cost ${task.actualCost}`);
+          console.log(`💰 Auto-creating finance record for completed task ${task.id} with cost ${costAmount} (actual: ${task.actualCost}, estimated: ${task.estimatedCost})`);
           
           // Create finance record for task completion
           await storage.createFinance({
@@ -2320,7 +2323,7 @@ Be specific and actionable in your recommendations.`;
             source: 'company-expense',
             category: task.type || 'maintenance', // Use task type as category
             subcategory: task.department || null,
-            amount: task.actualCost,
+            amount: String(costAmount),
             description: `Task: ${task.title}${task.completionNotes ? ' - ' + task.completionNotes : ''}`,
             date: task.completedAt || new Date(),
             status: 'paid',
@@ -2334,12 +2337,17 @@ Be specific and actionable in your recommendations.`;
               : 'Task completed',
           });
           
-          console.log(`✅ Finance record auto-created for task ${task.id}`);
+          // Invalidate finance cache to ensure Finance Hub shows the new expense immediately
+          const { clearCache } = await import("./cacheMiddleware");
+          clearCache("finance");
+          
+          console.log(`✅ Finance record auto-created for task ${task.id} with ${task.actualCost ? 'actual' : 'estimated'} cost of ${costAmount}`);
         } catch (financeError) {
           console.error("Failed to auto-create finance record:", financeError);
           // Don't fail the task update if finance creation fails
         }
       }
+
       
       res.json(task);
     } catch (error) {
