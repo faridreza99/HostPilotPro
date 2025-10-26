@@ -23,7 +23,9 @@ import {
   User,
   MapPin,
   RefreshCw,
-  Trash2
+  Trash2,
+  Upload,
+  X
 } from 'lucide-react';
 
 // Ultra-fast demo tasks data - no API calls, instant loading
@@ -146,6 +148,7 @@ export default function UltraFastTasks() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [evidencePhotos, setEvidencePhotos] = useState<string[]>([]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -323,6 +326,7 @@ export default function UltraFastTasks() {
       setIsEditDialogOpen(false);
       setEditingTask(null);
       setEditForm({});
+      setEvidencePhotos([]);
       toast({
         title: 'Success',
         description: 'Task updated successfully',
@@ -438,8 +442,41 @@ export default function UltraFastTasks() {
         dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
         propertyId: task.propertyId || '',
       });
+      setEvidencePhotos(task.evidencePhotos || []);
       setIsEditDialogOpen(true);
     }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+
+    Array.from(files).forEach((file) => {
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Only .jpg and .png files are allowed",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          setEvidencePhotos(prev => [...prev, reader.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    event.target.value = '';
+  };
+
+  const removePhoto = (index: number) => {
+    setEvidencePhotos(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveTask = () => {
@@ -458,6 +495,9 @@ export default function UltraFastTasks() {
         // Convert date string to Date object
         updateData.dueDate = new Date(editForm.dueDate);
       }
+      
+      // Always include evidencePhotos to support deletions
+      updateData.evidencePhotos = evidencePhotos;
       
       console.log('Sending update data:', updateData);
       
@@ -983,20 +1023,75 @@ export default function UltraFastTasks() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Evidence Photos Upload Section */}
+            {evidencePhotos.length > 0 && (
+              <div className="grid grid-cols-4 items-start gap-4">
+                <label className="text-right font-medium pt-2">
+                  Evidence Photos
+                </label>
+                <div className="col-span-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    {evidencePhotos.map((photo, index) => (
+                      <div key={index} className="relative group">
+                        <img 
+                          src={photo} 
+                          alt={`Evidence ${index + 1}`}
+                          className="w-full h-20 object-cover rounded border"
+                        />
+                        <button
+                          onClick={() => removePhoto(index)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          data-testid={`button-remove-photo-${index}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsEditDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSaveTask}
-              disabled={updateTaskMutation.isPending}
-            >
-              {updateTaskMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
+          
+          <DialogFooter className="flex justify-between items-center">
+            <div>
+              <input
+                type="file"
+                id="evidence-upload"
+                accept=".jpg,.jpeg,.png"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+                data-testid="input-evidence-upload"
+              />
+              <Button 
+                variant="outline" 
+                onClick={() => document.getElementById('evidence-upload')?.click()}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                data-testid="button-upload-evidence"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Evidence
+              </Button>
+            </div>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEvidencePhotos([]);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveTask}
+                disabled={updateTaskMutation.isPending}
+              >
+                {updateTaskMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
