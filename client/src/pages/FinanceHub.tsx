@@ -125,7 +125,7 @@ export default function FinanceHub() {
     return new Intl.NumberFormat('en-US').format(num);
   };
 
-  // Filter transactions for DISPLAY (includes date range filter)
+  // Filter transactions based on ALL selected criteria (property, category, date range)
   const filteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
       // Property filter
@@ -150,32 +150,15 @@ export default function FinanceHub() {
     });
   }, [transactions, propertyFilter, categoryFilter, dateFrom, dateTo]);
 
-  // Filter transactions for TOTALS (ALL TIME - no date filter, only property/category)
-  const allTimeTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
-      // Property filter only for totals
-      if (propertyFilter !== "all" && transaction.propertyId !== parseInt(propertyFilter)) {
-        return false;
-      }
-
-      // Category filter
-      if (categoryFilter !== "all" && transaction.category !== categoryFilter) {
-        return false;
-      }
-
-      // NO DATE FILTER - we want all-time totals
-      return true;
-    });
-  }, [transactions, propertyFilter, categoryFilter]);
-
-  // Recalculate analytics - TOTALS from all time, MONTHLY from current month
+  // Calculate analytics based on filtered transactions
+  // Date range, property filter, and category filter ALL affect these stats
   const filteredAnalytics = useMemo(() => {
     // Calculate booking-based revenue (matches Property Dashboard)
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     
-    // Filter bookings for selected property
+    // Filter bookings for selected property and date range
     const propertyBookings = bookings.filter((b: any) => {
       if (propertyFilter !== "all" && b.propertyId !== parseInt(propertyFilter)) {
         return false;
@@ -191,22 +174,22 @@ export default function FinanceHub() {
       })
       .reduce((sum: number, b: any) => sum + parseFloat(String(b.platformPayout || b.totalAmount) || '0'), 0);
     
-    // Calculate ALL-TIME totals (not affected by date range filter)
-    const totalRevenue = allTimeTransactions
+    // Calculate totals from FILTERED transactions (affected by property, category, AND date range)
+    const totalRevenue = filteredTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + parseFloat(String(t.amount) || '0'), 0);
     
-    const totalExpenses = allTimeTransactions
+    const totalExpenses = filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Math.abs(parseFloat(String(t.amount) || '0')), 0);
     
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    // Calculate monthly values for current month from ALL TIME transactions
+    // Calculate monthly values for current month
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    const monthlyTransactions = allTimeTransactions.filter(t => {
+    const monthlyTransactions = filteredTransactions.filter(t => {
       const date = new Date(t.date);
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     });
@@ -224,14 +207,14 @@ export default function FinanceHub() {
       totalExpenses,
       netProfit,
       profitMargin,
-      transactionCount: allTimeTransactions.length, // Total transaction count
-      averageTransaction: allTimeTransactions.length > 0 ? 
-        (totalRevenue + totalExpenses) / allTimeTransactions.length : 0,
+      transactionCount: filteredTransactions.length,
+      averageTransaction: filteredTransactions.length > 0 ? 
+        (totalRevenue + totalExpenses) / filteredTransactions.length : 0,
       monthlyRevenue,
       monthlyExpenses,
-      bookingMonthlyRevenue // Add booking-based revenue to match Property Dashboard
+      bookingMonthlyRevenue
     };
-  }, [allTimeTransactions, bookings, propertyFilter]);
+  }, [filteredTransactions, bookings, propertyFilter]);
 
   const recentTransactions = filteredTransactions.slice(0, 10);
 
@@ -279,6 +262,7 @@ export default function FinanceHub() {
               disabled={isRefreshing}
               variant="outline"
               className="flex items-center gap-2"
+              data-testid="button-refresh"
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -286,20 +270,24 @@ export default function FinanceHub() {
           </div>
         </div>
 
-        {/* Filters Section */}
+        {/* Filters */}
         <Card>
-          <CardContent className="p-4">
+          <CardHeader>
+            <CardTitle className="text-lg">Filters</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-1">Property</Label>
+              {/* Property Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="property-filter">Property</Label>
                 <Select value={propertyFilter} onValueChange={setPropertyFilter}>
-                  <SelectTrigger data-testid="select-property-filter">
+                  <SelectTrigger id="property-filter" data-testid="select-property-filter">
                     <SelectValue placeholder="All Properties" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Properties</SelectItem>
-                    {properties.map((property: any) => (
-                      <SelectItem key={property.id} value={property.id.toString()}>
+                    {properties.map((property) => (
+                      <SelectItem key={property.id} value={String(property.id)}>
                         {property.name}
                       </SelectItem>
                     ))}
@@ -307,57 +295,85 @@ export default function FinanceHub() {
                 </Select>
               </div>
 
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-1">Category</Label>
+              {/* Category Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="category-filter">Category</Label>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger data-testid="select-category-filter">
+                  <SelectTrigger id="category-filter" data-testid="select-category-filter">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="booking-payment">Booking Payment</SelectItem>
-                    <SelectItem value="cleaning">Cleaning</SelectItem>
+                    <SelectItem value="booking">Booking</SelectItem>
                     <SelectItem value="maintenance">Maintenance</SelectItem>
                     <SelectItem value="utilities">Utilities</SelectItem>
-                    <SelectItem value="commission">Commission</SelectItem>
-                    <SelectItem value="refund">Refund</SelectItem>
+                    <SelectItem value="cleaning">Cleaning</SelectItem>
+                    <SelectItem value="supplies">Supplies</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-1">Date From</Label>
-                <Input 
-                  type="date" 
-                  value={dateFrom} 
+              {/* Date From */}
+              <div className="space-y-2">
+                <Label htmlFor="date-from">From Date</Label>
+                <Input
+                  id="date-from"
+                  type="date"
+                  value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                   data-testid="input-date-from"
                 />
               </div>
 
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-1">Date To</Label>
-                <Input 
-                  type="date" 
-                  value={dateTo} 
+              {/* Date To */}
+              <div className="space-y-2">
+                <Label htmlFor="date-to">To Date</Label>
+                <Input
+                  id="date-to"
+                  type="date"
+                  value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                   data-testid="input-date-to"
                 />
               </div>
             </div>
-
-            {/* Clear Filters Button */}
+            
+            {/* Active Filters and Clear Button */}
             {(propertyFilter !== "all" || categoryFilter !== "all" || dateFrom || dateTo) && (
-              <div className="mt-4">
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {propertyFilter !== "all" && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      Property: {selectedProperty?.name}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setPropertyFilter("all")} />
+                    </Badge>
+                  )}
+                  {categoryFilter !== "all" && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      Category: {categoryFilter}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setCategoryFilter("all")} />
+                    </Badge>
+                  )}
+                  {dateFrom && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      From: {dateFrom}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setDateFrom("")} />
+                    </Badge>
+                  )}
+                  {dateTo && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      To: {dateTo}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => setDateTo("")} />
+                    </Badge>
+                  )}
+                </div>
                 <Button 
-                  onClick={clearFilters} 
-                  variant="outline" 
-                  size="sm"
-                  className="flex items-center gap-2"
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearFilters}
                   data-testid="button-clear-filters"
                 >
-                  <X className="h-4 w-4" />
                   Clear Filters
                 </Button>
               </div>
@@ -382,7 +398,7 @@ export default function FinanceHub() {
                   </div>
                   <div className="flex items-center gap-1 mt-2 text-xs text-green-600">
                     <ArrowUpRight className="h-3 w-3" />
-                    <span>All time</span>
+                    <span>{dateFrom || dateTo ? 'Filtered period' : 'All time'}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -400,7 +416,7 @@ export default function FinanceHub() {
                   </div>
                   <div className="flex items-center gap-1 mt-2 text-xs text-red-600">
                     <ArrowDownRight className="h-3 w-3" />
-                    <span>All time</span>
+                    <span>{dateFrom || dateTo ? 'Filtered period' : 'All time'}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -413,11 +429,12 @@ export default function FinanceHub() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-700">
+                  <div className={`text-2xl font-bold ${filteredAnalytics.netProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                     {formatCurrency(filteredAnalytics.netProfit)}
                   </div>
-                  <div className="text-xs text-blue-600 mt-2">
-                    Margin: {filteredAnalytics.profitMargin.toFixed(1)}%
+                  <div className="flex items-center gap-1 mt-2 text-xs text-blue-600">
+                    <Receipt className="h-3 w-3" />
+                    <span>Margin: {filteredAnalytics.profitMargin.toFixed(1)}%</span>
                   </div>
                 </CardContent>
               </Card>
@@ -425,7 +442,7 @@ export default function FinanceHub() {
               <Card className="border-2 border-purple-200 bg-purple-50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium text-purple-900 flex items-center gap-2">
-                    <Receipt className="h-4 w-4" />
+                    <CreditCard className="h-4 w-4" />
                     Transactions
                   </CardTitle>
                 </CardHeader>
@@ -433,123 +450,118 @@ export default function FinanceHub() {
                   <div className="text-2xl font-bold text-purple-700">
                     {formatNumber(filteredAnalytics.transactionCount)}
                   </div>
-                  <div className="text-xs text-purple-600 mt-2">
-                    Avg: {formatCurrency(filteredAnalytics.averageTransaction)}
+                  <div className="flex items-center gap-1 mt-2 text-xs text-purple-600">
+                    <DollarSign className="h-3 w-3" />
+                    <span>Avg: {formatCurrency(filteredAnalytics.averageTransaction)}</span>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Monthly Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Monthly Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                    Monthly Revenue
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-700">
+                    Monthly Revenue (Current Month)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-green-700">
-                    {formatCurrency(filteredAnalytics.bookingMonthlyRevenue || filteredAnalytics.monthlyRevenue)}
+                  <div className="text-xl font-bold text-gray-900">
+                    {formatCurrency(filteredAnalytics.monthlyRevenue)}
                   </div>
-                  <p className="text-sm text-gray-600 mt-2">
-                    {propertyFilter !== "all" ? "From bookings (matches Property Dashboard)" : "Current month income"}
-                  </p>
-                  {propertyFilter !== "all" && filteredAnalytics.monthlyRevenue !== filteredAnalytics.bookingMonthlyRevenue && (
-                    <p className="text-xs text-orange-600 mt-1">
-                      Transaction-based: {formatCurrency(filteredAnalytics.monthlyRevenue)}
-                    </p>
-                  )}
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingDown className="h-5 w-5 text-red-600" />
-                    Monthly Expenses
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-700">
+                    Monthly Expenses (Current Month)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-red-700">
+                  <div className="text-xl font-bold text-gray-900">
                     {formatCurrency(filteredAnalytics.monthlyExpenses)}
                   </div>
-                  <p className="text-sm text-gray-600 mt-2">Current month costs</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-700">
+                    Booking Revenue (Current Month)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl font-bold text-gray-900">
+                    {formatCurrency(filteredAnalytics.bookingMonthlyRevenue || 0)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">From bookings table</div>
                 </CardContent>
               </Card>
             </div>
           </>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-gray-500 text-center">No financial data available</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        ) : null}
 
         {/* Recent Transactions */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-blue-600" />
-              Recent Transactions
-              <Badge variant="secondary" className="ml-2">
-                {filteredTransactions.length} total
-              </Badge>
-            </CardTitle>
+            <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
-            {transactionsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : recentTransactions.length > 0 ? (
-              <div className="space-y-3">
-                {recentTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${
-                        transaction.type === 'income' 
-                          ? 'bg-green-100' 
-                          : 'bg-red-100'
-                      }`}>
-                        {transaction.type === 'income' ? (
-                          <ArrowUpRight className={`h-5 w-5 text-green-600`} />
-                        ) : (
-                          <ArrowDownRight className={`h-5 w-5 text-red-600`} />
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {transaction.description}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(transaction.date).toLocaleDateString()} • {transaction.category}
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`text-lg font-semibold ${
-                      transaction.type === 'income' 
-                        ? 'text-green-600' 
-                        : 'text-red-600'
-                    }`}>
-                      {transaction.type === 'income' ? '+' : '-'}
-                      {formatCurrency(Math.abs(transaction.amount))}
-                    </div>
-                  </div>
-                ))}
+            {recentTransactions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No transactions found matching your filters
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                <p>No transactions found</p>
-                <p className="text-sm mt-1">Financial transactions will appear here</p>
+              <div className="space-y-3">
+                {recentTransactions.map((transaction) => {
+                  const property = properties.find(p => p.id === transaction.propertyId);
+                  return (
+                    <div 
+                      key={transaction.id} 
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={`p-2 rounded-full ${
+                          transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
+                        }`}>
+                          {transaction.type === 'income' ? (
+                            <ArrowUpRight className={`h-4 w-4 text-green-600`} />
+                          ) : (
+                            <ArrowDownRight className={`h-4 w-4 text-red-600`} />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            {transaction.description}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-sm text-gray-500">
+                              {new Date(transaction.date).toLocaleDateString()}
+                            </span>
+                            {property && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <span className="text-sm text-gray-500">{property.name}</span>
+                              </>
+                            )}
+                            <span className="text-gray-300">•</span>
+                            <Badge variant="outline" className="text-xs">
+                              {transaction.category}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`text-lg font-semibold ${
+                        transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.type === 'income' ? '+' : '-'}
+                        {formatCurrency(Math.abs(transaction.amount))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -559,7 +571,7 @@ export default function FinanceHub() {
       {/* Create Finance Dialog */}
       <CreateFinanceDialog 
         open={isCreateDialogOpen} 
-        onOpenChange={setIsCreateDialogOpen} 
+        onOpenChange={setIsCreateDialogOpen}
       />
     </div>
   );
