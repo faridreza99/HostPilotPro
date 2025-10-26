@@ -157,22 +157,17 @@ export async function seedDemoData(): Promise<void> {
       where: (props, { eq }) => eq(props.organizationId, DEMO_ORG_ID)
     });
     
-    // Clear existing tasks and related data to avoid ID accumulation
-    try {
-      // Clear related AI scan results directly via SQL to avoid foreign key constraint
-      await db.execute(sql`DELETE FROM task_ai_scan_results WHERE task_id IN (SELECT id FROM tasks WHERE organization_id = ${DEMO_ORG_ID})`);
-      console.log("Cleared AI scan results for demo tasks");
-    } catch (e) {
-      // Table might not exist, continue
-      console.log("AI scan results table not found or already clean");
-    }
+    // ✅ FIX: Only seed demo tasks if there are NO tasks yet (prevents deletion of user tasks)
+    const existingTasks = await db.query.tasks.findMany({
+      where: (task, { eq }) => eq(task.organizationId, DEMO_ORG_ID),
+      limit: 1
+    });
     
-    // Now safely delete tasks
-    await db.delete(tasks).where(eq(tasks.organizationId, DEMO_ORG_ID));
-    console.log("Cleared existing demo tasks and related data");
-    
-    // Create 50 demo tasks for proper demonstration
-    console.log("Creating 50 demo tasks...");
+    if (existingTasks.length > 0) {
+      console.log("✓ Tasks already exist, skipping demo task seeding to preserve user data");
+    } else {
+      // Create 50 demo tasks for proper demonstration
+      console.log("Creating 50 demo tasks...");
     
     const taskTypes = ['cleaning', 'maintenance', 'inspection', 'setup', 'repair'];
     const priorities = ['low', 'medium', 'high'];
@@ -221,6 +216,7 @@ export async function seedDemoData(): Promise<void> {
     
     await db.insert(tasks).values(demoTasks);
     console.log(`Created ${demoTasks.length} demo tasks with clean sequential IDs`);
+    }
     
     // Create addon services
     console.log("Creating addon services...");
