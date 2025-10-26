@@ -32,6 +32,7 @@ interface FinanceAnalytics {
   averageTransaction: number;
   monthlyRevenue: number;
   monthlyExpenses: number;
+  bookingMonthlyRevenue?: number;
 }
 
 interface FinanceTransaction {
@@ -65,6 +66,10 @@ export default function FinanceHub() {
 
   const { data: properties = [] } = useQuery<any[]>({
     queryKey: ["/api/properties"]
+  });
+
+  const { data: bookings = [] } = useQuery<any[]>({
+    queryKey: ["/api/bookings"]
   });
 
   // Handle URL parameters for property-specific filtering
@@ -147,6 +152,28 @@ export default function FinanceHub() {
 
   // Recalculate analytics based on filtered transactions
   const filteredAnalytics = useMemo(() => {
+    // Calculate booking-based revenue (matches Property Dashboard)
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    // Filter bookings for selected property
+    const propertyBookings = bookings.filter((b: any) => {
+      if (propertyFilter !== "all" && b.propertyId !== parseInt(propertyFilter)) {
+        return false;
+      }
+      return b.status !== 'cancelled';
+    });
+    
+    // Calculate booking revenue (matches Property Dashboard logic)
+    const bookingMonthlyRevenue = propertyBookings
+      .filter((b: any) => {
+        const checkIn = new Date(b.checkIn);
+        return checkIn >= startOfMonth && checkIn <= endOfMonth;
+      })
+      .reduce((sum: number, b: any) => sum + parseFloat(String(b.platformPayout || b.totalAmount) || '0'), 0);
+    
+    // If no transactions, return zeros but include booking revenue
     if (!filteredTransactions.length) {
       return {
         totalRevenue: 0,
@@ -156,7 +183,8 @@ export default function FinanceHub() {
         transactionCount: 0,
         averageTransaction: 0,
         monthlyRevenue: 0,
-        monthlyExpenses: 0
+        monthlyExpenses: 0,
+        bookingMonthlyRevenue // Add booking-based revenue
       };
     }
 
@@ -171,7 +199,7 @@ export default function FinanceHub() {
     const netProfit = totalRevenue - totalExpenses;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    // Calculate monthly values for current month
+    // Calculate monthly values for current month from transactions
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const monthlyTransactions = filteredTransactions.filter(t => {
@@ -196,9 +224,10 @@ export default function FinanceHub() {
       averageTransaction: filteredTransactions.length > 0 ? 
         (totalRevenue + totalExpenses) / filteredTransactions.length : 0,
       monthlyRevenue,
-      monthlyExpenses
+      monthlyExpenses,
+      bookingMonthlyRevenue // Add booking-based revenue to match Property Dashboard
     };
-  }, [filteredTransactions]);
+  }, [filteredTransactions, bookings, propertyFilter]);
 
   const recentTransactions = filteredTransactions.slice(0, 10);
 
@@ -418,9 +447,16 @@ export default function FinanceHub() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-green-700">
-                    {formatCurrency(filteredAnalytics.monthlyRevenue)}
+                    {formatCurrency(filteredAnalytics.bookingMonthlyRevenue || filteredAnalytics.monthlyRevenue)}
                   </div>
-                  <p className="text-sm text-gray-600 mt-2">Current month income</p>
+                  <p className="text-sm text-gray-600 mt-2">
+                    {propertyFilter !== "all" ? "From bookings (matches Property Dashboard)" : "Current month income"}
+                  </p>
+                  {propertyFilter !== "all" && filteredAnalytics.monthlyRevenue !== filteredAnalytics.bookingMonthlyRevenue && (
+                    <p className="text-xs text-orange-600 mt-1">
+                      Transaction-based: {formatCurrency(filteredAnalytics.monthlyRevenue)}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
