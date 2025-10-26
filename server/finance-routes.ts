@@ -8,7 +8,7 @@ export function registerFinanceRoutes(app: Express) {
   app.get("/api/finance", isDemoAuthenticated, async (req: any, res) => {
     try {
       const organizationId = req.user?.organizationId || "default-org";
-      const finances = await storage.getFinances();
+      const finances = await storage.getFinances(organizationId);
       res.json(finances);
     } catch (error) {
       console.error("Error fetching finances:", error);
@@ -53,7 +53,7 @@ export function registerFinanceRoutes(app: Express) {
         comparisonPeriod // previous-period, previous-year, custom
       } = req.query;
 
-      let finances = await storage.getFinances();
+      let finances = await storage.getFinances(organizationId);
       
       // Apply comprehensive filters
       const filteredFinances = finances.filter(f => {
