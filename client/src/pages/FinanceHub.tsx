@@ -42,7 +42,7 @@ interface FinanceTransaction {
   amount: number;
   type: 'income' | 'expense';
   category: string;
-  propertyId?: number;
+  propertyId?: number | string;
 }
 
 export default function FinanceHub() {
@@ -128,8 +128,8 @@ export default function FinanceHub() {
   // Filter transactions based on ALL selected criteria (property, category, date range)
   const filteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
-      // Property filter
-      if (propertyFilter !== "all" && transaction.propertyId !== parseInt(propertyFilter)) {
+      // Property filter - compare as strings to handle both numeric and string IDs
+      if (propertyFilter !== "all" && String(transaction.propertyId) !== String(propertyFilter)) {
         return false;
       }
 
@@ -160,7 +160,7 @@ export default function FinanceHub() {
     
     // Filter bookings for selected property and date range
     const propertyBookings = bookings.filter((b: any) => {
-      if (propertyFilter !== "all" && b.propertyId !== parseInt(propertyFilter)) {
+      if (propertyFilter !== "all" && String(b.propertyId) !== String(propertyFilter)) {
         return false;
       }
       return b.status !== 'cancelled';
@@ -218,8 +218,8 @@ export default function FinanceHub() {
 
   const recentTransactions = filteredTransactions.slice(0, 10);
 
-  // Get property name for filtered view
-  const selectedProperty = properties.find(p => p.id === parseInt(propertyFilter));
+  // Get property name for filtered view - compare as strings to handle both numeric and string IDs
+  const selectedProperty = properties.find(p => String(p.id) === String(propertyFilter));
   const pageTitle = selectedProperty 
     ? `Finance Hub - ${selectedProperty.name}` 
     : "Finance Hub";
