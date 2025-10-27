@@ -2060,21 +2060,34 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Task routes with caching
+  // Task routes with caching
   app.get("/api/tasks", isDemoAuthenticated, async (req: any, res) => {
     const { sendCachedOrFetch } = await import("./performanceOptimizer");
     const userId = req.user.id;
     const user = req.user;
-    const cacheKey = `tasks-${user?.role}-${userId}`;
+    const { due_from, due_to } = req.query;
+    
+    // Create cache key that includes date filters if present
+    const cacheKey = `tasks-${user?.role}-${userId}${due_from ? `-from-${due_from}` : ''}${due_to ? `-to-${due_to}` : ''}`;
     
     return sendCachedOrFetch(
       cacheKey,
       async () => {
         let tasks;
         if (user?.role === 'staff') {
-          tasks = await storage.getTasksByAssignee(userId);
+          tasks = await storage.getTasksByAssignee(userId, due_from, due_to);
         } else {
-          tasks = await storage.getTasks();
+          tasks = await storage.getTasks(due_from, due_to);
         }
+        
+        // Sort tasks: due_date ASC with nulls last
+        tasks.sort((a, b) => {
+          if (a.dueDate === null && b.dueDate === null) return 0;
+          if (a.dueDate === null) return 1;
+          if (b.dueDate === null) return -1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+        
         return tasks;
       },
       res,
@@ -2175,6 +2188,64 @@ Be specific and actionable in your recommendations.`;
       clearUltraFastCache("/api/tasks");  // Clears route-based cache
       clearUltraFastCache("/api/properties");  // Clear properties cache
       clearUltraFastCache("/api/dashboard");  // Clears dashboard cache
+      // Auto-link to Finance Hub: Create expense record if task is completed with attachments
+      if (taskData.status === 'completed' && task.evidencePhotos && task.evidencePhotos.length > 0) {
+        try {
+          const organizationId = userData?.organizationId || "default-org";
+          
+          // Map task type to finance category
+          const categoryMap: Record<string, string> = {
+            'cleaning': 'cleaning',
+            'maintenance': 'maintenance',
+            'pool-service': 'utilities',
+            'garden': 'maintenance',
+            'inspection': 'maintenance',
+          };
+          
+          const category = categoryMap[task.type] || 'maintenance';
+          
+          // Create finance expense record linked to this task
+          const { finances } = await import("@shared/schema");
+          const [financeRecord] = await db
+            .insert(finances)
+            .values({
+              organizationId,
+              propertyId: task.propertyId || null,
+              type: 'expense',
+              source: 'company-expense',
+              category,
+              subcategory: task.type,
+              department: task.department || 'maintenance',
+              amount: task.actualCost || '0.00',
+              currency: 'AUD',
+              description: `Auto-linked from task: ${task.title}${task.completionNotes ? ' - ' + task.completionNotes : ''}`,
+              date: new Date().toISOString().split('T')[0],
+              status: 'approved',
+              attachments: task.evidencePhotos,
+              processedBy: userId,
+            })
+            .returning();
+
+          // Update task with finance link
+          if (financeRecord) {
+            await db
+              .update(tasks)
+              .set({
+                financeRecordId: financeRecord.id,
+                financeLinkedAt: new Date(),
+              })
+              .where(eq(tasks.id, id));
+              
+            // Clear finance cache
+            clearCache("finances");
+            clearUltraFastCache("/api/finance");
+          }
+        } catch (error) {
+          console.error('❌ Error auto-linking task to finance:', error);
+          // Don't fail the task update if finance linking fails
+        }
+      }
+      
       
       // Trigger achievement check if task was marked completed or approved
       if ((taskData.status === 'completed' || taskData.status === 'approved') && userId) {

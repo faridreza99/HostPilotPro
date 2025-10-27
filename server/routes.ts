@@ -61,35 +61,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Seed Thailand utility providers on startup
-  await seedThailandUtilityProviders("default-org");
+  //   await seedThailandUtilityProviders("default-org");
   
   // Ensure standard DEMO properties exist first
   const { ensureStandardDemoProperties } = await import("./standardDemoProperties");
-  await ensureStandardDemoProperties();
-  
+  //   await ensureStandardDemoProperties();
+  //   
   // TODO: Fix linked demo data seeding (temporarily disabled due to constraint issues)
   // const { seedLinkedDemoData } = await import('./seedLinkedDemoData.js');
   // await seedLinkedDemoData();
   
   // Seed main demo data (users, tasks, bookings)
-  const { seedDemoData } = await import("./seedDemoData");
-  await seedDemoData();
+  //   const { seedDemoData } = await import("./seedDemoData");
+  //   await seedDemoData();
 
   // Seed Villa Aruna demo data
-  const { seedVillaArunaDemo } = await import("./seedVillaArunaDemo");
-  await seedVillaArunaDemo();
+  //   const { seedVillaArunaDemo } = await import("./seedVillaArunaDemo");
+  //   await seedVillaArunaDemo();
 
   // Seed Extended Utilities demo data
   // const { seedExtendedUtilitiesDemo } = await import("./seedExtendedUtilitiesDemo");
   // await seedExtendedUtilitiesDemo();
 
   // Seed Inventory Data
-  const { seedInventoryData } = await import("./seedInventoryData");
-  await seedInventoryData();
+  //   const { seedInventoryData } = await import("./seedInventoryData");
+  //   await seedInventoryData();
 
   // Seed AI Ops Anomalies Data
-  const { seedAiOpsAnomaliesData } = await import("./seedAiOpsAnomaliesData");
-  await seedAiOpsAnomaliesData();
+  //   const { seedAiOpsAnomaliesData } = await import("./seedAiOpsAnomaliesData");
+  //   await seedAiOpsAnomaliesData();
 
   // Initialize automation systems
   initializeUtilityAutomation();
