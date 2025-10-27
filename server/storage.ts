@@ -736,9 +736,10 @@ export interface IStorage {
   deleteProperty(id: number): Promise<boolean>;
 
   // Task operations
-  getTasks(): Promise<Task[]>;
+  // Task operations
+  getTasks(dueFrom?: string, dueTo?: string): Promise<Task[]>;
   getTasksByProperty(propertyId: number): Promise<Task[]>;
-  getTasksByAssignee(assigneeId: string): Promise<Task[]>;
+  getTasksByAssignee(assigneeId: string, dueFrom?: string, dueTo?: string): Promise<Task[]>;
   getTask(id: number): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, task: Partial<InsertTask>): Promise<Task | undefined>;
@@ -2260,17 +2261,40 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-
-  async getTasks(): Promise<Task[]> {
-    return await db.select().from(tasks).orderBy(desc(tasks.createdAt));
+  async getTasks(dueFrom?: string, dueTo?: string): Promise<Task[]> {
+    let query = db.select().from(tasks);
+    
+    if (dueFrom && dueTo) {
+      query = query.where(
+        and(
+          gte(tasks.dueDate, new Date(dueFrom)),
+          lte(tasks.dueDate, new Date(dueTo))
+        )
+      ) as any;
+    }
+    
+    return await query.orderBy(desc(tasks.createdAt));
   }
 
   async getTasksByProperty(propertyId: number): Promise<Task[]> {
     return await db.select().from(tasks).where(eq(tasks.propertyId, propertyId)).orderBy(desc(tasks.createdAt));
   }
 
-  async getTasksByAssignee(assigneeId: string): Promise<Task[]> {
-    return await db.select().from(tasks).where(eq(tasks.assignedTo, assigneeId)).orderBy(desc(tasks.createdAt));
+  async getTasksByAssignee(assigneeId: string, dueFrom?: string, dueTo?: string): Promise<Task[]> {
+    let query = db.select().from(tasks).where(eq(tasks.assignedTo, assigneeId));
+    
+    if (dueFrom && dueTo) {
+      query = query.where(
+        and(
+          eq(tasks.assignedTo, assigneeId),
+          gte(tasks.dueDate, new Date(dueFrom)),
+          lte(tasks.dueDate, new Date(dueTo))
+        )
+      ) as any;
+    }
+    
+    return await query.orderBy(desc(tasks.createdAt));
+  }
   }
 
   async getTask(id: number): Promise<Task | undefined> {

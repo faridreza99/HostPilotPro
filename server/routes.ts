@@ -2060,21 +2060,34 @@ Be specific and actionable in your recommendations.`;
   });
 
   // Task routes with caching
+  // Task routes with caching
   app.get("/api/tasks", isDemoAuthenticated, async (req: any, res) => {
     const { sendCachedOrFetch } = await import("./performanceOptimizer");
     const userId = req.user.id;
     const user = req.user;
-    const cacheKey = `tasks-${user?.role}-${userId}`;
+    const { due_from, due_to } = req.query;
+    
+    // Create cache key that includes date filters if present
+    const cacheKey = `tasks-${user?.role}-${userId}${due_from ? `-from-${due_from}` : ''}${due_to ? `-to-${due_to}` : ''}`;
     
     return sendCachedOrFetch(
       cacheKey,
       async () => {
         let tasks;
         if (user?.role === 'staff') {
-          tasks = await storage.getTasksByAssignee(userId);
+          tasks = await storage.getTasksByAssignee(userId, due_from, due_to);
         } else {
-          tasks = await storage.getTasks();
+          tasks = await storage.getTasks(due_from, due_to);
         }
+        
+        // Sort tasks: due_date ASC with nulls last
+        tasks.sort((a, b) => {
+          if (a.dueDate === null && b.dueDate === null) return 0;
+          if (a.dueDate === null) return 1;
+          if (b.dueDate === null) return -1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+        
         return tasks;
       },
       res,
