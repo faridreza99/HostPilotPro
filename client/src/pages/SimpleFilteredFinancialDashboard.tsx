@@ -11,19 +11,19 @@ export default function SimpleFilteredFinancialDashboard() {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Airbnb</span>
-              <span className="font-medium">{formatCurrency(656640)} (40%)</span>
+              <span className="font-medium">{formatCurrency(0)} (0%)</span>
             </div>
             <div className="flex justify-between">
               <span>VRBO</span>
-              <span className="font-medium">{formatCurrency(490320)} (30%)</span>
+              <span className="font-medium">{formatCurrency(0)} (0%)</span>
             </div>
             <div className="flex justify-between">
               <span>Direct Bookings</span>
-              <span className="font-medium">{formatCurrency(326880)} (20%)</span>
+              <span className="font-medium">{formatCurrency(0)} (0%)</span>
             </div>
             <div className="flex justify-between">
               <span>Booking.com</span>
-              <span className="font-medium">{formatCurrency(156240)} (10%)</span>
+              <span className="font-medium">{formatCurrency(0)} (0%)</span>
             </div>
           </div>
         </div>
@@ -33,19 +33,19 @@ export default function SimpleFilteredFinancialDashboard() {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Management (15%)</span>
-              <span className="font-medium">{formatCurrency(244512)}</span>
+              <span className="font-medium">{formatCurrency(0)}</span>
             </div>
             <div className="flex justify-between">
               <span>Portfolio Manager (50%)</span>
-              <span className="font-medium">{formatCurrency(122256)}</span>
+              <span className="font-medium">{formatCurrency(0)}</span>
             </div>
             <div className="flex justify-between">
               <span>Referral Agent (10%)</span>
-              <span className="font-medium">{formatCurrency(24444)}</span>
+              <span className="font-medium">{formatCurrency(0)}</span>
             </div>
             <div className="flex justify-between">
               <span>Retail Agent</span>
-              <span className="font-medium">{formatCurrency(12240)}</span>
+              <span className="font-medium">{formatCurrency(0)}</span>
             </div>
           </div>
         </div>
@@ -55,19 +55,19 @@ export default function SimpleFilteredFinancialDashboard() {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>This Month</span>
-              <span className="font-medium text-green-600">$45,280</span>
+              <span className="font-medium">$0</span>
             </div>
             <div className="flex justify-between">
               <span>Last Month</span>
-              <span className="font-medium">$40,450</span>
+              <span className="font-medium">$0</span>
             </div>
             <div className="flex justify-between">
               <span>Growth Rate</span>
-              <span className="font-medium text-green-600">+11.9%</span>
+              <span className="font-medium">0%</span>
             </div>
             <div className="flex justify-between">
               <span>YTD Total</span>
-              <span className="font-medium">$485,320</span>
+              <span className="font-medium">$0</span>
             </div>
           </div>
         </div>
@@ -76,25 +76,8 @@ export default function SimpleFilteredFinancialDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-4">Property Financial Performance</h2>
-          <div className="space-y-4">
-            <div className="border rounded p-4">
-              <h4 className="font-semibold">Villa Samui Breeze</h4>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                <span>Revenue: $18,240</span>
-                <span>Expenses: $7,520</span>
-                <span>Net: $10,720</span>
-                <span>ROI: 58.8%</span>
-              </div>
-            </div>
-            <div className="border rounded p-4">
-              <h4 className="font-semibold">Villa Aruna</h4>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                <span>Revenue: $15,680</span>
-                <span>Expenses: $6,280</span>
-                <span>Net: $9,400</span>
-                <span>ROI: 59.9%</span>
-              </div>
-            </div>
+          <div className="space-y-4 text-center text-gray-500 py-8">
+            <p>No properties with financial data available</p>
           </div>
         </div>
 
@@ -103,27 +86,27 @@ export default function SimpleFilteredFinancialDashboard() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span>Maintenance</span>
-              <span className="font-medium">$4,750 (25%)</span>
+              <span className="font-medium">$0 (0%)</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Cleaning</span>
-              <span className="font-medium">$3,800 (20%)</span>
+              <span className="font-medium">$0 (0%)</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Utilities</span>
-              <span className="font-medium">$2,850 (15%)</span>
+              <span className="font-medium">$0 (0%)</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Supplies</span>
-              <span className="font-medium">$1,900 (10%)</span>
+              <span className="font-medium">$0 (0%)</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Marketing</span>
-              <span className="font-medium">$950 (5%)</span>
+              <span className="font-medium">$0 (0%)</span>
             </div>
             <div className="flex justify-between items-center">
               <span>Other</span>
-              <span className="font-medium">$4,750 (25%)</span>
+              <span className="font-medium">$0 (0%)</span>
             </div>
           </div>
         </div>
