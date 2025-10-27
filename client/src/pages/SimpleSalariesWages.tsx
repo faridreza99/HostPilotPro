@@ -1,440 +1,672 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, DollarSign, FileText, BarChart3, Plus, Eye, Edit, Trash2 } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../components/ui/alert-dialog";
+import { Plus, Eye, Pencil, Trash2 } from "lucide-react";
 
-interface StaffMember {
+// Simple demo data
+const initialStaff = [
+  {
+    id: 1,
+    employeeId: 'EMP001',
+    name: 'Sarah Johnson',
+    position: 'Property Manager',
+    department: 'Operations',
+    salary: 45000,
+    status: 'Active'
+  },
+  {
+    id: 2,
+    employeeId: 'EMP002', 
+    name: 'Mike Chen',
+    position: 'Maintenance Technician',
+    department: 'Maintenance',
+    salary: 35000,
+    status: 'Active'
+  },
+  {
+    id: 3,
+    employeeId: 'EMP003',
+    name: 'Emily Rodriguez',
+    position: 'Guest Services',
+    department: 'Customer Service',
+    salary: 32000,
+    status: 'Active'
+  }
+];
+
+const demoPayroll = [
+  {
+    id: 1,
+    staffId: 1,
+    period: 'Jan 2025',
+    baseSalary: 45000,
+    overtime: 0,
+    bonus: 2000,
+    gross: 47000,
+    net: 38000,
+    status: 'Paid'
+  },
+  {
+    id: 2,
+    staffId: 2,
+    period: 'Jan 2025', 
+    baseSalary: 35000,
+    overtime: 150,
+    bonus: 0,
+    gross: 35150,
+    net: 28500,
+    status: 'Pending'
+  }
+];
+
+interface Staff {
   id: number;
   employeeId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
+  name: string;
   position: string;
   department: string;
-  hireDate: string;
-  salaryType: 'monthly' | 'hourly';
-  monthlySalary?: number;
-  hourlyRate?: number;
-  status: 'active' | 'inactive' | 'terminated';
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  address?: string;
-  notes?: string;
+  salary: number;
+  status: string;
 }
 
-interface PayrollRecord {
-  id: number;
-  staffMemberId: number;
-  payPeriodStart: string;
-  payPeriodEnd: string;
-  baseSalary: number;
-  overtimeHours: number;
-  overtimeRate: number;
-  bonus: number;
-  deductions: number;
-  grossPay: number;
-  netPay: number;
-  taxDeduction: number;
-  socialSecurity: number;
-  status: 'pending' | 'approved' | 'paid';
-  paymentDate?: string;
-  paymentMethod?: string;
-  notes?: string;
-}
-
-interface StaffAnalytics {
-  totalStaff: number;
-  activeStaff: number;
-  totalMonthlyPayroll: number;
-  departmentBreakdown: Array<{
-    department: string;
-    count: number;
-    totalSalary: number;
-  }>;
-  upcomingPayments: number;
-  averageSalary: number;
-}
-
-export default function SalariesWages() {
-  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
-  const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
-
-  // Fetch staff members
-  const { data: staffMembers = [], isLoading: staffLoading } = useQuery<StaffMember[]>({
-    queryKey: ['/api/staff-members'],
-    queryFn: () => apiRequest('/api/staff-members?organizationId=default-org'),
+export default function SimpleSalariesWages() {
+  const [activeTab, setActiveTab] = useState('staff');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [staffList, setStaffList] = useState(initialStaff);
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  
+  // Form state for add
+  const [newStaff, setNewStaff] = useState({
+    name: '',
+    position: '',
+    department: '',
+    salary: ''
   });
 
-  // Fetch payroll records
-  const { data: payrollRecords = [], isLoading: payrollLoading } = useQuery<PayrollRecord[]>({
-    queryKey: ['/api/payroll-records'],
-    queryFn: () => apiRequest('/api/payroll-records?organizationId=default-org'),
-  });
-
-  // Fetch analytics
-  const { data: analytics, isLoading: analyticsLoading } = useQuery<StaffAnalytics>({
-    queryKey: ['/api/staff-analytics'],
-    queryFn: () => apiRequest('/api/staff-analytics?organizationId=default-org'),
+  // Form state for edit
+  const [editStaff, setEditStaff] = useState({
+    name: '',
+    position: '',
+    department: '',
+    salary: ''
   });
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: 'THB',
-    }).format(amount);
+    return `฿${amount.toLocaleString()}`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US');
+  const getStatusColor = (status: string) => {
+    return status === 'Active' || status === 'Paid' 
+      ? 'bg-green-100 text-green-800 px-2 py-1 rounded text-xs'
+      : 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs';
   };
 
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-yellow-100 text-yellow-800',
-      terminated: 'bg-red-100 text-red-800',
-      pending: 'bg-blue-100 text-blue-800',
-      approved: 'bg-purple-100 text-purple-800',
-      paid: 'bg-green-100 text-green-800',
+  const handleAddStaff = () => {
+    if (!newStaff.name || !newStaff.position || !newStaff.department || !newStaff.salary) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    const nextId = Math.max(...staffList.map(s => s.id)) + 1;
+    const nextEmpId = `EMP${String(nextId).padStart(3, '0')}`;
+    
+    const staff = {
+      id: nextId,
+      employeeId: nextEmpId,
+      name: newStaff.name,
+      position: newStaff.position,
+      department: newStaff.department,
+      salary: parseInt(newStaff.salary),
+      status: 'Active'
     };
-    return (
-      <Badge className={colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
+
+    // Update staff list - this will trigger automatic re-render of metrics
+    setStaffList(prevList => [...prevList, staff]);
+    setIsAddDialogOpen(false);
+    setNewStaff({ name: '', position: '', department: '', salary: '' });
   };
 
-  if (staffLoading || payrollLoading || analyticsLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading staff management system...</div>
-        </div>
-      </div>
+  const handleViewStaff = (staff: Staff) => {
+    setSelectedStaff(staff);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleEditClick = (staff: Staff) => {
+    setSelectedStaff(staff);
+    setEditStaff({
+      name: staff.name,
+      position: staff.position,
+      department: staff.department,
+      salary: staff.salary.toString()
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedStaff || !editStaff.name || !editStaff.position || !editStaff.department || !editStaff.salary) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    // Update the staff member
+    setStaffList(prevList => 
+      prevList.map(s => 
+        s.id === selectedStaff.id 
+          ? {
+              ...s,
+              name: editStaff.name,
+              position: editStaff.position,
+              department: editStaff.department,
+              salary: parseInt(editStaff.salary)
+            }
+          : s
+      )
     );
-  }
+
+    setIsEditDialogOpen(false);
+    setSelectedStaff(null);
+    setEditStaff({ name: '', position: '', department: '', salary: '' });
+  };
+
+  const handleDeleteClick = (staff: Staff) => {
+    setSelectedStaff(staff);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!selectedStaff) return;
+
+    // Remove the staff member
+    setStaffList(prevList => prevList.filter(s => s.id !== selectedStaff.id));
+    setIsDeleteDialogOpen(false);
+    setSelectedStaff(null);
+  };
+
+  // Calculate statistics - these will automatically update when staffList changes
+  const totalStaff = staffList.length;
+  const monthlyPayroll = staffList.reduce((sum, s) => sum + s.salary, 0);
+  const averageSalary = totalStaff > 0 ? Math.round(monthlyPayroll / totalStaff) : 0;
+  const pendingPayments = demoPayroll.filter(p => p.status === 'Pending').length;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Salaries & Wages</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage staff payroll, documents, and salary information
+          <h1 className="text-3xl font-bold">Staff Salaries & Wages</h1>
+          <p className="text-gray-600 mt-1">
+            Admin-only staff salary and wage management system
           </p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
+        <Button 
+          onClick={() => setIsAddDialogOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+          data-testid="button-add-staff"
+        >
+          <Plus className="h-4 w-4" />
           Add Staff Member
         </Button>
       </div>
 
       {/* Analytics Cards */}
-      {analytics && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics.totalStaff}</div>
-              <p className="text-xs text-muted-foreground">
-                {analytics.activeStaff} active
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Monthly Payroll</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(analytics.totalMonthlyPayroll)}</div>
-              <p className="text-xs text-muted-foreground">
-                Total monthly cost
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Salary</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(analytics.averageSalary)}</div>
-              <p className="text-xs text-muted-foreground">
-                Per staff member
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics.upcomingPayments}</div>
-              <p className="text-xs text-muted-foreground">
-                Awaiting approval
-              </p>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-lg shadow border" data-testid="card-total-staff">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Total Staff</p>
+              <p className="text-2xl font-bold" data-testid="text-total-staff">{totalStaff}</p>
+            </div>
+            <div className="text-blue-600">👥</div>
+          </div>
         </div>
-      )}
+        
+        <div className="bg-white p-6 rounded-lg shadow border" data-testid="card-monthly-payroll">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Monthly Payroll</p>
+              <p className="text-2xl font-bold" data-testid="text-monthly-payroll">{formatCurrency(monthlyPayroll)}</p>
+            </div>
+            <div className="text-green-600">💰</div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow border" data-testid="card-average-salary">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Average Salary</p>
+              <p className="text-2xl font-bold" data-testid="text-average-salary">{formatCurrency(averageSalary)}</p>
+            </div>
+            <div className="text-purple-600">📊</div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow border" data-testid="card-pending-payments">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Pending Payments</p>
+              <p className="text-2xl font-bold" data-testid="text-pending-payments">{pendingPayments}</p>
+            </div>
+            <div className="text-orange-600">⏰</div>
+          </div>
+        </div>
+      </div>
 
-      {/* Main Content */}
-      <Tabs defaultValue="staff" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="staff">Staff Members</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll Records</TabsTrigger>
-          <TabsTrigger value="departments">Departments</TabsTrigger>
-        </TabsList>
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-lg shadow border">
+        <div className="border-b">
+          <nav className="flex space-x-8 px-6">
+            <button
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'staff' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setActiveTab('staff')}
+              data-testid="tab-staff-members"
+            >
+              Staff Members
+            </button>
+            <button
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'payroll' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setActiveTab('payroll')}
+              data-testid="tab-payroll-records"
+            >
+              Payroll Records
+            </button>
+            <button
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'departments' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setActiveTab('departments')}
+              data-testid="tab-departments"
+            >
+              Departments
+            </button>
+          </nav>
+        </div>
 
-        {/* Staff Members Tab */}
-        <TabsContent value="staff">
-          <Card>
-            <CardHeader>
-              <CardTitle>Staff Members</CardTitle>
-              <CardDescription>
-                Manage employee profiles, salary information, and employment status
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Salary</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {staffMembers.map((staff) => (
-                    <TableRow key={staff.id}>
-                      <TableCell className="font-medium">{staff.employeeId}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{staff.firstName} {staff.lastName}</div>
-                          <div className="text-sm text-muted-foreground">{staff.email}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{staff.position}</TableCell>
-                      <TableCell>{staff.department}</TableCell>
-                      <TableCell>
-                        {staff.salaryType === 'monthly' 
-                          ? formatCurrency(staff.monthlySalary || 0)
-                          : `${formatCurrency(staff.hourlyRate || 0)}/hr`
-                        }
-                      </TableCell>
-                      <TableCell>{getStatusBadge(staff.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedStaff(staff);
-                                  setViewDetailsOpen(true);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>Staff Member Details</DialogTitle>
-                              </DialogHeader>
-                              {selectedStaff && (
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <h4 className="font-semibold">Personal Information</h4>
-                                      <div className="mt-2 space-y-1 text-sm">
-                                        <p><span className="font-medium">Name:</span> {selectedStaff.firstName} {selectedStaff.lastName}</p>
-                                        <p><span className="font-medium">Email:</span> {selectedStaff.email}</p>
-                                        <p><span className="font-medium">Phone:</span> {selectedStaff.phone || 'N/A'}</p>
-                                        <p><span className="font-medium">Address:</span> {selectedStaff.address || 'N/A'}</p>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-semibold">Employment Details</h4>
-                                      <div className="mt-2 space-y-1 text-sm">
-                                        <p><span className="font-medium">Employee ID:</span> {selectedStaff.employeeId}</p>
-                                        <p><span className="font-medium">Position:</span> {selectedStaff.position}</p>
-                                        <p><span className="font-medium">Department:</span> {selectedStaff.department}</p>
-                                        <p><span className="font-medium">Hire Date:</span> {formatDate(selectedStaff.hireDate)}</p>
-                                        <p><span className="font-medium">Status:</span> {getStatusBadge(selectedStaff.status)}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-semibold">Salary Information</h4>
-                                    <div className="mt-2 space-y-1 text-sm">
-                                      <p><span className="font-medium">Salary Type:</span> {selectedStaff.salaryType}</p>
-                                      {selectedStaff.salaryType === 'monthly' ? (
-                                        <p><span className="font-medium">Monthly Salary:</span> {formatCurrency(selectedStaff.monthlySalary || 0)}</p>
-                                      ) : (
-                                        <p><span className="font-medium">Hourly Rate:</span> {formatCurrency(selectedStaff.hourlyRate || 0)}</p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {(selectedStaff.emergencyContactName || selectedStaff.emergencyContactPhone) && (
-                                    <div>
-                                      <h4 className="font-semibold">Emergency Contact</h4>
-                                      <div className="mt-2 space-y-1 text-sm">
-                                        <p><span className="font-medium">Name:</span> {selectedStaff.emergencyContactName || 'N/A'}</p>
-                                        <p><span className="font-medium">Phone:</span> {selectedStaff.emergencyContactPhone || 'N/A'}</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {selectedStaff.notes && (
-                                    <div>
-                                      <h4 className="font-semibold">Notes</h4>
-                                      <p className="mt-2 text-sm">{selectedStaff.notes}</p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </DialogContent>
-                          </Dialog>
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Tab Content */}
+        <div className="p-6">
+          {activeTab === 'staff' && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Staff Members</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salary</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {staffList.map((staff) => (
+                      <tr key={staff.id} data-testid={`row-staff-${staff.id}`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{staff.employeeId}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{staff.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{staff.position}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{staff.department}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(staff.salary)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={getStatusColor(staff.status)}>{staff.status}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex gap-2">
+                            <button 
+                              className="text-blue-600 hover:text-blue-900 p-1"
+                              onClick={() => handleViewStaff(staff)}
+                              data-testid={`button-view-${staff.id}`}
+                              title="View Details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button 
+                              className="text-yellow-600 hover:text-yellow-900 p-1"
+                              onClick={() => handleEditClick(staff)}
+                              data-testid={`button-edit-${staff.id}`}
+                              title="Edit Staff"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button 
+                              className="text-red-600 hover:text-red-900 p-1"
+                              onClick={() => handleDeleteClick(staff)}
+                              data-testid={`button-delete-${staff.id}`}
+                              title="Delete Staff"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
-        {/* Payroll Records Tab */}
-        <TabsContent value="payroll">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payroll Records</CardTitle>
-              <CardDescription>
-                Track salary payments, bonuses, and deductions for all staff members
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Pay Period</TableHead>
-                    <TableHead>Staff Member</TableHead>
-                    <TableHead>Base Salary</TableHead>
-                    <TableHead>Overtime</TableHead>
-                    <TableHead>Bonus</TableHead>
-                    <TableHead>Gross Pay</TableHead>
-                    <TableHead>Net Pay</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payrollRecords.map((record) => {
-                    const staff = staffMembers.find(s => s.id === record.staffMemberId);
-                    return (
-                      <TableRow key={record.id}>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{formatDate(record.payPeriodStart)}</div>
-                            <div className="text-muted-foreground">to {formatDate(record.payPeriodEnd)}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {staff ? `${staff.firstName} ${staff.lastName}` : 'Unknown'}
-                        </TableCell>
-                        <TableCell>{formatCurrency(record.baseSalary)}</TableCell>
-                        <TableCell>
-                          {record.overtimeHours > 0 ? (
-                            <div className="text-sm">
-                              <div>{record.overtimeHours}h</div>
-                              <div className="text-muted-foreground">@ {formatCurrency(record.overtimeRate)}/h</div>
-                            </div>
-                          ) : (
-                            '-'
-                          )}
-                        </TableCell>
-                        <TableCell>{record.bonus > 0 ? formatCurrency(record.bonus) : '-'}</TableCell>
-                        <TableCell className="font-medium">{formatCurrency(record.grossPay)}</TableCell>
-                        <TableCell className="font-bold text-green-600">{formatCurrency(record.netPay)}</TableCell>
-                        <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {activeTab === 'payroll' && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Payroll Records</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff Member</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base Salary</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overtime</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bonus</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Pay</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Pay</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {demoPayroll.map((record) => {
+                      const staff = staffList.find(s => s.id === record.staffId);
+                      return (
+                        <tr key={record.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{record.period}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{staff?.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(record.baseSalary)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(record.overtime)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(record.bonus)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(record.gross)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">{formatCurrency(record.net)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={getStatusColor(record.status)}>{record.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
-        {/* Departments Tab */}
-        <TabsContent value="departments">
-          <Card>
-            <CardHeader>
-              <CardTitle>Department Overview</CardTitle>
-              <CardDescription>
-                View staff distribution and payroll costs by department
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {analytics?.departmentBreakdown && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {analytics.departmentBreakdown.map((dept) => (
-                    <Card key={dept.department}>
-                      <CardHeader>
-                        <CardTitle className="text-lg">{dept.department}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Staff Count:</span>
-                            <span className="font-medium">{dept.count}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Total Salary:</span>
-                            <span className="font-medium">{formatCurrency(dept.totalSalary)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Avg. Salary:</span>
-                            <span className="font-medium">
-                              {formatCurrency(dept.totalSalary / dept.count)}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+          {activeTab === 'departments' && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Department Overview</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="bg-white border rounded-lg p-4">
+                  <h4 className="font-semibold text-lg mb-2">Operations</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Staff Count:</span>
+                      <span className="font-medium">{staffList.filter(s => s.department === 'Operations').length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Salary:</span>
+                      <span className="font-medium">{formatCurrency(staffList.filter(s => s.department === 'Operations').reduce((sum, s) => sum + s.salary, 0))}</span>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                <div className="bg-white border rounded-lg p-4">
+                  <h4 className="font-semibold text-lg mb-2">Maintenance</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Staff Count:</span>
+                      <span className="font-medium">{staffList.filter(s => s.department === 'Maintenance').length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Salary:</span>
+                      <span className="font-medium">{formatCurrency(staffList.filter(s => s.department === 'Maintenance').reduce((sum, s) => sum + s.salary, 0))}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white border rounded-lg p-4">
+                  <h4 className="font-semibold text-lg mb-2">Customer Service</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Staff Count:</span>
+                      <span className="font-medium">{staffList.filter(s => s.department === 'Customer Service').length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Salary:</span>
+                      <span className="font-medium">{formatCurrency(staffList.filter(s => s.department === 'Customer Service').reduce((sum, s) => sum + s.salary, 0))}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add Staff Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Staff Member</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="add-name">Full Name</Label>
+              <Input
+                id="add-name"
+                placeholder="Enter staff name"
+                value={newStaff.name}
+                onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
+                data-testid="input-add-name"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="add-position">Position</Label>
+              <Input
+                id="add-position"
+                placeholder="Enter position"
+                value={newStaff.position}
+                onChange={(e) => setNewStaff({...newStaff, position: e.target.value})}
+                data-testid="input-add-position"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="add-department">Department</Label>
+              <Select value={newStaff.department} onValueChange={(value) => setNewStaff({...newStaff, department: value})}>
+                <SelectTrigger data-testid="select-add-department">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Operations">Operations</SelectItem>
+                  <SelectItem value="Maintenance">Maintenance</SelectItem>
+                  <SelectItem value="Customer Service">Customer Service</SelectItem>
+                  <SelectItem value="Finance">Finance</SelectItem>
+                  <SelectItem value="Management">Management</SelectItem>
+                  <SelectItem value="IT">IT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="add-salary">Monthly Salary (฿)</Label>
+              <Input
+                id="add-salary"
+                type="number"
+                placeholder="Enter salary amount"
+                value={newStaff.salary}
+                onChange={(e) => setNewStaff({...newStaff, salary: e.target.value})}
+                data-testid="input-add-salary"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} data-testid="button-cancel-add">
+              Cancel
+            </Button>
+            <Button onClick={handleAddStaff} className="bg-blue-600 hover:bg-blue-700" data-testid="button-confirm-add">
+              Add Staff Member
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Staff Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Staff Member Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedStaff && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-gray-500">Employee ID</Label>
+                  <p className="font-medium" data-testid="view-employee-id">{selectedStaff.employeeId}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-gray-500">Status</Label>
+                  <p className="font-medium" data-testid="view-status">{selectedStaff.status}</p>
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-sm text-gray-500">Full Name</Label>
+                <p className="font-medium" data-testid="view-name">{selectedStaff.name}</p>
+              </div>
+              
+              <div>
+                <Label className="text-sm text-gray-500">Position</Label>
+                <p className="font-medium" data-testid="view-position">{selectedStaff.position}</p>
+              </div>
+              
+              <div>
+                <Label className="text-sm text-gray-500">Department</Label>
+                <p className="font-medium" data-testid="view-department">{selectedStaff.department}</p>
+              </div>
+              
+              <div>
+                <Label className="text-sm text-gray-500">Monthly Salary</Label>
+                <p className="font-medium text-lg" data-testid="view-salary">{formatCurrency(selectedStaff.salary)}</p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button onClick={() => setIsViewDialogOpen(false)} data-testid="button-close-view">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Staff Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Full Name</Label>
+              <Input
+                id="edit-name"
+                placeholder="Enter staff name"
+                value={editStaff.name}
+                onChange={(e) => setEditStaff({...editStaff, name: e.target.value})}
+                data-testid="input-edit-name"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-position">Position</Label>
+              <Input
+                id="edit-position"
+                placeholder="Enter position"
+                value={editStaff.position}
+                onChange={(e) => setEditStaff({...editStaff, position: e.target.value})}
+                data-testid="input-edit-position"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-department">Department</Label>
+              <Select value={editStaff.department} onValueChange={(value) => setEditStaff({...editStaff, department: value})}>
+                <SelectTrigger data-testid="select-edit-department">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Operations">Operations</SelectItem>
+                  <SelectItem value="Maintenance">Maintenance</SelectItem>
+                  <SelectItem value="Customer Service">Customer Service</SelectItem>
+                  <SelectItem value="Finance">Finance</SelectItem>
+                  <SelectItem value="Management">Management</SelectItem>
+                  <SelectItem value="IT">IT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-salary">Monthly Salary (฿)</Label>
+              <Input
+                id="edit-salary"
+                type="number"
+                placeholder="Enter salary amount"
+                value={editStaff.salary}
+                onChange={(e) => setEditStaff({...editStaff, salary: e.target.value})}
+                data-testid="input-edit-salary"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} data-testid="button-cancel-edit">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} className="bg-blue-600 hover:bg-blue-700" data-testid="button-save-edit">
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{selectedStaff?.name}</strong> ({selectedStaff?.employeeId}) from the staff database.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="button-confirm-delete"
+            >
+              Delete Staff
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
