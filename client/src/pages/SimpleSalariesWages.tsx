@@ -177,11 +177,12 @@ export default function SimpleSalariesWages() {
       lastName: newStaff.lastName,
       position: newStaff.position,
       department: newStaff.department,
-      baseSalary: newStaff.salary,
+      monthlySalary: newStaff.salary,
+      salaryType: 'monthly',
+      startDate: new Date().toISOString().split('T')[0],
       status: 'active',
       email: newStaff.email || undefined,
-      phone: newStaff.phone || undefined,
-      hireDate: new Date().toISOString().split('T')[0]
+      phoneNumber: newStaff.phone || undefined
     });
   };
 
