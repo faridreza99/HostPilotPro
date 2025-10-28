@@ -18,11 +18,12 @@ interface StaffMember {
   lastName: string;
   position: string;
   department: string;
+  salaryType: string;
   monthlySalary: string;
   status: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  dateJoined?: string;
+  email?: string;
+  phone?: string;
+  hireDate?: string;
 }
 
 export default function SimpleSalariesWages() {
@@ -156,17 +157,21 @@ export default function SimpleSalariesWages() {
       return;
     }
 
+    const employeeId = `EMP${Date.now().toString().slice(-6)}`;
+    
     createMutation.mutate({
       organizationId: 'default-org',
+      employeeId: employeeId,
       firstName: newStaff.firstName,
       lastName: newStaff.lastName,
       position: newStaff.position,
       department: newStaff.department,
+      salaryType: 'monthly',
       monthlySalary: newStaff.monthlySalary,
       status: 'active',
-      contactEmail: newStaff.contactEmail || null,
-      contactPhone: newStaff.contactPhone || null,
-      dateJoined: new Date().toISOString().split('T')[0]
+      email: newStaff.contactEmail || null,
+      phone: newStaff.contactPhone || null,
+      hireDate: new Date().toISOString().split('T')[0]
     });
   };
 
@@ -183,8 +188,8 @@ export default function SimpleSalariesWages() {
       position: staff.position,
       department: staff.department,
       monthlySalary: staff.monthlySalary,
-      contactEmail: staff.contactEmail || '',
-      contactPhone: staff.contactPhone || ''
+      contactEmail: staff.email || '',
+      contactPhone: staff.phone || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -207,8 +212,8 @@ export default function SimpleSalariesWages() {
         position: editStaff.position,
         department: editStaff.department,
         monthlySalary: editStaff.monthlySalary,
-        contactEmail: editStaff.contactEmail || null,
-        contactPhone: editStaff.contactPhone || null,
+        email: editStaff.contactEmail || null,
+        phone: editStaff.contactPhone || null,
       }
     });
   };
@@ -622,24 +627,24 @@ export default function SimpleSalariesWages() {
                 <p className="font-medium text-lg" data-testid="view-salary">{formatCurrency(selectedStaff.monthlySalary)}</p>
               </div>
 
-              {selectedStaff.contactEmail && (
+              {selectedStaff.email && (
                 <div>
                   <Label className="text-sm text-gray-500">Email</Label>
-                  <p className="font-medium">{selectedStaff.contactEmail}</p>
+                  <p className="font-medium">{selectedStaff.email}</p>
                 </div>
               )}
 
-              {selectedStaff.contactPhone && (
+              {selectedStaff.phone && (
                 <div>
                   <Label className="text-sm text-gray-500">Phone</Label>
-                  <p className="font-medium">{selectedStaff.contactPhone}</p>
+                  <p className="font-medium">{selectedStaff.phone}</p>
                 </div>
               )}
 
-              {selectedStaff.dateJoined && (
+              {selectedStaff.hireDate && (
                 <div>
-                  <Label className="text-sm text-gray-500">Date Joined</Label>
-                  <p className="font-medium">{new Date(selectedStaff.dateJoined).toLocaleDateString()}</p>
+                  <Label className="text-sm text-gray-500">Hire Date</Label>
+                  <p className="font-medium">{new Date(selectedStaff.hireDate).toLocaleDateString()}</p>
                 </div>
               )}
             </div>

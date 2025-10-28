@@ -19601,7 +19601,7 @@ Plant Care:
       conditions.push(eq(staffMembers.status, filters.status));
     }
 
-    return await db.select().from(staffMembers).where(and(...conditions)).orderBy(staffMembers.dateJoined);
+    return await db.select().from(staffMembers).where(and(...conditions)).orderBy(staffMembers.hireDate);
   }
 
   async getStaffMember(id: number): Promise<StaffMember | undefined> {
