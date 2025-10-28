@@ -125,9 +125,13 @@ export default function EnhancedAdminDashboard() {
   const formatDueDate = (task: any) => {
     const raw = task.dueDate || task.due_date || task.due || task.deadline;
     if (!raw) return 'No date';
-    const d = raw instanceof Date ? raw : new Date(raw);
-    if (isNaN(d.getTime())) return 'No date';
-    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    try {
+      const d = raw instanceof Date ? raw : new Date(raw);
+      if (isNaN(d.getTime())) return 'No date';
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (error) {
+      return 'No date';
+    }
   };
 
   return (
