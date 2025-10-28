@@ -17,7 +17,8 @@ import {
   CreditCard,
   Wallet,
   Plus,
-  X
+  X,
+  CheckCircle2
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { queryClient } from "../lib/queryClient";
@@ -43,6 +44,7 @@ interface FinanceTransaction {
   type: 'income' | 'expense';
   category: string;
   propertyId?: number | string;
+  attachments?: string[];
 }
 
 export default function FinanceHub() {
@@ -76,7 +78,6 @@ export default function FinanceHub() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const propertyId = urlParams.get('propertyId');
-    
     if (propertyId) {
       setPropertyFilter(propertyId);
     }
@@ -84,147 +85,83 @@ export default function FinanceHub() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["/api/finance/analytics"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/finance"] })
-    ]);
-    await Promise.all([
-      queryClient.refetchQueries({ queryKey: ["/api/finance/analytics"] }),
-      queryClient.refetchQueries({ queryKey: ["/api/finance"] })
-    ]);
-    
-    toast({
-      title: "Financial data refreshed",
-      description: "Latest financial information loaded successfully"
-    });
-    
-    setTimeout(() => setIsRefreshing(false), 500);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/finance"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/finance/analytics"] })
+      ]);
+      toast({
+        title: "Refreshed",
+        description: "Finance data has been updated.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to refresh finance data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
-
-  if (analyticsLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-lg">Loading financial data...</span>
-        </div>
-      </div>
-    );
-  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US').format(num);
-  };
-
-  // Filter transactions based on ALL selected criteria (property, category, date range)
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
-      // Property filter - compare as strings to handle both numeric and string IDs
-      if (propertyFilter !== "all" && String(transaction.propertyId) !== String(propertyFilter)) {
-        return false;
+  // Calculate analytics from bookings
+  const bookingAnalytics = useMemo(() => {
+    let totalRevenue = 0;
+    
+    bookings.forEach((booking: any) => {
+      if (booking.status === 'confirmed' || booking.status === 'checked-in') {
+        const amount = parseFloat(booking.totalAmount || '0');
+        totalRevenue += amount;
       }
-
-      // Category filter
-      if (categoryFilter !== "all" && transaction.category !== categoryFilter) {
-        return false;
-      }
-
-      // Date range filter
-      if (dateFrom && new Date(transaction.date) < new Date(dateFrom)) {
-        return false;
-      }
-      if (dateTo && new Date(transaction.date) > new Date(dateTo)) {
-        return false;
-      }
-
-      return true;
     });
+
+    return { totalRevenue };
+  }, [bookings]);
+
+  // Filtered transactions based on filters
+  const filteredTransactions = useMemo(() => {
+    let filtered = [...transactions];
+    
+    if (propertyFilter !== "all") {
+      filtered = filtered.filter(t => String(t.propertyId) === propertyFilter);
+    }
+    
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter(t => t.category === categoryFilter);
+    }
+    
+    if (dateFrom) {
+      filtered = filtered.filter(t => new Date(t.date) >= new Date(dateFrom));
+    }
+    
+    if (dateTo) {
+      filtered = filtered.filter(t => new Date(t.date) <= new Date(dateTo));
+    }
+    
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, propertyFilter, categoryFilter, dateFrom, dateTo]);
 
-  // Calculate analytics based on filtered transactions
-  // Date range, property filter, and category filter ALL affect these stats
-  const filteredAnalytics = useMemo(() => {
-    // Calculate booking-based revenue (matches Property Dashboard)
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    
-    // Filter bookings for selected property and date range
-    const propertyBookings = bookings.filter((b: any) => {
-      if (propertyFilter !== "all" && String(b.propertyId) !== String(propertyFilter)) {
-        return false;
-      }
-      return b.status !== 'cancelled';
-    });
-    
-    // Calculate booking revenue (matches Property Dashboard logic)
-    const bookingMonthlyRevenue = propertyBookings
-      .filter((b: any) => {
-        const checkIn = new Date(b.checkIn);
-        return checkIn >= startOfMonth && checkIn <= endOfMonth;
-      })
-      .reduce((sum: number, b: any) => sum + parseFloat(String(b.platformPayout || b.totalAmount) || '0'), 0);
-    
-    // Calculate totals from FILTERED transactions (affected by property, category, AND date range)
-    const totalRevenue = filteredTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + parseFloat(String(t.amount) || '0'), 0);
-    
-    const totalExpenses = filteredTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + Math.abs(parseFloat(String(t.amount) || '0')), 0);
-    
-    const netProfit = totalRevenue - totalExpenses;
-    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+  // Get unique categories for filter
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set(transactions.map(t => t.category));
+    return Array.from(uniqueCategories).sort();
+  }, [transactions]);
 
-    // Calculate monthly values for current month
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    const monthlyTransactions = filteredTransactions.filter(t => {
-      const date = new Date(t.date);
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-    });
+  // Get recent transactions (top 10)
+  const recentTransactions = useMemo(() => {
+    return filteredTransactions.slice(0, 10);
+  }, [filteredTransactions]);
 
-    const monthlyRevenue = monthlyTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + parseFloat(String(t.amount) || '0'), 0);
-    
-    const monthlyExpenses = monthlyTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + Math.abs(parseFloat(String(t.amount) || '0')), 0);
-
-    return {
-      totalRevenue,
-      totalExpenses,
-      netProfit,
-      profitMargin,
-      transactionCount: filteredTransactions.length,
-      averageTransaction: filteredTransactions.length > 0 ? 
-        (totalRevenue + totalExpenses) / filteredTransactions.length : 0,
-      monthlyRevenue,
-      monthlyExpenses,
-      bookingMonthlyRevenue
-    };
-  }, [filteredTransactions, bookings, propertyFilter]);
-
-  const recentTransactions = filteredTransactions.slice(0, 10);
-
-  // Get property name for filtered view - compare as strings to handle both numeric and string IDs
-  const selectedProperty = properties.find(p => String(p.id) === String(propertyFilter));
-  const pageTitle = selectedProperty 
-    ? `Finance Hub - ${selectedProperty.name}` 
-    : "Finance Hub";
-
-  // Clear all filters
   const clearFilters = () => {
     setPropertyFilter("all");
     setCategoryFilter("all");
@@ -233,294 +170,212 @@ export default function FinanceHub() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <DollarSign className="h-8 w-8 text-green-600" />
-              {pageTitle}
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {selectedProperty 
-                ? `Viewing financial data for ${selectedProperty.name}` 
-                : "Financial management and analytics"}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => setIsCreateDialogOpen(true)}
-              className="flex items-center gap-2"
-              data-testid="button-create-transaction"
-            >
-              <Plus className="h-4 w-4" />
-              Add Transaction
-            </Button>
-            <Button 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              variant="outline"
-              className="flex items-center gap-2"
-              data-testid="button-refresh"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Finance Hub</h1>
+          <p className="text-gray-500 mt-1">Comprehensive financial management and analytics</p>
         </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            disabled={isRefreshing}
+            data-testid="button-refresh-finance"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)}
+            data-testid="button-create-finance"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Transaction
+          </Button>
+        </div>
+      </div>
 
-        {/* Filters */}
+      {/* Analytics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Filters</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Property Filter */}
-              <div className="space-y-2">
-                <Label htmlFor="property-filter">Property</Label>
-                <Select value={propertyFilter} onValueChange={setPropertyFilter}>
-                  <SelectTrigger id="property-filter" data-testid="select-property-filter">
-                    <SelectValue placeholder="All Properties" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Properties</SelectItem>
-                    {properties.map((property) => (
-                      <SelectItem key={property.id} value={String(property.id)}>
-                        {property.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Category Filter */}
-              <div className="space-y-2">
-                <Label htmlFor="category-filter">Category</Label>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger id="category-filter" data-testid="select-category-filter">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="booking">Booking</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                    <SelectItem value="utilities">Utilities</SelectItem>
-                    <SelectItem value="cleaning">Cleaning</SelectItem>
-                    <SelectItem value="supplies">Supplies</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Date From */}
-              <div className="space-y-2">
-                <Label htmlFor="date-from">From Date</Label>
-                <Input
-                  id="date-from"
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  data-testid="input-date-from"
-                />
-              </div>
-
-              {/* Date To */}
-              <div className="space-y-2">
-                <Label htmlFor="date-to">To Date</Label>
-                <Input
-                  id="date-to"
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  data-testid="input-date-to"
-                />
-              </div>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(analytics?.totalRevenue || 0)}
             </div>
-            
-            {/* Active Filters and Clear Button */}
-            {(propertyFilter !== "all" || categoryFilter !== "all" || dateFrom || dateTo) && (
-              <div className="flex items-center justify-between pt-2 border-t">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {propertyFilter !== "all" && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      Property: {selectedProperty?.name}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => setPropertyFilter("all")} />
-                    </Badge>
-                  )}
-                  {categoryFilter !== "all" && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      Category: {categoryFilter}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => setCategoryFilter("all")} />
-                    </Badge>
-                  )}
-                  {dateFrom && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      From: {dateFrom}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => setDateFrom("")} />
-                    </Badge>
-                  )}
-                  {dateTo && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      To: {dateTo}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => setDateTo("")} />
-                    </Badge>
-                  )}
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={clearFilters}
-                  data-testid="button-clear-filters"
-                >
-                  Clear Filters
-                </Button>
-              </div>
-            )}
+            <p className="text-xs text-gray-500 mt-1">
+              From {transactions.filter(t => t.type === 'income').length} income transactions
+            </p>
           </CardContent>
         </Card>
 
-        {/* Financial Summary Cards */}
-        {filteredAnalytics ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="border-2 border-green-200 bg-green-50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-green-900 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    Total Revenue
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-700">
-                    {formatCurrency(filteredAnalytics.totalRevenue)}
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 text-xs text-green-600">
-                    <ArrowUpRight className="h-3 w-3" />
-                    <span>{dateFrom || dateTo ? 'Filtered period' : 'All time'}</span>
-                  </div>
-                </CardContent>
-              </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {formatCurrency(analytics?.totalExpenses || 0)}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              From {transactions.filter(t => t.type === 'expense').length} expense transactions
+            </p>
+          </CardContent>
+        </Card>
 
-              <Card className="border-2 border-red-200 bg-red-50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-red-900 flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4" />
-                    Total Expenses
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-700">
-                    {formatCurrency(filteredAnalytics.totalExpenses)}
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 text-xs text-red-600">
-                    <ArrowDownRight className="h-3 w-3" />
-                    <span>{dateFrom || dateTo ? 'Filtered period' : 'All time'}</span>
-                  </div>
-                </CardContent>
-              </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+            <DollarSign className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${(analytics?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(analytics?.netProfit || 0)}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {analytics?.profitMargin?.toFixed(1)}% profit margin
+            </p>
+          </CardContent>
+        </Card>
 
-              <Card className="border-2 border-blue-200 bg-blue-50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-blue-900 flex items-center gap-2">
-                    <Wallet className="h-4 w-4" />
-                    Net Profit
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${filteredAnalytics.netProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                    {formatCurrency(filteredAnalytics.netProfit)}
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 text-xs text-blue-600">
-                    <Receipt className="h-3 w-3" />
-                    <span>Margin: {filteredAnalytics.profitMargin.toFixed(1)}%</span>
-                  </div>
-                </CardContent>
-              </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Booking Revenue</CardTitle>
+            <Receipt className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              {formatCurrency(bookingAnalytics.totalRevenue || 0)}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              From {bookings.filter((b: any) => b.status === 'confirmed' || b.status === 'checked-in').length} confirmed bookings
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-              <Card className="border-2 border-purple-200 bg-purple-50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-purple-900 flex items-center gap-2">
-                    <CreditCard className="h-4 w-4" />
-                    Transactions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-purple-700">
-                    {formatNumber(filteredAnalytics.transactionCount)}
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 text-xs text-purple-600">
-                    <DollarSign className="h-3 w-3" />
-                    <span>Avg: {formatCurrency(filteredAnalytics.averageTransaction)}</span>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Filters</CardTitle>
+            {(propertyFilter !== "all" || categoryFilter !== "all" || dateFrom || dateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                data-testid="button-clear-filters"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="property-filter">Property</Label>
+              <Select 
+                value={propertyFilter} 
+                onValueChange={setPropertyFilter}
+              >
+                <SelectTrigger id="property-filter" data-testid="select-property-filter">
+                  <SelectValue placeholder="All Properties" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Properties</SelectItem>
+                  {properties.map((property: any) => (
+                    <SelectItem key={property.id} value={String(property.id)}>
+                      {property.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Monthly Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700">
-                    Monthly Revenue (Current Month)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold text-gray-900">
-                    {formatCurrency(filteredAnalytics.monthlyRevenue)}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700">
-                    Monthly Expenses (Current Month)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold text-gray-900">
-                    {formatCurrency(filteredAnalytics.monthlyExpenses)}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-700">
-                    Booking Revenue (Current Month)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold text-gray-900">
-                    {formatCurrency(filteredAnalytics.bookingMonthlyRevenue || 0)}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">From bookings table</div>
-                </CardContent>
-              </Card>
+            <div className="space-y-2">
+              <Label htmlFor="category-filter">Category</Label>
+              <Select 
+                value={categoryFilter} 
+                onValueChange={setCategoryFilter}
+              >
+                <SelectTrigger id="category-filter" data-testid="select-category-filter">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </>
-        ) : null}
 
-        {/* Recent Transactions */}
+            <div className="space-y-2">
+              <Label htmlFor="date-from">Date From</Label>
+              <Input
+                id="date-from"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                data-testid="input-date-from"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date-to">Date To</Label>
+              <Input
+                id="date-to"
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                data-testid="input-date-to"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Transactions */}
+      <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
+            <p className="text-sm text-gray-500">
+              Showing {recentTransactions.length} of {filteredTransactions.length} transactions
+            </p>
           </CardHeader>
           <CardContent>
-            {recentTransactions.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No transactions found matching your filters
+            {transactionsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : recentTransactions.length === 0 ? (
+              <div className="text-center py-8">
+                <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No transactions found</p>
+                <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or add a new transaction</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {recentTransactions.map((transaction) => {
                   const property = properties.find(p => p.id === transaction.propertyId);
+                  const hasEvidence = transaction.attachments && transaction.attachments.length > 0;
+                  
                   return (
                     <div 
                       key={transaction.id} 
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                      data-testid={`transaction-${transaction.id}`}
                     >
                       <div className="flex items-center gap-4 flex-1">
                         <div className={`p-2 rounded-full ${
@@ -550,6 +405,13 @@ export default function FinanceHub() {
                             <Badge variant="outline" className="text-xs">
                               {transaction.category}
                             </Badge>
+                            {hasEvidence && (
+                              <CheckCircle2 
+                                className="h-4 w-4 text-green-600 ml-1" 
+                                title={`${transaction.attachments?.length} evidence photo(s) attached`}
+                                data-testid={`evidence-indicator-${transaction.id}`}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
