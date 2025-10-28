@@ -148,10 +148,10 @@ export default function SimpleSalariesWages() {
   };
 
   const handleAddStaff = () => {
-    if (!newStaff.firstName || !newStaff.lastName || !newStaff.position || !newStaff.department || !newStaff.monthlySalary) {
+    if (!newStaff.firstName || !newStaff.lastName || !newStaff.position || !newStaff.department || !newStaff.monthlySalary || !newStaff.contactEmail) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields (including email)",
         variant: "destructive",
       });
       return;
@@ -169,8 +169,8 @@ export default function SimpleSalariesWages() {
       salaryType: 'monthly',
       monthlySalary: newStaff.monthlySalary,
       status: 'active',
-      email: newStaff.contactEmail || null,
-      phone: newStaff.contactPhone || null,
+      email: newStaff.contactEmail,
+      phone: newStaff.contactPhone || '',
       hireDate: new Date().toISOString().split('T')[0]
     });
   };
@@ -542,7 +542,7 @@ export default function SimpleSalariesWages() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="add-email">Email (Optional)</Label>
+              <Label htmlFor="add-email">Email *</Label>
               <Input
                 id="add-email"
                 type="email"
@@ -550,6 +550,7 @@ export default function SimpleSalariesWages() {
                 value={newStaff.contactEmail}
                 onChange={(e) => setNewStaff({...newStaff, contactEmail: e.target.value})}
                 data-testid="input-add-email"
+                required
               />
             </div>
 

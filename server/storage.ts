@@ -21,6 +21,7 @@ import {
   ownerActivityTimeline,
   ownerInvoices,
   staffProfiles,
+  staffMembers,
   monthlyPayrollRecords,
   taskPerformanceLogs,
   attendanceRecords,
