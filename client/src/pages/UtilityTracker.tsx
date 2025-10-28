@@ -170,12 +170,15 @@ export default function UtilityTracker() {
     },
   });
 
-  const properties = [
-    { id: 1, name: "Villa Samui Breeze", location: "Koh Samui" },
-    { id: 2, name: "Villa Tropical Paradise", location: "Phuket" },
-    { id: 3, name: "Villa Aruna", location: "Bali" },
-    { id: 4, name: "Villa Gala", location: "Krabi" }
-  ];
+  // Fetch properties from database
+  const { data: properties = [] } = useQuery({
+    queryKey: ['/api/properties'],
+  });
+
+  // Fetch utility bills from database
+  const { data: utilityBills = [] } = useQuery({
+    queryKey: ['/api/utility-bills'],
+  });
 
   const utilityTypes = [
     { id: "electricity", name: "Electricity", icon: Zap, color: "text-yellow-500" },
@@ -186,91 +189,14 @@ export default function UtilityTracker() {
     { id: "maintenance", name: "Maintenance", icon: Settings, color: "text-purple-500" }
   ];
 
-  const utilityBills = [
-    {
-      id: 1,
-      propertyId: 1,
-      type: "electricity",
-      provider: "PEA (Provincial Electricity Authority)",
-      accountNumber: "1234567890",
-      billDate: "2025-01-15",
-      dueDate: "2025-02-15",
-      amount: 3500,
-      currency: "THB",
-      status: "paid",
-      usage: "875 kWh",
-      period: "December 2024",
-      receiptUrl: "/receipts/villa1-electricity-jan2025.pdf"
-    },
-    {
-      id: 2,
-      propertyId: 1,
-      type: "water",
-      provider: "Samui Water Works",
-      accountNumber: "WAT-001234",
-      billDate: "2025-01-10",
-      dueDate: "2025-02-10",
-      amount: 890,
-      currency: "THB",
-      status: "paid",
-      usage: "45 m³",
-      period: "December 2024",
-      receiptUrl: "/receipts/villa1-water-jan2025.pdf"
-    },
-    {
-      id: 3,
-      propertyId: 2,
-      type: "internet",
-      provider: "AIS Fiber",
-      accountNumber: "AIS-567890",
-      billDate: "2025-01-20",
-      dueDate: "2025-02-20",
-      amount: 1200,
-      currency: "THB",
-      status: "pending",
-      usage: "Unlimited",
-      period: "January 2025",
-      receiptUrl: null
-    },
-    {
-      id: 4,
-      propertyId: 3,
-      type: "electricity",
-      provider: "PLN (Perusahaan Listrik Negara)",
-      accountNumber: "PLN-789012",
-      billDate: "2025-01-12",
-      dueDate: "2025-02-12",
-      amount: 2800,
-      currency: "IDR",
-      status: "overdue",
-      usage: "690 kWh",
-      period: "December 2024",
-      receiptUrl: null
-    },
-    {
-      id: 5,
-      propertyId: 1,
-      type: "gas",
-      provider: "PTT Gas",
-      accountNumber: "GAS-345678",
-      billDate: "2025-01-08",
-      dueDate: "2025-02-08",
-      amount: 650,
-      currency: "THB",
-      status: "paid",
-      usage: "25 kg",
-      period: "December 2024",
-      receiptUrl: "/receipts/villa1-gas-jan2025.pdf"
-    }
-  ];
-
+  // Calculate monthly stats from actual data
   const monthlyStats = {
-    totalAmount: 8940,
-    paidAmount: 6340,
-    pendingAmount: 1200,
-    overdueAmount: 1400,
-    billCount: 15,
-    averagePerProperty: 2235
+    totalAmount: utilityBills.reduce((sum: number, bill: any) => sum + parseFloat(bill.amount || '0'), 0),
+    paidAmount: utilityBills.filter((b: any) => b.status === 'paid').reduce((sum: number, bill: any) => sum + parseFloat(bill.amount || '0'), 0),
+    pendingAmount: utilityBills.filter((b: any) => b.status === 'pending').reduce((sum: number, bill: any) => sum + parseFloat(bill.amount || '0'), 0),
+    overdueAmount: utilityBills.filter((b: any) => b.status === 'overdue').reduce((sum: number, bill: any) => sum + parseFloat(bill.amount || '0'), 0),
+    billCount: utilityBills.length,
+    averagePerProperty: properties.length > 0 ? utilityBills.reduce((sum: number, bill: any) => sum + parseFloat(bill.amount || '0'), 0) / properties.length : 0
   };
 
   const formatCurrency = (amount: number, currency: string) => {
