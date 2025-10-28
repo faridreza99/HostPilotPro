@@ -122,6 +122,14 @@ export default function EnhancedAdminDashboard() {
     }
   };
 
+  const formatDueDate = (task: any) => {
+    const raw = task.dueDate || task.due_date || task.due || task.deadline;
+    if (!raw) return 'No date';
+    const d = raw instanceof Date ? raw : new Date(raw);
+    if (isNaN(d.getTime())) return 'No date';
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <RoleBackButton />
@@ -302,7 +310,7 @@ export default function EnhancedAdminDashboard() {
                       <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                         <span>{task.description}</span>
                         <span>Assigned: {task.assignedTo}</span>
-                        <span>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}</span>
+                        <span>Due: {formatDueDate(task)}</span>
                       </div>
                     </div>
                     <Badge variant={getStatusBadgeVariant(task.status)}>
