@@ -19,11 +19,12 @@ interface StaffMember {
   lastName: string;
   position: string;
   department: string;
-  baseSalary: string;
+  monthlySalary: string;
   status: string;
   hireDate?: string;
   email?: string;
   phone?: string;
+  phoneNumber?: string;
 }
 
 export default function SimpleSalariesWages() {
@@ -145,8 +146,10 @@ export default function SimpleSalariesWages() {
     }
   });
 
-  const formatCurrency = (amount: number | string) => {
+  const formatCurrency = (amount: number | string | undefined | null) => {
+    if (!amount && amount !== 0) return '฿0';
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numAmount)) return '฿0';
     return `฿${numAmount.toLocaleString()}`;
   };
 
@@ -198,7 +201,7 @@ export default function SimpleSalariesWages() {
       lastName: staff.lastName,
       position: staff.position,
       department: staff.department,
-      salary: staff.baseSalary
+      salary: staff.monthlySalary
     });
     setIsEditDialogOpen(true);
   };
@@ -220,7 +223,7 @@ export default function SimpleSalariesWages() {
         lastName: editStaff.lastName,
         position: editStaff.position,
         department: editStaff.department,
-        baseSalary: editStaff.salary
+        monthlySalary: editStaff.salary
       }
     });
   };
@@ -237,7 +240,7 @@ export default function SimpleSalariesWages() {
 
   // Calculate statistics
   const totalStaff = staffList.length;
-  const monthlyPayroll = staffList.reduce((sum, s) => sum + parseFloat(s.baseSalary || '0'), 0);
+  const monthlyPayroll = staffList.reduce((sum, s) => sum + parseFloat(s.monthlySalary || '0'), 0);
   const averageSalary = totalStaff > 0 ? Math.round(monthlyPayroll / totalStaff) : 0;
   const pendingPayments = 0; // TODO: Connect to payroll records
 
@@ -381,7 +384,7 @@ export default function SimpleSalariesWages() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{`${staff.firstName} ${staff.lastName}`}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{staff.position}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{staff.department}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(staff.baseSalary)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(staff.monthlySalary)}</td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={getStatusColor(staff.status)}>{staff.status}</span>
                             </td>
@@ -446,7 +449,7 @@ export default function SimpleSalariesWages() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Total Salary:</span>
-                        <span className="font-medium">{formatCurrency(staffList.filter(s => s.department === dept).reduce((sum, s) => sum + parseFloat(s.baseSalary || '0'), 0))}</span>
+                        <span className="font-medium">{formatCurrency(staffList.filter(s => s.department === dept).reduce((sum, s) => sum + parseFloat(s.monthlySalary || '0'), 0))}</span>
                       </div>
                     </div>
                   </div>
@@ -612,7 +615,7 @@ export default function SimpleSalariesWages() {
               
               <div>
                 <Label className="text-sm text-gray-500">Monthly Salary</Label>
-                <p className="font-medium text-lg" data-testid="view-salary">{formatCurrency(selectedStaff.baseSalary)}</p>
+                <p className="font-medium text-lg" data-testid="view-salary">{formatCurrency(selectedStaff.monthlySalary)}</p>
               </div>
 
               {selectedStaff.email && (
