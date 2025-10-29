@@ -99,26 +99,50 @@ export default function AutomationAlerts() {
     }
   });
 
-  // Toggle automation mutation
   const toggleAutomationMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
       return apiRequest('PATCH', `/api/automations/${id}/toggle`, { isActive });
     },
+    onMutate: async ({ id, isActive }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/automations"] });
+      
+      // Snapshot the previous value
+      const previousAutomations = queryClient.getQueryData(["/api/automations"]);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData(["/api/automations"], (old: any) => {
+        if (!old) return old;
+        return old.map((automation: Automation) => 
+          automation.id === id ? { ...automation, isActive } : automation
+        );
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousAutomations };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/automations"] });
       toast({
         title: "Automation Updated",
         description: "Automation status has been updated",
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context: any) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      queryClient.setQueryData(["/api/automations"], context?.previousAutomations);
       toast({
         title: "Error",
         description: error.message || "Failed to toggle automation",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we're in sync
+      queryClient.invalidateQueries({ queryKey: ["/api/automations"] });
     }
   });
+
+  // Toggle automation mutation
 
   // Delete automation mutation
   const deleteAutomationMutation = useMutation({
@@ -569,4 +593,5 @@ export default function AutomationAlerts() {
       </Dialog>
     </div>
   );
+
 }
