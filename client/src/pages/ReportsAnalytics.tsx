@@ -31,6 +31,7 @@ export default function ReportsAnalytics() {
   const { toast } = useToast();
   const [selectedReportType, setSelectedReportType] = useState<string>("bookings");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("generate");
 
   // Fetch all reports
   const { data: reports = [], isLoading: reportsLoading } = useQuery<Report[]>({
@@ -159,7 +160,7 @@ export default function ReportsAnalytics() {
         </div>
       </div>
 
-      <Tabs defaultValue="generate" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="generate" data-testid="tab-generate">Generate Report</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history">Report History</TabsTrigger>
@@ -278,7 +279,10 @@ export default function ReportsAnalytics() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setSelectedReport(report)}
+                            onClick={() => {
+                              setSelectedReport(report);
+                              setActiveTab("view");
+                            }}
                             data-testid={`button-view-${report.id}`}
                           >
                             <FileText className="h-4 w-4 mr-1" />
