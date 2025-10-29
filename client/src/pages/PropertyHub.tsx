@@ -23,6 +23,8 @@ import TaskTemplates from "../components/TaskTemplates";
 import CreatePropertyDialog from "../components/CreatePropertyDialog";
 import CreateBookingDialog from "../components/CreateBookingDialog";
 import CreateTaskDialog from "../components/CreateTaskDialog";
+import ReportsGenerateModal from "../components/ReportsGenerateModal";
+import AutomationCreateModal from "../components/AutomationCreateModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest } from "../lib/queryClient";
@@ -69,6 +71,8 @@ export default function PropertyHub() {
   const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isAutomationModalOpen, setIsAutomationModalOpen] = useState(false);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -700,11 +704,10 @@ export default function PropertyHub() {
                                   setIsBookingDialogOpen(true);
                                 } else if (item.actionText === "Add Task") {
                                   setIsTaskDialogOpen(true);
-                                } else {
-                                  toast({
-                                    title: "Quick Action",
-                                    description: `${item.actionText} functionality coming soon!`,
-                                  });
+                                } else if (item.actionText === "Generate Report") {
+                                  setIsReportModalOpen(true);
+                                } else if (item.actionText === "Setup Alert") {
+                                  setIsAutomationModalOpen(true);
                                 }
                               }
                             }}
@@ -782,6 +785,14 @@ export default function PropertyHub() {
       <CreateTaskDialog 
         isOpen={isTaskDialogOpen} 
         onOpenChange={setIsTaskDialogOpen} 
+      />
+      <ReportsGenerateModal
+        open={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+      />
+      <AutomationCreateModal
+        open={isAutomationModalOpen}
+        onClose={() => setIsAutomationModalOpen(false)}
       />
     </div>
   );
