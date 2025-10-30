@@ -45,6 +45,7 @@ export default function PropertyDocumentCenter() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -71,10 +72,58 @@ export default function PropertyDocumentCenter() {
     enabled: !!selectedProperty,
   });
 
+  // File validation
+  const validateFile = (file: File) => {
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+    const maxSize = 10 * 1024 * 1024; // 10 MB
+
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a PDF, JPG, PNG, XLSX, or XLS file.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      toast({
+        title: "File Too Large",
+        description: "File size must be less than 10 MB.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && validateFile(file)) {
+      setSelectedFile(file);
+      // Auto-fill filename if empty
+      if (!form.getValues("fileName")) {
+        form.setValue("fileName", file.name);
+      }
+    }
+  };
+
   // Upload mutation
   const uploadMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/property-documents", data);
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch("/api/property-documents/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to upload document");
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       // Clear fastCache for expiring documents to show alerts immediately
@@ -87,6 +136,8 @@ export default function PropertyDocumentCenter() {
       queryClient.invalidateQueries({ queryKey: ["/api/property-documents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/property-documents/expiring?days=30"] });
       setIsUploadDialogOpen(false);
+      setSelectedFile(null);
+      form.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -110,11 +161,25 @@ export default function PropertyDocumentCenter() {
   });
 
   const onSubmit = (data: any) => {
-    uploadMutation.mutate({
-      ...data,
-      uploadedBy: (user as any)?.id,
-      tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
-    });
+    if (!selectedFile) {
+      toast({
+        title: "No File Selected",
+        description: "Please select a file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("fileName", data.fileName);
+    formData.append("category", data.category);
+    formData.append("fileType", data.fileType);
+    formData.append("tags", data.tags || "");
+    formData.append("description", data.description || "");
+    formData.append("propertyId", selectedProperty?.toString() || "");
+
+    uploadMutation.mutate(formData);
   };
 
   const filteredDocuments = (documents as any[])?.filter((doc) => {
@@ -372,6 +437,23 @@ export default function PropertyDocumentCenter() {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="file-upload" className="text-sm font-medium">
+                  Select File *
+                </label>
+                <Input
+                  id="file-upload"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
+                  onChange={handleFileChange}
+                  className="cursor-pointer"
+                />
+                {selectedFile && (
+                  <p className="text-sm text-muted-foreground">
+                    Selected: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
+                  </p>
+                )}
+              </div>
               <FormField
                 control={form.control}
                 name="fileName"
