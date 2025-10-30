@@ -216,6 +216,9 @@ export default function CreateAddonBookingDialog({
   });
 
   const handleSubmit = (data: BookingFormData) => {
+    console.log("🔥 FORM SUBMIT TRIGGERED", data);
+    console.log("🔥 Form errors:", form.formState.errors);
+    
     // Validate gift reason for gift bookings
     if ((data.billingType === "owner-gift" || data.billingType === "company-gift") && !data.giftReason) {
       form.setError("giftReason", { message: "Gift reason is required for complimentary services" });
@@ -606,7 +609,15 @@ export default function CreateAddonBookingDialog({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button 
+                type="submit" 
+                disabled={mutation.isPending}
+                onClick={() => {
+                  console.log("🔥 BUTTON CLICKED");
+                  console.log("🔥 Form errors:", form.formState.errors);
+                  console.log("🔥 Form values:", form.getValues());
+                }}
+              >
                 {mutation.isPending ? "Booking..." : "Book Service"}
               </Button>
             </DialogFooter>
