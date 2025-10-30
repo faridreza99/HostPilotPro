@@ -79,8 +79,16 @@ export default function SimpleSalariesWages() {
 
   // Fetch payroll records from database
   const { data: payrollRecords = [], isLoading: payrollLoading, error: payrollError } = useQuery<any[]>({
-    queryKey: ["/api/payroll-records"],
-    enabled: activeTab === 'payroll'
+    queryKey: ["/api/payroll-records", organizationId],
+    queryFn: async () => {
+      const response = await fetch(`/api/payroll-records?organizationId=${organizationId}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch payroll records');
+      }
+      return response.json();
+    },
+    enabled: activeTab === 'payroll' && !!organizationId
   });
 
   // Create staff mutation
