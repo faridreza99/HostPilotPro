@@ -2948,33 +2948,26 @@ export const payrollRecords = pgTable("payroll_records", {
   payPeriodEnd: date("pay_period_end").notNull(),
   
   // Hours and rates
-  hoursWorked: decimal("hours_worked", { precision: 8, scale: 2 }),
-  regularHours: decimal("regular_hours", { precision: 8, scale: 2 }),
   overtimeHours: decimal("overtime_hours", { precision: 8, scale: 2 }),
-  hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }),
   overtimeRate: decimal("overtime_rate", { precision: 8, scale: 2 }),
   
   // Salary calculations
   baseSalary: decimal("base_salary", { precision: 10, scale: 2 }),
-  overtimePay: decimal("overtime_pay", { precision: 10, scale: 2 }),
-  bonuses: decimal("bonuses", { precision: 10, scale: 2 }).default("0"),
-  deductions: decimal("deductions", { precision: 10, scale: 2 }).default("0"),
-  
-  // Commission (for agents)
-  commissionEarned: decimal("commission_earned", { precision: 10, scale: 2 }).default("0"),
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }),
+  bonus: decimal("bonus", { precision: 10, scale: 2 }),
+  deductions: decimal("deductions", { precision: 10, scale: 2 }),
   
   // Totals
-  grossPay: decimal("gross_pay", { precision: 10, scale: 2 }).notNull(),
-  netPay: decimal("net_pay", { precision: 10, scale: 2 }).notNull(),
+  grossPay: decimal("gross_pay", { precision: 10, scale: 2 }),
+  netPay: decimal("net_pay", { precision: 10, scale: 2 }),
+  taxDeduction: decimal("tax_deduction", { precision: 10, scale: 2 }),
+  socialSecurity: decimal("social_security", { precision: 10, scale: 2 }),
   
   // Payment tracking
-  paymentStatus: varchar("payment_status").default("pending"), // pending, paid, cancelled
+  status: varchar("status"), // pending, paid, cancelled
   paymentDate: date("payment_date"),
   paymentMethod: varchar("payment_method"), // bank_transfer, cash, check
   
   notes: text("notes"),
-  createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
