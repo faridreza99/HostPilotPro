@@ -77,6 +77,12 @@ export default function SimpleSalariesWages() {
     enabled: !!organizationId
   });
 
+  // Fetch payroll records from database
+  const { data: payrollRecords = [], isLoading: payrollLoading, error: payrollError } = useQuery<any[]>({
+    queryKey: ["/api/payroll-records"],
+    enabled: activeTab === 'payroll'
+  });
+
   // Create staff mutation
   const createStaffMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -429,9 +435,74 @@ export default function SimpleSalariesWages() {
           {activeTab === 'payroll' && (
             <div>
               <h3 className="text-lg font-semibold mb-4">Payroll Records</h3>
-              <div className="text-center py-8 text-gray-500">
-                Payroll records will be displayed here. Feature coming soon.
-              </div>
+              {payrollLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Loading payroll records...</span>
+                </div>
+              ) : payrollError ? (
+                <div className="text-center py-8 text-red-500">
+                  Error loading payroll records. Please try again later.
+                </div>
+              ) : payrollRecords.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No payroll records yet. Payroll records will appear here once staff payments are processed.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Pay</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deductions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Pay</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {payrollRecords.map((record: any) => {
+                        const staffMember = staffList.find(s => s.id === record.staffMemberId);
+                        const staffName = staffMember 
+                          ? `${staffMember.firstName} ${staffMember.lastName} (${staffMember.employeeId})`
+                          : `Staff ID: ${record.staffMemberId}`;
+                        
+                        return (
+                          <tr key={record.id} data-testid={`row-payroll-${record.id}`}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(record.payPeriodStart).toLocaleDateString()} - {new Date(record.payPeriodEnd).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{staffName}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(record.grossPay)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(record.deductions)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(record.netPay)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={
+                                record.status === 'paid' || record.status === 'Paid'
+                                  ? 'bg-green-100 text-green-800 px-2 py-1 rounded text-xs'
+                                  : record.status === 'pending' || record.status === 'Pending'
+                                  ? 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs'
+                                  : 'bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs'
+                              }>
+                                {record.status || 'Unknown'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {record.paymentDate ? new Date(record.paymentDate).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                              {record.notes || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
