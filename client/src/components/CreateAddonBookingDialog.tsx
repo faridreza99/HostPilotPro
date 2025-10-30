@@ -78,11 +78,20 @@ const bookingFormSchema = z.object({
   duration: z.string().optional(),
   quantity: z.string().default("1"),
   billingType: z.enum(["auto-bill-guest", "auto-bill-owner", "owner-gift", "company-gift"]),
-  price: z.string().optional(), // Custom price input
+  price: z.string().optional(), // Price input
   dateDue: z.string().optional(), // Optional due date
   giftReason: z.string().optional(),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),
+}).refine((data) => {
+  // Price is required for non-gift billing types
+  if (data.billingType === "owner-gift" || data.billingType === "company-gift") {
+    return true; // Gift bookings can have empty price
+  }
+  return data.price && data.price.trim().length > 0;
+}, {
+  message: "Price is required",
+  path: ["price"],
 });
 
 type BookingFormData = z.infer<typeof bookingFormSchema>;
@@ -496,14 +505,14 @@ export default function CreateAddonBookingDialog({
                   />
                 )}
 
-                {/* Custom Price Input - only for non-gift bookings */}
+                {/* Price Input - required for non-gift bookings */}
                 {!isGiftBooking && (
                   <FormField
                     control={form.control}
                     name="price"
                     render={({ field }) => (
                       <FormItem className="mt-4">
-                        <FormLabel>Custom Price (Optional)</FormLabel>
+                        <FormLabel>Price</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
@@ -512,9 +521,6 @@ export default function CreateAddonBookingDialog({
                             placeholder={calculatedPrice > 0 ? formatCurrency(calculatedPrice) : "0.00"} 
                           />
                         </FormControl>
-                        <FormDescription>
-                          Override the calculated price if needed
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

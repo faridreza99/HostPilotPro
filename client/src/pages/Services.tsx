@@ -24,9 +24,13 @@ export default function Services() {
     queryKey: ["/api/addon-bookings"],
   });
 
-  const { data: serviceBookings = [] } = useQuery({
+  const { data: serviceBookingsData } = useQuery({
     queryKey: ["/api/service-bookings"],
   });
+  
+  const serviceBookings = Array.isArray(serviceBookingsData?.bookings) 
+    ? serviceBookingsData.bookings 
+    : [];
 
   const { data: utilityBills = [] } = useQuery({
     queryKey: ["/api/utility-bills"],
