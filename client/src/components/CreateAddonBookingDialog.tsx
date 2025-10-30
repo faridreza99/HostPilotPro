@@ -134,6 +134,7 @@ export default function CreateAddonBookingDialog({
   const watchedDuration = form.watch("duration");
   const watchedQuantity = form.watch("quantity");
   const watchedBillingType = form.watch("billingType");
+  const watchedPrice = form.watch("price");
 
   // Calculate price when service or inputs change
   useState(() => {
@@ -215,12 +216,23 @@ export default function CreateAddonBookingDialog({
     mutation.mutate(data);
   };
 
+  // Fetch system settings for currency
+  const { data: systemSettings } = useQuery({
+    queryKey: ["/api/system-settings"],
+  });
+
   const formatCurrency = (amount: number) => {
+    const currency = systemSettings?.defaultCurrency || 'AUD';
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
-      currency: 'AUD',
+      currency: currency,
     }).format(amount);
   };
+
+  // Get final price to display (custom price or calculated price)
+  const finalPrice = watchedPrice && parseFloat(watchedPrice) > 0 
+    ? parseFloat(watchedPrice) 
+    : calculatedPrice;
 
   const isGiftBooking = watchedBillingType === "owner-gift" || watchedBillingType === "company-gift";
   const selectedBillingType = billingTypes.find(type => type.value === watchedBillingType);
@@ -536,7 +548,7 @@ export default function CreateAddonBookingDialog({
                   <div className="flex justify-between items-center">
                     <span className="font-medium">Total Price:</span>
                     <span className="text-xl font-bold text-green-600">
-                      {isGiftBooking ? "Complimentary" : formatCurrency(calculatedPrice)}
+                      {isGiftBooking ? "Complimentary" : formatCurrency(finalPrice)}
                     </span>
                   </div>
                   {selectedBillingType && (

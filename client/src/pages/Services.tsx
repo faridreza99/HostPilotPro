@@ -32,12 +32,17 @@ export default function Services() {
     queryKey: ["/api/utility-bills"],
   });
 
+  const { data: systemSettings } = useQuery({
+    queryKey: ["/api/system-settings"],
+  });
+
   const formatPrice = (cents: number | null | undefined): string => {
     if (cents === null || cents === undefined) return "$0.00";
     const dollars = cents / 100;
+    const currency = systemSettings?.defaultCurrency || 'AUD';
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
-      currency: 'AUD',
+      currency: currency,
     }).format(dollars);
   };
 
@@ -70,12 +75,6 @@ export default function Services() {
       <div className="flex-1 flex flex-col lg:ml-0">
         <TopBar 
           title="Services & Utilities" 
-          action={
-            <Button className="bg-primary hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Service
-            </Button>
-          }
         />
         
         <main className="flex-1 overflow-auto p-6">
@@ -138,9 +137,6 @@ export default function Services() {
                                service.basePrice != null ? `$${Number(service.basePrice).toFixed(2)}` :
                                '$0.00'}
                           </span>
-                          <div className="text-sm text-gray-500">
-                            {service.duration ? `${service.duration} min` : 'Custom duration'}
-                          </div>
                         </div>
                         <Badge variant="outline" className="capitalize">
                           {service.pricingModel}
