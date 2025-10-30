@@ -3,14 +3,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Upload, FileText, Eye, Download, Plus, Search, Filter, Tag, Calendar, User, Building, FolderOpen, File, Image } from "lucide-react";
+import { Upload, FileText, Eye, Download, Plus, Search, Filter, Tag, Calendar, User, Building, FolderOpen, File, Image, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -61,6 +62,11 @@ export default function PropertyDocumentCenter() {
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [limit, setLimit] = useState<string>("all");
+  const [visibleCount, setVisibleCount] = useState<number>(10);
+  const [documentToDelete, setDocumentToDelete] = useState<any>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -82,6 +88,51 @@ export default function PropertyDocumentCenter() {
     window.document.body.appendChild(link);
     link.click();
     window.document.body.removeChild(link);
+  };
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (docId: number) => {
+      return await apiRequest(`/api/property-documents/${docId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      fastCache.delete("/api/property-documents/expiring?days=30");
+      toast({
+        title: "Document Deleted",
+        description: "Document has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] && 
+          typeof query.queryKey[0] === 'string' && 
+          query.queryKey[0].startsWith('/api/property-documents/property/')
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/property-documents/expiring?days=30"] });
+      setDocumentToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Get file type from mimeType
+  const getFileTypeFromMime = (mimeType: string | null, fileUrl: string): string => {
+    if (mimeType) {
+      if (mimeType.startsWith('image/')) return 'IMAGE';
+      if (mimeType === 'application/pdf') return 'PDF';
+      if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'EXCEL';
+      return mimeType.split('/')[1]?.toUpperCase() || 'FILE';
+    }
+    
+    // Fallback to file extension
+    const ext = fileUrl?.split('.').pop()?.toUpperCase();
+    return ext || 'FILE';
   };
 
   // Check user permissions
@@ -221,14 +272,30 @@ export default function PropertyDocumentCenter() {
     uploadMutation.mutate(formData);
   };
 
-  const filteredDocuments = (documents as any[])?.filter((doc) => {
+  let filteredDocuments = (documents as any[])?.filter((doc) => {
     const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory || doc.docType === selectedCategory;
     const matchesSearch = !searchTerm || 
                          doc.fileName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doc.tags?.some((tag: string) => tag?.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCategory && matchesSearch;
+    
+    // Date range filter
+    const docDate = doc.createdAt ? new Date(doc.createdAt).toISOString().split('T')[0] : null;
+    const matchesDateFrom = !dateFrom || !docDate || docDate >= dateFrom;
+    const matchesDateTo = !dateTo || !docDate || docDate <= dateTo;
+    
+    return matchesCategory && matchesSearch && matchesDateFrom && matchesDateTo;
   }) || [];
+
+  // Apply limit
+  if (limit !== "all") {
+    const limitNum = parseInt(limit);
+    filteredDocuments = filteredDocuments.slice(0, limitNum);
+  }
+
+  // Get documents to display based on visibleCount
+  const documentsToDisplay = filteredDocuments.slice(0, visibleCount);
+  const hasMore = filteredDocuments.length > visibleCount;
 
   const getFileIcon = (fileType: string) => {
     switch (fileType) {
@@ -309,31 +376,65 @@ export default function PropertyDocumentCenter() {
           {/* Search and Filters */}
           <Card>
             <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <div className="space-y-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Search documents by name, description, or tags..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="md:w-48">
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {DOCUMENT_CATEGORIES.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex items-center gap-2 flex-1">
+                    <label className="text-sm font-medium whitespace-nowrap">Date From:</label>
                     <Input
-                      placeholder="Search documents by name, description, or tags..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="flex-1"
                     />
                   </div>
+                  <div className="flex items-center gap-2 flex-1">
+                    <label className="text-sm font-medium whitespace-nowrap">Date To:</label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+                  <Select value={limit} onValueChange={(val) => { setLimit(val); setVisibleCount(10); }}>
+                    <SelectTrigger className="md:w-32">
+                      <SelectValue placeholder="Limit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="80">80</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="md:w-48">
-                    <SelectValue placeholder="Filter by category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {DOCUMENT_CATEGORIES.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
           </Card>
@@ -403,63 +504,93 @@ export default function PropertyDocumentCenter() {
                   )}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {filteredDocuments.map((document: any) => {
-                    const category = DOCUMENT_CATEGORIES.find(cat => cat.id === document.category);
-                    
-                    return (
-                      <div key={document.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex items-center gap-4">
-                          <div className={`p-2 rounded-lg ${category?.color || 'bg-gray-100 text-gray-700'}`}>
-                            {getFileIcon(document.fileType)}
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-medium">{getDisplayFilename(document)}</h3>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Badge variant="outline" className="text-xs">
-                                {category?.name || document.category}
-                              </Badge>
-                              <span>•</span>
-                              <User className="h-3 w-3" />
-                              <span>{document.uploadedBy}</span>
-                              <span>•</span>
-                              <Calendar className="h-3 w-3" />
-                              <span>{new Date(document.createdAt).toLocaleDateString()}</span>
+                <>
+                  <div className="space-y-3">
+                    {documentsToDisplay.map((document: any) => {
+                      const category = DOCUMENT_CATEGORIES.find(cat => cat.id === document.category);
+                      
+                      return (
+                        <div key={document.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-lg ${category?.color || 'bg-gray-100 text-gray-700'}`}>
+                              {getFileIcon(document.fileType)}
                             </div>
-                            {document.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{document.description}</p>
-                            )}
-                            {document.tags && document.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {document.tags.map((tag: string, index: number) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    <Tag className="h-2 w-2 mr-1" />
-                                    {tag}
-                                  </Badge>
-                                ))}
+                            <div className="flex-1">
+                              <h3 className="font-medium">{getDisplayFilename(document)}</h3>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Badge variant="outline" className="text-xs">
+                                  {category?.name || document.category}
+                                </Badge>
+                                <span>•</span>
+                                <User className="h-3 w-3" />
+                                <span>{document.uploadedBy}</span>
+                                <span>•</span>
+                                <Calendar className="h-3 w-3" />
+                                <span>{new Date(document.createdAt).toLocaleDateString()}</span>
                               </div>
+                              {document.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{document.description}</p>
+                              )}
+                              {document.tags && document.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {document.tags.map((tag: string, index: number) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      <Tag className="h-2 w-2 mr-1" />
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedDocument(document);
+                                setIsPreviewDialogOpen(true);
+                              }}
+                              data-testid={`button-view-${document.id}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleDownload(document)}
+                              data-testid={`button-download-${document.id}`}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            {canEdit && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => setDocumentToDelete(document)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                data-testid={`button-delete-${document.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedDocument(document);
-                              setIsPreviewDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleDownload(document)}>
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                  {hasMore && (
+                    <div className="mt-4 text-center">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setVisibleCount(prev => prev + 10)}
+                        data-testid="button-view-more"
+                      >
+                        View More ({filteredDocuments.length - visibleCount} remaining)
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -468,7 +599,7 @@ export default function PropertyDocumentCenter() {
 
       {/* Upload Dialog */}
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Upload Document</DialogTitle>
             <DialogDescription>
@@ -624,7 +755,7 @@ export default function PropertyDocumentCenter() {
                 </div>
                 <div>
                   <span className="font-medium">File type:</span>
-                  <span className="ml-2">{selectedDocument.fileType?.toUpperCase() || 'N/A'}</span>
+                  <span className="ml-2">{getFileTypeFromMime(selectedDocument.mimeType, selectedDocument.fileUrl)}</span>
                 </div>
               </div>
               {selectedDocument.description && (
@@ -659,6 +790,32 @@ export default function PropertyDocumentCenter() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!documentToDelete} onOpenChange={(open) => !open && setDocumentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{documentToDelete && getDisplayFilename(documentToDelete)}"? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (documentToDelete) {
+                  deleteMutation.mutate(documentToDelete.id);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

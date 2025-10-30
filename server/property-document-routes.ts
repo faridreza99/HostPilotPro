@@ -240,3 +240,54 @@ propertyDocRouter.get("/", isDemoAuthenticated, async (req, res) => {
     res.status(500).json({ message: "Server error fetching documents" });
   }
 });
+
+// DELETE endpoint to delete a document
+propertyDocRouter.delete("/:id", isDemoAuthenticated, requireDocumentAccess, async (req, res) => {
+  console.log("[ALT-ROUTE] DELETE /api/property-documents/:id hit");
+  try {
+    const orgId = req.user?.organizationId || "default-org";
+    const docId = parseInt(req.params.id);
+    
+    console.log(`[ALT-ROUTE] DELETE - Deleting document ${docId} for org ${orgId}`);
+    
+    // First check if document exists and belongs to this organization
+    const existingDoc = await db.select()
+      .from(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.id, docId),
+        eq(propertyDocuments.organizationId, orgId)
+      ))
+      .limit(1);
+    
+    if (!existingDoc || existingDoc.length === 0) {
+      return res.status(404).json({ message: "Document not found or access denied" });
+    }
+    
+    // Delete the file from filesystem if it exists
+    const doc = existingDoc[0];
+    if (doc.fileUrl) {
+      // Remove leading slash and prepend 'server' directory
+      const normalizedPath = doc.fileUrl.replace(/^\//, '');
+      const filePath = path.join(process.cwd(), 'server', normalizedPath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`[ALT-ROUTE] DELETE - File deleted: ${filePath}`);
+      } else {
+        console.log(`[ALT-ROUTE] DELETE - File not found at: ${filePath}`);
+      }
+    }
+    
+    // Delete from database
+    await db.delete(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.id, docId),
+        eq(propertyDocuments.organizationId, orgId)
+      ));
+    
+    console.log(`[ALT-ROUTE] DELETE - Document ${docId} deleted successfully`);
+    res.json({ message: "Document deleted successfully" });
+  } catch (err) {
+    console.error("[ALT-ROUTE] ERROR deleting document:", err);
+    res.status(500).json({ message: "Server error deleting document" });
+  }
+});
