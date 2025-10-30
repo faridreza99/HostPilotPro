@@ -188,10 +188,11 @@ export default function PropertyDocumentCenter() {
   };
 
   const filteredDocuments = (documents as any[])?.filter((doc) => {
-    const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory;
-    const matchesSearch = doc.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesCategory = selectedCategory === "all" || doc.category === selectedCategory || doc.docType === selectedCategory;
+    const matchesSearch = !searchTerm || 
+                         doc.fileName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doc.tags?.some((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+                         doc.tags?.some((tag: string) => tag?.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesCategory && matchesSearch;
   }) || [];
 
