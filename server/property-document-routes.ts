@@ -241,6 +241,60 @@ propertyDocRouter.get("/", isDemoAuthenticated, async (req, res) => {
   }
 });
 
+// Download endpoint to serve files properly
+propertyDocRouter.get("/:id/download", isDemoAuthenticated, async (req, res) => {
+  console.log("[ALT-ROUTE] GET /api/property-documents/:id/download hit");
+  try {
+    const orgId = req.user?.organizationId || "default-org";
+    const docId = parseInt(req.params.id);
+    
+    // Fetch document from database
+    const doc = await db.select()
+      .from(propertyDocuments)
+      .where(and(
+        eq(propertyDocuments.id, docId),
+        eq(propertyDocuments.organizationId, orgId)
+      ))
+      .limit(1);
+    
+    if (!doc || doc.length === 0) {
+      return res.status(404).json({ message: "Document not found or access denied" });
+    }
+    
+    const document = doc[0];
+    
+    if (!document.fileUrl) {
+      return res.status(404).json({ message: "File URL not found" });
+    }
+    
+    // Build file path
+    const normalizedPath = document.fileUrl.replace(/^\//, '');
+    const filePath = path.join(process.cwd(), 'server', normalizedPath);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      console.log(`[ALT-ROUTE] DOWNLOAD - File not found at: ${filePath}`);
+      return res.status(404).json({ message: "File not found on server" });
+    }
+    
+    // Get filename for download
+    const filename = document.fileName || path.basename(filePath);
+    
+    // Set proper headers
+    res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+    console.log(`[ALT-ROUTE] DOWNLOAD - Serving file: ${filePath}`);
+  } catch (err) {
+    console.error("[ALT-ROUTE] ERROR downloading file:", err);
+    res.status(500).json({ message: "Server error downloading file" });
+  }
+});
+
 // DELETE endpoint to delete a document
 propertyDocRouter.delete("/:id", isDemoAuthenticated, requireDocumentAccess, async (req, res) => {
   console.log("[ALT-ROUTE] DELETE /api/property-documents/:id hit");

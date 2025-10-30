@@ -72,22 +72,44 @@ export default function PropertyDocumentCenter() {
   const queryClient = useQueryClient();
 
   // Download handler
-  const handleDownload = (document: any) => {
-    if (!document.fileUrl) {
+  const handleDownload = async (document: any) => {
+    if (!document.id) {
       toast({
         title: "Download Failed",
-        description: "File URL is missing for this document.",
+        description: "Document ID is missing.",
         variant: "destructive",
       });
       return;
     }
     
-    const link = window.document.createElement('a');
-    link.href = document.fileUrl;
-    link.download = getDisplayFilename(document);
-    window.document.body.appendChild(link);
-    link.click();
-    window.document.body.removeChild(link);
+    try {
+      const response = await fetch(`/api/property-documents/${document.id}/download`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = getDisplayFilename(document);
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download Started",
+        description: "Your file is being downloaded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download the file. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Delete mutation
