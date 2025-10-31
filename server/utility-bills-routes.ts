@@ -161,6 +161,93 @@ router.post("/", isDemoAuthenticated, upload.single('receipt'), async (req, res)
   }
 });
 
+// PATCH /api/utility-bills/:id - Update bill status
+router.patch("/:id", isDemoAuthenticated, async (req, res) => {
+  console.log("[UTILITY-BILLS] PATCH /api/utility-bills/:id hit");
+  
+  try {
+    const orgId = req.user?.organizationId || "default-org";
+    const billId = parseInt(req.params.id, 10);
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+
+    const validStatuses = ['pending', 'uploaded', 'paid', 'overdue'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    // Update the bill
+    const updated = await db.update(utilityBills)
+      .set({ status })
+      .where(and(
+        eq(utilityBills.id, billId),
+        eq(utilityBills.organizationId, orgId)
+      ))
+      .returning();
+
+    if (!updated.length) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    console.log("[UTILITY-BILLS] Updated bill status:", updated[0]);
+    res.json({ bill: updated[0] });
+
+  } catch (err: any) {
+    console.error("[UTILITY-BILLS] ERROR updating bill:", err);
+    res.status(500).json({ error: err.message || 'Server error updating bill' });
+  }
+});
+
+// DELETE /api/utility-bills/:id - Delete a utility bill
+router.delete("/:id", isDemoAuthenticated, async (req, res) => {
+  console.log("[UTILITY-BILLS] DELETE /api/utility-bills/:id hit");
+  
+  try {
+    const orgId = req.user?.organizationId || "default-org";
+    const billId = parseInt(req.params.id, 10);
+
+    // First, get the bill to delete the receipt file if it exists
+    const bill = await db.select()
+      .from(utilityBills)
+      .where(and(
+        eq(utilityBills.id, billId),
+        eq(utilityBills.organizationId, orgId)
+      ))
+      .limit(1);
+
+    if (!bill.length) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    // Delete the file if it exists
+    if (bill[0].receiptFilename) {
+      const filePath = path.join(uploadsDir, path.basename(bill[0].receiptUrl || ''));
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log("[UTILITY-BILLS] Deleted file:", filePath);
+      }
+    }
+
+    // Delete the bill record
+    const deleted = await db.delete(utilityBills)
+      .where(and(
+        eq(utilityBills.id, billId),
+        eq(utilityBills.organizationId, orgId)
+      ))
+      .returning();
+
+    console.log("[UTILITY-BILLS] Deleted bill:", deleted[0]);
+    res.json({ message: 'Bill deleted successfully', bill: deleted[0] });
+
+  } catch (err: any) {
+    console.error("[UTILITY-BILLS] ERROR deleting bill:", err);
+    res.status(500).json({ error: err.message || 'Server error deleting bill' });
+  }
+});
+
 // Serve uploaded files statically
 router.use('/uploads', (req, res, next) => {
   console.log("[UTILITY-BILLS] Serving file:", req.path);
