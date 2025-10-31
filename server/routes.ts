@@ -3419,22 +3419,38 @@ Be specific and actionable in your recommendations.`;
     }
   });
 
-  app.post("/api/utility-bills", isDemoAuthenticated, async (req, res) => {
-    try {
-      const { organizationId } = getTenantContext(req);
-      
-      const validatedData = insertUtilityBillSchema.parse({
-        ...req.body,
-        organizationId,
-      });
-
-      const bill = await storage.createUtilityBill(validatedData);
-      res.status(201).json(bill);
-    } catch (error) {
-      console.error("Error creating utility bill:", error);
-      res.status(500).json({ message: "Failed to create utility bill" });
-    }
-  });
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //   app.post("/api/utility-bills", isDemoAuthenticated, async (req, res) => {
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //     try {
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //       const { organizationId } = getTenantContext(req);
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //       
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //       const validatedData = insertUtilityBillSchema.parse({
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //         ...req.body,
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //         organizationId,
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //       });
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  // 
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //       const bill = await storage.createUtilityBill(validatedData);
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //       res.status(201).json(bill);
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //     } catch (error) {
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //       console.error("Error creating utility bill:", error);
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //       res.status(500).json({ message: "Failed to create utility bill" });
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //     }
+  // COMMENTED OUT - Using utility-bills-routes.ts instead
+  //   });
 
   // Welcome Pack Inventory routes
   app.get("/api/welcome-pack-items", isDemoAuthenticated, async (req, res) => {
