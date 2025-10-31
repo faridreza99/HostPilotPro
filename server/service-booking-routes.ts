@@ -174,7 +174,7 @@ serviceBookingRouter.get("/", isDemoAuthenticated, async (req, res) => {
       guestEmail: row.addon_bookings.guestEmail,
       guestPhone: row.addon_bookings.guestPhone,
       propertyId: row.addon_bookings.propertyId,
-      propertyName: row.properties?.externalName || null,
+      propertyName: row.properties?.name || null,
       billingType: row.addon_bookings.billingType,
       priceCents: row.addon_bookings.priceCents,
       dateDue: row.addon_bookings.dateDue,
