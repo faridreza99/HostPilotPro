@@ -102,6 +102,15 @@ app.use((req, res, next) => {
   app.use("/api/service-bookings", serviceBookingRouter);
   console.log("[INIT] Service booking routes mounted ✅");
 
+  // Register Utility Bills routes
+  const utilityBillsRouter = (await import('./utility-bills-routes')).default;
+  app.use("/api/utility-bills", utilityBillsRouter);
+  console.log("[INIT] Utility bills routes mounted ✅");
+
+  // Serve uploaded files
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+  console.log("[INIT] Static uploads directory mounted ✅");
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
