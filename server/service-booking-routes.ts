@@ -156,30 +156,33 @@ serviceBookingRouter.get("/", isDemoAuthenticated, async (req, res) => {
     const limit = Math.min(100, Number(req.query.limit) || 50);
 
     // Fetch bookings with service name and property name
-    const bookings = await db.select({
-      id: addonBookings.id,
-      bookingIdRef: addonBookings.bookingIdRef,
-      serviceId: addonBookings.serviceId,
-      serviceName: addonServices.name,
-      guestName: addonBookings.guestName,
-      guestEmail: addonBookings.guestEmail,
-      guestPhone: addonBookings.guestPhone,
-      propertyId: addonBookings.propertyId,
-      propertyName: properties.externalName,
-      billingType: addonBookings.billingType,
-      priceCents: addonBookings.priceCents,
-      dateDue: addonBookings.dateDue,
-      scheduledDate: addonBookings.scheduledDate,
-      status: addonBookings.status,
-      totalPrice: addonBookings.totalPrice,
-      createdAt: addonBookings.createdAt,
-    })
-    .from(addonBookings)
-    .leftJoin(addonServices, eq(addonBookings.serviceId, addonServices.id))
-    .leftJoin(properties, eq(addonBookings.propertyId, properties.id))
-    .where(eq(addonBookings.organizationId, orgId))
-    .orderBy(order === 'asc' ? addonBookings.createdAt : desc(addonBookings.createdAt))
-    .limit(limit);
+    const rawBookings = await db.select()
+      .from(addonBookings)
+      .leftJoin(addonServices, eq(addonBookings.serviceId, addonServices.id))
+      .leftJoin(properties, eq(addonBookings.propertyId, properties.id))
+      .where(eq(addonBookings.organizationId, orgId))
+      .orderBy(order === 'asc' ? addonBookings.createdAt : desc(addonBookings.createdAt))
+      .limit(limit);
+
+    // Transform the results to flatten the joined data
+    const bookings = rawBookings.map((row: any) => ({
+      id: row.addon_bookings.id,
+      bookingIdRef: row.addon_bookings.bookingIdRef,
+      serviceId: row.addon_bookings.serviceId,
+      serviceName: row.addon_services?.name || null,
+      guestName: row.addon_bookings.guestName,
+      guestEmail: row.addon_bookings.guestEmail,
+      guestPhone: row.addon_bookings.guestPhone,
+      propertyId: row.addon_bookings.propertyId,
+      propertyName: row.properties?.externalName || null,
+      billingType: row.addon_bookings.billingType,
+      priceCents: row.addon_bookings.priceCents,
+      dateDue: row.addon_bookings.dateDue,
+      scheduledDate: row.addon_bookings.scheduledDate,
+      status: row.addon_bookings.status,
+      totalPrice: row.addon_bookings.totalPrice,
+      createdAt: row.addon_bookings.createdAt,
+    }));
 
     console.log("[SERVICE-BOOKING] Found", bookings.length, "bookings");
     res.json({ bookings });
