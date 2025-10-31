@@ -125,7 +125,7 @@ serviceBookingRouter.post("/", isDemoAuthenticated, async (req, res) => {
       billingType: billing_type,
       priceCents: price_cents,
       dateDue: date_due || null,
-      scheduledDate: scheduled_date || new Date(),
+      scheduledDate: scheduled_date ? new Date(scheduled_date) : new Date(),
       duration: serviceData.duration || null,
       basePrice: serviceData.basePrice || null,
       totalPrice,
