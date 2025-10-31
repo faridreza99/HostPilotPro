@@ -167,12 +167,12 @@ export default function UploadReceiptModal({ open, onClose }: UploadReceiptModal
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Upload Utility Bill</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto px-1" style={{ maxHeight: 'calc(90vh - 120px)' }}>
           <div className="space-y-2">
             <Label htmlFor="property">Property *</Label>
             <Select value={propertyId} onValueChange={setPropertyId} required>
