@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -145,8 +145,18 @@ export default function CreateAddonBookingDialog({
   const watchedBillingType = form.watch("billingType");
   const watchedPrice = form.watch("price");
 
+  // Initialize form with selected service/property when dialog opens
+  useEffect(() => {
+    if (open && selectedServiceId) {
+      form.setValue("serviceId", selectedServiceId.toString());
+    }
+    if (open && selectedPropertyId) {
+      form.setValue("propertyId", selectedPropertyId.toString());
+    }
+  }, [open, selectedServiceId, selectedPropertyId, form]);
+
   // Calculate price when service or inputs change
-  useState(() => {
+  useEffect(() => {
     if (services && watchedServiceId) {
       const service = (services as any[]).find((s: any) => s.id.toString() === watchedServiceId);
       if (service) {
@@ -169,7 +179,7 @@ export default function CreateAddonBookingDialog({
         setCalculatedPrice(price);
       }
     }
-  });
+  }, [services, watchedServiceId, watchedDuration, watchedQuantity]);
 
   const mutation = useMutation({
     mutationFn: async (data: BookingFormData) => {
@@ -624,6 +634,12 @@ export default function CreateAddonBookingDialog({
               <Button 
                 type="submit" 
                 disabled={mutation.isPending}
+                onClick={(e) => {
+                  console.log("🔘 Book Service button clicked");
+                  console.log("Form values:", form.getValues());
+                  console.log("Form errors:", form.formState.errors);
+                  console.log("Form is valid:", form.formState.isValid);
+                }}
               >
                 {mutation.isPending ? "Booking..." : "Book Service"}
               </Button>
