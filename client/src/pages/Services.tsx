@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 import TopBar from "@/components/TopBar";
 import CreateAddonBookingDialog from "@/components/CreateAddonBookingDialog";
@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Utensils, Heart, Car, MapPin, Users, Calendar, ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Utensils, Heart, Car, MapPin, Users, Calendar, ExternalLink, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function Services() {
   const [activeTab, setActiveTab] = useState("addon-services");
@@ -17,6 +20,15 @@ export default function Services() {
   const [selectedServiceId, setSelectedServiceId] = useState<number>();
   const [selectedPropertyId, setSelectedPropertyId] = useState<number>();
   const [showUploadModal, setShowUploadModal] = useState(false);
+  
+  // Utility Bills filters
+  const [filterProperty, setFilterProperty] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDateFrom, setFilterDateFrom] = useState<string>("");
+  const [filterDateTo, setFilterDateTo] = useState<string>("");
+  
+  const { toast } = useToast();
 
   const { data: addonServices = [] } = useQuery({
     queryKey: ["/api/addon-services"],
@@ -38,9 +50,86 @@ export default function Services() {
     queryKey: ["/api/utility-bills"],
   });
 
+  const { data: properties = [] } = useQuery({
+    queryKey: ["/api/properties"],
+  });
+
   const { data: systemSettings } = useQuery({
     queryKey: ["/api/system-settings"],
   });
+  
+  // Update bill status mutation
+  const updateBillStatusMutation = useMutation({
+    mutationFn: async ({ billId, status }: { billId: number; status: string }) => {
+      return await apiRequest("PATCH", `/api/utility-bills/${billId}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/utility-bills"] });
+      toast({
+        title: "Status Updated",
+        description: "Bill status has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update bill status.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Delete bill mutation
+  const deleteBillMutation = useMutation({
+    mutationFn: async (billId: number) => {
+      return await apiRequest("DELETE", `/api/utility-bills/${billId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/utility-bills"] });
+      toast({
+        title: "Bill Deleted",
+        description: "Utility bill has been deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete bill.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Filtered utility bills based on all filters
+  const filteredUtilityBills = useMemo(() => {
+    return utilityBills.filter((bill: any) => {
+      // Property filter
+      if (filterProperty !== "all" && bill.propertyId !== parseInt(filterProperty)) {
+        return false;
+      }
+      
+      // Type filter
+      if (filterType !== "all" && bill.type !== filterType) {
+        return false;
+      }
+      
+      // Status filter
+      if (filterStatus !== "all" && bill.status !== filterStatus) {
+        return false;
+      }
+      
+      // Date range filter
+      const billDate = new Date(bill.dueDate);
+      if (filterDateFrom && new Date(filterDateFrom) > billDate) {
+        return false;
+      }
+      if (filterDateTo && new Date(filterDateTo) < billDate) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [utilityBills, filterProperty, filterType, filterStatus, filterDateFrom, filterDateTo]);
 
   const formatPrice = (cents: number | null | undefined): string => {
     if (cents === null || cents === undefined) return "$0.00";
@@ -256,20 +345,27 @@ export default function Services() {
               {/* Filter Controls */}
               <Card>
                 <CardContent className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                     <div>
-                      <Select>
-                        <SelectTrigger>
+                      <label className="text-sm font-medium mb-1 block">Property</label>
+                      <Select value={filterProperty} onValueChange={setFilterProperty}>
+                        <SelectTrigger data-testid="select-filter-property">
                           <SelectValue placeholder="All Properties" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Properties</SelectItem>
+                          {(properties as any[]).map((property: any) => (
+                            <SelectItem key={property.id} value={property.id.toString()}>
+                              {property.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Select>
-                        <SelectTrigger>
+                      <label className="text-sm font-medium mb-1 block">Type</label>
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger data-testid="select-filter-type">
                           <SelectValue placeholder="All Types" />
                         </SelectTrigger>
                         <SelectContent>
@@ -279,12 +375,14 @@ export default function Services() {
                           <SelectItem value="gas">Gas</SelectItem>
                           <SelectItem value="internet">Internet</SelectItem>
                           <SelectItem value="maintenance">Maintenance</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Select>
-                        <SelectTrigger>
+                      <label className="text-sm font-medium mb-1 block">Status</label>
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger data-testid="select-filter-status">
                           <SelectValue placeholder="All Status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -297,15 +395,36 @@ export default function Services() {
                       </Select>
                     </div>
                     <div>
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => setShowUploadModal(true)}
-                        data-testid="button-upload-receipt"
-                      >
-                        Upload Receipt
-                      </Button>
+                      <label className="text-sm font-medium mb-1 block">Date From</label>
+                      <Input
+                        type="date"
+                        value={filterDateFrom}
+                        onChange={(e) => setFilterDateFrom(e.target.value)}
+                        data-testid="input-filter-date-from"
+                      />
                     </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Date To</label>
+                      <Input
+                        type="date"
+                        value={filterDateTo}
+                        onChange={(e) => setFilterDateTo(e.target.value)}
+                        data-testid="input-filter-date-to"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
+                      Showing {filteredUtilityBills.length} of {utilityBills.length} bills
+                    </div>
+                    <Button 
+                      variant="default" 
+                      onClick={() => setShowUploadModal(true)}
+                      data-testid="button-upload-receipt"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Upload Receipt
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -316,9 +435,14 @@ export default function Services() {
                   <CardTitle>Utility Bills & Recurring Expenses</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {utilityBills.length === 0 ? (
+                  {filteredUtilityBills.length === 0 ? (
                     <div className="text-center py-8">
-                      <p className="text-gray-500">No utility bills found</p>
+                      <p className="text-gray-500">
+                        {utilityBills.length === 0 
+                          ? "No utility bills found" 
+                          : "No bills match the current filters"
+                        }
+                      </p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -335,7 +459,7 @@ export default function Services() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {utilityBills.map((bill: any) => (
+                          {filteredUtilityBills.map((bill: any) => (
                             <TableRow key={bill.id}>
                               <TableCell className="capitalize">{bill.type}</TableCell>
                               <TableCell>{bill.provider || '-'}</TableCell>
@@ -353,13 +477,37 @@ export default function Services() {
                                 </span>
                               </TableCell>
                               <TableCell>
-                                <Badge variant={getStatusColor(bill.status)}>
-                                  {bill.status}
-                                </Badge>
+                                <Select
+                                  value={bill.status}
+                                  onValueChange={(newStatus) => {
+                                    updateBillStatusMutation.mutate({
+                                      billId: bill.id,
+                                      status: newStatus
+                                    });
+                                  }}
+                                  disabled={updateBillStatusMutation.isPending}
+                                >
+                                  <SelectTrigger 
+                                    className="w-[120px]"
+                                    data-testid={`select-status-${bill.id}`}
+                                  >
+                                    <SelectValue>
+                                      <Badge variant={getStatusColor(bill.status)} className="cursor-pointer">
+                                        {bill.status}
+                                      </Badge>
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="uploaded">Uploaded</SelectItem>
+                                    <SelectItem value="paid">Paid</SelectItem>
+                                    <SelectItem value="overdue">Overdue</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </TableCell>
                               <TableCell>
                                 <div className="flex space-x-2">
-                                  {bill.receiptUrl ? (
+                                  {bill.receiptUrl && (
                                     <Button 
                                       variant="outline" 
                                       size="sm"
@@ -369,16 +517,21 @@ export default function Services() {
                                       <ExternalLink className="w-3 h-3 mr-1" />
                                       View
                                     </Button>
-                                  ) : (
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => setShowUploadModal(true)}
-                                      data-testid={`button-upload-${bill.id}`}
-                                    >
-                                      Upload
-                                    </Button>
                                   )}
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      if (confirm('Are you sure you want to delete this utility bill?')) {
+                                        deleteBillMutation.mutate(bill.id);
+                                      }
+                                    }}
+                                    disabled={deleteBillMutation.isPending}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    data-testid={`button-delete-${bill.id}`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
