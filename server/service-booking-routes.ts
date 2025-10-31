@@ -1,7 +1,7 @@
 import express from "express";
 import { isDemoAuthenticated } from "./demoAuth";
 import { db } from "./db";
-import { addonServices, addonBookings } from "@shared/schema";
+import { addonServices, addonBookings, properties } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 export const serviceBookingRouter = express.Router();
@@ -155,7 +155,7 @@ serviceBookingRouter.get("/", isDemoAuthenticated, async (req, res) => {
     const order = req.query.order === 'asc' ? 'asc' : 'desc';
     const limit = Math.min(100, Number(req.query.limit) || 50);
 
-    // Fetch bookings with service name
+    // Fetch bookings with service name and property name
     const bookings = await db.select({
       id: addonBookings.id,
       bookingIdRef: addonBookings.bookingIdRef,
@@ -165,6 +165,7 @@ serviceBookingRouter.get("/", isDemoAuthenticated, async (req, res) => {
       guestEmail: addonBookings.guestEmail,
       guestPhone: addonBookings.guestPhone,
       propertyId: addonBookings.propertyId,
+      propertyName: properties.externalName,
       billingType: addonBookings.billingType,
       priceCents: addonBookings.priceCents,
       dateDue: addonBookings.dateDue,
@@ -175,6 +176,7 @@ serviceBookingRouter.get("/", isDemoAuthenticated, async (req, res) => {
     })
     .from(addonBookings)
     .leftJoin(addonServices, eq(addonBookings.serviceId, addonServices.id))
+    .leftJoin(properties, eq(addonBookings.propertyId, properties.id))
     .where(eq(addonBookings.organizationId, orgId))
     .orderBy(order === 'asc' ? addonBookings.createdAt : desc(addonBookings.createdAt))
     .limit(limit);

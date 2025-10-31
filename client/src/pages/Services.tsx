@@ -225,7 +225,7 @@ export default function Services() {
                             <TableCell className="font-mono text-xs">{booking.bookingIdRef || 'N/A'}</TableCell>
                             <TableCell>{booking.serviceName || 'Unknown'}</TableCell>
                             <TableCell>{booking.guestName}</TableCell>
-                            <TableCell>Property {booking.propertyId}</TableCell>
+                            <TableCell>{booking.propertyName || `Property ${booking.propertyId}`}</TableCell>
                             <TableCell>{new Date(booking.scheduledDate).toLocaleDateString()}</TableCell>
                             <TableCell>
                               {booking.priceCents ? formatPrice(booking.priceCents) : (
