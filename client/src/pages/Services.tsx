@@ -63,8 +63,8 @@ export default function Services() {
     mutationFn: async ({ billId, status }: { billId: number; status: string }) => {
       return await apiRequest("PATCH", `/api/utility-bills/${billId}`, { status });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/utility-bills"] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ["/api/utility-bills"] });
       toast({
         title: "Status Updated",
         description: "Bill status has been updated successfully.",
