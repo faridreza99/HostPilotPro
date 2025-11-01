@@ -128,6 +128,7 @@ export default function Bookings() {
   const [activeTab, setActiveTab] = useState("bookings");
   const [viewMode, setViewMode] = useState("list");
   const [search, setSearch] = useState('');
+  const [filterProperty, setFilterProperty] = useState('all');
   const [filterArea, setFilterArea] = useState('all');
   const [filterManager, setFilterManager] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -175,6 +176,10 @@ export default function Bookings() {
     const propertyName = property?.name || '';
     const propertyAddress = property?.address || '';
     
+    // Property filter: filter by specific property
+    const matchesProperty = filterProperty === 'all' || 
+      booking.propertyId === parseInt(filterProperty);
+    
     // Search filter: check property name or guest name
     const matchesSearch = search === '' || 
       propertyName.toLowerCase().includes(search.toLowerCase()) ||
@@ -192,7 +197,7 @@ export default function Bookings() {
     const matchesStatus = filterStatus === 'all' || 
       booking.status?.toLowerCase() === filterStatus.toLowerCase();
     
-    return matchesSearch && matchesArea && matchesManager && matchesStatus;
+    return matchesProperty && matchesSearch && matchesArea && matchesManager && matchesStatus;
   });
 
   // Group bookings by property for calendar view
@@ -249,7 +254,7 @@ export default function Bookings() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Search</label>
                 <div className="relative">
@@ -262,6 +267,23 @@ export default function Bookings() {
                     className="pl-9"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Property</label>
+                <Select value={filterProperty} onValueChange={setFilterProperty}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Properties" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Properties</SelectItem>
+                    {propertiesArray.map((property: any) => (
+                      <SelectItem key={property.id} value={String(property.id)}>
+                        {property.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="space-y-2">
@@ -368,7 +390,7 @@ export default function Bookings() {
                 <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">No Bookings Found</h3>
                 <p className="text-muted-foreground mb-4">
-                  {search || filterArea !== 'all' || filterStatus !== 'all' 
+                  {search || filterProperty !== 'all' || filterArea !== 'all' || filterStatus !== 'all' 
                     ? 'Try adjusting your filters' 
                     : 'Create your first booking to get started'}
                 </p>
