@@ -72,7 +72,9 @@ export default function FinanceHub() {
   const { data: analytics, isLoading: analyticsLoading } =
     useQuery<FinanceAnalytics>({
       queryKey: ["/api/finance/analytics"],
-    });
+    });`
+    `
+  console.log("Total Revenue", analytics);
 
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery<
     FinanceTransaction[]
@@ -87,8 +89,6 @@ export default function FinanceHub() {
   const { data: bookings = [] } = useQuery<any[]>({
     queryKey: ["/api/bookings"],
   });
-
-  console.log("booking data", bookings);
 
   // Handle URL parameters for property-specific filtering
   useEffect(() => {
@@ -131,13 +131,26 @@ export default function FinanceHub() {
   };
 
   // Calculate analytics from bookings
+  // const bookingAnalytics = useMemo(() => {
+  //   let totalRevenue = 0;
+
+  //   bookings.forEach((booking: any) => {
+  //     if (booking.status === "confirmed" || booking.status === "checked-in") {
+  //       const amount = parseFloat(booking.totalAmount || "0");
+  //       totalRevenue += amount;
+  //     }
+  //   });
+
+  //   return { totalRevenue };
+  // }, [bookings]);
+
   const bookingAnalytics = useMemo(() => {
+    // initialize sum
     let totalRevenue = 0;
 
     bookings.forEach((booking: any) => {
-      if (booking.status === "confirmed" || booking.status === "checked-in") {
-        const amount = parseFloat(booking.totalAmount || "0");
-        console.log("amount", amount);
+      const amount = parseFloat(booking.totalAmount);
+      if (!isNaN(amount)) {
         totalRevenue += amount;
       }
     });
