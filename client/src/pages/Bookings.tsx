@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -152,6 +152,15 @@ export default function Bookings() {
   // Type assertions for safety
   const bookingsArray = Array.isArray(bookings) ? bookings : [];
   const propertiesArray = Array.isArray(properties) ? properties : [];
+
+  // Handle URL parameters for property-specific filtering
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyId = urlParams.get("propertyId");
+    if (propertyId) {
+      setFilterProperty(propertyId);
+    }
+  }, []);
 
   const handleBookingClick = (bookingId: number) => {
     setSelectedBookingId(bookingId);
