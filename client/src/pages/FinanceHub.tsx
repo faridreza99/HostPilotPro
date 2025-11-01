@@ -137,6 +137,7 @@ export default function FinanceHub() {
     bookings.forEach((booking: any) => {
       if (booking.status === "confirmed" || booking.status === "checked-in") {
         const amount = parseFloat(booking.totalAmount || "0");
+        console.log("amount", amount);
         totalRevenue += amount;
       }
     });
