@@ -12,6 +12,7 @@ import { useToast } from "../hooks/use-toast";
 import { Plus, ExternalLink, Loader2 } from "lucide-react";
 import { fastCache } from "../lib/fastCache";
 import { useFastAuth } from "../lib/fastAuth";
+import { invalidatePropertyQueries } from "../lib/queryKeys";
 
 // Add debugging for property creation issues
 console.log("🏠 Property Dialog component loaded");
@@ -57,15 +58,8 @@ export default function CreatePropertyDialog({ open, onOpenChange }: CreatePrope
       fastCache.delete("/api/dashboard");
       console.log("✅ FastCache cleared for properties and dashboard");
       
-      // Invalidate ALL property-related queries
-      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
-      
-      // Force immediate refetch to update UI
-      queryClient.refetchQueries({ queryKey: ["/api/properties"] });
-      queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.refetchQueries({ queryKey: ["/api/dashboard"] });
+      // Use centralized invalidation helper to update all related queries
+      invalidatePropertyQueries(queryClient);
       
       // Invalidate achievement cache - backend recalculates on GET request
       if (user?.id) {

@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { invalidateFinanceQueries } from "@/lib/queryKeys";
 import {
   Dialog,
   DialogContent,
@@ -207,16 +208,8 @@ export default function CreateFinanceDialog({ open, onOpenChange }: CreateFinanc
       return await apiRequest("POST", "/api/finances", financeData);
     },
     onSuccess: async () => {
-      // Invalidate and refetch all finance-related queries to ensure instant data refresh
-      await queryClient.invalidateQueries({ queryKey: ["/api/finances"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/finance"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/finance/analytics"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
-      
-      await queryClient.refetchQueries({ queryKey: ["/api/finances"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/finance"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/finance/analytics"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/dashboard"] });
+      // Invalidate all finance-related queries to trigger automatic refetch
+      invalidateFinanceQueries(queryClient);
       
       toast({
         title: "Finance Record Created",

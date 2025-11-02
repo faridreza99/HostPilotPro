@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { queryKeys, invalidatePropertyQueries } from "@/lib/queryKeys";
 
 export default function Properties() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -18,7 +19,7 @@ export default function Properties() {
   const { toast } = useToast();
 
   const { data: properties = [], isLoading } = useQuery({
-    queryKey: ["/api/properties"],
+    queryKey: queryKeys.properties.all(),
   });
 
   // Type assertion for properties array
@@ -29,7 +30,7 @@ export default function Properties() {
       await apiRequest("DELETE", `/api/properties/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+      invalidatePropertyQueries(queryClient);
       toast({
         title: "Success",
         description: "Property deleted successfully",

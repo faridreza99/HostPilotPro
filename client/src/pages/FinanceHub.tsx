@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { queryClient } from "../lib/queryClient";
+import { queryKeys } from "../lib/queryKeys";
 import CreateFinanceDialog from "../components/CreateFinanceDialog";
 
 interface FinanceAnalytics {
@@ -71,23 +72,21 @@ export default function FinanceHub() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
-  const analyticsUrl = propertyFilter !== "all" 
-    ? `/api/finance/analytics?propertyId=${propertyFilter}`
-    : "/api/finance/analytics";
-
   const { data: analytics, isLoading: analyticsLoading } =
     useQuery<FinanceAnalytics>({
-      queryKey: [analyticsUrl],
+      queryKey: propertyFilter !== "all" 
+        ? queryKeys.finance.analytics(propertyFilter)
+        : queryKeys.finance.analytics(),
     });
 
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery<
     FinanceTransaction[]
   >({
-    queryKey: ["/api/finance"],
+    queryKey: queryKeys.finance.all(),
   });
 
   const { data: properties = [] } = useQuery<any[]>({
-    queryKey: ["/api/properties"],
+    queryKey: queryKeys.properties.all(),
   });
 
   // Get propertyId from URL
@@ -110,8 +109,8 @@ export default function FinanceHub() {
     setIsRefreshing(true);
     try {
       await Promise.all([
-        queryClient.refetchQueries({ queryKey: ["/api/finance"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/finance/analytics"] }),
+        queryClient.refetchQueries({ queryKey: queryKeys.finance.all() }),
+        queryClient.refetchQueries({ queryKey: ['/api/finance/analytics'] }), // Refetch all analytics
       ]);
       toast({
         title: "Refreshed",
