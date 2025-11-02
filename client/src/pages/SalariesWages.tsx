@@ -1,13 +1,41 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, DollarSign, FileText, BarChart3, Plus, Eye, Edit, Trash2 } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Users,
+  DollarSign,
+  FileText,
+  BarChart3,
+  Plus,
+  Eye,
+  Edit,
+  Trash2,
+} from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface StaffMember {
   id: number;
@@ -19,10 +47,10 @@ interface StaffMember {
   position: string;
   department: string;
   hireDate: string;
-  salaryType: 'monthly' | 'hourly';
+  salaryType: "monthly" | "hourly";
   monthlySalary?: number;
   hourlyRate?: number;
-  status: 'active' | 'inactive' | 'terminated';
+  status: "active" | "inactive" | "terminated";
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   address?: string;
@@ -43,7 +71,7 @@ interface PayrollRecord {
   netPay: number;
   taxDeduction: number;
   socialSecurity: number;
-  status: 'pending' | 'approved' | 'paid';
+  status: "pending" | "approved" | "paid";
   paymentDate?: string;
   paymentMethod?: string;
   notes?: string;
@@ -67,45 +95,56 @@ export default function SalariesWages() {
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
 
   // Fetch staff members
-  const { data: staffMembers = [], isLoading: staffLoading } = useQuery<StaffMember[]>({
-    queryKey: ['/api/staff-members'],
-    queryFn: () => apiRequest('/api/staff-members?organizationId=default-org'),
+  const { data: staffMembers = [], isLoading: staffLoading } = useQuery<
+    StaffMember[]
+  >({
+    queryKey: ["/api/staff-members"],
+    queryFn: () => apiRequest("/api/staff-members?organizationId=default-org"),
   });
 
   // Fetch payroll records
-  const { data: payrollRecords = [], isLoading: payrollLoading } = useQuery<PayrollRecord[]>({
-    queryKey: ['/api/payroll-records'],
-    queryFn: () => apiRequest('/api/payroll-records?organizationId=default-org'),
+  const { data: payrollRecords = [], isLoading: payrollLoading } = useQuery<
+    PayrollRecord[]
+  >({
+    queryKey: ["/api/payroll-records"],
+    queryFn: () =>
+      apiRequest("/api/payroll-records?organizationId=default-org"),
   });
 
   // Fetch analytics
-  const { data: analytics, isLoading: analyticsLoading } = useQuery<StaffAnalytics>({
-    queryKey: ['/api/staff-analytics'],
-    queryFn: () => apiRequest('/api/staff-analytics?organizationId=default-org'),
-  });
+  const { data: analytics, isLoading: analyticsLoading } =
+    useQuery<StaffAnalytics>({
+      queryKey: ["/api/staff-analytics"],
+      queryFn: () =>
+        apiRequest("/api/staff-analytics?organizationId=default-org"),
+    });
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: 'THB',
+    return new Intl.NumberFormat("th-TH", {
+      style: "currency",
+      currency: "THB",
     }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US');
+    return new Date(dateString).toLocaleDateString("en-US");
   };
 
   const getStatusBadge = (status: string) => {
     const colors = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-yellow-100 text-yellow-800',
-      terminated: 'bg-red-100 text-red-800',
-      pending: 'bg-blue-100 text-blue-800',
-      approved: 'bg-purple-100 text-purple-800',
-      paid: 'bg-green-100 text-green-800',
+      active: "bg-green-100 text-green-800",
+      inactive: "bg-yellow-100 text-yellow-800",
+      terminated: "bg-red-100 text-red-800",
+      pending: "bg-blue-100 text-blue-800",
+      approved: "bg-purple-100 text-purple-800",
+      paid: "bg-green-100 text-green-800",
     };
     return (
-      <Badge className={colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>
+      <Badge
+        className={
+          colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+        }
+      >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
@@ -155,11 +194,15 @@ export default function SalariesWages() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Monthly Payroll</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Monthly Payroll
+              </CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(analytics.totalMonthlyPayroll)}</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(analytics.totalMonthlyPayroll)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Total monthly cost
               </p>
@@ -168,27 +211,31 @@ export default function SalariesWages() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Salary</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Average Salary
+              </CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(analytics.averageSalary)}</div>
-              <p className="text-xs text-muted-foreground">
-                Per staff member
-              </p>
+              <div className="text-2xl font-bold">
+                {formatCurrency(analytics.averageSalary)}
+              </div>
+              <p className="text-xs text-muted-foreground">Per staff member</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Pending Payments
+              </CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analytics.upcomingPayments}</div>
-              <p className="text-xs text-muted-foreground">
-                Awaiting approval
-              </p>
+              <div className="text-2xl font-bold">
+                {analytics.upcomingPayments}
+              </div>
+              <p className="text-xs text-muted-foreground">Awaiting approval</p>
             </CardContent>
           </Card>
         </div>
@@ -208,7 +255,8 @@ export default function SalariesWages() {
             <CardHeader>
               <CardTitle>Staff Members</CardTitle>
               <CardDescription>
-                Manage employee profiles, salary information, and employment status
+                Manage employee profiles, salary information, and employment
+                status
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -227,25 +275,33 @@ export default function SalariesWages() {
                 <TableBody>
                   {staffMembers.map((staff) => (
                     <TableRow key={staff.id}>
-                      <TableCell className="font-medium">{staff.employeeId}</TableCell>
+                      <TableCell className="font-medium">
+                        {staff.employeeId}
+                      </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{staff.firstName} {staff.lastName}</div>
-                          <div className="text-sm text-muted-foreground">{staff.email}</div>
+                          <div className="font-medium">
+                            {staff.firstName} {staff.lastName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {staff.email}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>{staff.position}</TableCell>
                       <TableCell>{staff.department}</TableCell>
                       <TableCell>
-                        {staff.salaryType === 'monthly' 
+                        {staff.salaryType === "monthly"
                           ? formatCurrency(staff.monthlySalary || 0)
-                          : `${formatCurrency(staff.hourlyRate || 0)}/hr`
-                        }
+                          : `${formatCurrency(staff.hourlyRate || 0)}/hr`}
                       </TableCell>
                       <TableCell>{getStatusBadge(staff.status)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
+                          <Dialog
+                            open={viewDetailsOpen}
+                            onOpenChange={setViewDetailsOpen}
+                          >
                             <DialogTrigger asChild>
                               <Button
                                 variant="outline"
@@ -266,49 +322,138 @@ export default function SalariesWages() {
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                      <h4 className="font-semibold">Personal Information</h4>
+                                      <h4 className="font-semibold">
+                                        Personal Information
+                                      </h4>
                                       <div className="mt-2 space-y-1 text-sm">
-                                        <p><span className="font-medium">Name:</span> {selectedStaff.firstName} {selectedStaff.lastName}</p>
-                                        <p><span className="font-medium">Email:</span> {selectedStaff.email}</p>
-                                        <p><span className="font-medium">Phone:</span> {selectedStaff.phone || 'N/A'}</p>
-                                        <p><span className="font-medium">Address:</span> {selectedStaff.address || 'N/A'}</p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Name:
+                                          </span>{" "}
+                                          {selectedStaff.firstName}{" "}
+                                          {selectedStaff.lastName}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Email:
+                                          </span>{" "}
+                                          {selectedStaff.email}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Phone:
+                                          </span>{" "}
+                                          {selectedStaff.phone || "N/A"}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Address:
+                                          </span>{" "}
+                                          {selectedStaff.address || "N/A"}
+                                        </p>
                                       </div>
                                     </div>
                                     <div>
-                                      <h4 className="font-semibold">Employment Details</h4>
+                                      <h4 className="font-semibold">
+                                        Employment Details
+                                      </h4>
                                       <div className="mt-2 space-y-1 text-sm">
-                                        <p><span className="font-medium">Employee ID:</span> {selectedStaff.employeeId}</p>
-                                        <p><span className="font-medium">Position:</span> {selectedStaff.position}</p>
-                                        <p><span className="font-medium">Department:</span> {selectedStaff.department}</p>
-                                        <p><span className="font-medium">Hire Date:</span> {formatDate(selectedStaff.hireDate)}</p>
-                                        <p><span className="font-medium">Status:</span> {getStatusBadge(selectedStaff.status)}</p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Employee ID:
+                                          </span>{" "}
+                                          {selectedStaff.employeeId}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Position:
+                                          </span>{" "}
+                                          {selectedStaff.position}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Department:
+                                          </span>{" "}
+                                          {selectedStaff.department}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Hire Date:
+                                          </span>{" "}
+                                          {formatDate(selectedStaff.hireDate)}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Status:
+                                          </span>{" "}
+                                          {getStatusBadge(selectedStaff.status)}
+                                        </p>
                                       </div>
                                     </div>
                                   </div>
                                   <div>
-                                    <h4 className="font-semibold">Salary Information</h4>
+                                    <h4 className="font-semibold">
+                                      Salary Information
+                                    </h4>
                                     <div className="mt-2 space-y-1 text-sm">
-                                      <p><span className="font-medium">Salary Type:</span> {selectedStaff.salaryType}</p>
-                                      {selectedStaff.salaryType === 'monthly' ? (
-                                        <p><span className="font-medium">Monthly Salary:</span> {formatCurrency(selectedStaff.monthlySalary || 0)}</p>
+                                      <p>
+                                        <span className="font-medium">
+                                          Salary Type:
+                                        </span>{" "}
+                                        {selectedStaff.salaryType}
+                                      </p>
+                                      {selectedStaff.salaryType ===
+                                      "monthly" ? (
+                                        <p>
+                                          <span className="font-medium">
+                                            Monthly Salary:
+                                          </span>{" "}
+                                          {formatCurrency(
+                                            selectedStaff.monthlySalary || 0,
+                                          )}
+                                        </p>
                                       ) : (
-                                        <p><span className="font-medium">Hourly Rate:</span> {formatCurrency(selectedStaff.hourlyRate || 0)}</p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Hourly Rate:
+                                          </span>{" "}
+                                          {formatCurrency(
+                                            selectedStaff.hourlyRate || 0,
+                                          )}
+                                        </p>
                                       )}
                                     </div>
                                   </div>
-                                  {(selectedStaff.emergencyContactName || selectedStaff.emergencyContactPhone) && (
+                                  {(selectedStaff.emergencyContactName ||
+                                    selectedStaff.emergencyContactPhone) && (
                                     <div>
-                                      <h4 className="font-semibold">Emergency Contact</h4>
+                                      <h4 className="font-semibold">
+                                        Emergency Contact
+                                      </h4>
                                       <div className="mt-2 space-y-1 text-sm">
-                                        <p><span className="font-medium">Name:</span> {selectedStaff.emergencyContactName || 'N/A'}</p>
-                                        <p><span className="font-medium">Phone:</span> {selectedStaff.emergencyContactPhone || 'N/A'}</p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Name:
+                                          </span>{" "}
+                                          {selectedStaff.emergencyContactName ||
+                                            "N/A"}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Phone:
+                                          </span>{" "}
+                                          {selectedStaff.emergencyContactPhone ||
+                                            "N/A"}
+                                        </p>
                                       </div>
                                     </div>
                                   )}
                                   {selectedStaff.notes && (
                                     <div>
                                       <h4 className="font-semibold">Notes</h4>
-                                      <p className="mt-2 text-sm">{selectedStaff.notes}</p>
+                                      <p className="mt-2 text-sm">
+                                        {selectedStaff.notes}
+                                      </p>
                                     </div>
                                   )}
                                 </div>
@@ -318,7 +463,11 @@ export default function SalariesWages() {
                           <Button variant="outline" size="sm">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -337,7 +486,8 @@ export default function SalariesWages() {
             <CardHeader>
               <CardTitle>Payroll Records</CardTitle>
               <CardDescription>
-                Track salary payments, bonuses, and deductions for all staff members
+                Track salary payments, bonuses, and deductions for all staff
+                members
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -356,32 +506,50 @@ export default function SalariesWages() {
                 </TableHeader>
                 <TableBody>
                   {payrollRecords.map((record) => {
-                    const staff = staffMembers.find(s => s.id === record.staffMemberId);
+                    const staff = staffMembers.find(
+                      (s) => s.id === record.staffMemberId,
+                    );
                     return (
                       <TableRow key={record.id}>
                         <TableCell>
                           <div className="text-sm">
                             <div>{formatDate(record.payPeriodStart)}</div>
-                            <div className="text-muted-foreground">to {formatDate(record.payPeriodEnd)}</div>
+                            <div className="text-muted-foreground">
+                              to {formatDate(record.payPeriodEnd)}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          {staff ? `${staff.firstName} ${staff.lastName}` : 'Unknown'}
+                          {staff
+                            ? `${staff.firstName} ${staff.lastName}`
+                            : "Unknown"}
                         </TableCell>
-                        <TableCell>{formatCurrency(record.baseSalary)}</TableCell>
+                        <TableCell>
+                          {formatCurrency(record.baseSalary)}
+                        </TableCell>
                         <TableCell>
                           {record.overtimeHours > 0 ? (
                             <div className="text-sm">
                               <div>{record.overtimeHours}h</div>
-                              <div className="text-muted-foreground">@ {formatCurrency(record.overtimeRate)}/h</div>
+                              <div className="text-muted-foreground">
+                                @ {formatCurrency(record.overtimeRate)}/h
+                              </div>
                             </div>
                           ) : (
-                            '-'
+                            "-"
                           )}
                         </TableCell>
-                        <TableCell>{record.bonus > 0 ? formatCurrency(record.bonus) : '-'}</TableCell>
-                        <TableCell className="font-medium">{formatCurrency(record.grossPay)}</TableCell>
-                        <TableCell className="font-bold text-green-600">{formatCurrency(record.netPay)}</TableCell>
+                        <TableCell>
+                          {record.bonus > 0
+                            ? formatCurrency(record.bonus)
+                            : "-"}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(record.grossPay)}
+                        </TableCell>
+                        <TableCell className="font-bold text-green-600">
+                          {formatCurrency(record.netPay)}
+                        </TableCell>
                         <TableCell>{getStatusBadge(record.status)}</TableCell>
                       </TableRow>
                     );
@@ -407,20 +575,30 @@ export default function SalariesWages() {
                   {analytics.departmentBreakdown.map((dept) => (
                     <Card key={dept.department}>
                       <CardHeader>
-                        <CardTitle className="text-lg">{dept.department}</CardTitle>
+                        <CardTitle className="text-lg">
+                          {dept.department}
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Staff Count:</span>
+                            <span className="text-sm text-muted-foreground">
+                              Staff Count:
+                            </span>
                             <span className="font-medium">{dept.count}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Total Salary:</span>
-                            <span className="font-medium">{formatCurrency(dept.totalSalary)}</span>
+                            <span className="text-sm text-muted-foreground">
+                              Total Salary:
+                            </span>
+                            <span className="font-medium">
+                              {formatCurrency(dept.totalSalary)}
+                            </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Avg. Salary:</span>
+                            <span className="text-sm text-muted-foreground">
+                              Avg. Salary:
+                            </span>
                             <span className="font-medium">
                               {formatCurrency(dept.totalSalary / dept.count)}
                             </span>
