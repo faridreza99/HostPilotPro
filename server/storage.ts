@@ -4976,20 +4976,39 @@ export class DatabaseStorage implements IStorage {
     try {
       const finances = await this.getFinances(filters);
       
+      // Calculate income (revenue)
       const totalRevenue = finances
         .filter(f => f.type === 'income')
         .reduce((sum, f) => sum + (parseFloat(String(f.amount)) || 0), 0);
       
+      // Calculate expenses (including expense, commission, fees, payout)
       const totalExpenses = finances
-        .filter(f => f.type === 'expense')
+        .filter(f => f.type === 'expense' || f.type === 'commission' || f.type === 'fees' || f.type === 'payout')
         .reduce((sum, f) => sum + (parseFloat(String(f.amount)) || 0), 0);
+      
+      // Break down by type for detailed analytics
+      const expensesByType = {
+        expense: finances
+          .filter(f => f.type === 'expense')
+          .reduce((sum, f) => sum + (parseFloat(String(f.amount)) || 0), 0),
+        commission: finances
+          .filter(f => f.type === 'commission')
+          .reduce((sum, f) => sum + (parseFloat(String(f.amount)) || 0), 0),
+        fees: finances
+          .filter(f => f.type === 'fees')
+          .reduce((sum, f) => sum + (parseFloat(String(f.amount)) || 0), 0),
+        payout: finances
+          .filter(f => f.type === 'payout')
+          .reduce((sum, f) => sum + (parseFloat(String(f.amount)) || 0), 0),
+      };
       
       return {
         totalRevenue,
         totalExpenses,
         netProfit: totalRevenue - totalExpenses,
         monthlyGrowth: 12.5, // Demo value
-        transactionCount: finances.length
+        transactionCount: finances.length,
+        expensesByType, // Include breakdown
       };
     } catch (error) {
       console.error('Error calculating finance analytics:', error);
@@ -4998,7 +5017,13 @@ export class DatabaseStorage implements IStorage {
         totalExpenses: 0,
         netProfit: 0,
         monthlyGrowth: 0,
-        transactionCount: 0
+        transactionCount: 0,
+        expensesByType: {
+          expense: 0,
+          commission: 0,
+          fees: 0,
+          payout: 0,
+        },
       };
     }
   }
