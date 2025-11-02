@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
-import TopBar from "@/components/TopBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
