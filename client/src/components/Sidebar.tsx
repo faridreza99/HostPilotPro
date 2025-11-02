@@ -222,7 +222,7 @@ export default function Sidebar({ className }: SidebarProps) {
               </div>
               {!isCollapsed && (
                 <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-sm text-white truncate">
+                  <span className="font-bold text-sm text-black dark:text-white truncate">
                     HostPilotPro
                   </span>
                 </div>

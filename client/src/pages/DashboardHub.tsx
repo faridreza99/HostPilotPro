@@ -1,18 +1,19 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
+import TopBar from "@/components/TopBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  BarChart3, 
-  DollarSign, 
-  Building2, 
+import {
+  BarChart3,
+  DollarSign,
+  Building2,
   CheckSquare,
   TrendingUp,
   Users,
   Calendar,
   Activity,
-  Search
+  Search,
 } from "lucide-react";
 export default function DashboardHub() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -21,52 +22,57 @@ export default function DashboardHub() {
     {
       title: "Admin Dashboard",
       emoji: "📊",
-      description: "Comprehensive overview of all properties, bookings, tasks, and financial metrics",
+      description:
+        "Comprehensive overview of all properties, bookings, tasks, and financial metrics",
       href: "/",
       icon: BarChart3,
       badge: "Main",
       color: "bg-emerald-50/50 hover:bg-emerald-100/70 border-emerald-200/60",
-      keywords: ["admin", "overview", "main", "dashboard", "analytics"]
+      keywords: ["admin", "overview", "main", "dashboard", "analytics"],
     },
     {
       title: "Financial Dashboard",
-      emoji: "💰", 
-      description: "Revenue tracking, expense analysis, and financial performance insights",
+      emoji: "💰",
+      description:
+        "Revenue tracking, expense analysis, and financial performance insights",
       href: "/simple-filtered-financial-dashboard",
       icon: DollarSign,
       badge: "Finance",
       color: "bg-teal-50/50 hover:bg-teal-100/70 border-teal-200/60",
-      keywords: ["finance", "revenue", "money", "financial", "analytics"]
+      keywords: ["finance", "revenue", "money", "financial", "analytics"],
     },
     {
       title: "Property Dashboard",
       emoji: "🏢",
-      description: "Property-specific metrics, occupancy rates, and performance analytics",
-      href: "/property-hub", 
+      description:
+        "Property-specific metrics, occupancy rates, and performance analytics",
+      href: "/property-hub",
       icon: Building2,
       badge: "Properties",
       color: "bg-cyan-50/50 hover:bg-cyan-100/70 border-cyan-200/60",
-      keywords: ["property", "building", "occupancy", "real estate"]
+      keywords: ["property", "building", "occupancy", "real estate"],
     },
     {
       title: "Task Overview",
       emoji: "✅",
-      description: "Global task monitoring across all properties with staff performance tracking",
+      description:
+        "Global task monitoring across all properties with staff performance tracking",
       href: "/tasks",
       icon: CheckSquare,
       badge: "Operations",
       color: "bg-green-50/50 hover:bg-green-100/70 border-green-200/60",
-      keywords: ["tasks", "operations", "staff", "monitoring", "workflow"]
+      keywords: ["tasks", "operations", "staff", "monitoring", "workflow"],
     },
     {
       title: "Daily Operations",
       emoji: "⚡",
-      description: "Today's activities, urgent tasks, and operational status overview",
+      description:
+        "Today's activities, urgent tasks, and operational status overview",
       href: "/daily-operations",
       icon: Activity,
       badge: "Today",
       color: "bg-slate-50/50 hover:bg-slate-100/70 border-slate-200/60",
-      keywords: ["daily", "today", "urgent", "activities", "operations"]
+      keywords: ["daily", "today", "urgent", "activities", "operations"],
     },
     {
       title: "Portfolio Manager Dashboard",
@@ -76,27 +82,35 @@ export default function DashboardHub() {
       icon: TrendingUp,
       badge: "Portfolio",
       color: "bg-emerald-50/50 hover:bg-emerald-100/70 border-emerald-200/60",
-      keywords: ["portfolio", "manager", "insights", "analytics", "trends"]
-    }
+      keywords: ["portfolio", "manager", "insights", "analytics", "trends"],
+    },
   ];
 
   // Filter dashboard items based on search term
-  const filteredItems = dashboardItems.filter(item => {
+  const filteredItems = dashboardItems.filter((item) => {
     if (!searchTerm.trim()) return true;
     const searchLower = searchTerm.toLowerCase();
     return (
       item.title.toLowerCase().includes(searchLower) ||
       item.description.toLowerCase().includes(searchLower) ||
       item.badge.toLowerCase().includes(searchLower) ||
-      item.keywords.some(keyword => keyword.includes(searchLower))
+      item.keywords.some((keyword) => keyword.includes(searchLower))
     );
   });
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="mb-8">
-        <h1 className="text-5xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Dashboard Hub</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg font-medium tracking-wide">Access all dashboard views and analytics from one central location</p>
+        <TopBar
+          title="Dashboard Hub"
+          subtitle="Access all dashboard views and analytics from one central location"
+        />
+        <h1 className="text-5xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+          Dashboard Hub
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-3 text-lg font-medium tracking-wide">
+          Access all dashboard views and analytics from one central location
+        </p>
       </div>
 
       {/* Search/Filter Bar */}
@@ -116,15 +130,21 @@ export default function DashboardHub() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-10">
         {filteredItems.length === 0 ? (
           <div className="col-span-full text-center py-12">
-            <div className="text-slate-400 text-lg font-medium">No dashboards found matching "{searchTerm}"</div>
-            <p className="text-slate-400 text-sm mt-2">Try adjusting your search terms</p>
+            <div className="text-slate-400 text-lg font-medium">
+              No dashboards found matching "{searchTerm}"
+            </div>
+            <p className="text-slate-400 text-sm mt-2">
+              Try adjusting your search terms
+            </p>
           </div>
         ) : (
           filteredItems.map((item) => {
             const IconComponent = item.icon;
             return (
               <Link key={item.href} href={item.href}>
-                <Card className={`cursor-pointer transition-all duration-300 ease-in-out hover:shadow-xl hover:shadow-emerald-100/50 hover:-translate-y-1 hover:scale-[1.02] rounded-2xl border-2 shadow-lg bg-gradient-to-br from-emerald-50/30 to-white h-full flex flex-col ${item.color}`}>
+                <Card
+                  className={`cursor-pointer transition-all duration-300 ease-in-out hover:shadow-xl hover:shadow-emerald-100/50 hover:-translate-y-1 hover:scale-[1.02] rounded-2xl border-2 shadow-lg bg-gradient-to-br from-emerald-50/30 to-white h-full flex flex-col ${item.color}`}
+                >
                   <CardHeader className="pb-4 pt-6 px-6">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -132,11 +152,18 @@ export default function DashboardHub() {
                           <IconComponent className="h-7 w-7 text-emerald-700" />
                         </div>
                         <div className="flex items-start gap-2 flex-1 min-w-0">
-                          <span className="text-2xl flex-shrink-0">{item.emoji}</span>
-                          <CardTitle className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight">{item.title}</CardTitle>
+                          <span className="text-2xl flex-shrink-0">
+                            {item.emoji}
+                          </span>
+                          <CardTitle className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                            {item.title}
+                          </CardTitle>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-md px-2 py-0.5 font-semibold text-xs flex-shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-md px-2 py-0.5 font-semibold text-xs flex-shrink-0"
+                      >
                         {item.badge}
                       </Badge>
                     </div>
@@ -163,7 +190,9 @@ export default function DashboardHub() {
             <span>System Online</span>
           </div>
           <span>•</span>
-          <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs font-semibold">v2.0.1</span>
+          <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs font-semibold">
+            v2.0.1
+          </span>
         </div>
       </div>
     </div>
