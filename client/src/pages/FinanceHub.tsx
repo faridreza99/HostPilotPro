@@ -30,6 +30,7 @@ import {
   Plus,
   X,
   CheckCircle2,
+  Wrench,
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { queryClient } from "../lib/queryClient";
@@ -59,6 +60,7 @@ interface FinanceTransaction {
   category: string;
   propertyId?: number | string;
   attachments?: string[];
+  referenceNumber?: string;
 }
 
 export default function FinanceHub() {
@@ -432,6 +434,7 @@ export default function FinanceHub() {
                   const hasEvidence =
                     transaction.attachments &&
                     transaction.attachments.length > 0;
+                  const isTaskExpense = transaction.referenceNumber?.startsWith("TASK-");
 
                   return (
                     <div
@@ -477,6 +480,13 @@ export default function FinanceHub() {
                             <Badge variant="outline" className="text-xs">
                               {transaction.category}
                             </Badge>
+                            {isTaskExpense && (
+                              <Wrench
+                                className="h-4 w-4 text-blue-600 ml-1"
+                                title="Task expense"
+                                data-testid={`task-indicator-${transaction.id}`}
+                              />
+                            )}
                             {hasEvidence && (
                               <CheckCircle2
                                 className="h-4 w-4 text-green-600 ml-1"

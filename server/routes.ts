@@ -2388,9 +2388,15 @@ Be specific and actionable in your recommendations.`;
             console.log(`🔗 Linked finance record ${financeRecord.id} to task ${task.id}`);
           }
           
-          // Invalidate finance cache to ensure Finance Hub shows the new expense immediately
+          // Invalidate all finance-related caches to ensure Finance Hub shows the new expense immediately
           const { clearCache } = await import("./performanceOptimizer");
-          clearCache("finance");
+          const { clearUltraFastCache } = await import("./ultraFastMiddleware");
+          clearCache("finance");  // Pattern-based cache clearing
+          clearCache("finances");  // Alternative pattern
+          clearUltraFastCache("/api/finance");  // Clear base finance endpoint
+          clearUltraFastCache("/api/finance/analytics");  // Clear analytics endpoint
+          clearUltraFastCache("/api/finances");  // Clear finances endpoint
+          clearUltraFastCache("/api/dashboard");  // Clear dashboard cache
           
           console.log(`✅ Finance record auto-created for task ${task.id} with ${task.actualCost ? 'actual' : 'estimated'} cost of ${costAmount}`);
         } catch (financeError) {
