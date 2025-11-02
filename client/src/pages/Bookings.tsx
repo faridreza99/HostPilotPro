@@ -157,14 +157,10 @@ export default function Bookings() {
   const bookingsArray = Array.isArray(bookings) ? bookings : [];
   const propertiesArray = Array.isArray(properties) ? properties : [];
 
-  // Handle URL parameters for property-specific filtering
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const propertyId = urlParams.get("propertyId");
-    if (propertyId) {
-      setFilterProperty(propertyId);
-    }
-  }, []);
+  // If viewing property-specific bookings, get property name for display
+  const selectedProperty = urlPropertyId 
+    ? propertiesArray.find((p: any) => p.id === parseInt(urlPropertyId))
+    : null;
 
   const handleBookingClick = (bookingId: number) => {
     setSelectedBookingId(bookingId);
@@ -184,7 +180,8 @@ export default function Bookings() {
     }
   };
 
-  const filteredBookings = bookingsArray.filter((booking: any) => {
+  // If viewing property-specific bookings, skip filtering (backend already filtered)
+  const filteredBookings = urlPropertyId ? bookingsArray : bookingsArray.filter((booking: any) => {
     const property = propertiesArray.find((p: any) => p.id === booking.propertyId);
     const propertyName = property?.name || '';
     const propertyAddress = property?.address || '';
@@ -233,11 +230,29 @@ export default function Bookings() {
           <div className="flex items-center gap-3">
             <Calendar className="w-8 h-8 text-primary" />
             <div>
-              <h1 className="text-3xl font-bold">Unified Calendar & Bookings</h1>
-              <p className="text-muted-foreground">Manage all bookings, calendars, and property schedules</p>
+              {urlPropertyId && selectedProperty ? (
+                <>
+                  <h1 className="text-3xl font-bold">Bookings - {selectedProperty.name}</h1>
+                  <p className="text-muted-foreground">Viewing all bookings for this property</p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-3xl font-bold">Unified Calendar & Bookings</h1>
+                  <p className="text-muted-foreground">Manage all bookings, calendars, and property schedules</p>
+                </>
+              )}
             </div>
           </div>
           <div className="flex gap-2">
+            {urlPropertyId && (
+              <Button 
+                variant="outline"
+                onClick={() => window.location.href = '/bookings'}
+                data-testid="button-view-all-bookings"
+              >
+                View All Bookings
+              </Button>
+            )}
             <Button 
               className="gap-2"
               onClick={() => setIsBookingDialogOpen(true)}
@@ -258,15 +273,16 @@ export default function Bookings() {
           </div>
         </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filters & Search
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* Filters - Hide when viewing property-specific bookings */}
+        {!urlPropertyId && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filters & Search
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Search</label>
@@ -367,6 +383,7 @@ export default function Bookings() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>

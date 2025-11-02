@@ -1,18 +1,33 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
-import { 
-  Building2, 
-  Calendar, 
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../components/ui/tooltip";
+import {
+  Building2,
+  Calendar,
   Grid3X3,
   ClipboardList,
   RefreshCw,
   LayoutGrid,
-  Plus
+  Plus,
 } from "lucide-react";
 import TopBar from "../components/TopBar";
 import PropertyCard from "../components/PropertyCard";
@@ -47,22 +62,22 @@ interface PropertyFiltersState {
 export default function PropertyHub() {
   const { user } = useFastAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState('properties');
+  const [activeTab, setActiveTab] = useState("properties");
   const [selectedProperties, setSelectedProperties] = useState<any[]>([]);
   const [filters, setFilters] = useState<PropertyFiltersState>({
-    search: '',
-    location: '',
-    status: '',
-    propertyType: '',
+    search: "",
+    location: "",
+    status: "",
+    propertyType: "",
     occupancyMin: 0,
     occupancyMax: 100,
     roiMin: 0,
     roiMax: 50,
     hasMaintenanceTasks: false,
-    lastBookingFrom: '',
-    lastBookingTo: '',
+    lastBookingFrom: "",
+    lastBookingTo: "",
   });
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12); // Show 12 properties per page
@@ -89,11 +104,13 @@ export default function PropertyHub() {
         description: "Property deleted successfully",
       });
       // Clear deleted property from selection if it was selected
-      setSelectedProperties(prev => prev.filter(p => p.id !== deleteMutation.variables));
+      setSelectedProperties((prev) =>
+        prev.filter((p) => p.id !== deleteMutation.variables),
+      );
     },
     onError: (error) => {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "Failed to delete property",
         variant: "destructive",
       });
@@ -102,7 +119,11 @@ export default function PropertyHub() {
 
   // Delete property handler
   const handleDeleteProperty = (id: number) => {
-    if (window.confirm("Are you sure you want to delete this property? This action cannot be undone.")) {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this property? This action cannot be undone.",
+      )
+    ) {
       deleteMutation.mutate(id);
     }
   };
@@ -111,30 +132,30 @@ export default function PropertyHub() {
   const handleRefresh = () => {
     // Reset all filters to default
     setFilters({
-      search: '',
-      location: '',
-      status: '',
-      propertyType: '',
+      search: "",
+      location: "",
+      status: "",
+      propertyType: "",
       occupancyMin: 0,
       occupancyMax: 100,
       roiMin: 0,
       roiMax: 50,
       hasMaintenanceTasks: false,
-      lastBookingFrom: '',
-      lastBookingTo: '',
+      lastBookingFrom: "",
+      lastBookingTo: "",
     });
-    
+
     // Clear selected property ID filter
     setSelectedPropertyId(null);
-    
+
     // Clear URL parameter if present
     if (window.location.search) {
-      window.history.replaceState({}, '', window.location.pathname);
+      window.history.replaceState({}, "", window.location.pathname);
     }
-    
+
     // Refetch properties from API
     refetchProperties();
-    
+
     // Show success feedback
     toast({
       title: "Refreshed",
@@ -143,12 +164,14 @@ export default function PropertyHub() {
   };
 
   // Store selected property ID from URL parameter
-  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(
+    null,
+  );
 
   // Check for property selection from Dashboard
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const propertyId = urlParams.get('property');
+    const propertyId = urlParams.get("property");
     if (propertyId) {
       // Store the property ID to filter by ID, not by name search
       setSelectedPropertyId(parseInt(propertyId, 10));
@@ -156,13 +179,17 @@ export default function PropertyHub() {
   }, []);
 
   // Fetch data
-  const { data: properties = [], isLoading: propertiesLoading, refetch: refetchProperties } = useQuery({
-    queryKey: ['/api/properties'],
+  const {
+    data: properties = [],
+    isLoading: propertiesLoading,
+    refetch: refetchProperties,
+  } = useQuery({
+    queryKey: ["/api/properties"],
     staleTime: 10 * 60 * 1000,
   });
 
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
-    queryKey: ['/api/bookings'],
+    queryKey: ["/api/bookings"],
     staleTime: 10 * 60 * 1000,
   });
 
@@ -177,29 +204,36 @@ export default function PropertyHub() {
     staleTime: 0,
   });
 
-
   // Type assertions for safety
   const propertiesArray = Array.isArray(properties) ? properties : [];
   const bookingsArray = Array.isArray(bookings) ? bookings : [];
 
   // Helper function to check if property has expiring items
   const getPropertyExpiryStatus = (propertyId: number) => {
-    const hasExpiringDoc = (expiringDocuments as any[]).some((doc: any) => doc.propertyId === propertyId);
-    const hasExpiringIns = (expiringInsurance as any[]).some((ins: any) => ins.propertyId === propertyId);
-    
+    const hasExpiringDoc = (expiringDocuments as any[]).some(
+      (doc: any) => doc.propertyId === propertyId,
+    );
+    const hasExpiringIns = (expiringInsurance as any[]).some(
+      (ins: any) => ins.propertyId === propertyId,
+    );
+
     if (hasExpiringDoc || hasExpiringIns) {
       // Check if any are already expired (past today)
       const expiredDoc = (expiringDocuments as any[]).find(
-        (doc: any) => doc.propertyId === propertyId && new Date(doc.expiryDate) < new Date()
+        (doc: any) =>
+          doc.propertyId === propertyId &&
+          new Date(doc.expiryDate) < new Date(),
       );
       const expiredIns = (expiringInsurance as any[]).find(
-        (ins: any) => ins.propertyId === propertyId && new Date(ins.expiryDate) < new Date()
+        (ins: any) =>
+          ins.propertyId === propertyId &&
+          new Date(ins.expiryDate) < new Date(),
       );
-      
+
       if (expiredDoc || expiredIns) {
-        return 'expired';
+        return "expired";
       }
-      return 'expiring';
+      return "expiring";
     }
     return null;
   };
@@ -211,58 +245,76 @@ export default function PropertyHub() {
       if (selectedPropertyId !== null && property.id !== selectedPropertyId) {
         return false;
       }
-      
+
       // Search filter
-      if (filters.search && !property.name.toLowerCase().includes(filters.search.toLowerCase())) {
+      if (
+        filters.search &&
+        !property.name.toLowerCase().includes(filters.search.toLowerCase())
+      ) {
         return false;
       }
-      
+
       // Location filter
-      if (filters.location && !property.address?.toLowerCase().includes(filters.location.toLowerCase())) {
+      if (
+        filters.location &&
+        !property.address
+          ?.toLowerCase()
+          .includes(filters.location.toLowerCase())
+      ) {
         return false;
       }
-      
+
       // Status filter
       if (filters.status && property.status !== filters.status) {
         return false;
       }
-      
+
       // Occupancy filter (mock data for demo)
-      const occupancyRate = property.occupancyRate || Math.floor(Math.random() * 30) + 60;
-      if (occupancyRate < filters.occupancyMin || occupancyRate > filters.occupancyMax) {
+      const occupancyRate =
+        property.occupancyRate || Math.floor(Math.random() * 30) + 60;
+      if (
+        occupancyRate < filters.occupancyMin ||
+        occupancyRate > filters.occupancyMax
+      ) {
         return false;
       }
-      
+
       // ROI filter (mock data for demo)
       const roi = property.roi || Math.random() * 20 + 5;
       if (roi < filters.roiMin || roi > filters.roiMax) {
         return false;
       }
-      
+
       // Property type filter
       if (filters.propertyType) {
-        const propertyType = property.propertyType || 
-          (property.name?.toLowerCase().includes('villa') ? 'villa' :
-           property.name?.toLowerCase().includes('apartment') ? 'apartment' :
-           property.name?.toLowerCase().includes('condo') ? 'condo' :
-           property.name?.toLowerCase().includes('resort') ? 'resort' : 'villa');
+        const propertyType =
+          property.propertyType ||
+          (property.name?.toLowerCase().includes("villa")
+            ? "villa"
+            : property.name?.toLowerCase().includes("apartment")
+              ? "apartment"
+              : property.name?.toLowerCase().includes("condo")
+                ? "condo"
+                : property.name?.toLowerCase().includes("resort")
+                  ? "resort"
+                  : "villa");
         if (propertyType !== filters.propertyType) {
           return false;
         }
       }
-      
+
       // Last booking date filter
       if (filters.lastBookingFrom || filters.lastBookingTo) {
-        const lastBookingDate = property.lastBookingDate || '2024-12-15';
+        const lastBookingDate = property.lastBookingDate || "2024-12-15";
         const lastBooking = new Date(lastBookingDate);
-        
+
         if (filters.lastBookingFrom) {
           const fromDate = new Date(filters.lastBookingFrom);
           if (lastBooking < fromDate) {
             return false;
           }
         }
-        
+
         if (filters.lastBookingTo) {
           const toDate = new Date(filters.lastBookingTo);
           if (lastBooking > toDate) {
@@ -270,15 +322,16 @@ export default function PropertyHub() {
           }
         }
       }
-      
+
       // Maintenance tasks filter
       if (filters.hasMaintenanceTasks) {
-        const maintenanceTasks = property.maintenanceTasks || Math.floor(Math.random() * 5);
+        const maintenanceTasks =
+          property.maintenanceTasks || Math.floor(Math.random() * 5);
         if (maintenanceTasks === 0) {
           return false;
         }
       }
-      
+
       return true;
     });
   }, [propertiesArray, filters, selectedPropertyId]);
@@ -297,16 +350,16 @@ export default function PropertyHub() {
 
   const handleLoadMore = () => {
     if (currentPage < totalPages) {
-      setCurrentPage(prev => prev + 1);
+      setCurrentPage((prev) => prev + 1);
     }
   };
 
   // Property selection handlers
   const handlePropertySelect = (property: any, selected: boolean) => {
     if (selected) {
-      setSelectedProperties(prev => [...prev, property]);
+      setSelectedProperties((prev) => [...prev, property]);
     } else {
-      setSelectedProperties(prev => prev.filter(p => p.id !== property.id));
+      setSelectedProperties((prev) => prev.filter((p) => p.id !== property.id));
     }
   };
 
@@ -326,7 +379,6 @@ export default function PropertyHub() {
     navigate(`/property/${property.id}`);
   };
 
-
   const handleCreateTaskFromTemplate = (template: any, propertyId: number) => {
     // Simulate API call to create task
     toast({
@@ -339,19 +391,20 @@ export default function PropertyHub() {
   const calendarProperties = propertiesArray.map((p: any, index: number) => ({
     id: p.id,
     name: p.name,
-    color: `hsl(${index * 137.5 % 360}, 70%, 50%)`
+    color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`,
   }));
 
   const calendarBookings = bookingsArray.map((b: any) => ({
     id: b.id,
-    propertyId: b.propertyId || (Math.floor(Math.random() * propertiesArray.length) + 1),
-    propertyName: b.propertyName || 'Unknown Property',
-    guestName: b.guestName || 'Guest',
+    propertyId:
+      b.propertyId || Math.floor(Math.random() * propertiesArray.length) + 1,
+    propertyName: b.propertyName || "Unknown Property",
+    guestName: b.guestName || "Guest",
     guestEmail: b.guestEmail,
     guestPhone: b.guestPhone,
-    checkIn: b.checkInDate || b.checkIn || '2024-08-01',
-    checkOut: b.checkOutDate || b.checkOut || '2024-08-02',
-    status: b.status || 'confirmed',
+    checkIn: b.checkInDate || b.checkIn || "2024-08-01",
+    checkOut: b.checkOutDate || b.checkOut || "2024-08-02",
+    status: b.status || "confirmed",
     totalAmount: b.totalAmount || 0,
     invoiceId: b.invoiceId,
     guestId: b.guestId,
@@ -372,7 +425,7 @@ export default function PropertyHub() {
     <div className="min-h-screen flex bg-background">
       <div className="flex-1 flex flex-col lg:ml-0">
         <TopBar title="Property Management Hub" />
-        
+
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
@@ -382,7 +435,8 @@ export default function PropertyHub() {
                   🏠 Property Management Hub
                 </h1>
                 <p className="text-lg text-slate-600 mb-2">
-                  Enhanced property management with advanced filtering, bulk actions, and calendar views
+                  Enhanced property management with advanced filtering, bulk
+                  actions, and calendar views
                 </p>
                 <div className="mt-3 text-sm text-emerald-600 font-medium flex items-center gap-2">
                   <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse"></div>
@@ -390,8 +444,8 @@ export default function PropertyHub() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                {user?.role === 'admin' && (
-                  <Button 
+                {user?.role === "admin" && (
+                  <Button
                     onClick={() => setIsPropertyDialogOpen(true)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105 transition-all duration-200"
                     data-testid="button-add-property"
@@ -400,8 +454,8 @@ export default function PropertyHub() {
                     Add Property
                   </Button>
                 )}
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleRefresh}
                   className="hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 hover:scale-105 transition-all duration-200"
                   data-testid="button-refresh"
@@ -409,8 +463,8 @@ export default function PropertyHub() {
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh
                 </Button>
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className="px-4 py-2 text-sm bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold cursor-pointer hover:bg-emerald-200 hover:scale-105 transition-all duration-200"
                   onClick={handleRefresh}
                   data-testid="badge-properties-counter"
@@ -421,17 +475,30 @@ export default function PropertyHub() {
             </div>
 
             {/* Main Content Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="space-y-6"
+            >
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="properties" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="properties"
+                  className="flex items-center gap-2"
+                >
                   <LayoutGrid className="h-4 w-4" />
                   Property Cards
                 </TabsTrigger>
-                <TabsTrigger value="calendar" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="calendar"
+                  className="flex items-center gap-2"
+                >
                   <Calendar className="h-4 w-4" />
                   Calendar View
                 </TabsTrigger>
-                <TabsTrigger value="templates" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="templates"
+                  className="flex items-center gap-2"
+                >
                   <ClipboardList className="h-4 w-4" />
                   Task Templates
                 </TabsTrigger>
@@ -448,7 +515,9 @@ export default function PropertyHub() {
                   <div className="p-3 bg-emerald-100 rounded-xl">
                     <LayoutGrid className="h-6 w-6 text-emerald-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-800">Property Cards</h2>
+                  <h2 className="text-2xl font-bold text-slate-800">
+                    Property Cards
+                  </h2>
                 </div>
 
                 {/* Filters */}
@@ -475,11 +544,14 @@ export default function PropertyHub() {
                       onClick={handleSelectAll}
                       className="hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 hover:scale-105 transition-all duration-200"
                     >
-                      {selectedProperties.length === filteredProperties.length ? 'Deselect All' : 'Select All'}
+                      {selectedProperties.length === filteredProperties.length
+                        ? "Deselect All"
+                        : "Select All"}
                       ({filteredProperties.length})
                     </Button>
                     <div className="text-sm text-slate-600 font-medium">
-                      {selectedProperties.length} of {filteredProperties.length} selected
+                      {selectedProperties.length} of {filteredProperties.length}{" "}
+                      selected
                     </div>
                   </div>
                 )}
@@ -490,8 +562,12 @@ export default function PropertyHub() {
                     <PropertyCard
                       key={property.id}
                       property={property}
-                      isSelected={selectedProperties.some(p => p.id === property.id)}
-                      onSelect={(selected) => handlePropertySelect(property, selected)}
+                      isSelected={selectedProperties.some(
+                        (p) => p.id === property.id,
+                      )}
+                      onSelect={(selected) =>
+                        handlePropertySelect(property, selected)
+                      }
                       onViewDetails={() => handleViewPropertyDetails(property)}
                       onDelete={() => handleDeleteProperty(property.id)}
                       expiryStatus={getPropertyExpiryStatus(property.id)}
@@ -503,10 +579,16 @@ export default function PropertyHub() {
                 {filteredProperties.length > itemsPerPage && (
                   <div className="mt-8 flex flex-col items-center gap-4">
                     <div className="text-sm text-slate-600 bg-white/50 px-4 py-2 rounded-lg border border-slate-200/50 backdrop-blur-sm">
-                      Showing {Math.min(currentPage * itemsPerPage, filteredProperties.length)} of {filteredProperties.length} properties
-                      {currentPage < totalPages && ` • Page ${currentPage} of ${totalPages}`}
+                      Showing{" "}
+                      {Math.min(
+                        currentPage * itemsPerPage,
+                        filteredProperties.length,
+                      )}{" "}
+                      of {filteredProperties.length} properties
+                      {currentPage < totalPages &&
+                        ` • Page ${currentPage} of ${totalPages}`}
                     </div>
-                    
+
                     {currentPage < totalPages && (
                       <Button
                         onClick={handleLoadMore}
@@ -514,23 +596,30 @@ export default function PropertyHub() {
                         size="lg"
                         className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 hover:text-emerald-800 hover:scale-105 transition-all duration-200 shadow-sm"
                       >
-                        📄 Load More Properties ({filteredProperties.length - (currentPage * itemsPerPage)} remaining)
+                        📄 Load More Properties (
+                        {filteredProperties.length - currentPage * itemsPerPage}{" "}
+                        remaining)
                       </Button>
                     )}
-                    
-                    {currentPage >= totalPages && filteredProperties.length > itemsPerPage && (
-                      <div className="text-sm text-emerald-600 font-medium bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200">
-                        ✅ All properties loaded!
-                      </div>
-                    )}
+
+                    {currentPage >= totalPages &&
+                      filteredProperties.length > itemsPerPage && (
+                        <div className="text-sm text-emerald-600 font-medium bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-200">
+                          ✅ All properties loaded!
+                        </div>
+                      )}
                   </div>
                 )}
 
                 {filteredProperties.length === 0 && (
                   <div className="text-center py-12">
                     <Building2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">No properties found</h3>
-                    <p className="text-slate-600">Try adjusting your filters to see more properties.</p>
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">
+                      No properties found
+                    </h3>
+                    <p className="text-slate-600">
+                      Try adjusting your filters to see more properties.
+                    </p>
                   </div>
                 )}
               </TabsContent>
@@ -545,8 +634,12 @@ export default function PropertyHub() {
                 ) : (
                   <div className="text-center py-12">
                     <Calendar className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">No Properties Available</h3>
-                    <p className="text-slate-600">Add properties to view the calendar.</p>
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">
+                      No Properties Available
+                    </h3>
+                    <p className="text-slate-600">
+                      Add properties to view the calendar.
+                    </p>
                   </div>
                 )}
               </TabsContent>
@@ -568,17 +661,25 @@ export default function PropertyHub() {
                       <div className="flex items-center gap-8 text-sm font-medium">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">📊</span>
-                          <span className="text-emerald-800">Active Bookings: <strong>{bookingsArray.length}</strong></span>
+                          <span className="text-emerald-800">
+                            Active Bookings:{" "}
+                            <strong>{bookingsArray.length}</strong>
+                          </span>
                         </div>
                         <div className="text-emerald-300">|</div>
                         <div className="flex items-center gap-2">
                           <span className="text-lg">🔧</span>
-                          <span className="text-emerald-800">Pending Tasks: <strong>7</strong></span>
+                          <span className="text-emerald-800">
+                            Pending Tasks: <strong>7</strong>
+                          </span>
                         </div>
                         <div className="text-emerald-300">|</div>
                         <div className="flex items-center gap-2">
                           <span className="text-lg">🏢</span>
-                          <span className="text-emerald-800">Total Properties: <strong>{propertiesArray.length}</strong></span>
+                          <span className="text-emerald-800">
+                            Total Properties:{" "}
+                            <strong>{propertiesArray.length}</strong>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -590,71 +691,78 @@ export default function PropertyHub() {
                   {[
                     {
                       title: "Properties List",
-                      description: "View and manage all properties with detailed information and status",
+                      description:
+                        "View and manage all properties with detailed information and status",
                       href: "/properties",
                       icon: Building2,
                       badge: "Core",
                       badgeIcon: "🏠",
                       stats: `${propertiesArray.length} total properties`,
                       actionText: "Add Property",
-                      actionIcon: "➕"
+                      actionIcon: "➕",
                     },
                     {
-                      title: "Calendar & Bookings", 
-                      description: "Booking calendar, reservations management, and availability tracking",
+                      title: "Calendar & Bookings",
+                      description:
+                        "Booking calendar, reservations management, and availability tracking",
                       href: "/bookings",
                       icon: Calendar,
                       badge: "Bookings",
                       badgeIcon: "📅",
                       stats: `${bookingsArray.length} bookings this week`,
-                      actionText: "Create Booking", 
-                      actionIcon: "📅"
+                      actionText: "Create Booking",
+                      actionIcon: "📅",
                     },
                     {
                       title: "Property Tasks",
-                      description: "Task management for cleaning, maintenance, and property operations",
+                      description:
+                        "Task management for cleaning, maintenance, and property operations",
                       href: "/tasks",
                       icon: ClipboardList,
                       badge: "Tasks",
                       badgeIcon: "✅",
                       stats: "7 open tasks",
                       actionText: "Add Task",
-                      actionIcon: "📝"
+                      actionIcon: "📝",
                     },
                     {
                       title: "Reports & Analytics",
-                      description: "Generate comprehensive reports and analytics with PDF/CSV export capabilities",
+                      description:
+                        "Generate comprehensive reports and analytics with PDF/CSV export capabilities",
                       href: "/reports",
                       icon: LayoutGrid,
                       badge: "Analytics",
                       badgeIcon: "📊",
                       stats: "3 reports ready",
                       actionText: "Generate Report",
-                      actionIcon: "📈"
+                      actionIcon: "📈",
                     },
                     {
                       title: "Automation & Alerts",
-                      description: "Smart reminders, AI insights, and automated property management workflows",
+                      description:
+                        "Smart reminders, AI insights, and automated property management workflows",
                       href: "/automation",
                       icon: RefreshCw,
                       badge: "AI & Auto",
                       badgeIcon: "🤖",
                       stats: "5 active rules",
                       actionText: "Setup Alert",
-                      actionIcon: "⚡"
-                    }
+                      actionIcon: "⚡",
+                    },
                   ].map((item) => {
                     const IconComponent = item.icon;
                     const cardContent = (
-                      <Card 
-                        key={item.href} 
-                        className={`h-full flex flex-col group cursor-pointer transition-all duration-500 ease-in-out bg-gradient-to-br from-white via-slate-50/40 to-emerald-50/20 backdrop-blur-sm border border-slate-200/60 hover:border-emerald-300/50 hover:shadow-2xl hover:shadow-emerald-500/30 hover:scale-[1.05] hover:-translate-y-2 relative overflow-hidden ${item.isComingSoon ? 'opacity-85' : ''}`}
-                        onClick={() => !item.isComingSoon && navigate(item.href)}
+                      <Card
+                        key={item.href}
+                        className={`h-full flex flex-col group cursor-pointer transition-all duration-500 ease-in-out bg-gradient-to-br from-white via-slate-50/40 to-emerald-50/20 backdrop-blur-sm border border-slate-200/60 hover:border-emerald-300/50 hover:shadow-2xl hover:shadow-emerald-500/30 hover:scale-[1.05] hover:-translate-y-2 relative overflow-hidden ${item.isComingSoon ? "opacity-85" : ""}`}
+                        onClick={() =>
+                          !item.isComingSoon && navigate(item.href)
+                        }
                       >
                         {/* Enhanced Glassmorphism overlay with glow effect */}
                         <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-emerald-50/30 to-white/40 opacity-80 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                         <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                        
+
                         {/* Coming Soon badge for future cards */}
                         {item.isComingSoon && (
                           <div className="absolute top-2 right-2 z-10">
@@ -663,24 +771,28 @@ export default function PropertyHub() {
                             </Badge>
                           </div>
                         )}
-                        
+
                         <CardHeader className="pb-3 relative z-10 flex-shrink-0">
                           <div className="flex items-start justify-between mb-3 gap-2">
                             <div className="flex items-center space-x-2 min-w-0 flex-1">
                               <div className="p-2.5 bg-gradient-to-br from-emerald-100/80 via-emerald-50/60 to-white/40 backdrop-blur-sm rounded-xl shadow-xl border border-emerald-200/50 group-hover:shadow-emerald-300/60 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 ease-out flex-shrink-0">
                                 <IconComponent className="h-5 w-5 text-emerald-700 group-hover:text-emerald-800 transition-colors duration-300" />
                               </div>
-                              <CardTitle className="text-base font-semibold text-slate-800 group-hover:text-slate-900 transition-colors duration-300 line-clamp-2">{item.title}</CardTitle>
+                              <CardTitle className="text-base font-semibold text-slate-800 group-hover:text-slate-900 transition-colors duration-300 line-clamp-2">
+                                {item.title}
+                              </CardTitle>
                             </div>
                             <Badge className="bg-gradient-to-r from-emerald-100/90 via-emerald-50/70 to-white/50 text-emerald-800 border-emerald-300/60 shadow-lg backdrop-blur-sm group-hover:shadow-emerald-200/80 transition-all duration-300 text-xs whitespace-nowrap flex-shrink-0">
                               <span className="mr-1">{item.badgeIcon}</span>
                               {item.badge}
                             </Badge>
                           </div>
-                          
+
                           {/* Enhanced Quick Stats */}
                           <div className="bg-gradient-to-r from-slate-50/80 via-white/60 to-slate-50/80 backdrop-blur-sm rounded-lg p-2.5 border border-slate-200/60 group-hover:border-emerald-200/60 group-hover:bg-gradient-to-r group-hover:from-emerald-50/40 group-hover:via-white/70 group-hover:to-emerald-50/40 transition-all duration-300">
-                            <p className="text-xs font-medium text-slate-700 group-hover:text-emerald-800 transition-colors duration-300 truncate">{item.stats}</p>
+                            <p className="text-xs font-medium text-slate-700 group-hover:text-emerald-800 transition-colors duration-300 truncate">
+                              {item.stats}
+                            </p>
                           </div>
                         </CardHeader>
 
@@ -688,11 +800,11 @@ export default function PropertyHub() {
                           <p className="text-sm text-slate-600 leading-relaxed group-hover:text-slate-700 transition-colors duration-300 line-clamp-3 mb-4 flex-1">
                             {item.description}
                           </p>
-                          
+
                           {/* Enhanced Quick Action Button */}
-                          <Button 
-                            size="sm" 
-                            className={`w-full bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-500 hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-600 text-white shadow-xl hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 group-hover:scale-105 backdrop-blur-sm border border-emerald-400/30 hover:border-emerald-300/50 mt-auto ${item.isComingSoon ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          <Button
+                            size="sm"
+                            className={`w-full bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-500 hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-600 text-white shadow-xl hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 group-hover:scale-105 backdrop-blur-sm border border-emerald-400/30 hover:border-emerald-300/50 mt-auto ${item.isComingSoon ? "opacity-60 cursor-not-allowed" : ""}`}
                             disabled={item.isComingSoon}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -700,11 +812,15 @@ export default function PropertyHub() {
                                 // Handle quick actions - open respective dialogs
                                 if (item.actionText === "Add Property") {
                                   setIsPropertyDialogOpen(true);
-                                } else if (item.actionText === "Create Booking") {
+                                } else if (
+                                  item.actionText === "Create Booking"
+                                ) {
                                   setIsBookingDialogOpen(true);
                                 } else if (item.actionText === "Add Task") {
                                   setIsTaskDialogOpen(true);
-                                } else if (item.actionText === "Generate Report") {
+                                } else if (
+                                  item.actionText === "Generate Report"
+                                ) {
                                   setIsReportModalOpen(true);
                                 } else if (item.actionText === "Setup Alert") {
                                   setIsAutomationModalOpen(true);
@@ -712,8 +828,12 @@ export default function PropertyHub() {
                               }
                             }}
                           >
-                            <span className="mr-2 text-base group-hover:scale-110 transition-transform duration-200">{item.actionIcon}</span>
-                            {item.isComingSoon ? 'Coming Soon' : item.actionText}
+                            <span className="mr-2 text-base group-hover:scale-110 transition-transform duration-200">
+                              {item.actionIcon}
+                            </span>
+                            {item.isComingSoon
+                              ? "Coming Soon"
+                              : item.actionText}
                           </Button>
                         </CardContent>
                       </Card>
@@ -727,11 +847,20 @@ export default function PropertyHub() {
                             <TooltipTrigger asChild>
                               {cardContent}
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="bg-gradient-to-r from-slate-800 to-slate-700 text-white border border-slate-600 shadow-xl">
+                            <TooltipContent
+                              side="top"
+                              className="bg-gradient-to-r from-slate-800 to-slate-700 text-white border border-slate-600 shadow-xl"
+                            >
                               <div className="text-center">
-                                <p className="font-semibold text-sm">{item.title}</p>
-                                <p className="text-xs text-slate-300 mt-1">Feature launching soon!</p>
-                                <p className="text-xs text-emerald-300 mt-1">Stay tuned for updates</p>
+                                <p className="font-semibold text-sm">
+                                  {item.title}
+                                </p>
+                                <p className="text-xs text-slate-300 mt-1">
+                                  Feature launching soon!
+                                </p>
+                                <p className="text-xs text-emerald-300 mt-1">
+                                  Stay tuned for updates
+                                </p>
                               </div>
                             </TooltipContent>
                           </Tooltip>
@@ -761,7 +890,9 @@ export default function PropertyHub() {
                   </div>
                   <div className="text-slate-400">|</div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-emerald-600">v2.0.1</span>
+                    <span className="font-semibold text-emerald-600">
+                      v2.0.1
+                    </span>
                   </div>
                 </div>
               </div>
@@ -774,17 +905,17 @@ export default function PropertyHub() {
       </div>
 
       {/* Quick Action Dialogs */}
-      <CreatePropertyDialog 
-        open={isPropertyDialogOpen} 
-        onOpenChange={setIsPropertyDialogOpen} 
+      <CreatePropertyDialog
+        open={isPropertyDialogOpen}
+        onOpenChange={setIsPropertyDialogOpen}
       />
-      <CreateBookingDialog 
-        open={isBookingDialogOpen} 
-        onOpenChange={setIsBookingDialogOpen} 
+      <CreateBookingDialog
+        open={isBookingDialogOpen}
+        onOpenChange={setIsBookingDialogOpen}
       />
-      <CreateTaskDialog 
-        isOpen={isTaskDialogOpen} 
-        onOpenChange={setIsTaskDialogOpen} 
+      <CreateTaskDialog
+        isOpen={isTaskDialogOpen}
+        onOpenChange={setIsTaskDialogOpen}
       />
       <ReportsGenerateModal
         open={isReportModalOpen}
