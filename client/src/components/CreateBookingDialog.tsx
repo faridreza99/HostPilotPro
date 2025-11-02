@@ -316,12 +316,6 @@ export default function CreateBookingDialog({
     queryKey: ["/api/properties"],
   });
 
-  /**
-   * Mutation with optimistic update:
-   * - onMutate: cancel relevant queries, snapshot previous data, add optimistic booking
-   * - onError: rollback to previous snapshot
-   * - onSettled / onSuccess: invalidate queries (server is source of truth)
-   */
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("POST", "/api/bookings", data);
@@ -332,116 +326,78 @@ export default function CreateBookingDialog({
       return response.json();
     },
 
-    // Optimistic update
     onMutate: async (newBooking) => {
-      // Cancel outgoing refetches (so they don't overwrite our optimistic update)
+      // cancel outgoing queries
       try {
         await queryClient.cancelQueries(queryKeys.bookings.all());
-      } catch (err) {
-        // ignore if queryKeys shape differs
-      }
+      } catch {}
       await queryClient.cancelQueries({ queryKey: ["/api/bookings"] });
 
-      // Snapshot previous data
-      const previousAllBookings = queryClient.getQueryData(
-        queryKeys.bookings.all(),
-      );
-      const previousApiBookings = queryClient.getQueryData(["/api/bookings"]);
-      const previousPropertyBookings = newBooking?.propertyId
+      // snapshot
+      const previousAll = queryClient.getQueryData(queryKeys.bookings.all());
+      const previousApi = queryClient.getQueryData(["/api/bookings"]);
+      const previousByProp = newBooking?.propertyId
         ? queryClient.getQueryData(
             queryKeys.bookings.withSource(String(newBooking.propertyId)),
           )
         : null;
 
-      // Create an optimistic booking (temp id negative to avoid clash)
-      const optimisticBooking = {
-        id: -Date.now(), // temp id
+      const optimistic = {
+        id: -Date.now(),
         ...newBooking,
-        guestName: newBooking.guestName,
         totalAmount: String(newBooking.totalAmount ?? "0"),
         createdAt: new Date().toISOString(),
-        // any other defaults your UI expects
       };
 
-      // Update "all bookings" cache if present
+      // patch caches
       try {
         queryClient.setQueryData(
           queryKeys.bookings.all(),
-          (old: any[] | undefined) => {
-            if (!old) return [optimisticBooking];
-            return [optimisticBooking, ...old];
-          },
+          (old: any[] | undefined) =>
+            old ? [optimistic, ...old] : [optimistic],
         );
-      } catch (err) {
-        // fallback: try generic key
-        queryClient.setQueryData(
-          ["/api/bookings"],
-          (old: any[] | undefined) => {
-            if (!old) return [optimisticBooking];
-            return [optimisticBooking, ...old];
-          },
+      } catch {
+        queryClient.setQueryData(["/api/bookings"], (old: any[] | undefined) =>
+          old ? [optimistic, ...old] : [optimistic],
         );
       }
 
-      // Update property-specific cache if present
       if (newBooking?.propertyId) {
         try {
           queryClient.setQueryData(
             queryKeys.bookings.withSource(String(newBooking.propertyId)),
-            (old: any[] | undefined) => {
-              if (!old) return [optimisticBooking];
-              return [optimisticBooking, ...old];
-            },
+            (old: any[] | undefined) =>
+              old ? [optimistic, ...old] : [optimistic],
           );
-        } catch {
-          // ignore if key not present
-        }
+        } catch {}
       }
 
-      // Return context for rollback
-      return {
-        previousAllBookings,
-        previousApiBookings,
-        previousPropertyBookings,
-      };
+      return { previousAll, previousApi, previousByProp };
     },
 
-    // If the mutation fails, rollback
     onError: (err: any, _newBooking: any, context: any) => {
       console.error("Booking creation error:", err);
-      // Rollback caches if we have snapshots
-      if (context?.previousAllBookings !== undefined) {
+
+      if (context?.previousAll !== undefined) {
         try {
           queryClient.setQueryData(
             queryKeys.bookings.all(),
-            context.previousAllBookings,
+            context.previousAll,
           );
         } catch {
-          queryClient.setQueryData(
-            ["/api/bookings"],
-            context.previousApiBookings,
-          );
+          queryClient.setQueryData(["/api/bookings"], context.previousApi);
         }
-      } else if (context?.previousApiBookings !== undefined) {
-        queryClient.setQueryData(
-          ["/api/bookings"],
-          context.previousApiBookings,
-        );
+      } else if (context?.previousApi !== undefined) {
+        queryClient.setQueryData(["/api/bookings"], context.previousApi);
       }
 
-      // rollback property specific if present
-      if (
-        context?.previousPropertyBookings !== undefined &&
-        _newBooking?.propertyId
-      ) {
+      if (context?.previousByProp !== undefined && _newBooking?.propertyId) {
         try {
           queryClient.setQueryData(
             queryKeys.bookings.withSource(String(_newBooking.propertyId)),
-            context.previousPropertyBookings,
+            context.previousByProp,
           );
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
 
       toast({
@@ -451,17 +407,13 @@ export default function CreateBookingDialog({
       });
     },
 
-    // On success, replace optimistic data with server response and invalidate queries
     onSuccess: async (newBooking: any) => {
-      console.log("✅ Booking created successfully:", newBooking);
-
-      // Optionally replace optimistic entry in the cache with the returned booking
+      // replace optimistic entry with server entry
       try {
         queryClient.setQueryData(
           queryKeys.bookings.all(),
           (old: any[] | undefined) => {
             if (!old) return [newBooking];
-            // remove optimistic entry (negative id) and prepend server booking
             const filtered = old.filter(
               (b: any) => !(typeof b.id === "number" && b.id < 0),
             );
@@ -469,7 +421,6 @@ export default function CreateBookingDialog({
           },
         );
       } catch {
-        // fallback generic key
         queryClient.setQueryData(
           ["/api/bookings"],
           (old: any[] | undefined) => {
@@ -482,10 +433,8 @@ export default function CreateBookingDialog({
         );
       }
 
-      // Invalidate queries via centralized helper so all related caches refresh
       invalidateBookingQueries(queryClient);
 
-      // Invalidate achievement cache if applicable
       if (user?.id) {
         queryClient.invalidateQueries({
           queryKey: [`/api/achievements/user/${user.id}`],
@@ -500,7 +449,6 @@ export default function CreateBookingDialog({
         description: `Booking created successfully for ${newBooking.guestName}`,
       });
 
-      // Reset form & close modal
       onOpenChange(false);
       setFormData({
         propertyId: "",
@@ -515,7 +463,6 @@ export default function CreateBookingDialog({
       });
     },
 
-    // Always ensure queries are valid after mutation settles
     onSettled: () => {
       try {
         invalidateBookingQueries(queryClient);
@@ -529,7 +476,6 @@ export default function CreateBookingDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate required fields
     if (!formData.propertyId) {
       toast({
         title: "Validation Error",
@@ -538,7 +484,6 @@ export default function CreateBookingDialog({
       });
       return;
     }
-
     if (!formData.guestName) {
       toast({
         title: "Validation Error",
@@ -556,16 +501,15 @@ export default function CreateBookingDialog({
       checkIn: formData.checkIn,
       checkOut: formData.checkOut,
       guests: parseInt(formData.guests) || 1,
-      totalAmount: formData.totalAmount || "0", // Keep as string for decimal field
+      totalAmount: formData.totalAmount || "0",
       specialRequests: formData.specialRequests || null,
     };
 
     createMutation.mutate(data);
   };
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string) =>
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -580,7 +524,7 @@ export default function CreateBookingDialog({
               <Label htmlFor="propertyId">Property</Label>
               <Select
                 value={formData.propertyId}
-                onValueChange={(value) => handleChange("propertyId", value)}
+                onValueChange={(v) => handleChange("propertyId", v)}
                 required
               >
                 <SelectTrigger>
@@ -588,12 +532,9 @@ export default function CreateBookingDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {Array.isArray(properties)
-                    ? properties.map((property: any) => (
-                        <SelectItem
-                          key={property.id}
-                          value={property.id.toString()}
-                        >
-                          {property.name}
+                    ? properties.map((p: any) => (
+                        <SelectItem key={p.id} value={p.id.toString()}>
+                          {p.name}
                         </SelectItem>
                       ))
                     : []}
@@ -702,7 +643,7 @@ export default function CreateBookingDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-            >in 
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={createMutation.isPending}>

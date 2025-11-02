@@ -740,6 +740,7 @@
 // }
 
 // app/components/Bookings.tsx
+// app/components/Bookings.tsx
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -766,7 +767,7 @@ import {
   Clock,
   Eye,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useIsMutating } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import BookingCalendar from "@/components/BookingCalendar";
@@ -787,6 +788,10 @@ export default function Bookings() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const queryClient = useQueryClient();
+
+  // show overlay whenever any mutation is active
+  const activeMutations = useIsMutating();
+  const isMutating = activeMutations > 0;
 
   // Get propertyId from URL
   const urlParams =
@@ -813,8 +818,12 @@ export default function Bookings() {
   // Auto-refresh fallback: periodic invalidation to catch other users' changes
   useEffect(() => {
     const interval = setInterval(() => {
-      queryClient.invalidateQueries(queryKeys.bookings.all());
-      queryClient.invalidateQueries(["/api/properties"]);
+      try {
+        queryClient.invalidateQueries(queryKeys.bookings.all());
+      } catch {
+        queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
     }, 30_000); // 30s - adjust if needed
 
     return () => clearInterval(interval);
@@ -875,7 +884,6 @@ export default function Bookings() {
           propertyAddress.toLowerCase().includes(filterArea.toLowerCase());
 
         // Manager filter: skip for now since properties don't have manager field
-        // In the future, this could be based on property owner or assigned staff
         const matchesManager = filterManager === "all"; // Always true for now
 
         // Status filter: case-insensitive match on booking status
@@ -913,7 +921,20 @@ export default function Bookings() {
     });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen bg-background">
+      {/* GLOBAL MUTATION OVERLAY */}
+      {isMutating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="flex flex-col items-center gap-3 bg-white/90 dark:bg-slate-800/90 p-5 rounded-lg shadow-lg">
+            <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin border-primary" />
+            <div className="text-base font-medium">Saving changes…</div>
+            <div className="text-sm text-muted-foreground">
+              Please wait — updating data.
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
