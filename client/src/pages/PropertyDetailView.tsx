@@ -112,7 +112,7 @@ function ActionButton({ label, href, icon: Icon, variant = "default", propertyId
         onClick();
       } else {
         // Check if the href exists and handle property-specific navigation
-        if ((href.includes('/property/') || href.includes('/finances') || href.includes('/finance-hub')) && propertyId) {
+        if ((href.includes('/property/') || href.includes('/finances') || href.includes('/finance-hub') || href.includes('/bookings') || href.includes('/tasks') || href.includes('/utility')) && propertyId) {
           setLocation(`${href}?propertyId=${propertyId}`);
         } else {
           setLocation(href);
