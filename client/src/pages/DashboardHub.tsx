@@ -159,14 +159,14 @@ export default function DashboardHub() {
                     <CardHeader className="pb-4 pt-6 px-6">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div className="p-3 bg-white/80 backdrop-blur-sm rounded-xl shadow-md border border-white/20 flex-shrink-0">
+                          {/* <div className="p-3 bg-white/80 backdrop-blur-sm rounded-xl shadow-md border border-white/20 flex-shrink-0">
                             <IconComponent className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-700" />
-                          </div>
+                          </div> */}
                           <div className="flex items-start gap-2 flex-1 min-w-0">
                             <span className="text-xl sm:text-2xl flex-shrink-0">
                               {item.emoji}
                             </span>
-                            <CardTitle className="text-base sm:text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">
+                            <CardTitle className="text-base sm:text-lg md:text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">
                               {item.title}
                             </CardTitle>
                           </div>

@@ -511,13 +511,13 @@ export default function PropertyHub() {
               {/* Property Cards Tab */}
               <TabsContent value="properties" className="space-y-8">
                 {/* Section Header */}
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-3 bg-emerald-100 rounded-xl">
+                <div className="flex items-center gap-3 mb-2">
+                  {/* <div className="p-3 bg-emerald-100 rounded-xl">
                     <LayoutGrid className="h-6 w-6 text-emerald-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-800">
+                  </div> */}
+                  {/* <h2 className="text-2xl font-bold text-slate-800">
                     Property Cards
-                  </h2>
+                  </h2> */}
                 </div>
 
                 {/* Filters */}
