@@ -36,6 +36,7 @@ import { useToast } from "../hooks/use-toast";
 import { queryClient } from "../lib/queryClient";
 import { queryKeys } from "../lib/queryKeys";
 import CreateFinanceDialog from "../components/CreateFinanceDialog";
+import { BackButton } from "@/components/BackButton";
 
 interface FinanceAnalytics {
   totalRevenue: number;
@@ -76,9 +77,10 @@ export default function FinanceHub() {
 
   const { data: analytics, isLoading: analyticsLoading } =
     useQuery<FinanceAnalytics>({
-      queryKey: propertyFilter !== "all" 
-        ? queryKeys.finance.analytics(propertyFilter)
-        : queryKeys.finance.analytics(),
+      queryKey:
+        propertyFilter !== "all"
+          ? queryKeys.finance.analytics(propertyFilter)
+          : queryKeys.finance.analytics(),
     });
 
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery<
@@ -93,9 +95,10 @@ export default function FinanceHub() {
 
   // Fetch bookings with outstanding payments
   const { data: bookings = [] } = useQuery<any[]>({
-    queryKey: propertyFilter !== "all" 
-      ? queryKeys.bookings.withSource(propertyFilter)
-      : queryKeys.bookings.all(),
+    queryKey:
+      propertyFilter !== "all"
+        ? queryKeys.bookings.withSource(propertyFilter)
+        : queryKeys.bookings.all(),
   });
 
   // Get propertyId from URL
@@ -110,7 +113,7 @@ export default function FinanceHub() {
   }, [urlPropertyId]);
 
   // Find selected property for display
-  const selectedProperty = urlPropertyId 
+  const selectedProperty = urlPropertyId
     ? properties.find((p: any) => p.id === parseInt(urlPropertyId))
     : null;
 
@@ -120,11 +123,13 @@ export default function FinanceHub() {
       await Promise.all([
         queryClient.refetchQueries({ queryKey: queryKeys.finance.all() }),
         // Refetch all analytics including parameterized ones
-        queryClient.refetchQueries({ 
+        queryClient.refetchQueries({
           predicate: (query) => {
             const key = query.queryKey[0];
-            return typeof key === 'string' && key.includes('/api/finance/analytics');
-          }
+            return (
+              typeof key === "string" && key.includes("/api/finance/analytics")
+            );
+          },
         }),
       ]);
       toast({
@@ -150,7 +155,6 @@ export default function FinanceHub() {
       maximumFractionDigits: 0,
     }).format(amount);
   };
-
 
   // Filtered transactions based on filters
   const filteredTransactions = useMemo(() => {
@@ -218,7 +222,25 @@ export default function FinanceHub() {
         <div>
           {urlPropertyId && selectedProperty ? (
             <>
-              <h1 className="text-3xl font-bold text-gray-900">Finance Hub - {selectedProperty.name}</h1>
+              {/* Header with Back Button layered on top */}
+              <div>
+                <BackButton
+                  fallbackRoute={
+                    urlPropertyId
+                      ? `/bookings?propertyId=${urlPropertyId}`
+                      : "/bookings"
+                  }
+                  variant="ghost"
+                  className="!p-2 !rounded-md bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm"
+                >
+                  <span className="hidden sm:inline text-sm">
+                    Back to Property
+                  </span>
+                </BackButton>
+              </div>
+              <h1 className="text-3xl mt-4 font-bold text-gray-900">
+                Finance Hub - {selectedProperty.name}
+              </h1>
               <p className="text-gray-500 mt-1">
                 Financial data for this property
               </p>
@@ -236,7 +258,7 @@ export default function FinanceHub() {
           {urlPropertyId && (
             <Button
               variant="outline"
-              onClick={() => window.location.href = '/finance-hub'}
+              onClick={() => (window.location.href = "/finance-hub")}
               data-testid="button-view-all-finances"
             >
               View All Finances
@@ -359,7 +381,10 @@ export default function FinanceHub() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="property-filter">Property</Label>
-                <Select value={propertyFilter} onValueChange={setPropertyFilter}>
+                <Select
+                  value={propertyFilter}
+                  onValueChange={setPropertyFilter}
+                >
                   <SelectTrigger
                     id="property-filter"
                     data-testid="select-property-filter"
@@ -379,7 +404,10 @@ export default function FinanceHub() {
 
               <div className="space-y-2">
                 <Label htmlFor="category-filter">Category</Label>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <Select
+                  value={categoryFilter}
+                  onValueChange={setCategoryFilter}
+                >
                   <SelectTrigger
                     id="category-filter"
                     data-testid="select-category-filter"
@@ -455,7 +483,8 @@ export default function FinanceHub() {
                   const hasEvidence =
                     transaction.attachments &&
                     transaction.attachments.length > 0;
-                  const isTaskExpense = transaction.referenceNumber?.startsWith("TASK-");
+                  const isTaskExpense =
+                    transaction.referenceNumber?.startsWith("TASK-");
 
                   return (
                     <div
@@ -553,7 +582,7 @@ export default function FinanceHub() {
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Total Outstanding</p>
                   <p className="text-2xl font-bold text-red-600">
-                    ${formatCurrency(totalOutstanding).replace('$', '')}
+                    ${formatCurrency(totalOutstanding).replace("$", "")}
                   </p>
                 </div>
               )}
@@ -563,7 +592,9 @@ export default function FinanceHub() {
             {outstandingBookings.length === 0 ? (
               <div className="text-center py-8">
                 <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <p className="text-gray-900 font-medium">All Payments Up to Date</p>
+                <p className="text-gray-900 font-medium">
+                  All Payments Up to Date
+                </p>
                 <p className="text-sm text-gray-500 mt-1">
                   No outstanding payments from bookings
                 </p>
@@ -571,11 +602,14 @@ export default function FinanceHub() {
             ) : (
               <div className="space-y-3">
                 {outstandingBookings.map((booking: any) => {
-                  const property = properties.find((p) => p.id === booking.propertyId);
+                  const property = properties.find(
+                    (p) => p.id === booking.propertyId,
+                  );
                   const amountDue = parseFloat(booking.amountDue || "0");
                   const totalAmount = parseFloat(booking.totalAmount || "0");
                   const amountPaid = parseFloat(booking.amountPaid || "0");
-                  const percentagePaid = totalAmount > 0 ? (amountPaid / totalAmount) * 100 : 0;
+                  const percentagePaid =
+                    totalAmount > 0 ? (amountPaid / totalAmount) * 100 : 0;
 
                   return (
                     <div
@@ -597,10 +631,13 @@ export default function FinanceHub() {
                             </>
                           )}
                           <span className="text-sm text-gray-600">
-                            Check-in: {new Date(booking.checkIn).toLocaleDateString()}
+                            Check-in:{" "}
+                            {new Date(booking.checkIn).toLocaleDateString()}
                           </span>
                           <span className="text-gray-300">•</span>
-                          <Badge className={`${booking.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'} text-xs`}>
+                          <Badge
+                            className={`${booking.paymentStatus === "partial" ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"} text-xs`}
+                          >
                             {booking.paymentStatus}
                           </Badge>
                         </div>
@@ -612,14 +649,15 @@ export default function FinanceHub() {
                             />
                           </div>
                           <span className="text-xs text-gray-500">
-                            ${formatCurrency(amountPaid).replace('$', '')} / ${formatCurrency(totalAmount).replace('$', '')}
+                            ${formatCurrency(amountPaid).replace("$", "")} / $
+                            {formatCurrency(totalAmount).replace("$", "")}
                           </span>
                         </div>
                       </div>
                       <div className="ml-4 text-right">
                         <p className="text-sm text-gray-500">Amount Due</p>
                         <p className="text-xl font-bold text-red-600">
-                          ${formatCurrency(amountDue).replace('$', '')}
+                          ${formatCurrency(amountDue).replace("$", "")}
                         </p>
                       </div>
                     </div>

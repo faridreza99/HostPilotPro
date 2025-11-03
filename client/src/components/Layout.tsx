@@ -29,7 +29,7 @@ export default function Layout({ children, className, title, subtitle, action }:
       {/* Main Content - Sidebar is in App.tsx */}
       <div className={cn(
         "transition-all duration-300",
-        sidebarCollapsed ? "lg:pl-16" : "lg:pl-64"
+        sidebarCollapsed ? "lg:pl-0" : "lg:pl-64"
       )}>
         {/* Mobile top spacing */}
         <div className="lg:hidden h-20"></div>
@@ -38,7 +38,11 @@ export default function Layout({ children, className, title, subtitle, action }:
         {title && <TopBar title={title} subtitle={subtitle} action={action} />}
         
         {/* Page Content */}
-        <main className={cn("p-4 lg:p-6", className)}>
+        <main className={cn(
+          "p-4 lg:p-6",
+          sidebarCollapsed ? "lg:ml-16" : "",
+          className
+        )}>
           {children}
         </main>
       </div>
