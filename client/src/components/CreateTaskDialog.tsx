@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { apiRequest } from '../lib/queryClient';
-import { useToast } from '../hooks/use-toast';
+import React, { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest } from "../lib/queryClient";
+import { useToast } from "../hooks/use-toast";
 
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../components/ui/dialog';
+} from "../components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -22,36 +22,40 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '../components/ui/form';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
+} from "../components/ui/form";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { Textarea } from "../components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select';
-import { Checkbox } from '../components/ui/checkbox';
-import { CalendarIcon, Plus } from 'lucide-react';
-import { Calendar } from '../components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
-import { format } from 'date-fns';
+} from "../components/ui/select";
+import { Checkbox } from "../components/ui/checkbox";
+import { CalendarIcon, Plus } from "lucide-react";
+import { Calendar } from "../components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../components/ui/popover";
+import { format } from "date-fns";
 
 // Task creation schema based on database structure
 const createTaskSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(100, 'Title too long'),
+  title: z.string().min(1, "Title is required").max(100, "Title too long"),
   description: z.string().optional(),
-  type: z.string().min(1, 'Task type is required'),
+  type: z.string().min(1, "Task type is required"),
   department: z.string().optional(),
-  priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
-  propertyId: z.number().min(1, 'Property is required'),
+  priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  propertyId: z.number().min(1, "Property is required"),
   assignedTo: z.string().optional(),
   dueDate: z.date().optional(),
   estimatedCost: z.number().optional(),
   isRecurring: z.boolean().default(false),
-  recurringType: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
+  recurringType: z.enum(["daily", "weekly", "monthly", "yearly"]).optional(),
   recurringInterval: z.number().min(1).default(1).optional(),
 });
 
@@ -64,110 +68,119 @@ interface CreateTaskDialogProps {
 }
 
 const TASK_TYPES = [
-  { value: 'cleaning', label: 'Cleaning' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'pool-service', label: 'Pool Service' },
-  { value: 'garden', label: 'Garden Care' },
-  { value: 'inspection', label: 'Inspection' },
-  { value: 'repair', label: 'Repair' },
-  { value: 'landscaping', label: 'Landscaping' },
-  { value: 'technology', label: 'Technology' },
-  { value: 'security', label: 'Security' },
-  { value: 'guest-service', label: 'Guest Service' }
+  { value: "cleaning", label: "Cleaning" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "pool-service", label: "Pool Service" },
+  { value: "garden", label: "Garden Care" },
+  { value: "inspection", label: "Inspection" },
+  { value: "repair", label: "Repair" },
+  { value: "landscaping", label: "Landscaping" },
+  { value: "technology", label: "Technology" },
+  { value: "security", label: "Security" },
+  { value: "guest-service", label: "Guest Service" },
 ];
 
 const DEPARTMENTS = [
-  { value: 'housekeeping', label: 'Housekeeping' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'landscaping', label: 'Landscaping' },
-  { value: 'pool', label: 'Pool Service' },
-  { value: 'guest-services', label: 'Guest Services' },
-  { value: 'security', label: 'Security' },
-  { value: 'technology', label: 'Technology' }
+  { value: "housekeeping", label: "Housekeeping" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "landscaping", label: "Landscaping" },
+  { value: "pool", label: "Pool Service" },
+  { value: "guest-services", label: "Guest Services" },
+  { value: "security", label: "Security" },
+  { value: "technology", label: "Technology" },
 ];
 
 const TASK_TEMPLATES = [
   {
-    name: 'Deep Clean',
-    title: 'Deep Cleaning Service',
-    description: 'Complete deep cleaning including floors, windows, bathrooms, kitchen, furniture, and all surfaces. Remove all stains and sanitize all areas.',
-    type: 'cleaning',
-    department: 'housekeeping',
-    priority: 'medium' as const,
+    name: "Deep Clean",
+    title: "Deep Cleaning Service",
+    description:
+      "Complete deep cleaning including floors, windows, bathrooms, kitchen, furniture, and all surfaces. Remove all stains and sanitize all areas.",
+    type: "cleaning",
+    department: "housekeeping",
+    priority: "medium" as const,
     estimatedCost: 150,
   },
   {
-    name: 'Steam Clean',
-    title: 'Steam Cleaning Service',
-    description: 'Professional steam cleaning of carpets, upholstery, mattresses, and curtains. Deep sanitization using high-temperature steam.',
-    type: 'cleaning',
-    department: 'housekeeping',
-    priority: 'medium' as const,
+    name: "Steam Clean",
+    title: "Steam Cleaning Service",
+    description:
+      "Professional steam cleaning of carpets, upholstery, mattresses, and curtains. Deep sanitization using high-temperature steam.",
+    type: "cleaning",
+    department: "housekeeping",
+    priority: "medium" as const,
     estimatedCost: 120,
   },
   {
-    name: 'General Maintenance',
-    title: 'General Property Maintenance',
-    description: 'Routine maintenance check including plumbing, electrical, HVAC, locks, doors, windows, and general property condition assessment.',
-    type: 'maintenance',
-    department: 'maintenance',
-    priority: 'low' as const,
+    name: "General Maintenance",
+    title: "General Property Maintenance",
+    description:
+      "Routine maintenance check including plumbing, electrical, HVAC, locks, doors, windows, and general property condition assessment.",
+    type: "maintenance",
+    department: "maintenance",
+    priority: "low" as const,
     estimatedCost: 80,
   },
   {
-    name: 'Pool Service',
-    title: 'Pool Cleaning & Maintenance',
-    description: 'Complete pool service including water testing, chemical balancing, skimming, vacuuming, filter cleaning, and equipment check.',
-    type: 'pool-service',
-    department: 'pool',
-    priority: 'medium' as const,
+    name: "Pool Service",
+    title: "Pool Cleaning & Maintenance",
+    description:
+      "Complete pool service including water testing, chemical balancing, skimming, vacuuming, filter cleaning, and equipment check.",
+    type: "pool-service",
+    department: "pool",
+    priority: "medium" as const,
     estimatedCost: 100,
   },
   {
-    name: 'Garden Care',
-    title: 'Garden Maintenance',
-    description: 'Lawn mowing, hedge trimming, weeding, plant care, and general garden tidying to keep property landscape pristine.',
-    type: 'garden',
-    department: 'landscaping',
-    priority: 'low' as const,
+    name: "Garden Care",
+    title: "Garden Maintenance",
+    description:
+      "Lawn mowing, hedge trimming, weeding, plant care, and general garden tidying to keep property landscape pristine.",
+    type: "garden",
+    department: "landscaping",
+    priority: "low" as const,
     estimatedCost: 90,
   },
 ];
 
-export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: CreateTaskDialogProps) {
+export default function CreateTaskDialog({
+  isOpen,
+  onOpenChange,
+  trigger,
+}: CreateTaskDialogProps) {
   const [date, setDate] = useState<Date>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Debug: Log when dialog open state changes
   React.useEffect(() => {
-    console.log('CreateTaskDialog - isOpen changed to:', isOpen);
+    console.log("CreateTaskDialog - isOpen changed to:", isOpen);
   }, [isOpen]);
 
   // Fetch properties for selection
   const { data: properties = [] } = useQuery({
-    queryKey: ['/api/properties'],
+    queryKey: ["/api/properties"],
   });
 
   // Fetch users for assignment
   const { data: users = [] } = useQuery({
-    queryKey: ['/api/users'],
+    queryKey: ["/api/users"],
   });
 
   // Type assertions for safety
   const propertiesArray = Array.isArray(properties) ? properties : [];
   const usersArray = Array.isArray(users) ? users : [];
-
+  console.log("usersArray", usersArray);
   const form = useForm<CreateTaskForm>({
     resolver: zodResolver(createTaskSchema),
     defaultValues: {
-      title: '',
-      description: '',
-      type: '',
-      department: '',
-      priority: 'medium',
+      title: "",
+      description: "",
+      type: "",
+      department: "",
+      priority: "medium",
       propertyId: 0,
-      assignedTo: 'unassigned',
+      assignedTo: "unassigned",
       estimatedCost: undefined, // Blank by default instead of 0
       isRecurring: false,
       recurringInterval: 1,
@@ -182,72 +195,80 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
         ...taskData,
         dueDate: date ? date.toISOString() : null,
         estimatedCost: taskData.estimatedCost || null,
-        assignedTo: taskData.assignedTo === 'unassigned' ? null : taskData.assignedTo,
+        assignedTo:
+          taskData.assignedTo === "unassigned" ? null : taskData.assignedTo,
         description: taskData.description || null,
         department: taskData.department || null,
         recurringType: taskData.isRecurring ? taskData.recurringType : null,
-        recurringInterval: taskData.isRecurring ? taskData.recurringInterval : null,
+        recurringInterval: taskData.isRecurring
+          ? taskData.recurringInterval
+          : null,
       };
 
-      console.log('Creating task with data:', apiData);
-      
-      const response = await apiRequest('POST', '/api/tasks', apiData);
+      console.log("Creating task with data:", apiData);
+
+      const response = await apiRequest("POST", "/api/tasks", apiData);
       return response.json ? response.json() : response;
     },
     onSuccess: (newTask) => {
-      console.log('Task created successfully:', newTask);
-      
+      console.log("Task created successfully:", newTask);
+
       // Invalidate ALL task-related queries to ensure refresh
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/recent-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/task-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
-      
-      // Force refetch tasks immediately
-      queryClient.refetchQueries({ queryKey: ['/api/tasks'] });
-      queryClient.refetchQueries({ queryKey: ['/api/dashboard/recent-tasks'] });
-      queryClient.refetchQueries({ queryKey: ['/api/dashboard/task-stats'] });
-      
-      toast({
-        title: 'Success',
-        description: `Task "${newTask.title || 'New task'}" created successfully`,
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dashboard/recent-tasks"],
       });
-      
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dashboard/task-stats"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+
+      // Force refetch tasks immediately
+      queryClient.refetchQueries({ queryKey: ["/api/tasks"] });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard/recent-tasks"] });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard/task-stats"] });
+
+      toast({
+        title: "Success",
+        description: `Task "${newTask.title || "New task"}" created successfully`,
+      });
+
       // Reset form and close dialog
       form.reset();
       setDate(undefined);
       onOpenChange(false);
     },
     onError: (error: any) => {
-      console.error('Task creation error:', error);
+      console.error("Task creation error:", error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to create task. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description:
+          error.message || "Failed to create task. Please try again.",
+        variant: "destructive",
       });
     },
   });
 
   const applyTemplate = (templateName: string) => {
-    const template = TASK_TEMPLATES.find(t => t.name === templateName);
+    const template = TASK_TEMPLATES.find((t) => t.name === templateName);
     if (template) {
-      form.setValue('title', template.title);
-      form.setValue('description', template.description);
-      form.setValue('type', template.type);
-      form.setValue('department', template.department);
-      form.setValue('priority', template.priority);
-      form.setValue('estimatedCost', template.estimatedCost);
-      
+      form.setValue("title", template.title);
+      form.setValue("description", template.description);
+      form.setValue("type", template.type);
+      form.setValue("department", template.department);
+      form.setValue("priority", template.priority);
+      form.setValue("estimatedCost", template.estimatedCost);
+
       toast({
-        title: 'Template Applied',
+        title: "Template Applied",
         description: `"${template.name}" template has been applied. You can still modify the fields.`,
       });
     }
   };
 
   const onSubmit = (data: CreateTaskForm) => {
-    console.log('Form submitted with data:', data);
+    console.log("Form submitted with data:", data);
     createTaskMutation.mutate(data);
   };
 
@@ -262,7 +283,9 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
 
       {/* Task Templates Section */}
       <div className="border-b pb-4 mb-2">
-        <label className="text-sm font-medium mb-2 block">Quick Templates</label>
+        <label className="text-sm font-medium mb-2 block">
+          Quick Templates
+        </label>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {TASK_TEMPLATES.map((template) => (
             <Button
@@ -272,13 +295,15 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
               size="sm"
               onClick={() => applyTemplate(template.name)}
               className="text-xs h-auto py-2"
-              data-testid={`button-template-${template.name.toLowerCase().replace(' ', '-')}`}
+              data-testid={`button-template-${template.name.toLowerCase().replace(" ", "-")}`}
             >
               {template.name}
             </Button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-2">Click a template to auto-fill the form</p>
+        <p className="text-xs text-muted-foreground mt-2">
+          Click a template to auto-fill the form
+        </p>
       </div>
 
       <Form {...form}>
@@ -291,7 +316,10 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
               <FormItem>
                 <FormLabel>Task Title *</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g. Pool cleaning and chemical balancing" {...field} />
+                  <Input
+                    placeholder="e.g. Pool cleaning and chemical balancing"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -306,7 +334,7 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <Textarea
                     placeholder="Detailed description of the task..."
                     rows={3}
                     {...field}
@@ -325,7 +353,9 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Property *</FormLabel>
-                  <Select onValueChange={(value) => field.onChange(parseInt(value))}>
+                  <Select
+                    onValueChange={(value) => field.onChange(parseInt(value))}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select property" />
@@ -333,7 +363,10 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
                     </FormControl>
                     <SelectContent>
                       {propertiesArray.map((property: any) => (
-                        <SelectItem key={property.id} value={property.id.toString()}>
+                        <SelectItem
+                          key={property.id}
+                          value={property.id.toString()}
+                        >
                           {property.name}
                         </SelectItem>
                       ))}
@@ -403,7 +436,10 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Priority</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select priority" />
@@ -438,11 +474,16 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {usersArray.filter((user: any) => user.role === 'staff' || user.role === 'admin').map((user: any) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name} ({user.role})
-                        </SelectItem>
-                      ))}
+                      {usersArray
+                        .filter(
+                          (user: any) =>
+                            user.role === "staff" || user.role === "admin",
+                        )
+                        .map((user: any) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name} ({user.role})
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -459,11 +500,7 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
                       variant="outline"
                       className="w-full pl-3 text-left font-normal"
                     >
-                      {date ? (
-                        format(date, 'PPP')
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
+                      {date ? format(date, "PPP") : <span>Pick a date</span>}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
@@ -478,9 +515,7 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
                   />
                 </PopoverContent>
               </Popover>
-              <FormDescription>
-                Optional deadline for this task
-              </FormDescription>
+              <FormDescription>Optional deadline for this task</FormDescription>
             </FormItem>
           </div>
 
@@ -515,7 +550,10 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Frequency</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select frequency" />
@@ -540,18 +578,21 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
                     <FormItem>
                       <FormLabel>Every</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           min="1"
                           placeholder="1"
                           {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          onChange={(e) =>
+                            field.onChange(parseInt(e.target.value) || 1)
+                          }
                         />
                       </FormControl>
                       <FormDescription>
                         {form.watch("recurringType") === "daily" && "day(s)"}
                         {form.watch("recurringType") === "weekly" && "week(s)"}
-                        {form.watch("recurringType") === "monthly" && "month(s)"}
+                        {form.watch("recurringType") === "monthly" &&
+                          "month(s)"}
                         {form.watch("recurringType") === "yearly" && "year(s)"}
                       </FormDescription>
                       <FormMessage />
@@ -570,12 +611,14 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
               <FormItem>
                 <FormLabel>Estimated Cost (THB)</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     step="0.01"
                     placeholder="0.00"
                     {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
                   />
                 </FormControl>
                 <FormDescription>
@@ -588,19 +631,16 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
 
           {/* Submit Buttons */}
           <div className="flex justify-end space-x-3 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={createTaskMutation.isPending}
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={createTaskMutation.isPending}
-            >
-              {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
+            <Button type="submit" disabled={createTaskMutation.isPending}>
+              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
             </Button>
           </div>
         </form>
@@ -611,9 +651,7 @@ export default function CreateTaskDialog({ isOpen, onOpenChange, trigger }: Crea
   if (trigger) {
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogTrigger asChild>
-          {trigger}
-        </DialogTrigger>
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
         {dialogContent}
       </Dialog>
     );

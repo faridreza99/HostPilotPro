@@ -1,24 +1,55 @@
-import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '../lib/queryClient';
-import { useToast } from '../hooks/use-toast';
-import { useFastAuth } from '@/lib/fastAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import React, { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "../lib/queryClient";
+import { useToast } from "../hooks/use-toast";
+import { useFastAuth } from "@/lib/fastAuth";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import CreateTaskDialog from "../components/CreateTaskDialog";
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
+import {
+  Plus,
+  Search,
+  Filter,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
   Wrench,
   Calendar,
   User,
@@ -26,8 +57,8 @@ import {
   RefreshCw,
   Trash2,
   Upload,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 
 // Ultra-fast demo tasks data - no API calls, instant loading
 const ULTRA_FAST_TASKS = [
@@ -45,7 +76,7 @@ const ULTRA_FAST_TASKS = [
     dueDate: "2025-01-31",
     createdAt: "2025-01-28",
     estimatedHours: 2,
-    category: "Property Maintenance"
+    category: "Property Maintenance",
   },
   {
     id: 2,
@@ -61,7 +92,7 @@ const ULTRA_FAST_TASKS = [
     dueDate: "2025-02-02",
     createdAt: "2025-01-25",
     estimatedHours: 4,
-    category: "Property Maintenance"
+    category: "Property Maintenance",
   },
   {
     id: 3,
@@ -77,7 +108,7 @@ const ULTRA_FAST_TASKS = [
     dueDate: "2025-01-30",
     createdAt: "2025-01-29",
     estimatedHours: 3,
-    category: "Guest Services"
+    category: "Guest Services",
   },
   {
     id: 4,
@@ -93,7 +124,7 @@ const ULTRA_FAST_TASKS = [
     dueDate: "2025-02-05",
     createdAt: "2025-01-27",
     estimatedHours: 6,
-    category: "Property Maintenance"
+    category: "Property Maintenance",
   },
   {
     id: 5,
@@ -109,7 +140,7 @@ const ULTRA_FAST_TASKS = [
     dueDate: "2025-02-01",
     createdAt: "2025-01-26",
     estimatedHours: 4,
-    category: "Technology"
+    category: "Technology",
   },
   {
     id: 6,
@@ -125,8 +156,8 @@ const ULTRA_FAST_TASKS = [
     dueDate: "2025-01-31",
     createdAt: "2025-01-28",
     estimatedHours: 1,
-    category: "Security"
-  }
+    category: "Security",
+  },
 ];
 
 const SUMMARY_STATS = {
@@ -135,7 +166,7 @@ const SUMMARY_STATS = {
   inProgressTasks: 2,
   completedTasks: 1,
   overdueTasks: 0,
-  highPriorityTasks: 3
+  highPriorityTasks: 3,
 };
 
 export default function UltraFastTasks() {
@@ -145,22 +176,25 @@ export default function UltraFastTasks() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
-  const [dateRange, setDateRange] = useState<{ from: string; to: string } | null>(null);
+  const [dateRange, setDateRange] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [evidencePhotos, setEvidencePhotos] = useState<string[]>([]);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Helper function to format date as YYYY-MM-DD in local timezone
   const formatLocalDate = (date: Date): string => {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
 
@@ -171,27 +205,27 @@ export default function UltraFastTasks() {
     const to = new Date();
 
     switch (filter) {
-      case 'today':
+      case "today":
         from.setHours(0, 0, 0, 0);
         to.setHours(23, 59, 59, 999);
         break;
-      case 'this-week':
+      case "this-week":
         from.setDate(today.getDate() - today.getDay());
         from.setHours(0, 0, 0, 0);
         to.setDate(from.getDate() + 6);
         to.setHours(23, 59, 59, 999);
         break;
-      case 'next-7-days':
+      case "next-7-days":
         from.setHours(0, 0, 0, 0);
         to.setDate(today.getDate() + 7);
         to.setHours(23, 59, 59, 999);
         break;
-      case 'next-30-days':
+      case "next-30-days":
         from.setHours(0, 0, 0, 0);
         to.setDate(today.getDate() + 30);
         to.setHours(23, 59, 59, 999);
         break;
-      case 'next-90-days':
+      case "next-90-days":
         from.setHours(0, 0, 0, 0);
         to.setDate(today.getDate() + 90);
         to.setHours(23, 59, 59, 999);
@@ -202,16 +236,16 @@ export default function UltraFastTasks() {
 
     return {
       from: formatLocalDate(from),
-      to: formatLocalDate(to)
+      to: formatLocalDate(to),
     };
   };
 
   // Handle date filter change
   const handleDateFilterChange = (filter: string) => {
     setDateFilter(filter);
-    if (filter === 'all') {
+    if (filter === "all") {
       setDateRange(null);
-    } else if (filter === 'custom') {
+    } else if (filter === "custom") {
       // Custom range will be set separately
       return;
     } else {
@@ -224,17 +258,21 @@ export default function UltraFastTasks() {
   const tasksQueryParams = useMemo(() => {
     const params = new URLSearchParams();
     if (dateRange) {
-      params.append('due_from', dateRange.from);
-      params.append('due_to', dateRange.to);
+      params.append("due_from", dateRange.from);
+      params.append("due_to", dateRange.to);
     }
     return params.toString();
   }, [dateRange]);
 
   // Fetch actual tasks from database with date filtering
-  const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useQuery({
-    queryKey: ['/api/tasks', tasksQueryParams],
+  const {
+    data: tasks = [],
+    isLoading: tasksLoading,
+    error: tasksError,
+  } = useQuery({
+    queryKey: ["/api/tasks", tasksQueryParams],
     queryFn: async () => {
-      const url = `/api/tasks${tasksQueryParams ? `?${tasksQueryParams}` : ''}`;
+      const url = `/api/tasks${tasksQueryParams ? `?${tasksQueryParams}` : ""}`;
       const response = await fetch(url);
       return response.json();
     },
@@ -244,16 +282,16 @@ export default function UltraFastTasks() {
 
   // Debug log to see if tasks are loading
   const tasksArray = Array.isArray(tasks) ? tasks : [];
-  console.log('UltraFastTasks - Tasks loaded:', tasksArray.length, 'tasks');
+  console.log("UltraFastTasks - Tasks loaded:", tasksArray.length, "tasks");
 
   // Fetch properties for property names
   const { data: properties = [] } = useQuery({
-    queryKey: ['/api/properties'],
+    queryKey: ["/api/properties"],
   });
 
   // Fetch users for assignee names
   const { data: users = [] } = useQuery({
-    queryKey: ['/api/users'],
+    queryKey: ["/api/users"],
   });
 
   // Type safe arrays
@@ -282,23 +320,32 @@ export default function UltraFastTasks() {
   const enhancedTasks = useMemo(() => {
     return tasksArray.map((task: any) => ({
       ...task,
-      propertyName: propertyMap.get(task.propertyId) || `Property ${task.propertyId}`,
-      assigneeName: task.assignedTo ? (userMap.get(task.assignedTo) || 'Unknown User') : 'Unassigned',
+      propertyName:
+        propertyMap.get(task.propertyId) || `Property ${task.propertyId}`,
+      assigneeName: task.assignedTo
+        ? userMap.get(task.assignedTo) || "Unknown User"
+        : "Unassigned",
     }));
   }, [tasksArray, propertyMap, userMap]);
 
   // Real-time filtering with actual data
   const filteredTasks = useMemo(() => {
     return enhancedTasks.filter((task: any) => {
-      const matchesSearch = searchTerm === "" || 
-        (task.title && task.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (task.description && task.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (task.propertyName && task.propertyName.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesStatus = statusFilter === "all" || task.status === statusFilter;
-      const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter;
+      const matchesSearch =
+        searchTerm === "" ||
+        (task.title &&
+          task.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (task.description &&
+          task.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (task.propertyName &&
+          task.propertyName.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesStatus =
+        statusFilter === "all" || task.status === statusFilter;
+      const matchesPriority =
+        priorityFilter === "all" || task.priority === priorityFilter;
       const matchesType = typeFilter === "all" || task.type === typeFilter;
-      
+
       return matchesSearch && matchesStatus && matchesPriority && matchesType;
     });
   }, [enhancedTasks, searchTerm, statusFilter, priorityFilter, typeFilter]);
@@ -307,50 +354,68 @@ export default function UltraFastTasks() {
   const stats = useMemo(() => {
     return {
       totalTasks: enhancedTasks.length,
-      pendingTasks: enhancedTasks.filter((t: any) => t.status === 'pending').length,
-      inProgressTasks: enhancedTasks.filter((t: any) => t.status === 'in-progress').length,
-      completedTasks: enhancedTasks.filter((t: any) => t.status === 'completed').length,
+      pendingTasks: enhancedTasks.filter((t: any) => t.status === "pending")
+        .length,
+      inProgressTasks: enhancedTasks.filter(
+        (t: any) => t.status === "in-progress",
+      ).length,
+      completedTasks: enhancedTasks.filter((t: any) => t.status === "completed")
+        .length,
       overdueTasks: enhancedTasks.filter((t: any) => {
         if (!t.dueDate) return false;
-        return new Date(t.dueDate) < new Date() && t.status !== 'completed';
+        return new Date(t.dueDate) < new Date() && t.status !== "completed";
       }).length,
-      highPriorityTasks: enhancedTasks.filter((t: any) => t.priority === 'high' || t.priority === 'urgent').length,
+      highPriorityTasks: enhancedTasks.filter(
+        (t: any) => t.priority === "high" || t.priority === "urgent",
+      ).length,
     };
   }, [enhancedTasks]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "in-progress": return "bg-blue-100 text-blue-800";
-      case "completed": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "in-progress":
+        return "bg-blue-100 text-blue-800";
+      case "completed":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high": return "bg-red-100 text-red-800";
-      case "medium": return "bg-orange-100 text-orange-800";
-      case "low": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "high":
+        return "bg-red-100 text-red-800";
+      case "medium":
+        return "bg-orange-100 text-orange-800";
+      case "low":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "pending": return <Clock className="h-4 w-4" />;
-      case "in-progress": return <Wrench className="h-4 w-4" />;
-      case "completed": return <CheckCircle2 className="h-4 w-4" />;
-      default: return <AlertTriangle className="h-4 w-4" />;
+      case "pending":
+        return <Clock className="h-4 w-4" />;
+      case "in-progress":
+        return <Wrench className="h-4 w-4" />;
+      case "completed":
+        return <CheckCircle2 className="h-4 w-4" />;
+      default:
+        return <AlertTriangle className="h-4 w-4" />;
     }
   };
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
+      return new Date(dateString).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
       });
     } catch {
       return dateString;
@@ -360,30 +425,41 @@ export default function UltraFastTasks() {
   // Task completion mutation
   const completeTaskMutation = useMutation({
     mutationFn: async (taskId: number) => {
-      return await apiRequest('PUT', `/api/tasks/${taskId}`, { status: 'completed' });
+      return await apiRequest("PUT", `/api/tasks/${taskId}`, {
+        status: "completed",
+      });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/tasks'] });
-      
+      await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/tasks"] });
+
       // Invalidate and refetch achievement cache
       if (user?.id) {
-        console.log('🎮 Task completed! Invalidating achievement cache for user:', user.id);
-        await queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
-        await queryClient.refetchQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+        console.log(
+          "🎮 Task completed! Invalidating achievement cache for user:",
+          user.id,
+        );
+        await queryClient.invalidateQueries({
+          queryKey: [`/api/achievements/user/${user.id}`],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["/api/achievements/definitions"],
+        });
+        await queryClient.refetchQueries({
+          queryKey: [`/api/achievements/user/${user.id}`],
+        });
       }
-      
+
       toast({
-        title: 'Success',
-        description: 'Task completed successfully',
+        title: "Success",
+        description: "Task completed successfully",
       });
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to complete task',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to complete task",
+        variant: "destructive",
       });
     },
   });
@@ -391,34 +467,49 @@ export default function UltraFastTasks() {
   // Task update mutation
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return await apiRequest('PUT', `/api/tasks/${id}`, data);
+      return await apiRequest("PUT", `/api/tasks/${id}`, data);
     },
     onSuccess: async (response: any, variables: { id: number; data: any }) => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/tasks'] });
-      
+      await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/tasks"] });
+
       // Invalidate and refetch achievement cache if task status changed to completed or approved
-      if ((variables.data.status === 'completed' || variables.data.status === 'approved') && user?.id) {
-        console.log('🎮 Task status updated! Invalidating achievement cache for user:', user.id, 'status:', variables.data.status);
-        await queryClient.invalidateQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/achievements/definitions"] });
-        await queryClient.refetchQueries({ queryKey: [`/api/achievements/user/${user.id}`] });
+      if (
+        (variables.data.status === "completed" ||
+          variables.data.status === "approved") &&
+        user?.id
+      ) {
+        console.log(
+          "🎮 Task status updated! Invalidating achievement cache for user:",
+          user.id,
+          "status:",
+          variables.data.status,
+        );
+        await queryClient.invalidateQueries({
+          queryKey: [`/api/achievements/user/${user.id}`],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["/api/achievements/definitions"],
+        });
+        await queryClient.refetchQueries({
+          queryKey: [`/api/achievements/user/${user.id}`],
+        });
       }
-      
+
       setIsEditDialogOpen(false);
       setEditingTask(null);
       setEditForm({});
       setEvidencePhotos([]);
       toast({
-        title: 'Success',
-        description: 'Task updated successfully',
+        title: "Success",
+        description: "Task updated successfully",
       });
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to update task',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to update task",
+        variant: "destructive",
       });
     },
   });
@@ -426,13 +517,13 @@ export default function UltraFastTasks() {
   // Refresh tasks mutation
   const refreshTasksMutation = useMutation({
     mutationFn: async () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-      return 'refreshed';
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      return "refreshed";
     },
     onSuccess: () => {
       toast({
-        title: 'Tasks Refreshed',
-        description: 'Task list updated with latest data',
+        title: "Tasks Refreshed",
+        description: "Task list updated with latest data",
       });
     },
   });
@@ -440,11 +531,14 @@ export default function UltraFastTasks() {
   // Bulk delete mutations
   const deleteExpiredMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('DELETE', '/api/tasks/bulk-delete/expired');
+      const response = await apiRequest(
+        "DELETE",
+        "/api/tasks/bulk-delete/expired",
+      );
       return response;
     },
     onSuccess: (result: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Expired tasks deleted",
         description: `Successfully deleted ${result?.deletedCount || 0} expired tasks`,
@@ -454,7 +548,7 @@ export default function UltraFastTasks() {
     onError: (error: any) => {
       toast({
         title: "Error deleting expired tasks",
-        description: error.message || 'Failed to delete expired tasks',
+        description: error.message || "Failed to delete expired tasks",
         variant: "destructive",
       });
     },
@@ -462,11 +556,14 @@ export default function UltraFastTasks() {
 
   const deleteCompletedMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('DELETE', '/api/tasks/bulk-delete/completed');
+      const response = await apiRequest(
+        "DELETE",
+        "/api/tasks/bulk-delete/completed",
+      );
       return response;
     },
     onSuccess: (result: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Completed tasks deleted",
         description: `Successfully deleted ${result?.deletedCount || 0} completed tasks`,
@@ -476,7 +573,7 @@ export default function UltraFastTasks() {
     onError: (error: any) => {
       toast({
         title: "Error deleting completed tasks",
-        description: error.message || 'Failed to delete completed tasks',
+        description: error.message || "Failed to delete completed tasks",
         variant: "destructive",
       });
     },
@@ -484,11 +581,11 @@ export default function UltraFastTasks() {
 
   const deleteOldMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('DELETE', '/api/tasks/bulk-delete/old');
+      const response = await apiRequest("DELETE", "/api/tasks/bulk-delete/old");
       return response;
     },
     onSuccess: (result: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Old tasks deleted",
         description: `Successfully deleted ${result?.deletedCount || 0} old tasks`,
@@ -498,7 +595,7 @@ export default function UltraFastTasks() {
     onError: (error: any) => {
       toast({
         title: "Error deleting old tasks",
-        description: error.message || 'Failed to delete old tasks',
+        description: error.message || "Failed to delete old tasks",
         variant: "destructive",
       });
     },
@@ -515,14 +612,14 @@ export default function UltraFastTasks() {
     if (task) {
       setEditingTask(task);
       setEditForm({
-        title: task.title || '',
-        description: task.description || '',
-        type: task.type || 'maintenance',
-        priority: task.priority || 'medium',
-        status: task.status || 'pending',
-        assignedTo: task.assignedTo || '',
-        dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
-        propertyId: task.propertyId || '',
+        title: task.title || "",
+        description: task.description || "",
+        type: task.type || "maintenance",
+        priority: task.priority || "medium",
+        status: task.status || "pending",
+        assignedTo: task.assignedTo || "",
+        dueDate: task.dueDate ? task.dueDate.split("T")[0] : "",
+        propertyId: task.propertyId || "",
       });
       setEvidencePhotos(task.evidencePhotos || []);
       setIsEditDialogOpen(true);
@@ -533,7 +630,7 @@ export default function UltraFastTasks() {
     const files = event.target.files;
     if (!files) return;
 
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
     const MAX_PHOTOS = 6;
     const MAX_WIDTH = 1920; // Full HD width
     const MAX_HEIGHT = 1080; // Full HD height
@@ -545,7 +642,7 @@ export default function UltraFastTasks() {
         description: `You can upload a maximum of ${MAX_PHOTOS} photos per task. Currently have ${evidencePhotos.length} photo(s).`,
         variant: "destructive",
       });
-      event.target.value = '';
+      event.target.value = "";
       return;
     }
 
@@ -574,7 +671,7 @@ export default function UltraFastTasks() {
               return;
             }
 
-            setEvidencePhotos(prev => [...prev, reader.result as string]);
+            setEvidencePhotos((prev) => [...prev, reader.result as string]);
           };
           img.src = reader.result as string;
         }
@@ -582,18 +679,18 @@ export default function UltraFastTasks() {
       reader.readAsDataURL(file);
     });
 
-    event.target.value = '';
+    event.target.value = "";
   };
 
   const removePhoto = (index: number) => {
-    setEvidencePhotos(prev => prev.filter((_, i) => i !== index));
+    setEvidencePhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveTask = () => {
     if (editingTask) {
       // Clean up the update data - convert dates and remove undefined values
       const updateData: any = {};
-      
+
       if (editForm.title) updateData.title = editForm.title;
       if (editForm.description) updateData.description = editForm.description;
       if (editForm.type) updateData.type = editForm.type;
@@ -605,15 +702,15 @@ export default function UltraFastTasks() {
         // Convert date string to Date object
         updateData.dueDate = new Date(editForm.dueDate);
       }
-      
+
       // Always include evidencePhotos to support deletions
       updateData.evidencePhotos = evidencePhotos;
-      
-      console.log('Sending update data:', updateData);
-      
+
+      console.log("Sending update data:", updateData);
+
       updateTaskMutation.mutate({
         id: editingTask.id,
-        data: updateData
+        data: updateData,
       });
     }
   };
@@ -645,21 +742,23 @@ export default function UltraFastTasks() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleRefresh}
             disabled={refreshTasksMutation.isPending}
             className="gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshTasksMutation.isPending ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${refreshTasksMutation.isPending ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
           <div className="flex gap-2">
-            <Button 
+            <Button
               onClick={() => {
-                console.log('Create Task button clicked');
+                console.log("Create Task button clicked");
                 setIsCreateDialogOpen(true);
-                console.log('Dialog state should be:', true);
+                console.log("Dialog state should be:", true);
               }}
               className="gap-2"
               data-testid="button-create-task"
@@ -667,7 +766,7 @@ export default function UltraFastTasks() {
               <Plus className="h-4 w-4" />
               Create Task
             </Button>
-            <Button 
+            <Button
               onClick={() => setIsBulkDialogOpen(true)}
               variant="outline"
               className="gap-2 border-red-200 text-red-600 hover:bg-red-50"
@@ -688,9 +787,7 @@ export default function UltraFastTasks() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalTasks}</div>
-            <p className="text-xs text-muted-foreground">
-              All tasks
-            </p>
+            <p className="text-xs text-muted-foreground">All tasks</p>
           </CardContent>
         </Card>
 
@@ -700,10 +797,10 @@ export default function UltraFastTasks() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pendingTasks}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting start
-            </p>
+            <div className="text-2xl font-bold text-yellow-600">
+              {stats.pendingTasks}
+            </div>
+            <p className="text-xs text-muted-foreground">Awaiting start</p>
           </CardContent>
         </Card>
 
@@ -713,10 +810,10 @@ export default function UltraFastTasks() {
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.inProgressTasks}</div>
-            <p className="text-xs text-muted-foreground">
-              Currently active
-            </p>
+            <div className="text-2xl font-bold text-blue-600">
+              {stats.inProgressTasks}
+            </div>
+            <p className="text-xs text-muted-foreground">Currently active</p>
           </CardContent>
         </Card>
 
@@ -726,10 +823,10 @@ export default function UltraFastTasks() {
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completedTasks}</div>
-            <p className="text-xs text-muted-foreground">
-              Recently finished
-            </p>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.completedTasks}
+            </div>
+            <p className="text-xs text-muted-foreground">Recently finished</p>
           </CardContent>
         </Card>
 
@@ -739,10 +836,10 @@ export default function UltraFastTasks() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.highPriorityTasks}</div>
-            <p className="text-xs text-muted-foreground">
-              Urgent attention
-            </p>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.highPriorityTasks}
+            </div>
+            <p className="text-xs text-muted-foreground">Urgent attention</p>
           </CardContent>
         </Card>
 
@@ -752,10 +849,10 @@ export default function UltraFastTasks() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.overdueTasks}</div>
-            <p className="text-xs text-muted-foreground">
-              Past due date
-            </p>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.overdueTasks}
+            </div>
+            <p className="text-xs text-muted-foreground">Past due date</p>
           </CardContent>
         </Card>
       </div>
@@ -776,37 +873,45 @@ export default function UltraFastTasks() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-44">
                 <Calendar className="h-4 w-4 mr-2" />
-                {dateFilter === 'all' && 'All Dates'}
-                {dateFilter === 'today' && 'Today'}
-                {dateFilter === 'this-week' && 'This Week'}
-                {dateFilter === 'next-7-days' && 'Next 7 Days'}
-                {dateFilter === 'next-30-days' && 'Next 30 Days'}
-                {dateFilter === 'next-90-days' && 'Next 90 Days'}
-                {dateFilter === 'custom' && 'Custom Range'}
+                {dateFilter === "all" && "All Dates"}
+                {dateFilter === "today" && "Today"}
+                {dateFilter === "this-week" && "This Week"}
+                {dateFilter === "next-7-days" && "Next 7 Days"}
+                {dateFilter === "next-30-days" && "Next 30 Days"}
+                {dateFilter === "next-90-days" && "Next 90 Days"}
+                {dateFilter === "custom" && "Custom Range"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleDateFilterChange('all')}>
+              <DropdownMenuItem onClick={() => handleDateFilterChange("all")}>
                 All Dates
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDateFilterChange('today')}>
+              <DropdownMenuItem onClick={() => handleDateFilterChange("today")}>
                 Today
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDateFilterChange('this-week')}>
+              <DropdownMenuItem
+                onClick={() => handleDateFilterChange("this-week")}
+              >
                 This Week
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDateFilterChange('next-7-days')}>
+              <DropdownMenuItem
+                onClick={() => handleDateFilterChange("next-7-days")}
+              >
                 Next 7 Days
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDateFilterChange('next-30-days')}>
+              <DropdownMenuItem
+                onClick={() => handleDateFilterChange("next-30-days")}
+              >
                 Next 30 Days
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDateFilterChange('next-90-days')}>
+              <DropdownMenuItem
+                onClick={() => handleDateFilterChange("next-90-days")}
+              >
                 Next 90 Days
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
+
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40">
               <Filter className="h-4 w-4 mr-2" />
@@ -889,13 +994,20 @@ export default function UltraFastTasks() {
                     <TableRow key={task.id}>
                       <TableCell>
                         <div className="space-y-1">
-                          <div className="font-medium">{task.title || 'Untitled Task'}</div>
+                          <div className="font-medium">
+                            {task.title || "Untitled Task"}
+                          </div>
                           <div className="text-sm text-muted-foreground line-clamp-1">
-                            {task.description || 'No description'}
+                            {task.description || "No description"}
                           </div>
                           {task.estimatedCost && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <span>฿{parseFloat(task.estimatedCost || 0).toLocaleString()}</span>
+                              <span>
+                                ฿
+                                {parseFloat(
+                                  task.estimatedCost || 0,
+                                ).toLocaleString()}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -903,7 +1015,9 @@ export default function UltraFastTasks() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{task.propertyName}</span>
+                          <span className="font-medium">
+                            {task.propertyName}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -914,44 +1028,54 @@ export default function UltraFastTasks() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
-                          {(task.type || '').replace('-', ' ')}
+                          {(task.type || "").replace("-", " ")}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getPriorityColor(task.priority || 'medium')}>
-                          {task.priority || 'medium'}
+                        <Badge
+                          className={getPriorityColor(
+                            task.priority || "medium",
+                          )}
+                        >
+                          {task.priority || "medium"}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {task.dueDate ? formatDate(task.dueDate) : 'No due date'}
+                          {task.dueDate
+                            ? formatDate(task.dueDate)
+                            : "No due date"}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(task.status || 'pending')}>
+                        <Badge
+                          className={getStatusColor(task.status || "pending")}
+                        >
                           <span className="flex items-center gap-1">
-                            {getStatusIcon(task.status || 'pending')}
-                            {(task.status || 'pending').replace('-', ' ')}
+                            {getStatusIcon(task.status || "pending")}
+                            {(task.status || "pending").replace("-", " ")}
                           </span>
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleEditTask(task.id)}
                           >
                             Edit
                           </Button>
-                          {task.status !== 'completed' && (
-                            <Button 
-                              variant="default" 
+                          {task.status !== "completed" && (
+                            <Button
+                              variant="default"
                               size="sm"
                               onClick={() => handleCompleteTask(task.id)}
                               disabled={completeTaskMutation.isPending}
                             >
-                              {completeTaskMutation.isPending ? 'Completing...' : 'Complete'}
+                              {completeTaskMutation.isPending
+                                ? "Completing..."
+                                : "Complete"}
                             </Button>
                           )}
                         </div>
@@ -966,7 +1090,7 @@ export default function UltraFastTasks() {
       </Card>
 
       {/* Create Task Dialog */}
-      <CreateTaskDialog 
+      <CreateTaskDialog
         isOpen={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
       />
@@ -977,50 +1101,62 @@ export default function UltraFastTasks() {
           <DialogHeader>
             <DialogTitle>Bulk Task Management</DialogTitle>
             <DialogDescription>
-              Clean up old tasks to improve performance. We currently have {tasksArray.length} tasks.
+              Clean up old tasks to improve performance. We currently have{" "}
+              {tasksArray.length} tasks.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-3">
-              <Button 
+              <Button
                 onClick={handleDeleteExpiredTasks}
                 variant="destructive"
                 className="w-full"
                 disabled={deleteExpiredMutation.isPending}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                {deleteExpiredMutation.isPending ? 'Deleting...' : 'Delete Expired Tasks (30+ days old)'}
+                {deleteExpiredMutation.isPending
+                  ? "Deleting..."
+                  : "Delete Expired Tasks (30+ days old)"}
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={handleDeleteCompletedTasks}
                 variant="outline"
                 className="w-full border-orange-200 text-orange-600 hover:bg-orange-50"
                 disabled={deleteCompletedMutation.isPending}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                {deleteCompletedMutation.isPending ? 'Deleting...' : 'Delete All Completed Tasks'}
+                {deleteCompletedMutation.isPending
+                  ? "Deleting..."
+                  : "Delete All Completed Tasks"}
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={handleDeleteOldTasks}
                 variant="outline"
                 className="w-full border-red-200 text-red-600 hover:bg-red-50"
                 disabled={deleteOldMutation.isPending}
               >
                 <Calendar className="mr-2 h-4 w-4" />
-                {deleteOldMutation.isPending ? 'Deleting...' : 'Delete Tasks Older Than 90 Days'}
+                {deleteOldMutation.isPending
+                  ? "Deleting..."
+                  : "Delete Tasks Older Than 90 Days"}
               </Button>
             </div>
-            
+
             <div className="text-xs text-muted-foreground">
               <p>• Expired tasks: Tasks older than 30 days</p>
               <p>• Completed tasks: All tasks marked as completed</p>
-              <p>• Old tasks: All tasks older than 90 days regardless of status</p>
+              <p>
+                • Old tasks: All tasks older than 90 days regardless of status
+              </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsBulkDialogOpen(false)}
+            >
               Cancel
             </Button>
           </DialogFooter>
@@ -1043,8 +1179,10 @@ export default function UltraFastTasks() {
               </label>
               <Input
                 id="title"
-                value={editForm.title || ''}
-                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                value={editForm.title || ""}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, title: e.target.value })
+                }
                 className="col-span-3"
               />
             </div>
@@ -1054,8 +1192,10 @@ export default function UltraFastTasks() {
               </label>
               <Input
                 id="description"
-                value={editForm.description || ''}
-                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                value={editForm.description || ""}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, description: e.target.value })
+                }
                 className="col-span-3"
               />
             </div>
@@ -1064,8 +1204,10 @@ export default function UltraFastTasks() {
                 Type
               </label>
               <Select
-                value={editForm.type || 'maintenance'}
-                onValueChange={(value) => setEditForm({ ...editForm, type: value })}
+                value={editForm.type || "maintenance"}
+                onValueChange={(value) =>
+                  setEditForm({ ...editForm, type: value })
+                }
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue />
@@ -1084,8 +1226,10 @@ export default function UltraFastTasks() {
                 Priority
               </label>
               <Select
-                value={editForm.priority || 'medium'}
-                onValueChange={(value) => setEditForm({ ...editForm, priority: value })}
+                value={editForm.priority || "medium"}
+                onValueChange={(value) =>
+                  setEditForm({ ...editForm, priority: value })
+                }
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue />
@@ -1102,8 +1246,10 @@ export default function UltraFastTasks() {
                 Status
               </label>
               <Select
-                value={editForm.status || 'pending'}
-                onValueChange={(value) => setEditForm({ ...editForm, status: value })}
+                value={editForm.status || "pending"}
+                onValueChange={(value) =>
+                  setEditForm({ ...editForm, status: value })
+                }
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue />
@@ -1121,18 +1267,25 @@ export default function UltraFastTasks() {
                 Assignee
               </label>
               <Select
-                value={editForm.assignedTo || ''}
-                onValueChange={(value) => setEditForm({ ...editForm, assignedTo: value })}
+                value={editForm.assignedTo || ""}
+                onValueChange={(value) =>
+                  setEditForm({ ...editForm, assignedTo: value })
+                }
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select assignee" />
                 </SelectTrigger>
                 <SelectContent>
-                  {usersArray.filter((user: any) => user.role === 'staff' || user.role === 'admin').map((user: any) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.firstName} {user.lastName}
-                    </SelectItem>
-                  ))}
+                  {usersArray
+                    .filter(
+                      (user: any) =>
+                        user.role === "staff" || user.role === "admin",
+                    )
+                    .map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1143,8 +1296,10 @@ export default function UltraFastTasks() {
               <Input
                 id="dueDate"
                 type="date"
-                value={editForm.dueDate || ''}
-                onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                value={editForm.dueDate || ""}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, dueDate: e.target.value })
+                }
                 className="col-span-3"
               />
             </div>
@@ -1153,22 +1308,27 @@ export default function UltraFastTasks() {
                 Property
               </label>
               <Select
-                value={editForm.propertyId?.toString() || ''}
-                onValueChange={(value) => setEditForm({ ...editForm, propertyId: parseInt(value) })}
+                value={editForm.propertyId?.toString() || ""}
+                onValueChange={(value) =>
+                  setEditForm({ ...editForm, propertyId: parseInt(value) })
+                }
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select property" />
                 </SelectTrigger>
                 <SelectContent>
                   {propertiesArray.map((property: any) => (
-                    <SelectItem key={property.id} value={property.id.toString()}>
+                    <SelectItem
+                      key={property.id}
+                      value={property.id.toString()}
+                    >
                       {property.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            
+
             {/* Evidence Photos Upload Section */}
             {evidencePhotos.length > 0 && (
               <div className="grid grid-cols-4 items-start gap-4">
@@ -1179,8 +1339,8 @@ export default function UltraFastTasks() {
                   <div className="grid grid-cols-3 gap-2">
                     {evidencePhotos.map((photo, index) => (
                       <div key={index} className="relative group">
-                        <img 
-                          src={photo} 
+                        <img
+                          src={photo}
                           alt={`Evidence ${index + 1}`}
                           className="w-full h-20 object-cover rounded border"
                         />
@@ -1198,7 +1358,7 @@ export default function UltraFastTasks() {
               </div>
             )}
           </div>
-          
+
           <DialogFooter className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <input
@@ -1210,9 +1370,11 @@ export default function UltraFastTasks() {
                 className="hidden"
                 data-testid="input-evidence-upload"
               />
-              <Button 
-                variant="outline" 
-                onClick={() => document.getElementById('evidence-upload')?.click()}
+              <Button
+                variant="outline"
+                onClick={() =>
+                  document.getElementById("evidence-upload")?.click()
+                }
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 disabled={evidencePhotos.length >= 6}
                 data-testid="button-upload-evidence"
@@ -1225,8 +1387,8 @@ export default function UltraFastTasks() {
               </span>
             </div>
             <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setIsEditDialogOpen(false);
                   setEvidencePhotos([]);
@@ -1234,11 +1396,11 @@ export default function UltraFastTasks() {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleSaveTask}
                 disabled={updateTaskMutation.isPending}
               >
-                {updateTaskMutation.isPending ? 'Saving...' : 'Save Changes'}
+                {updateTaskMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </DialogFooter>

@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 
@@ -74,7 +80,7 @@ export default function PropertyEdit() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const submitData = {
       name: formData.name,
       address: formData.address,
@@ -113,13 +119,13 @@ export default function PropertyEdit() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
+    <div className="min-h-screen mx-auto">
+      <div className="p-6">
         <div className="mb-6">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={() => navigate(`/property/${id}`)}
-            className="mb-4"
+            className="!p-2 !rounded-md bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Property Details
@@ -138,7 +144,9 @@ export default function PropertyEdit() {
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     required
                     data-testid="input-property-name"
                   />
@@ -149,7 +157,9 @@ export default function PropertyEdit() {
                   <Input
                     id="address"
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address: e.target.value })
+                    }
                     required
                     data-testid="input-property-address"
                   />
@@ -161,7 +171,9 @@ export default function PropertyEdit() {
                     id="bedrooms"
                     type="number"
                     value={formData.bedrooms}
-                    onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, bedrooms: e.target.value })
+                    }
                     min="0"
                     data-testid="input-property-bedrooms"
                   />
@@ -173,7 +185,9 @@ export default function PropertyEdit() {
                     id="bathrooms"
                     type="number"
                     value={formData.bathrooms}
-                    onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, bathrooms: e.target.value })
+                    }
                     min="0"
                     step="0.5"
                     data-testid="input-property-bathrooms"
@@ -186,7 +200,9 @@ export default function PropertyEdit() {
                     id="maxGuests"
                     type="number"
                     value={formData.maxGuests}
-                    onChange={(e) => setFormData({ ...formData, maxGuests: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, maxGuests: e.target.value })
+                    }
                     min="0"
                     data-testid="input-property-maxGuests"
                   />
@@ -198,7 +214,12 @@ export default function PropertyEdit() {
                     id="pricePerNight"
                     type="number"
                     value={formData.pricePerNight}
-                    onChange={(e) => setFormData({ ...formData, pricePerNight: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        pricePerNight: e.target.value,
+                      })
+                    }
                     min="0"
                     step="0.01"
                     data-testid="input-property-price"
@@ -209,7 +230,9 @@ export default function PropertyEdit() {
                   <Label htmlFor="status">Status</Label>
                   <Select
                     value={formData.status}
-                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, status: value })
+                    }
                   >
                     <SelectTrigger data-testid="select-property-status">
                       <SelectValue />
@@ -228,7 +251,9 @@ export default function PropertyEdit() {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   rows={4}
                   data-testid="textarea-property-description"
                 />

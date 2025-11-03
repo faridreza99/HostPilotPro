@@ -684,7 +684,7 @@ export default function PropertyCard({
               <div className="text-xs text-amber-700 font-semibold mb-1">
                 Price / Night
               </div>
-              <div className="text-xs sm:text-sm font-bold text-amber-900">
+              <div className="text-sm sm:text-sm font-bold text-amber-900">
                 {formatPrice(pricePerNight, property.currency)}
               </div>
             </div>
@@ -692,7 +692,7 @@ export default function PropertyCard({
               <div className="text-xs text-emerald-700 font-semibold mb-1">
                 Monthly
               </div>
-              <div className="text-[10px] sm:text-xl font-bold text-emerald-900">
+              <div className="text-sm sm:text-xl font-bold text-emerald-900">
                 {formatMonthly(monthly)}
               </div>
             </div>

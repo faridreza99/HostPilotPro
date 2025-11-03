@@ -10,7 +10,11 @@ import { warmCache } from "@/lib/sessionCache";
 import { CacheProvider } from "@/context/CacheContext";
 
 // Import existing pages with lazy loading for performance
-import { LazyDashboard, LazyFinancialDashboard, LazyPropertyDashboard } from "@/components/LazyDashboard";
+import {
+  LazyDashboard,
+  LazyFinancialDashboard,
+  LazyPropertyDashboard,
+} from "@/components/LazyDashboard";
 import UltraFastPropertyDashboard from "@/pages/UltraFastPropertyDashboard";
 import UltraFastTasks from "@/pages/UltraFastTasks";
 import RoleBasedDashboard from "@/components/RoleBasedDashboard";
@@ -128,13 +132,15 @@ import PropertySettingsModule from "@/pages/PropertySettingsModule";
 
 function AppRoutes() {
   const { user, isLoading } = useFastAuth();
-  
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-lg font-medium text-blue-700">Loading HostPilotPro...</div>
+          <div className="text-lg font-medium text-blue-700">
+            Loading HostPilotPro...
+          </div>
         </div>
       </div>
     );
@@ -157,143 +163,272 @@ function AppRoutes() {
       <div className="lg:pl-80">
         <div className="lg:hidden h-20"></div>
         <Switch>
-        <Route path="/" component={RoleBasedDashboard} />
-        <Route path="/properties" component={Properties} />
-        <Route path="/property/:id" component={PropertyDetailView} />
-        <Route path="/tasks" component={UltraFastTasks} />
-        <Route path="/bookings" component={Bookings} />
-        <Route path="/services" component={Services} />
-        <Route path="/finances" component={SimpleFinances} />
-        <Route path="/settings" component={SimpleSettings} />
-        <Route path="/profile" component={ProfilePage} />
-        <Route path="/help" component={FastHelp} />
-        
-        {/* Hub Pages */}
-        <Route path="/dashboard-hub" component={DashboardHub} />
-        <Route path="/property-hub" component={PropertyHub} />
-        <Route path="/finance-hub" component={FinanceHub} />
-        <Route path="/system-hub" component={SystemHub} />
-        
-        {/* Enhanced Dashboards */}
-        <Route path="/simple-filtered-financial-dashboard" component={LazyFinancialDashboard} />
-        <Route path="/filtered-property-dashboard" component={UltraFastPropertyDashboard} />
-        
-        {/* Core Management */}
-        <Route path="/maintenance-suggestions" component={SimpleMaintenanceSuggestions} />
-        <Route path="/checkin-checkout-workflow" component={CheckInCheckOutWorkflow} />
-        <Route path="/daily-operations" component={DailyOperationsDashboard} />
-        <Route path="/task-overview" component={TaskOverview} />
-        <Route path="/daily-operations-overview" component={DailyOperations} />
-        <Route path="/sandbox-testing" component={SandboxTestingDashboard} />
-        
-        {/* Communication & Guest Services */}
-        <Route path="/guest-portal-smart-requests" component={GuestPortalSmartRequests} />
-        <Route path="/guest-activity-recommendations" component={GuestActivityRecommendations} />
-        <Route path="/upsell-recommendations-management" component={UpsellRecommendationsManagement} />
-        
-        {/* Administration */}
-        <Route path="/admin/api-connections" component={ApiConnections} />
-        <Route path="/admin/organization-branding" component={OrganizationBranding} />
-        <Route path="/admin/legal-templates" component={LegalTemplatesManagement} />
-        <Route path="/admin/marketing-pack-management" component={MarketingPackManagement} />
-        <Route path="/admin/ai-ops-anomalies" component={AiOpsAnomaliesManagement} />
-        <Route path="/admin/user-management" component={UserManagement} />
-        <Route path="/user-management" component={HostawayUserManagement} />
-        <Route path="/user-management/edit" component={HostawayUserManagement} />
-        <Route path="/legacy-user-management" component={UserManagement} />
-        <Route path="/admin/activity-log" component={ActivityLogs} />
-        <Route path="/owner-target-upgrade-tracker" component={OwnerTargetUpgradeTracker} />
-        <Route path="/auto-scheduling-recurring-task-generator" component={AutoScheduleTaskGenerator} />
-        <Route path="/ota-revenue-net-payout-calculation" component={OtaRevenueNetPayoutCalculation} />
-        <Route path="/ota-payout-logic-smart-revenue" component={OtaPayoutLogicSmartRevenue} />
-        <Route path="/loyalty-guest-tracker" component={LoyaltyGuestTracker} />
-        <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
-        <Route path="/invoice-generator" component={InvoiceGenerator} />
-        <Route path="/invoices" component={InvoiceGenerator} />
-        <Route path="/staff-advance-salary-overtime-tracker" component={StaffAdvanceSalaryOvertimeTracker} />
-        <Route path="/staff-wallet-petty-cash" component={StaffWalletPettyCash} />
-        <Route path="/staff-cash-collection" component={StaffCashCollection} />
-        <Route path="/staff-expense-management" component={StaffExpenseManagement} />
-        <Route path="/admin/staff-permission-management" component={StaffPermissionManagement} />
-        <Route path="/system-wide-demo-integration" component={SystemWideDemoIntegration} />
-        <Route path="/maintenance-log-warranty-tracker" component={MaintenanceLogWarrantyTracker} />
-        <Route path="/staff-profile-payroll" component={StaffProfilePayroll} />
-        <Route path="/admin/system-integrity-check" component={SystemIntegrityCheck} />
-        <Route path="/utility-tracker" component={UtilityTracker} />
-        <Route path="/ai-notifications-reminders" component={AiNotificationsReminders} />
-        <Route path="/finance-engine" component={FinanceEngine} />
-        
-        {/* Property Management */}
-        <Route path="/property-appliances-management" component={PropertyAppliancesManagement} />
-        <Route path="/alert-management" component={AlertManagement} />
-        <Route path="/automation-management" component={AutomationManagement} />
-        <Route path="/currency-tax-management" component={CurrencyTaxManagement} />
-        
-        {/* AI Testing */}
-        <Route path="/ai-test" component={AITest} />
-        <Route path="/ai-features" component={AIFeatureDashboard} />
-        
-        {/* Agent Dashboards */}
-        <Route path="/retail-agent" component={RetailAgentBooking} />
-        <Route path="/referral-agent" component={ReferralAgentDashboard} />
-        
-        {/* Agent Pages */}
-        <Route path="/agent/hub" component={RetailAgentHub} />
-        <Route path="/agent/quote-generator" component={QuoteGenerator} />
-        <Route path="/agent/commissions" component={Commissions} />
-        <Route path="/agent/proposals" component={Proposals} />
-        <Route path="/agent/media-download" component={MediaDownload} />
-        <Route path="/agent/leaderboard" component={Leaderboard} />
-        
-        {/* SaaS Framework Routes */}
-        <Route path="/signup-request" component={SignupRequest} />
-        <Route path="/admin/saas-management" component={SaasManagement} />
-        
-        {/* Settings & Help */}
-        <Route path="/simple-settings" component={SimpleSettings} />
-        <Route path="/help" component={HelpCenter} />
-        <Route path="/simple-help" component={SimpleHelp} />
-        <Route path="/fast-help" component={FastHelp} />
-        
-        {/* Additional Settings */}
-        <Route path="/admin/additional-settings" component={AdditionalSettings} />
-        
-        {/* Upgraded Admin Dashboard */}
-        <Route path="/admin/upgraded-dashboard" component={UpgradedAdminDashboard} />
-        
-        {/* Missing Routes - Fix 404 Errors */}
-        <Route path="/smart-pricing-performance-toolkit" component={SmartPricingPerformanceToolkit} />
-        <Route path="/smart-pricing" component={SmartPricingPerformanceToolkit} />
-        <Route path="/owner-invoicing-payouts" component={OwnerInvoicingPayouts} />
-        <Route path="/owner-invoicing" component={OwnerInvoicingPayouts} />
-        <Route path="/portfolio-manager-dashboard" component={PortfolioManagerDashboard} />
-        <Route path="/owner-dashboard" component={OwnerDashboard} />
-        
-        {/* Additional Missing Routes - Second Batch */}
-        <Route path="/guest-services" component={GuestPortal} />
-        <Route path="/guest-portal" component={GuestPortal} />
-        <Route path="/property-settings" component={PropertySettingsModule} />
-        <Route path="/property-settings-module" component={PropertySettingsModule} />
-        <Route path="/staff-operations" component={StaffDashboard} />
-        <Route path="/staff-dashboard" component={StaffDashboard} />
-        <Route path="/check-in-check-out" component={CheckInCheckOutWorkflow} />
-        <Route path="/checkin-checkout" component={CheckInCheckOutWorkflow} />
-        <Route path="/guest-checkin-checkout-tracker" component={GuestCheckInCheckOutTracker} />
-        <Route path="/guest-check-in-check-out" component={GuestCheckInCheckOutTracker} />
-        <Route path="/activity-logs" component={ActivityLogs} />
-        <Route path="/daily-operations" component={DailyOperationsDashboard} />
-        <Route path="/ai-bot" component={AIBotPage} />
-        
-        {/* Achievement System */}
-        <Route path="/achievements" component={AchievementsPage} />
-        
-        {/* Salaries & Wages Management */}
-        <Route path="/salaries-wages" component={SalariesWages} />
-        <Route path="/staff-salaries" component={SalariesWages} />
-        <Route path="/admin/salaries-wages" component={SalariesWages} />
-        
-        <Route component={NotFound} />
-      </Switch>
+          <Route path="/" component={RoleBasedDashboard} />
+          <Route path="/properties" component={Properties} />
+          <Route path="/property/:id" component={PropertyDetailView} />
+          <Route path="/tasks" component={UltraFastTasks} />
+          <Route path="/bookings" component={Bookings} />
+          <Route path="/services" component={Services} />
+          <Route path="/finances" component={SimpleFinances} />
+          <Route path="/settings" component={SimpleSettings} />
+          <Route path="/profile" component={ProfilePage} />
+          <Route path="/help" component={FastHelp} />
+
+          {/* Hub Pages */}
+          <Route path="/dashboard-hub" component={DashboardHub} />
+          <Route path="/property-hub" component={PropertyHub} />
+          <Route path="/finance-hub" component={FinanceHub} />
+          <Route path="/system-hub" component={SystemHub} />
+
+          {/* Enhanced Dashboards */}
+          <Route
+            path="/simple-filtered-financial-dashboard"
+            component={LazyFinancialDashboard}
+          />
+          <Route
+            path="/filtered-property-dashboard"
+            component={UltraFastPropertyDashboard}
+          />
+
+          {/* Core Management */}
+          <Route
+            path="/maintenance-suggestions"
+            component={SimpleMaintenanceSuggestions}
+          />
+          <Route
+            path="/checkin-checkout-workflow"
+            component={CheckInCheckOutWorkflow}
+          />
+          <Route
+            path="/daily-operations"
+            component={DailyOperationsDashboard}
+          />
+          <Route path="/task-overview" component={TaskOverview} />
+          <Route
+            path="/daily-operations-overview"
+            component={DailyOperations}
+          />
+          <Route path="/sandbox-testing" component={SandboxTestingDashboard} />
+
+          {/* Communication & Guest Services */}
+          <Route
+            path="/guest-portal-smart-requests"
+            component={GuestPortalSmartRequests}
+          />
+          <Route
+            path="/guest-activity-recommendations"
+            component={GuestActivityRecommendations}
+          />
+          <Route
+            path="/upsell-recommendations-management"
+            component={UpsellRecommendationsManagement}
+          />
+
+          {/* Administration */}
+          <Route path="/admin/api-connections" component={ApiConnections} />
+          <Route
+            path="/admin/organization-branding"
+            component={OrganizationBranding}
+          />
+          <Route
+            path="/admin/legal-templates"
+            component={LegalTemplatesManagement}
+          />
+          <Route
+            path="/admin/marketing-pack-management"
+            component={MarketingPackManagement}
+          />
+          <Route
+            path="/admin/ai-ops-anomalies"
+            component={AiOpsAnomaliesManagement}
+          />
+          <Route path="/admin/user-management" component={UserManagement} />
+          <Route path="/user-management" component={HostawayUserManagement} />
+          <Route
+            path="/user-management/edit"
+            component={HostawayUserManagement}
+          />
+          <Route path="/legacy-user-management" component={UserManagement} />
+          <Route path="/admin/activity-log" component={ActivityLogs} />
+          <Route
+            path="/owner-target-upgrade-tracker"
+            component={OwnerTargetUpgradeTracker}
+          />
+          <Route
+            path="/auto-scheduling-recurring-task-generator"
+            component={AutoScheduleTaskGenerator}
+          />
+          <Route
+            path="/ota-revenue-net-payout-calculation"
+            component={OtaRevenueNetPayoutCalculation}
+          />
+          <Route
+            path="/ota-payout-logic-smart-revenue"
+            component={OtaPayoutLogicSmartRevenue}
+          />
+          <Route
+            path="/loyalty-guest-tracker"
+            component={LoyaltyGuestTracker}
+          />
+          <Route path="/loyalty-tracker" component={LoyaltyGuestTracker} />
+          <Route path="/invoice-generator" component={InvoiceGenerator} />
+          <Route path="/invoices" component={InvoiceGenerator} />
+          <Route
+            path="/staff-advance-salary-overtime-tracker"
+            component={StaffAdvanceSalaryOvertimeTracker}
+          />
+          <Route
+            path="/staff-wallet-petty-cash"
+            component={StaffWalletPettyCash}
+          />
+          <Route
+            path="/staff-cash-collection"
+            component={StaffCashCollection}
+          />
+          <Route
+            path="/staff-expense-management"
+            component={StaffExpenseManagement}
+          />
+          <Route
+            path="/admin/staff-permission-management"
+            component={StaffPermissionManagement}
+          />
+          <Route
+            path="/system-wide-demo-integration"
+            component={SystemWideDemoIntegration}
+          />
+          <Route
+            path="/maintenance-log-warranty-tracker"
+            component={MaintenanceLogWarrantyTracker}
+          />
+          <Route
+            path="/staff-profile-payroll"
+            component={StaffProfilePayroll}
+          />
+          <Route
+            path="/admin/system-integrity-check"
+            component={SystemIntegrityCheck}
+          />
+          <Route path="/utility-tracker" component={UtilityTracker} />
+          <Route
+            path="/ai-notifications-reminders"
+            component={AiNotificationsReminders}
+          />
+          <Route path="/finance-engine" component={FinanceEngine} />
+
+          {/* Property Management */}
+          <Route
+            path="/property-appliances-management"
+            component={PropertyAppliancesManagement}
+          />
+          <Route path="/alert-management" component={AlertManagement} />
+          <Route
+            path="/automation-management"
+            component={AutomationManagement}
+          />
+          <Route
+            path="/currency-tax-management"
+            component={CurrencyTaxManagement}
+          />
+
+          {/* AI Testing */}
+          <Route path="/ai-test" component={AITest} />
+          <Route path="/ai-features" component={AIFeatureDashboard} />
+
+          {/* Agent Dashboards */}
+          <Route path="/retail-agent" component={RetailAgentBooking} />
+          <Route path="/referral-agent" component={ReferralAgentDashboard} />
+
+          {/* Agent Pages */}
+          <Route path="/agent/hub" component={RetailAgentHub} />
+          <Route path="/agent/quote-generator" component={QuoteGenerator} />
+          <Route path="/agent/commissions" component={Commissions} />
+          <Route path="/agent/proposals" component={Proposals} />
+          <Route path="/agent/media-download" component={MediaDownload} />
+          <Route path="/agent/leaderboard" component={Leaderboard} />
+
+          {/* SaaS Framework Routes */}
+          <Route path="/signup-request" component={SignupRequest} />
+          <Route path="/admin/saas-management" component={SaasManagement} />
+
+          {/* Settings & Help */}
+          <Route path="/simple-settings" component={SimpleSettings} />
+          <Route path="/help" component={HelpCenter} />
+          <Route path="/simple-help" component={SimpleHelp} />
+          <Route path="/fast-help" component={FastHelp} />
+
+          {/* Additional Settings */}
+          <Route
+            path="/admin/additional-settings"
+            component={AdditionalSettings}
+          />
+
+          {/* Upgraded Admin Dashboard */}
+          <Route
+            path="/admin/upgraded-dashboard"
+            component={UpgradedAdminDashboard}
+          />
+
+          {/* Missing Routes - Fix 404 Errors */}
+          <Route
+            path="/smart-pricing-performance-toolkit"
+            component={SmartPricingPerformanceToolkit}
+          />
+          <Route
+            path="/smart-pricing"
+            component={SmartPricingPerformanceToolkit}
+          />
+          <Route
+            path="/owner-invoicing-payouts"
+            component={OwnerInvoicingPayouts}
+          />
+          <Route path="/owner-invoicing" component={OwnerInvoicingPayouts} />
+          <Route
+            path="/portfolio-manager-dashboard"
+            component={PortfolioManagerDashboard}
+          />
+          <Route path="/owner-dashboard" component={OwnerDashboard} />
+
+          {/* Additional Missing Routes - Second Batch */}
+          <Route path="/guest-services" component={GuestPortal} />
+          <Route path="/guest-portal" component={GuestPortal} />
+          <Route path="/property-settings" component={PropertySettingsModule} />
+          <Route
+            path="/property-settings-module"
+            component={PropertySettingsModule}
+          />
+          <Route path="/staff-operations" component={StaffDashboard} />
+          <Route path="/staff-dashboard" component={StaffDashboard} />
+          <Route
+            path="/check-in-check-out"
+            component={CheckInCheckOutWorkflow}
+          />
+          <Route path="/checkin-checkout" component={CheckInCheckOutWorkflow} />
+          <Route
+            path="/guest-checkin-checkout-tracker"
+            component={GuestCheckInCheckOutTracker}
+          />
+          <Route
+            path="/guest-check-in-check-out"
+            component={GuestCheckInCheckOutTracker}
+          />
+          <Route path="/activity-logs" component={ActivityLogs} />
+          <Route
+            path="/daily-operations"
+            component={DailyOperationsDashboard}
+          />
+          <Route path="/ai-bot" component={AIBotPage} />
+
+          {/* Achievement System */}
+          <Route path="/achievements" component={AchievementsPage} />
+
+          {/* Salaries & Wages Management */}
+          <Route path="/salaries-wages" component={SalariesWages} />
+          <Route path="/staff-salaries" component={SalariesWages} />
+          <Route path="/admin/salaries-wages" component={SalariesWages} />
+
+          <Route component={NotFound} />
+        </Switch>
       </div>
     </div>
   );
