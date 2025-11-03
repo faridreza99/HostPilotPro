@@ -97,12 +97,15 @@ export function registerFinanceRoutes(app: Express) {
       // Calculate Total Revenue:
       // - Include confirmed/checked-in/checked-out bookings
       // - Include ANY booking where payment has been received (paymentStatus is 'paid'), even if not checked in
+      // - EXCLUDE cancelled bookings from revenue calculations
       const totalRevenue = filteredBookings
         .filter(b => {
+          // Exclude cancelled bookings
+          if (b.status?.toLowerCase() === 'cancelled') return false;
           // Include confirmed/checked-in/checked-out bookings
           if (['confirmed', 'checked-in', 'checked-out'].includes(b.status)) return true;
-          // Include bookings that are fully paid, even if still pending/not checked in
-          if (b.paymentStatus === 'paid') return true;
+          // Include bookings that are fully paid and have actually paid something
+          if (b.paymentStatus === 'paid' && parseFloat(b.amountPaid || '0') > 0) return true;
           return false;
         })
         .reduce((sum, b) => {

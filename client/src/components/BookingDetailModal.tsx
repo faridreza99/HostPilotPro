@@ -91,6 +91,8 @@ export default function BookingDetailModal({
     onSuccess: () => {
       // Use centralized invalidation helper to update all related queries
       invalidateBookingQueries(queryClient);
+      
+      setNewStatus(""); // Clear the status after successful update
 
       toast({
         title: "Success",
@@ -148,9 +150,13 @@ export default function BookingDetailModal({
     if (newStatus.toLowerCase() === "checked-out") {
       const amountDue = parseFloat(booking?.amountDue || "0");
       if (amountDue > 0) {
+        const currencySymbol = booking?.currency === "USD" ? "$" : 
+                             booking?.currency === "EUR" ? "€" : 
+                             booking?.currency === "GBP" ? "£" : 
+                             booking?.currency || "THB";
         toast({
           title: "Payment Required",
-          description: `Please clear all outstanding payments (${booking?.currency || "THB"} $${formatCurrency(amountDue)}) before checking out the guest.`,
+          description: `Please clear all outstanding payments (${currencySymbol} ${formatCurrency(amountDue)}) before checking out the guest.`,
           variant: "destructive",
         });
         return;
