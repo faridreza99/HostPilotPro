@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +15,37 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -130,68 +161,110 @@ export default function GuestPortal() {
 
   // Mutations
   const createMessage = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/guest-portal/messages", data),
+    mutationFn: (data: any) =>
+      apiRequest("POST", "/api/guest-portal/messages", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-portal/messages"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/guest-portal/messages"],
+      });
       toast({ title: "Success", description: "Message sent successfully" });
       setActiveDialog(null);
       messageForm.reset();
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const createServiceRequest = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/guest-portal/service-requests", data),
+    mutationFn: (data: any) =>
+      apiRequest("POST", "/api/guest-portal/service-requests", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-portal/service-requests"] });
-      toast({ title: "Success", description: "Service request submitted successfully" });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/guest-portal/service-requests"],
+      });
+      toast({
+        title: "Success",
+        description: "Service request submitted successfully",
+      });
       setActiveDialog(null);
       serviceForm.reset();
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const respondToMessage = useMutation({
     mutationFn: ({ id, response }: { id: number; response: string }) =>
-      apiRequest("PATCH", `/api/guest-portal/messages/${id}/respond`, { response }),
+      apiRequest("PATCH", `/api/guest-portal/messages/${id}/respond`, {
+        response,
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-portal/messages"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/guest-portal/messages"],
+      });
       toast({ title: "Success", description: "Response sent successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const approveAiTask = useMutation({
-    mutationFn: (taskId: number) => apiRequest("PATCH", `/api/guest-portal/ai-tasks/${taskId}/approve`),
+    mutationFn: (taskId: number) =>
+      apiRequest("PATCH", `/api/guest-portal/ai-tasks/${taskId}/approve`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-portal/ai-tasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/guest-portal/ai-tasks"],
+      });
       toast({ title: "Success", description: "AI task approved successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const rejectAiTask = useMutation({
-    mutationFn: (taskId: number) => apiRequest("PATCH", `/api/guest-portal/ai-tasks/${taskId}/reject`),
+    mutationFn: (taskId: number) =>
+      apiRequest("PATCH", `/api/guest-portal/ai-tasks/${taskId}/reject`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-portal/ai-tasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/guest-portal/ai-tasks"],
+      });
       toast({ title: "Success", description: "AI task rejected successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   // Helper functions
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<
+      string,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
       new: "outline",
       acknowledged: "secondary",
       resolved: "default",
@@ -204,7 +277,10 @@ export default function GuestPortal() {
   };
 
   const getPriorityBadge = (priority: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<
+      string,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
       low: "outline",
       normal: "secondary",
       high: "destructive",
@@ -243,7 +319,7 @@ export default function GuestPortal() {
   const formatCurrency = (amount: string | number) => {
     return new Intl.NumberFormat("en-AU", {
       style: "currency",
-      currency: "AUD",
+      currency: "THB",
     }).format(typeof amount === "string" ? parseFloat(amount) : amount);
   };
 
@@ -262,11 +338,15 @@ export default function GuestPortal() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">AI Guest Portal</h1>
           <p className="text-muted-foreground">
-            Smart communication center with AI-powered task automation and guest services
+            Smart communication center with AI-powered task automation and guest
+            services
           </p>
         </div>
         <div className="flex items-center space-x-4">
-          <Select value={selectedProperty.toString()} onValueChange={(value) => setSelectedProperty(parseInt(value))}>
+          <Select
+            value={selectedProperty.toString()}
+            onValueChange={(value) => setSelectedProperty(parseInt(value))}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select property" />
             </SelectTrigger>
@@ -283,25 +363,33 @@ export default function GuestPortal() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Messages
+            </CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {analytics && analytics[0] ? analytics[0].totalMessages : 0}
             </div>
-            <p className="text-xs text-muted-foreground">Guest communications</p>
+            <p className="text-xs text-muted-foreground">
+              Guest communications
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Service Requests</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Service Requests
+            </CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {analytics && analytics[0] ? analytics[0].totalServiceRequests : 0}
+              {analytics && analytics[0]
+                ? analytics[0].totalServiceRequests
+                : 0}
             </div>
             <p className="text-xs text-muted-foreground">Bookings & requests</p>
           </CardContent>
@@ -314,7 +402,9 @@ export default function GuestPortal() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {analytics && analytics[0] ? `${analytics[0].averageResponseTime}m` : "0m"}
+              {analytics && analytics[0]
+                ? `${analytics[0].averageResponseTime}m`
+                : "0m"}
             </div>
             <p className="text-xs text-muted-foreground">Average response</p>
           </CardContent>
@@ -327,7 +417,9 @@ export default function GuestPortal() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {analytics && analytics[0] ? `${analytics[0].guestSatisfactionScore}/5` : "0/5"}
+              {analytics && analytics[0]
+                ? `${analytics[0].guestSatisfactionScore}/5`
+                : "0/5"}
             </div>
             <p className="text-xs text-muted-foreground">Guest rating</p>
           </CardContent>
@@ -348,7 +440,12 @@ export default function GuestPortal() {
         <TabsContent value="messages" className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Guest Communication Center</h2>
-            <Dialog open={activeDialog === "create-message"} onOpenChange={(open) => setActiveDialog(open ? "create-message" : null)}>
+            <Dialog
+              open={activeDialog === "create-message"}
+              onOpenChange={(open) =>
+                setActiveDialog(open ? "create-message" : null)
+              }
+            >
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -358,11 +455,15 @@ export default function GuestPortal() {
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Simulate Guest Message</DialogTitle>
-                  <DialogDescription>Create a demo guest message to test AI processing</DialogDescription>
+                  <DialogDescription>
+                    Create a demo guest message to test AI processing
+                  </DialogDescription>
                 </DialogHeader>
                 <Form {...messageForm}>
                   <form
-                    onSubmit={messageForm.handleSubmit((data) => createMessage.mutate(data))}
+                    onSubmit={messageForm.handleSubmit((data) =>
+                      createMessage.mutate(data),
+                    )}
                     className="space-y-4"
                   >
                     <div className="grid grid-cols-2 gap-4">
@@ -386,7 +487,10 @@ export default function GuestPortal() {
                           <FormItem>
                             <FormLabel>Guest Email</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="sarah.johnson@example.com" />
+                              <Input
+                                {...field}
+                                placeholder="sarah.johnson@example.com"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -400,7 +504,10 @@ export default function GuestPortal() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Message Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select message type" />
@@ -410,7 +517,9 @@ export default function GuestPortal() {
                               <SelectItem value="chat">Chat</SelectItem>
                               <SelectItem value="request">Request</SelectItem>
                               <SelectItem value="feedback">Feedback</SelectItem>
-                              <SelectItem value="complaint">Complaint</SelectItem>
+                              <SelectItem value="complaint">
+                                Complaint
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -432,7 +541,8 @@ export default function GuestPortal() {
                             />
                           </FormControl>
                           <FormDescription>
-                            AI will process this message for keywords and sentiment
+                            AI will process this message for keywords and
+                            sentiment
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -448,7 +558,9 @@ export default function GuestPortal() {
                         Cancel
                       </Button>
                       <Button type="submit" disabled={createMessage.isPending}>
-                        {createMessage.isPending ? "Processing..." : "Send Message"}
+                        {createMessage.isPending
+                          ? "Processing..."
+                          : "Send Message"}
                       </Button>
                     </div>
                   </form>
@@ -473,29 +585,44 @@ export default function GuestPortal() {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center space-x-2">
-                            <h3 className="font-semibold">{message.guestName}</h3>
-                            <Badge variant="outline">{message.messageType}</Badge>
+                            <h3 className="font-semibold">
+                              {message.guestName}
+                            </h3>
+                            <Badge variant="outline">
+                              {message.messageType}
+                            </Badge>
                             {getPriorityBadge(message.priority)}
                             {getSentimentIcon(message.aiSentiment)}
                           </div>
-                          <p className="text-sm text-muted-foreground">{message.guestEmail}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {message.guestEmail}
+                          </p>
                           <p className="mt-2">{message.messageContent}</p>
-                          
+
                           {message.aiProcessed && (
                             <div className="mt-3 p-3 bg-secondary/50 rounded-lg">
                               <div className="flex items-center space-x-2 mb-2">
                                 <Bot className="h-4 w-4 text-primary" />
-                                <span className="text-sm font-medium">AI Analysis</span>
+                                <span className="text-sm font-medium">
+                                  AI Analysis
+                                </span>
                                 <Badge variant="secondary">
-                                  {Math.round(parseFloat(message.aiConfidence) * 100)}% confidence
+                                  {Math.round(
+                                    parseFloat(message.aiConfidence) * 100,
+                                  )}
+                                  % confidence
                                 </Badge>
                               </div>
                               <div className="text-sm space-y-1">
                                 <div>
-                                  <span className="font-medium">Keywords:</span> {message.aiKeywords?.join(", ")}
+                                  <span className="font-medium">Keywords:</span>{" "}
+                                  {message.aiKeywords?.join(", ")}
                                 </div>
                                 <div>
-                                  <span className="font-medium">Suggestions:</span> {message.aiSuggestions?.join(", ")}
+                                  <span className="font-medium">
+                                    Suggestions:
+                                  </span>{" "}
+                                  {message.aiSuggestions?.join(", ")}
                                 </div>
                               </div>
                             </div>
@@ -505,9 +632,12 @@ export default function GuestPortal() {
                             <div className="mt-3 p-3 bg-green-50 border-l-4 border-green-500">
                               <div className="flex items-center space-x-2 mb-1">
                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                                <span className="text-sm font-medium">Staff Response</span>
+                                <span className="text-sm font-medium">
+                                  Staff Response
+                                </span>
                                 <span className="text-xs text-muted-foreground">
-                                  by {message.respondedBy} • {formatTime(message.respondedAt)}
+                                  by {message.respondedBy} •{" "}
+                                  {formatTime(message.respondedAt)}
                                 </span>
                               </div>
                               <p className="text-sm">{message.staffResponse}</p>
@@ -520,19 +650,20 @@ export default function GuestPortal() {
                           {formatDate(message.createdAt)}
                         </div>
                         {getStatusBadge(message.status)}
-                        {!message.staffResponse && message.status !== "resolved" && (
-                          <Button
-                            size="sm"
-                            className="mt-2"
-                            onClick={() => {
-                              setSelectedMessage(message);
-                              setActiveDialog("respond-message");
-                            }}
-                          >
-                            <Send className="h-4 w-4 mr-1" />
-                            Respond
-                          </Button>
-                        )}
+                        {!message.staffResponse &&
+                          message.status !== "resolved" && (
+                            <Button
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => {
+                                setSelectedMessage(message);
+                                setActiveDialog("respond-message");
+                              }}
+                            >
+                              <Send className="h-4 w-4 mr-1" />
+                              Respond
+                            </Button>
+                          )}
                       </div>
                     </div>
                   </CardContent>
@@ -542,11 +673,18 @@ export default function GuestPortal() {
           </div>
 
           {/* Response Dialog */}
-          <Dialog open={activeDialog === "respond-message"} onOpenChange={(open) => setActiveDialog(open ? "respond-message" : null)}>
+          <Dialog
+            open={activeDialog === "respond-message"}
+            onOpenChange={(open) =>
+              setActiveDialog(open ? "respond-message" : null)
+            }
+          >
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Respond to Guest</DialogTitle>
-                <DialogDescription>Send a response to {selectedMessage?.guestName}</DialogDescription>
+                <DialogDescription>
+                  Send a response to {selectedMessage?.guestName}
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="p-3 bg-secondary/50 rounded-lg">
@@ -558,14 +696,24 @@ export default function GuestPortal() {
                   id="response-text"
                 />
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setActiveDialog(null)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setActiveDialog(null)}
+                  >
                     Cancel
                   </Button>
                   <Button
                     onClick={() => {
-                      const responseText = (document.getElementById("response-text") as HTMLTextAreaElement)?.value;
+                      const responseText = (
+                        document.getElementById(
+                          "response-text",
+                        ) as HTMLTextAreaElement
+                      )?.value;
                       if (responseText && selectedMessage) {
-                        respondToMessage.mutate({ id: selectedMessage.id, response: responseText });
+                        respondToMessage.mutate({
+                          id: selectedMessage.id,
+                          response: responseText,
+                        });
                         setActiveDialog(null);
                       }
                     }}
@@ -581,7 +729,7 @@ export default function GuestPortal() {
         {/* AI Tasks Tab */}
         <TabsContent value="ai-tasks" className="space-y-6">
           <h2 className="text-2xl font-bold">AI-Generated Tasks</h2>
-          
+
           <div className="space-y-4">
             {loadingTasks ? (
               <div className="flex items-center justify-center py-8">
@@ -598,28 +746,38 @@ export default function GuestPortal() {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="font-semibold">AI Task: {task.department}</h3>
-                            <Badge variant="outline">{task.taskType.replace("_", " ")}</Badge>
+                            <h3 className="font-semibold">
+                              AI Task: {task.department}
+                            </h3>
+                            <Badge variant="outline">
+                              {task.taskType.replace("_", " ")}
+                            </Badge>
                             {getPriorityBadge(task.urgency)}
                             <Badge variant="secondary">
-                              {Math.round(parseFloat(task.confidence) * 100)}% confidence
+                              {Math.round(parseFloat(task.confidence) * 100)}%
+                              confidence
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mb-2">
                             Guest: {task.guestId} • Property: {task.propertyId}
                           </p>
                           <p className="mb-3">{task.aiDescription}</p>
-                          
+
                           <div className="text-sm space-y-1">
                             <div>
-                              <span className="font-medium">Keywords:</span> {task.aiKeywords?.join(", ")}
+                              <span className="font-medium">Keywords:</span>{" "}
+                              {task.aiKeywords?.join(", ")}
                             </div>
                             <div>
-                              <span className="font-medium">Created:</span> {formatDate(task.createdAt)}
+                              <span className="font-medium">Created:</span>{" "}
+                              {formatDate(task.createdAt)}
                             </div>
                             {task.assignedTo && (
                               <div>
-                                <span className="font-medium">Assigned to:</span> {task.assignedTo}
+                                <span className="font-medium">
+                                  Assigned to:
+                                </span>{" "}
+                                {task.assignedTo}
                               </div>
                             )}
                           </div>
@@ -659,7 +817,12 @@ export default function GuestPortal() {
         <TabsContent value="services" className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Guest Service Requests</h2>
-            <Dialog open={activeDialog === "create-service"} onOpenChange={(open) => setActiveDialog(open ? "create-service" : null)}>
+            <Dialog
+              open={activeDialog === "create-service"}
+              onOpenChange={(open) =>
+                setActiveDialog(open ? "create-service" : null)
+              }
+            >
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -669,11 +832,15 @@ export default function GuestPortal() {
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Create Service Request</DialogTitle>
-                  <DialogDescription>Book a service for guests</DialogDescription>
+                  <DialogDescription>
+                    Book a service for guests
+                  </DialogDescription>
                 </DialogHeader>
                 <Form {...serviceForm}>
                   <form
-                    onSubmit={serviceForm.handleSubmit((data) => createServiceRequest.mutate(data))}
+                    onSubmit={serviceForm.handleSubmit((data) =>
+                      createServiceRequest.mutate(data),
+                    )}
                     className="space-y-4"
                   >
                     <div className="grid grid-cols-2 gap-4">
@@ -696,7 +863,10 @@ export default function GuestPortal() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Service Type</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select service" />
@@ -704,10 +874,18 @@ export default function GuestPortal() {
                               </FormControl>
                               <SelectContent>
                                 <SelectItem value="massage">Massage</SelectItem>
-                                <SelectItem value="taxi">Taxi/Transport</SelectItem>
-                                <SelectItem value="chef">Private Chef</SelectItem>
-                                <SelectItem value="cleaning">Extra Cleaning</SelectItem>
-                                <SelectItem value="amenities">Extra Amenities</SelectItem>
+                                <SelectItem value="taxi">
+                                  Taxi/Transport
+                                </SelectItem>
+                                <SelectItem value="chef">
+                                  Private Chef
+                                </SelectItem>
+                                <SelectItem value="cleaning">
+                                  Extra Cleaning
+                                </SelectItem>
+                                <SelectItem value="amenities">
+                                  Extra Amenities
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -723,7 +901,10 @@ export default function GuestPortal() {
                         <FormItem>
                           <FormLabel>Service Name</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Traditional Thai Massage" />
+                            <Input
+                              {...field}
+                              placeholder="Traditional Thai Massage"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -744,12 +925,19 @@ export default function GuestPortal() {
                                     variant="outline"
                                     className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
                                   >
-                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                    {field.value ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>Pick a date</span>
+                                    )}
                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
+                              <PopoverContent
+                                className="w-auto p-0"
+                                align="start"
+                              >
                                 <Calendar
                                   mode="single"
                                   selected={field.value}
@@ -783,7 +971,12 @@ export default function GuestPortal() {
                           <FormItem>
                             <FormLabel>Guests</FormLabel>
                             <FormControl>
-                              <Input {...field} type="number" min="1" max="20" />
+                              <Input
+                                {...field}
+                                type="number"
+                                min="1"
+                                max="20"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -798,7 +991,10 @@ export default function GuestPortal() {
                         <FormItem>
                           <FormLabel>Special Requests</FormLabel>
                           <FormControl>
-                            <Textarea {...field} placeholder="Couples massage preferred" />
+                            <Textarea
+                              {...field}
+                              placeholder="Couples massage preferred"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -813,8 +1009,13 @@ export default function GuestPortal() {
                       >
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={createServiceRequest.isPending}>
-                        {createServiceRequest.isPending ? "Creating..." : "Create Request"}
+                      <Button
+                        type="submit"
+                        disabled={createServiceRequest.isPending}
+                      >
+                        {createServiceRequest.isPending
+                          ? "Creating..."
+                          : "Create Request"}
                       </Button>
                     </div>
                   </form>
@@ -839,35 +1040,54 @@ export default function GuestPortal() {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="font-semibold">{request.serviceName}</h3>
-                            <Badge variant="outline">{request.serviceType}</Badge>
+                            <h3 className="font-semibold">
+                              {request.serviceName}
+                            </h3>
+                            <Badge variant="outline">
+                              {request.serviceType}
+                            </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mb-2">
-                            Guest: {request.guestName} • {request.numberOfGuests} guests
+                            Guest: {request.guestName} •{" "}
+                            {request.numberOfGuests} guests
                           </p>
                           <div className="text-sm space-y-1 mb-3">
                             <div>
-                              <span className="font-medium">Date:</span> {formatDate(request.requestedDate)} at {request.requestedTime}
+                              <span className="font-medium">Date:</span>{" "}
+                              {formatDate(request.requestedDate)} at{" "}
+                              {request.requestedTime}
                             </div>
                             <div>
-                              <span className="font-medium">Cost:</span> {formatCurrency(request.estimatedCost)}
+                              <span className="font-medium">Cost:</span>{" "}
+                              {formatCurrency(request.estimatedCost)}
                             </div>
                             <div>
-                              <span className="font-medium">Payment:</span> {request.paymentMethod.replace("_", " ")}
+                              <span className="font-medium">Payment:</span>{" "}
+                              {request.paymentMethod.replace("_", " ")}
                             </div>
                           </div>
                           {request.specialRequests && (
-                            <p className="text-sm text-muted-foreground">{request.specialRequests}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {request.specialRequests}
+                            </p>
                           )}
                           {request.guestFeedback && (
                             <div className="mt-3 p-3 bg-green-50 border-l-4 border-green-500">
                               <div className="flex items-center space-x-2 mb-1">
                                 <Star className="h-4 w-4 text-yellow-500" />
-                                <span className="text-sm font-medium">Guest Feedback</span>
+                                <span className="text-sm font-medium">
+                                  Guest Feedback
+                                </span>
                                 <div className="flex">
-                                  {Array.from({ length: request.guestRating }, (_, i) => (
-                                    <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                  ))}
+                                  {Array.from(
+                                    { length: request.guestRating },
+                                    (_, i) => (
+                                      <Star
+                                        key={i}
+                                        className="h-3 w-3 fill-yellow-400 text-yellow-400"
+                                      />
+                                    ),
+                                  )}
                                 </div>
                               </div>
                               <p className="text-sm">{request.guestFeedback}</p>
@@ -892,7 +1112,7 @@ export default function GuestPortal() {
         {/* AI Suggestions Tab */}
         <TabsContent value="suggestions" className="space-y-6">
           <h2 className="text-2xl font-bold">AI Smart Suggestions</h2>
-          
+
           <div className="grid gap-6">
             {loadingSuggestions ? (
               <div className="flex items-center justify-center py-8">
@@ -909,30 +1129,50 @@ export default function GuestPortal() {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="font-semibold">{suggestion.suggestionTitle}</h3>
-                            <Badge variant="outline">{suggestion.suggestionType.replace("_", " ")}</Badge>
+                            <h3 className="font-semibold">
+                              {suggestion.suggestionTitle}
+                            </h3>
+                            <Badge variant="outline">
+                              {suggestion.suggestionType.replace("_", " ")}
+                            </Badge>
                             <Badge variant="secondary">
-                              {Math.round(parseFloat(suggestion.confidence) * 100)}% confidence
+                              {Math.round(
+                                parseFloat(suggestion.confidence) * 100,
+                              )}
+                              % confidence
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground mb-2">
-                            Target: {suggestion.targetAudience} • Based on: {suggestion.basedOnData.replace("_", " ")}
+                            Target: {suggestion.targetAudience} • Based on:{" "}
+                            {suggestion.basedOnData.replace("_", " ")}
                           </p>
-                          <p className="mb-3">{suggestion.suggestionDescription}</p>
-                          
+                          <p className="mb-3">
+                            {suggestion.suggestionDescription}
+                          </p>
+
                           <div className="grid grid-cols-2 gap-4 text-sm">
-                            {suggestion.potentialRevenue && parseFloat(suggestion.potentialRevenue) > 0 && (
-                              <div>
-                                <span className="font-medium">Potential Revenue:</span> {formatCurrency(suggestion.potentialRevenue)}
-                              </div>
-                            )}
-                            {suggestion.implementationCost && parseFloat(suggestion.implementationCost) > 0 && (
-                              <div>
-                                <span className="font-medium">Implementation Cost:</span> {formatCurrency(suggestion.implementationCost)}
-                              </div>
-                            )}
+                            {suggestion.potentialRevenue &&
+                              parseFloat(suggestion.potentialRevenue) > 0 && (
+                                <div>
+                                  <span className="font-medium">
+                                    Potential Revenue:
+                                  </span>{" "}
+                                  {formatCurrency(suggestion.potentialRevenue)}
+                                </div>
+                              )}
+                            {suggestion.implementationCost &&
+                              parseFloat(suggestion.implementationCost) > 0 && (
+                                <div>
+                                  <span className="font-medium">
+                                    Implementation Cost:
+                                  </span>{" "}
+                                  {formatCurrency(
+                                    suggestion.implementationCost,
+                                  )}
+                                </div>
+                              )}
                           </div>
-                          
+
                           {suggestion.notes && (
                             <div className="mt-3 p-3 bg-secondary/30 rounded-lg">
                               <p className="text-sm">{suggestion.notes}</p>
@@ -958,7 +1198,7 @@ export default function GuestPortal() {
         {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-6">
           <h2 className="text-2xl font-bold">Guest Portal Settings</h2>
-          
+
           {loadingSettings ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -969,25 +1209,39 @@ export default function GuestPortal() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Portal Configuration</CardTitle>
-                    <CardDescription>Enable or disable guest portal features</CardDescription>
+                    <CardDescription>
+                      Enable or disable guest portal features
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex items-center justify-between space-x-2">
                         <Label htmlFor="enable-portal">Guest Portal</Label>
-                        <Switch id="enable-portal" checked={portalSettings.enableGuestPortal} />
+                        <Switch
+                          id="enable-portal"
+                          checked={portalSettings.enableGuestPortal}
+                        />
                       </div>
                       <div className="flex items-center justify-between space-x-2">
                         <Label htmlFor="enable-ai">AI Assistant</Label>
-                        <Switch id="enable-ai" checked={portalSettings.enableAiAssistant} />
+                        <Switch
+                          id="enable-ai"
+                          checked={portalSettings.enableAiAssistant}
+                        />
                       </div>
                       <div className="flex items-center justify-between space-x-2">
                         <Label htmlFor="enable-services">Service Booking</Label>
-                        <Switch id="enable-services" checked={portalSettings.enableServiceBooking} />
+                        <Switch
+                          id="enable-services"
+                          checked={portalSettings.enableServiceBooking}
+                        />
                       </div>
                       <div className="flex items-center justify-between space-x-2">
                         <Label htmlFor="enable-chat">Chat System</Label>
-                        <Switch id="enable-chat" checked={portalSettings.enableChatSystem} />
+                        <Switch
+                          id="enable-chat"
+                          checked={portalSettings.enableChatSystem}
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -996,13 +1250,17 @@ export default function GuestPortal() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Guest Information</CardTitle>
-                    <CardDescription>Information displayed to guests</CardDescription>
+                    <CardDescription>
+                      Information displayed to guests
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-4">
                       <div>
                         <Label>Welcome Message</Label>
-                        <p className="text-sm text-muted-foreground mt-1">{portalSettings.welcomeMessage}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {portalSettings.welcomeMessage}
+                        </p>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -1010,14 +1268,18 @@ export default function GuestPortal() {
                             <Wifi className="h-4 w-4" />
                             <span>WiFi Password</span>
                           </Label>
-                          <p className="text-sm text-muted-foreground mt-1">{portalSettings.wifiPassword}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {portalSettings.wifiPassword}
+                          </p>
                         </div>
                         <div>
                           <Label className="flex items-center space-x-2">
                             <Phone className="h-4 w-4" />
                             <span>Emergency Contact</span>
                           </Label>
-                          <p className="text-sm text-muted-foreground mt-1">{portalSettings.emergencyContact}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {portalSettings.emergencyContact}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1027,16 +1289,23 @@ export default function GuestPortal() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Local Recommendations</CardTitle>
-                    <CardDescription>Places and activities recommended to guests</CardDescription>
+                    <CardDescription>
+                      Places and activities recommended to guests
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {portalSettings.localRecommendations?.map((recommendation: string, index: number) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{recommendation}</span>
-                        </div>
-                      ))}
+                      {portalSettings.localRecommendations?.map(
+                        (recommendation: string, index: number) => (
+                          <div
+                            key={index}
+                            className="flex items-center space-x-2"
+                          >
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{recommendation}</span>
+                          </div>
+                        ),
+                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -1,27 +1,53 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Calendar, 
-  DollarSign, 
-  Users, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Calendar,
+  DollarSign,
+  Users,
   Clock,
   CheckCircle,
   XCircle,
@@ -29,7 +55,7 @@ import {
   Package,
   Car,
   Utensils,
-  Heart
+  Heart,
 } from "lucide-react";
 
 const serviceSchema = z.object({
@@ -117,21 +143,31 @@ const getCategoryIcon = (category: string) => {
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'confirmed': return 'bg-green-100 text-green-800';
-    case 'pending': return 'bg-yellow-100 text-yellow-800';
-    case 'cancelled': return 'bg-red-100 text-red-800';
-    case 'completed': return 'bg-blue-100 text-blue-800';
-    default: return 'bg-gray-100 text-gray-800';
+    case "confirmed":
+      return "bg-green-100 text-green-800";
+    case "pending":
+      return "bg-yellow-100 text-yellow-800";
+    case "cancelled":
+      return "bg-red-100 text-red-800";
+    case "completed":
+      return "bg-blue-100 text-blue-800";
+    default:
+      return "bg-gray-100 text-gray-800";
   }
 };
 
 const getBillingRouteColor = (route: string) => {
   switch (route) {
-    case 'guest_billable': return 'bg-blue-100 text-blue-800';
-    case 'owner_billable': return 'bg-purple-100 text-purple-800';
-    case 'company_expense': return 'bg-orange-100 text-orange-800';
-    case 'complimentary': return 'bg-green-100 text-green-800';
-    default: return 'bg-gray-100 text-gray-800';
+    case "guest_billable":
+      return "bg-blue-100 text-blue-800";
+    case "owner_billable":
+      return "bg-purple-100 text-purple-800";
+    case "company_expense":
+      return "bg-orange-100 text-orange-800";
+    case "complimentary":
+      return "bg-green-100 text-green-800";
+    default:
+      return "bg-gray-100 text-gray-800";
   }
 };
 
@@ -166,7 +202,7 @@ export default function GuestAddonServices() {
       category: "",
       pricingType: "fixed",
       basePrice: "",
-      currency: "AUD",
+      currency: "THB",
       isActive: true,
       requiresTimeSlot: false,
       maxAdvanceBookingDays: 30,
@@ -200,7 +236,9 @@ export default function GuestAddonServices() {
       return await apiRequest("POST", "/api/guest-addon-services", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-addon-services"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/guest-addon-services"],
+      });
       setIsServiceDialogOpen(false);
       serviceForm.reset();
       toast({
@@ -219,11 +257,19 @@ export default function GuestAddonServices() {
 
   // Update service mutation
   const updateServiceMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<z.infer<typeof serviceSchema>> }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<z.infer<typeof serviceSchema>>;
+    }) => {
       return await apiRequest("PUT", `/api/guest-addon-services/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-addon-services"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/guest-addon-services"],
+      });
       setIsServiceDialogOpen(false);
       serviceForm.reset();
       setEditingService(null);
@@ -247,7 +293,9 @@ export default function GuestAddonServices() {
       return await apiRequest("POST", "/api/guest-addon-bookings", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/guest-addon-bookings"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/guest-addon-bookings"],
+      });
       setIsBookingDialogOpen(false);
       bookingForm.reset();
       toast({
@@ -305,14 +353,21 @@ export default function GuestAddonServices() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Guest Add-On Services</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Guest Add-On Services
+          </h1>
           <p className="text-muted-foreground">
-            Manage guest add-on services and bookings with flexible billing options
+            Manage guest add-on services and bookings with flexible billing
+            options
           </p>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
@@ -322,7 +377,10 @@ export default function GuestAddonServices() {
         <TabsContent value="services" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-semibold">Add-On Services</h2>
-            <Dialog open={isServiceDialogOpen} onOpenChange={setIsServiceDialogOpen}>
+            <Dialog
+              open={isServiceDialogOpen}
+              onOpenChange={setIsServiceDialogOpen}
+            >
               <DialogTrigger asChild>
                 <Button onClick={() => openServiceDialog()}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -339,7 +397,10 @@ export default function GuestAddonServices() {
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...serviceForm}>
-                  <form onSubmit={serviceForm.handleSubmit(handleServiceSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={serviceForm.handleSubmit(handleServiceSubmit)}
+                    className="space-y-4"
+                  >
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={serviceForm.control}
@@ -348,7 +409,10 @@ export default function GuestAddonServices() {
                           <FormItem>
                             <FormLabel>Service Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g., In-Room Massage" {...field} />
+                              <Input
+                                placeholder="e.g., In-Room Massage"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -360,17 +424,28 @@ export default function GuestAddonServices() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Category</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="wellness">Wellness</SelectItem>
-                                <SelectItem value="transport">Transport</SelectItem>
-                                <SelectItem value="cleaning">Cleaning</SelectItem>
-                                <SelectItem value="catering">Catering</SelectItem>
+                                <SelectItem value="wellness">
+                                  Wellness
+                                </SelectItem>
+                                <SelectItem value="transport">
+                                  Transport
+                                </SelectItem>
+                                <SelectItem value="cleaning">
+                                  Cleaning
+                                </SelectItem>
+                                <SelectItem value="catering">
+                                  Catering
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -386,7 +461,10 @@ export default function GuestAddonServices() {
                         <FormItem>
                           <FormLabel>Description</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Service description..." {...field} />
+                            <Textarea
+                              placeholder="Service description..."
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -400,7 +478,10 @@ export default function GuestAddonServices() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Pricing Type</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select pricing" />
@@ -408,7 +489,9 @@ export default function GuestAddonServices() {
                               </FormControl>
                               <SelectContent>
                                 <SelectItem value="fixed">Fixed</SelectItem>
-                                <SelectItem value="variable">Variable</SelectItem>
+                                <SelectItem value="variable">
+                                  Variable
+                                </SelectItem>
                                 <SelectItem value="hourly">Hourly</SelectItem>
                               </SelectContent>
                             </Select>
@@ -435,7 +518,10 @@ export default function GuestAddonServices() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Currency</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue />
@@ -454,10 +540,20 @@ export default function GuestAddonServices() {
                     </div>
 
                     <div className="flex gap-6">
-                      <Button type="submit" disabled={createServiceMutation.isPending || updateServiceMutation.isPending}>
+                      <Button
+                        type="submit"
+                        disabled={
+                          createServiceMutation.isPending ||
+                          updateServiceMutation.isPending
+                        }
+                      >
                         {editingService ? "Update Service" : "Create Service"}
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => setIsServiceDialogOpen(false)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsServiceDialogOpen(false)}
+                      >
                         Cancel
                       </Button>
                     </div>
@@ -484,14 +580,19 @@ export default function GuestAddonServices() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {services.map((service: Service) => (
-                <Card key={service.id} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={service.id}
+                  className="hover:shadow-md transition-shadow"
+                >
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {getCategoryIcon(service.category)}
                         {service.serviceName}
                       </div>
-                      <Badge variant={service.isActive ? "default" : "secondary"}>
+                      <Badge
+                        variant={service.isActive ? "default" : "secondary"}
+                      >
                         {service.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </CardTitle>
@@ -502,21 +603,37 @@ export default function GuestAddonServices() {
                   <CardContent>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Price:</span>
-                        <span className="font-medium">{service.currency} ${service.basePrice}</span>
+                        <span className="text-sm text-muted-foreground">
+                          Price:
+                        </span>
+                        <span className="font-medium">
+                          {service.currency} ${service.basePrice}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Pricing:</span>
+                        <span className="text-sm text-muted-foreground">
+                          Pricing:
+                        </span>
                         <Badge variant="outline">{service.pricingType}</Badge>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Auto Task:</span>
-                        <Badge variant={service.autoCreateTask ? "default" : "secondary"}>
+                        <span className="text-sm text-muted-foreground">
+                          Auto Task:
+                        </span>
+                        <Badge
+                          variant={
+                            service.autoCreateTask ? "default" : "secondary"
+                          }
+                        >
                           {service.autoCreateTask ? "Yes" : "No"}
                         </Badge>
                       </div>
                       <div className="flex gap-2 pt-2">
-                        <Button size="sm" variant="outline" onClick={() => openServiceDialog(service)}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openServiceDialog(service)}
+                        >
                           <Edit className="h-3 w-3 mr-1" />
                           Edit
                         </Button>
@@ -532,7 +649,10 @@ export default function GuestAddonServices() {
         <TabsContent value="bookings" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-semibold">Service Bookings</h2>
-            <Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
+            <Dialog
+              open={isBookingDialogOpen}
+              onOpenChange={setIsBookingDialogOpen}
+            >
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -547,7 +667,10 @@ export default function GuestAddonServices() {
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...bookingForm}>
-                  <form onSubmit={bookingForm.handleSubmit(handleBookingSubmit)} className="space-y-4">
+                  <form
+                    onSubmit={bookingForm.handleSubmit(handleBookingSubmit)}
+                    className="space-y-4"
+                  >
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={bookingForm.control}
@@ -555,7 +678,12 @@ export default function GuestAddonServices() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Service</FormLabel>
-                            <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                            <Select
+                              onValueChange={(value) =>
+                                field.onChange(parseInt(value))
+                              }
+                              value={field.value?.toString()}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select service" />
@@ -563,7 +691,10 @@ export default function GuestAddonServices() {
                               </FormControl>
                               <SelectContent>
                                 {services.map((service: Service) => (
-                                  <SelectItem key={service.id} value={service.id.toString()}>
+                                  <SelectItem
+                                    key={service.id}
+                                    value={service.id.toString()}
+                                  >
                                     {service.serviceName} - ${service.basePrice}
                                   </SelectItem>
                                 ))}
@@ -579,7 +710,12 @@ export default function GuestAddonServices() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Property</FormLabel>
-                            <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                            <Select
+                              onValueChange={(value) =>
+                                field.onChange(parseInt(value))
+                              }
+                              value={field.value?.toString()}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select property" />
@@ -587,7 +723,10 @@ export default function GuestAddonServices() {
                               </FormControl>
                               <SelectContent>
                                 {properties.map((property: any) => (
-                                  <SelectItem key={property.id} value={property.id.toString()}>
+                                  <SelectItem
+                                    key={property.id}
+                                    value={property.id.toString()}
+                                  >
                                     {property.name}
                                   </SelectItem>
                                 ))}
@@ -620,7 +759,11 @@ export default function GuestAddonServices() {
                           <FormItem>
                             <FormLabel>Guest Email</FormLabel>
                             <FormControl>
-                              <Input type="email" placeholder="guest@example.com" {...field} />
+                              <Input
+                                type="email"
+                                placeholder="guest@example.com"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -664,39 +807,58 @@ export default function GuestAddonServices() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Billing Route</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select billing route" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="guest_billable">Guest Billable</SelectItem>
-                                <SelectItem value="owner_billable">Owner Billable</SelectItem>
-                                <SelectItem value="company_expense">Company Expense</SelectItem>
-                                <SelectItem value="complimentary">Complimentary</SelectItem>
+                                <SelectItem value="guest_billable">
+                                  Guest Billable
+                                </SelectItem>
+                                <SelectItem value="owner_billable">
+                                  Owner Billable
+                                </SelectItem>
+                                <SelectItem value="company_expense">
+                                  Company Expense
+                                </SelectItem>
+                                <SelectItem value="complimentary">
+                                  Complimentary
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      {bookingForm.watch("billingRoute") === "complimentary" && (
+                      {bookingForm.watch("billingRoute") ===
+                        "complimentary" && (
                         <FormField
                           control={bookingForm.control}
                           name="complimentaryType"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Complimentary Type</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select type" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="owner_gift">Owner Gift</SelectItem>
-                                  <SelectItem value="company_gift">Company Gift</SelectItem>
+                                  <SelectItem value="owner_gift">
+                                    Owner Gift
+                                  </SelectItem>
+                                  <SelectItem value="company_gift">
+                                    Company Gift
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -713,7 +875,10 @@ export default function GuestAddonServices() {
                         <FormItem>
                           <FormLabel>Special Requests</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Any special requirements..." {...field} />
+                            <Textarea
+                              placeholder="Any special requirements..."
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -721,10 +886,17 @@ export default function GuestAddonServices() {
                     />
 
                     <div className="flex gap-6">
-                      <Button type="submit" disabled={createBookingMutation.isPending}>
+                      <Button
+                        type="submit"
+                        disabled={createBookingMutation.isPending}
+                      >
                         Create Booking
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => setIsBookingDialogOpen(false)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsBookingDialogOpen(false)}
+                      >
                         Cancel
                       </Button>
                     </div>
@@ -771,12 +943,17 @@ export default function GuestAddonServices() {
                           <Badge className={getStatusColor(booking.status)}>
                             {booking.status}
                           </Badge>
-                          <Badge className={getBillingRouteColor(booking.billingRoute)}>
-                            {booking.billingRoute.replace('_', ' ')}
+                          <Badge
+                            className={getBillingRouteColor(
+                              booking.billingRoute,
+                            )}
+                          >
+                            {booking.billingRoute.replace("_", " ")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Service Date: {new Date(booking.serviceDate).toLocaleDateString()}
+                          Service Date:{" "}
+                          {new Date(booking.serviceDate).toLocaleDateString()}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Email: {booking.guestEmail}
@@ -788,7 +965,9 @@ export default function GuestAddonServices() {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold">{booking.currency} ${booking.totalAmount}</p>
+                        <p className="font-semibold">
+                          {booking.currency} ${booking.totalAmount}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           Payment: {booking.paymentStatus}
                         </p>
@@ -806,7 +985,8 @@ export default function GuestAddonServices() {
             <CardHeader>
               <CardTitle>Analytics Coming Soon</CardTitle>
               <CardDescription>
-                Service booking analytics and revenue insights will be available here.
+                Service booking analytics and revenue insights will be available
+                here.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -815,7 +995,9 @@ export default function GuestAddonServices() {
                   <CardContent className="flex items-center justify-center p-6">
                     <div className="text-center">
                       <DollarSign className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Total Revenue</p>
+                      <p className="text-sm text-muted-foreground">
+                        Total Revenue
+                      </p>
                       <p className="text-2xl font-bold">$0</p>
                     </div>
                   </CardContent>
@@ -824,7 +1006,9 @@ export default function GuestAddonServices() {
                   <CardContent className="flex items-center justify-center p-6">
                     <div className="text-center">
                       <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Total Bookings</p>
+                      <p className="text-sm text-muted-foreground">
+                        Total Bookings
+                      </p>
                       <p className="text-2xl font-bold">{bookings.length}</p>
                     </div>
                   </CardContent>
@@ -833,8 +1017,12 @@ export default function GuestAddonServices() {
                   <CardContent className="flex items-center justify-center p-6">
                     <div className="text-center">
                       <Package className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Active Services</p>
-                      <p className="text-2xl font-bold">{services.filter((s: Service) => s.isActive).length}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Active Services
+                      </p>
+                      <p className="text-2xl font-bold">
+                        {services.filter((s: Service) => s.isActive).length}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

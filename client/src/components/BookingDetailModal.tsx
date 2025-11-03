@@ -1,29 +1,43 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { invalidateBookingQueries, invalidateFinanceQueries } from "@/lib/queryKeys";
-import { 
-  Calendar, 
-  User, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  DollarSign, 
+import {
+  invalidateBookingQueries,
+  invalidateFinanceQueries,
+} from "@/lib/queryKeys";
+import {
+  Calendar,
+  User,
+  MapPin,
+  Phone,
+  Mail,
+  DollarSign,
   FileText,
   CheckCircle,
   Clock,
   XCircle,
   Bed,
   CreditCard,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 
 interface BookingDetailModalProps {
@@ -32,7 +46,11 @@ interface BookingDetailModalProps {
   bookingId: number | null;
 }
 
-export default function BookingDetailModal({ open, onOpenChange, bookingId }: BookingDetailModalProps) {
+export default function BookingDetailModal({
+  open,
+  onOpenChange,
+  bookingId,
+}: BookingDetailModalProps) {
   const [newStatus, setNewStatus] = useState<string>("");
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const queryClient = useQueryClient();
@@ -44,7 +62,7 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
     queryFn: async () => {
       const response = await fetch(`/api/bookings/${bookingId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch booking');
+        throw new Error("Failed to fetch booking");
       }
       return response.json();
     },
@@ -61,7 +79,9 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
   // Update booking status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
-      const response = await apiRequest("PATCH", `/api/bookings/${bookingId}`, { status });
+      const response = await apiRequest("PATCH", `/api/bookings/${bookingId}`, {
+        status,
+      });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to update booking status");
@@ -71,7 +91,7 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
     onSuccess: () => {
       // Use centralized invalidation helper to update all related queries
       invalidateBookingQueries(queryClient);
-      
+
       toast({
         title: "Success",
         description: "Booking status updated successfully",
@@ -91,7 +111,10 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
     mutationFn: async (amount: number) => {
       const response = await apiRequest("PATCH", `/api/bookings/${bookingId}`, {
         amountPaid: amount.toString(),
-        paymentStatus: amount >= parseFloat(booking?.totalAmount || "0") ? "paid" : "partial"
+        paymentStatus:
+          amount >= parseFloat(booking?.totalAmount || "0")
+            ? "paid"
+            : "partial",
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -103,7 +126,7 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
       invalidateBookingQueries(queryClient);
       invalidateFinanceQueries(queryClient);
       setPaymentAmount("");
-      
+
       toast({
         title: "Success",
         description: "Payment updated successfully",
@@ -128,14 +151,14 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
     if (!booking) return;
 
     let amountToApply: number;
-    
+
     if (fullPaid) {
       // Mark as fully paid
       amountToApply = parseFloat(booking.totalAmount || "0");
     } else {
       // Custom amount
       amountToApply = parseFloat(paymentAmount);
-      
+
       if (isNaN(amountToApply) || amountToApply <= 0) {
         toast({
           title: "Validation Error",
@@ -148,7 +171,7 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
       const currentPaid = parseFloat(booking.amountPaid || "0");
       const totalDue = parseFloat(booking.totalAmount || "0");
       const newTotalPaid = currentPaid + amountToApply;
-      
+
       if (newTotalPaid > totalDue) {
         toast({
           title: "Validation Error",
@@ -170,46 +193,51 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
 
   const getPaymentStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'paid':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'partial':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'pending':
-        return 'bg-red-100 text-red-800 border-red-200';
+      case "paid":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "partial":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "pending":
+        return "bg-red-100 text-red-800 border-red-200";
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const formatCurrency = (amount: string | number) => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return isNaN(num) ? '0.00' : num.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = typeof amount === "string" ? parseFloat(amount) : amount;
+    return isNaN(num)
+      ? "0.00"
+      : num.toLocaleString("en-AU", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
   };
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'checked-in':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'checked-out':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 border-red-200';
+      case "confirmed":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "checked-in":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "checked-out":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      case "cancelled":
+        return "bg-red-100 text-red-800 border-red-200";
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'confirmed':
+      case "confirmed":
         return <CheckCircle className="w-4 h-4" />;
-      case 'pending':
+      case "pending":
         return <Clock className="w-4 h-4" />;
-      case 'cancelled':
+      case "cancelled":
         return <XCircle className="w-4 h-4" />;
       default:
         return <Clock className="w-4 h-4" />;
@@ -217,11 +245,11 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -229,7 +257,9 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
     if (!booking?.checkIn || !booking?.checkOut) return 0;
     const checkIn = new Date(booking.checkIn);
     const checkOut = new Date(booking.checkOut);
-    return Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.ceil(
+      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
+    );
   };
 
   if (!bookingId) return null;
@@ -242,14 +272,20 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
         </DialogHeader>
 
         {isLoading ? (
-          <div className="py-8 text-center text-muted-foreground">Loading booking details...</div>
+          <div className="py-8 text-center text-muted-foreground">
+            Loading booking details...
+          </div>
         ) : !booking ? (
-          <div className="py-8 text-center text-muted-foreground">Booking not found</div>
+          <div className="py-8 text-center text-muted-foreground">
+            Booking not found
+          </div>
         ) : (
           <div className="space-y-6">
             {/* Status Badge */}
             <div className="flex items-center justify-between">
-              <Badge className={`${getStatusColor(booking.status)} flex items-center gap-1 text-sm px-3 py-1`}>
+              <Badge
+                className={`${getStatusColor(booking.status)} flex items-center gap-1 text-sm px-3 py-1`}
+              >
                 {getStatusIcon(booking.status)}
                 {booking.status}
               </Badge>
@@ -269,11 +305,13 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-medium">{booking.guestName || 'N/A'}</p>
+                  <p className="font-medium">{booking.guestName || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Guests</p>
-                  <p className="font-medium">{booking.guests || 1} guest{booking.guests > 1 ? 's' : ''}</p>
+                  <p className="font-medium">
+                    {booking.guests || 1} guest{booking.guests > 1 ? "s" : ""}
+                  </p>
                 </div>
                 {booking.guestEmail && (
                   <div className="flex items-center gap-2">
@@ -299,12 +337,19 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
                 Property Information
               </h3>
               <div className="space-y-2">
-                <p className="font-medium">{property?.name || 'Unknown Property'}</p>
-                <p className="text-sm text-muted-foreground">{property?.address || 'N/A'}</p>
+                <p className="font-medium">
+                  {property?.name || "Unknown Property"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {property?.address || "N/A"}
+                </p>
                 {property?.bedrooms && (
                   <div className="flex items-center gap-2 text-sm">
                     <Bed className="w-4 h-4" />
-                    <span>{property.bedrooms} Bedroom{property.bedrooms > 1 ? 's' : ''}</span>
+                    <span>
+                      {property.bedrooms} Bedroom
+                      {property.bedrooms > 1 ? "s" : ""}
+                    </span>
                   </div>
                 )}
               </div>
@@ -329,7 +374,7 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
-                {calculateNights()} night{calculateNights() > 1 ? 's' : ''}
+                {calculateNights()} night{calculateNights() > 1 ? "s" : ""}
               </p>
             </div>
 
@@ -341,13 +386,16 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
                 <DollarSign className="w-5 h-5" />
                 Financial Information
               </h3>
-              
+
               {/* Payment Status Badge */}
               {booking.paymentStatus && (
                 <div className="flex items-center gap-2">
-                  <Badge className={`${getPaymentStatusColor(booking.paymentStatus)} flex items-center gap-1 px-3 py-1`}>
+                  <Badge
+                    className={`${getPaymentStatusColor(booking.paymentStatus)} flex items-center gap-1 px-3 py-1`}
+                  >
                     <CreditCard className="w-3 h-3" />
-                    {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
+                    {booking.paymentStatus.charAt(0).toUpperCase() +
+                      booking.paymentStatus.slice(1)}
                   </Badge>
                 </div>
               )}
@@ -356,39 +404,48 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
                 <div>
                   <p className="text-sm text-muted-foreground">Total Amount</p>
                   <p className="text-xl font-bold">
-                    {booking.currency || 'AUD'} ${formatCurrency(booking.totalAmount || 0)}
+                    {booking.currency || "THB"} $
+                    {formatCurrency(booking.totalAmount || 0)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Amount Paid</p>
                   <p className="text-xl font-bold text-green-600">
-                    {booking.currency || 'AUD'} ${formatCurrency(booking.amountPaid || 0)}
+                    {booking.currency || "THB"} $
+                    {formatCurrency(booking.amountPaid || 0)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Amount Due</p>
                   <p className="text-xl font-bold text-red-600">
-                    {booking.currency || 'AUD'} ${formatCurrency(booking.amountDue || 0)}
+                    {booking.currency || "THB"} $
+                    {formatCurrency(booking.amountDue || 0)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Platform</p>
-                  <p className="font-medium">{booking.bookingPlatform || 'Direct'}</p>
+                  <p className="font-medium">
+                    {booking.bookingPlatform || "Direct"}
+                  </p>
                 </div>
               </div>
 
               {/* Show payment alert if checked-in with outstanding balance */}
-              {booking.status?.toLowerCase() === 'checked-in' && parseFloat(booking.amountDue || "0") > 0 && (
-                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-900">Outstanding Payment</p>
-                    <p className="text-sm text-amber-700">
-                      Guest has checked in with {booking.currency || 'AUD'} ${formatCurrency(booking.amountDue || 0)} still due
-                    </p>
+              {booking.status?.toLowerCase() === "checked-in" &&
+                parseFloat(booking.amountDue || "0") > 0 && (
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-900">
+                        Outstanding Payment
+                      </p>
+                      <p className="text-sm text-amber-700">
+                        Guest has checked in with {booking.currency || "THB"} $
+                        {formatCurrency(booking.amountDue || 0)} still due
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Payment Action Section */}
               {parseFloat(booking.amountDue || "0") > 0 && (
@@ -413,7 +470,9 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
                       data-testid="button-add-payment"
                     >
                       <CreditCard className="w-4 h-4 mr-1" />
-                      {markAsPaidMutation.isPending ? "Processing..." : "Add Payment"}
+                      {markAsPaidMutation.isPending
+                        ? "Processing..."
+                        : "Add Payment"}
                     </Button>
                   </div>
                   <Button
@@ -424,17 +483,22 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
                     data-testid="button-mark-fully-paid"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    {markAsPaidMutation.isPending ? "Processing..." : "Mark as Fully Paid"}
+                    {markAsPaidMutation.isPending
+                      ? "Processing..."
+                      : "Mark as Fully Paid"}
                   </Button>
                 </div>
               )}
-              
-              {parseFloat(booking.amountDue || "0") === 0 && booking.paymentStatus === 'paid' && (
-                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                  <p className="text-sm font-medium text-green-900">Payment Completed</p>
-                </div>
-              )}
+
+              {parseFloat(booking.amountDue || "0") === 0 &&
+                booking.paymentStatus === "paid" && (
+                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <p className="text-sm font-medium text-green-900">
+                      Payment Completed
+                    </p>
+                  </div>
+                )}
             </div>
 
             {booking.specialRequests && (
@@ -445,7 +509,9 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
                     <FileText className="w-5 h-5" />
                     Special Requests
                   </h3>
-                  <p className="text-sm text-muted-foreground">{booking.specialRequests}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {booking.specialRequests}
+                  </p>
                 </div>
               </>
             )}
@@ -456,7 +522,10 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
             <div className="space-y-3">
               <h3 className="font-semibold">Update Status</h3>
               <div className="flex gap-3">
-                <Select value={newStatus || booking.status} onValueChange={setNewStatus}>
+                <Select
+                  value={newStatus || booking.status}
+                  onValueChange={setNewStatus}
+                >
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -468,9 +537,13 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button 
+                <Button
                   onClick={handleStatusUpdate}
-                  disabled={!newStatus || newStatus === booking.status || updateStatusMutation.isPending}
+                  disabled={
+                    !newStatus ||
+                    newStatus === booking.status ||
+                    updateStatusMutation.isPending
+                  }
                 >
                   {updateStatusMutation.isPending ? "Updating..." : "Update"}
                 </Button>
@@ -479,7 +552,11 @@ export default function BookingDetailModal({ open, onOpenChange, bookingId }: Bo
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4">
-              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => onOpenChange(false)}
+              >
                 Close
               </Button>
               <Button className="flex-1" onClick={handleGenerateInvoice}>
