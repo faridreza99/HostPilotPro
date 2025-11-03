@@ -44,6 +44,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../hooks/use-toast";
 import { apiRequest } from "../lib/queryClient";
 import { useFastAuth } from "../lib/fastAuth";
+import { BackButton } from "./../components/BackButton";
 
 interface PropertyFiltersState {
   search: string;
@@ -426,56 +427,69 @@ export default function PropertyHub() {
   return (
     <div className="min-h-screen flex bg-background">
       <div className="flex-1 flex flex-col lg:ml-0">
-        <TopBar title="Property Management Hub" />
+        <TopBar title="Property Management" />
 
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-4xl font-bold text-slate-800 mb-3 flex items-center gap-4">
-                  🏠 Property Management Hub
-                </h1>
-                <p className="text-lg text-slate-600 mb-2">
-                  Enhanced property management with advanced filtering, bulk
-                  actions, and calendar views
-                </p>
-                <div className="mt-3 text-sm text-emerald-600 font-medium flex items-center gap-2">
-                  <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                  Connected to Dashboard • Showing Real Data from API
+            <div className="relative mb-8">
+              {/* Header with Back Button layered on top */}
+              <div className="absolute top-0 left-0 z-50">
+                <BackButton
+                  fallbackRoute="/dashboard-hub"
+                  variant="ghost"
+                  className="!p-2 !rounded-md bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm"
+                >
+                  <span className="hidden sm:inline text-sm">
+                    Back to Dashboard
+                  </span>
+                </BackButton>
+              </div>
+              {/* Header */}
+              <div className="flex items-center justify-between pt-">
+                <div>
+                  <h1 className="text-4xl font-bold text-slate-800 mb-3 flex items-center gap-4">
+                    🏠 Property Management Hub
+                  </h1>
+                  <p className="text-lg text-slate-600 mb-2">
+                    Enhanced property management with advanced filtering, bulk
+                    actions, and calendar views
+                  </p>
+                  <div className="mt-3 text-sm text-emerald-600 font-medium flex items-center gap-2">
+                    <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    Connected to Dashboard • Showing Real Data from API
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  {user?.role === "admin" && (
+                    <Button
+                      onClick={() => setIsPropertyDialogOpen(true)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105 transition-all duration-200"
+                      data-testid="button-add-property"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Property
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={handleRefresh}
+                    className="hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 hover:scale-105 transition-all duration-200"
+                    data-testid="button-refresh"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Badge
+                    variant="outline"
+                    className="px-4 py-2 text-sm bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold cursor-pointer hover:bg-emerald-200 hover:scale-105 transition-all duration-200"
+                    onClick={handleRefresh}
+                    data-testid="badge-properties-counter"
+                  >
+                    {propertiesArray.length} Properties
+                  </Badge>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                {user?.role === "admin" && (
-                  <Button
-                    onClick={() => setIsPropertyDialogOpen(true)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105 transition-all duration-200"
-                    data-testid="button-add-property"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Property
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  onClick={handleRefresh}
-                  className="hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 hover:scale-105 transition-all duration-200"
-                  data-testid="button-refresh"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
-                </Button>
-                <Badge
-                  variant="outline"
-                  className="px-4 py-2 text-sm bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold cursor-pointer hover:bg-emerald-200 hover:scale-105 transition-all duration-200"
-                  onClick={handleRefresh}
-                  data-testid="badge-properties-counter"
-                >
-                  {propertiesArray.length} Properties
-                </Badge>
-              </div>
             </div>
-
             {/* Main Content Tabs */}
             <Tabs
               value={activeTab}

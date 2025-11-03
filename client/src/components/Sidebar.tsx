@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
@@ -225,7 +223,7 @@ export default function Sidebar({ className }: SidebarProps) {
           aria-expanded={isMobileOpen}
           aria-label={isMobileOpen ? "Close menu" : "Open menu"}
           onClick={() => setIsMobileOpen((s) => !s)}
-          className="fixed top-4 left-4 z-60 p-2 rounded-md bg-white/90 dark:bg-black/90 shadow-lg md:hidden"
+          className="max-h-screen fixed top-4 left-4 z-60 p-2 rounded-md bg-white/90 dark:bg-black/90 shadow-lg md:hidden"
         >
           {isMobileOpen ? (
             <X className="h-5 w-5" />
@@ -239,21 +237,21 @@ export default function Sidebar({ className }: SidebarProps) {
       {isMobile && isMobileOpen && (
         <div
           onClick={() => setIsMobileOpen(false)}
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="min-h-screen fixed inset-0 bg-black/50 z-40 md:hidden"
         />
       )}
 
       <div
         className={cn(
           // base
-          "fixed left-0 top-0 h-screen bg-white dark:bg-black text-black dark:text-slate-500 flex flex-col items-start transition-all duration-300 ease-in-out shadow-2xl z-50",
+          "max-h-screen fixed left-0 top-0 h-screen bg-white dark:bg-black text-black dark:text-slate-500 flex flex-col items-start transition-all duration-300 ease-in-out shadow-2xl z-50",
           // desktop width or collapsed width
           !isMobile && (isCollapsed ? "w-16" : "w-64"),
           // mobile transform (drawer)
           isMobile &&
             (isMobileOpen
               ? "w-64 translate-x-0"
-              : "w-64 -translate-x-full pointer-events-none"),
+              : "min-h-min w-64 -translate-x-full pointer-events-none"),
           className,
         )}
         style={{

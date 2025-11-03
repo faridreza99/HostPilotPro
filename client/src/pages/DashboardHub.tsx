@@ -36,7 +36,7 @@ export default function DashboardHub() {
         emoji: "💰",
         description:
           "Revenue tracking, expense analysis, and financial performance insights",
-        href: "/simple-filtered-financial-dashboard",
+        href: "/finance-hub",
         icon: DollarSign,
         badge: "Finance",
         color: "bg-teal-50/50 hover:bg-teal-100/70 border-teal-200/60",
