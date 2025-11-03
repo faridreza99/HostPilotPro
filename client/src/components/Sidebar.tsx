@@ -243,9 +243,9 @@ export default function Sidebar({ className }: SidebarProps) {
       <div
         className={cn(
           // base
-          "h-screen bg-white dark:bg-black text-black dark:text-slate-500 flex flex-col items-start transition-all duration-300 ease-in-out shadow-2xl overflow-hidden",
-          // desktop: sticky position to stay fixed when scrolling
-          !isMobile && "sticky top-0 flex-shrink-0",
+          "sticky top-0 h-screen bg-white dark:bg-black text-black dark:text-slate-500 flex flex-col items-start transition-all duration-300 ease-in-out shadow-2xl",
+          // desktop: part of flex layout (not fixed)
+          !isMobile && "flex-shrink-0",
           !isMobile && (collapsed ? "w-16" : "w-64"),
           // mobile: fixed overlay
           isMobile && "fixed left-0 top-0 z-50",
@@ -355,7 +355,7 @@ export default function Sidebar({ className }: SidebarProps) {
         </nav>
 
         {/* Footer Section */}
-        <div className="w-full border-t border-slate-700/50">
+        <div className="w-full border-t border-slate-700/50 flex-none">
           {/* Settings Button */}
           {!collapsed && (!isMobile || isMobileOpen) && (
             <div className="px-4 py-3">

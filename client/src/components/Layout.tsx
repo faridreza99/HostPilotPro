@@ -12,12 +12,16 @@ interface LayoutProps {
 
 export default function Layout({ children, className, title, subtitle, action }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-background flex-1 flex flex-col overflow-x-hidden">
+    <div className="bg-background flex-1 min-h-0 flex flex-col overflow-auto">
       {/* Mobile top spacing */}
       <div className="lg:hidden h-20"></div>
       
-      {/* TopBar */}
-      {title && <TopBar title={title} subtitle={subtitle} action={action} />}
+      {/* TopBar - sticky at top */}
+      {title && (
+        <div className="sticky top-0 z-50">
+          <TopBar title={title} subtitle={subtitle} action={action} />
+        </div>
+      )}
       
       {/* Page Content */}
       <main className={cn("p-4 lg:p-6 flex-1", className)}>
