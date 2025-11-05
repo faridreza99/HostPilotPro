@@ -112,6 +112,11 @@ app.use((req, res, next) => {
   app.use("/api/service-bookings", serviceBookingRouter);
   console.log("[INIT] Service booking routes mounted ✅");
 
+  // Register Lodgify API routes
+  const lodgifyRouter = (await import('./lodgify-routes')).default;
+  app.use("/api", lodgifyRouter);
+  console.log("[INIT] Lodgify API routes mounted ✅");
+
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
   console.log("[INIT] Static uploads directory mounted ✅");
