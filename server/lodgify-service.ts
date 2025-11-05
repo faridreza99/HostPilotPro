@@ -52,9 +52,15 @@ interface LodgifyBookingWithTransactions extends LodgifyBooking {
 export class LodgifyService {
   private client: AxiosInstance;
   private apiKey: string;
+  private organizationId: string;
 
-  constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.LODGIFY_API_KEY || '';
+  constructor(apiKey: string, organizationId: string = 'default-org') {
+    if (!apiKey) {
+      throw new Error('Lodgify API key is required');
+    }
+    
+    this.apiKey = apiKey;
+    this.organizationId = organizationId;
     
     this.client = axios.create({
       baseURL: 'https://api.lodgify.com',
@@ -199,12 +205,20 @@ export class LodgifyService {
   }
 }
 
-// Singleton instance
-let lodgifyInstance: LodgifyService | null = null;
+// Cache instances per organization to avoid credential leakage
+const lodgifyInstances: Map<string, LodgifyService> = new Map();
 
-export function getLodgifyService(apiKey?: string): LodgifyService {
-  if (!lodgifyInstance || apiKey) {
-    lodgifyInstance = new LodgifyService(apiKey);
+export function getLodgifyService(apiKey: string, organizationId: string = 'default-org'): LodgifyService {
+  // Create a new instance for each organization
+  const cacheKey = `${organizationId}:${apiKey.substring(0, 10)}`;
+  
+  if (!lodgifyInstances.has(cacheKey)) {
+    lodgifyInstances.set(cacheKey, new LodgifyService(apiKey, organizationId));
   }
-  return lodgifyInstance;
+  
+  return lodgifyInstances.get(cacheKey)!;
+}
+
+export function clearLodgifyCache() {
+  lodgifyInstances.clear();
 }

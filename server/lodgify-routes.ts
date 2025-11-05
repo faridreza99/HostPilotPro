@@ -5,7 +5,8 @@ import { eq, and } from 'drizzle-orm';
 import { 
   properties, 
   bookings, 
-  apiConnections
+  apiConnections,
+  organizationApiKeys
 } from '@shared/schema';
 
 const router = Router();
@@ -15,12 +16,44 @@ function getOrgId(req: Request): string {
   return (req.user as any)?.organizationId || 'default-org';
 }
 
+// Helper function to get Lodgify API key for organization
+async function getLodgifyApiKey(organizationId: string): Promise<string> {
+  // First, try to get from organization API keys table
+  const apiKeyRecord = await db.select()
+    .from(organizationApiKeys)
+    .where(
+      and(
+        eq(organizationApiKeys.organizationId, organizationId),
+        eq(organizationApiKeys.provider, 'lodgify'),
+        eq(organizationApiKeys.isActive, true)
+      )
+    )
+    .limit(1);
+
+  if (apiKeyRecord.length > 0 && apiKeyRecord[0].encryptedValue) {
+    // In a real app, decrypt the value here
+    // For now, assume it's stored as plain text (should be encrypted in production)
+    return apiKeyRecord[0].encryptedValue;
+  }
+
+  // Fallback to environment variable for testing/development
+  const envKey = process.env.LODGIFY_API_KEY;
+  if (envKey) {
+    console.log('[Lodgify] Using fallback environment variable API key');
+    return envKey;
+  }
+
+  throw new Error('Lodgify API key not configured. Please add it in API Connections settings.');
+}
+
 /**
  * Test Lodgify API connection
  */
 router.get('/lodgify/test-connection', async (req: Request, res: Response) => {
   try {
-    const lodgify = getLodgifyService();
+    const orgId = getOrgId(req);
+    const apiKey = await getLodgifyApiKey(orgId);
+    const lodgify = getLodgifyService(apiKey, orgId);
     const result = await lodgify.testConnection();
     
     console.log('[Lodgify API] Connection test:', result);
@@ -40,7 +73,9 @@ router.get('/lodgify/test-connection', async (req: Request, res: Response) => {
  */
 router.get('/lodgify/fetch-properties', async (req: Request, res: Response) => {
   try {
-    const lodgify = getLodgifyService();
+    const orgId = getOrgId(req);
+    const apiKey = await getLodgifyApiKey(orgId);
+    const lodgify = getLodgifyService(apiKey, orgId);
     const lodgifyProperties = await lodgify.getProperties();
     
     console.log(`[Lodgify API] Fetched ${lodgifyProperties.length} properties`);
@@ -65,7 +100,8 @@ router.get('/lodgify/fetch-properties', async (req: Request, res: Response) => {
 router.post('/lodgify/sync-properties', async (req: Request, res: Response) => {
   try {
     const orgId = getOrgId(req);
-    const lodgify = getLodgifyService();
+    const apiKey = await getLodgifyApiKey(orgId);
+    const lodgify = getLodgifyService(apiKey, orgId);
     const lodgifyProperties = await lodgify.getProperties();
     
     let synced = 0;
@@ -150,7 +186,9 @@ router.post('/lodgify/sync-properties', async (req: Request, res: Response) => {
  */
 router.get('/lodgify/fetch-bookings', async (req: Request, res: Response) => {
   try {
-    const lodgify = getLodgifyService();
+    const orgId = getOrgId(req);
+    const apiKey = await getLodgifyApiKey(orgId);
+    const lodgify = getLodgifyService(apiKey, orgId);
     const lodgifyBookings = await lodgify.getBookings(true, 1, 100);
     
     console.log(`[Lodgify API] Fetched ${lodgifyBookings.length} bookings`);
@@ -175,7 +213,8 @@ router.get('/lodgify/fetch-bookings', async (req: Request, res: Response) => {
 router.post('/lodgify/sync-bookings', async (req: Request, res: Response) => {
   try {
     const orgId = getOrgId(req);
-    const lodgify = getLodgifyService();
+    const apiKey = await getLodgifyApiKey(orgId);
+    const lodgify = getLodgifyService(apiKey, orgId);
     const lodgifyBookings = await lodgify.getBookings(true, 1, 100);
     
     let synced = 0;

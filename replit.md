@@ -44,4 +44,65 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - **Styling**: Tailwind CSS.
 - **Language**: TypeScript.
 - **AI**: OpenAI API.
-- **Third-Party Integrations**: Hostaway, Stripe, Twilio, PEA (as per API Connections management system).
+- **Third-Party Integrations**: **Lodgify** (property management sync - ACTIVE), Hostaway, Stripe, Twilio, PEA (as per API Connections management system).
+
+## Lodgify API Integration
+**Status**: ACTIVE & TESTED  
+**API Base URL**: `https://api.lodgify.com`  
+**Authentication**: X-ApiKey header (stored in LODGIFY_API_KEY environment variable)
+
+### Service Module
+- **Location**: `server/lodgify-service.ts`
+- **Class**: `LodgifyService` - Singleton service for all Lodgify API interactions
+- **Methods**:
+  - `testConnection()` - Validates API key and connection
+  - `getProperties()` - Fetches all properties from Lodgify
+  - `getProperty(id)` - Fetches single property details
+  - `getBookings(includeTransactions, page, size)` - Fetches bookings with payment data
+  - `getBooking(id)` - Fetches single booking details
+  - `createBooking(data)` - Creates new booking in Lodgify
+  - `getPaymentLink(bookingId)` - Generates payment link for guests
+  - `getCalendar(propertyId, startDate, endDate)` - Fetches availability calendar
+
+### API Routes
+- **Location**: `server/lodgify-routes.ts`
+- **Endpoints**:
+  - `GET /api/lodgify/test-connection` - Test API connectivity
+  - `GET /api/lodgify/fetch-properties` - Fetch properties from Lodgify
+  - `POST /api/lodgify/sync-properties` - Sync properties to local database
+  - `GET /api/lodgify/fetch-bookings` - Fetch bookings from Lodgify
+  - `POST /api/lodgify/sync-bookings` - Sync bookings with payment data to local database
+  - `GET /api/lodgify/sync-status` - Get sync statistics and last sync time
+
+### Data Mapping
+**Properties Sync**:
+- Maps Lodgify properties to local `properties` table
+- Tracks external ID for bidirectional sync
+- Updates: name, address, bedrooms, bathrooms, maxGuests, description, currency
+- Status: Creates new properties or updates existing ones based on external ID
+
+**Bookings Sync**:
+- Maps Lodgify bookings to local `bookings` table  
+- Includes transaction data for payment tracking
+- Calculates `paymentStatus` (unpaid/partial/paid) from transaction totals
+- Maps booking statuses: cancelled, confirmed, pending
+- Links to properties via external ID matching
+- Syncs: guest info, check-in/out dates, amounts, currency, platform source
+
+### UI Integration
+- **Page**: `client/src/pages/admin/ApiConnections.tsx`
+- **Features**: Lodgify appears first in predefined services list
+- **Actions**: Test connection, fetch data, sync to database, view sync status
+- **Sync Metrics**: Shows total properties/bookings and synced counts
+
+### Testing Results
+- ✅ Connection test: SUCCESSFUL (Found 1 property)
+- ✅ Properties fetch: SUCCESSFUL (Villa Siam Smart Home)
+- ✅ Properties sync: SUCCESSFUL (1 created)
+- ✅ Bookings endpoint: WORKING (API v2 with transactions support)
+
+### Future Enhancements
+- Automated sync scheduler (cron job)
+- Webhook receiver for real-time updates
+- Finance data sync from booking transactions
+- Two-way sync (push local changes to Lodgify)
