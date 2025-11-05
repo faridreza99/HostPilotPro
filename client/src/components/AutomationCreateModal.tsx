@@ -1,9 +1,21 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { Textarea } from "./ui/textarea";
 import { Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,12 +35,12 @@ export default function AutomationCreateModal({ open, onClose }: Props) {
     description: "",
     trigger: "booking_due",
     action: "email",
-    schedule: "0 9 * * *"
+    schedule: "0 9 * * *",
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('POST', '/api/automations', formData);
+      return apiRequest("POST", "/api/automations", formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/automations"] });
@@ -43,7 +55,7 @@ export default function AutomationCreateModal({ open, onClose }: Props) {
         description: "",
         trigger: "booking_due",
         action: "email",
-        schedule: "0 9 * * *"
+        schedule: "0 9 * * *",
       });
     },
     onError: (error: any) => {
@@ -52,7 +64,7 @@ export default function AutomationCreateModal({ open, onClose }: Props) {
         description: error.message || "Failed to create automation",
         variant: "destructive",
       });
-    }
+    },
   });
 
   const handleCreate = () => {
@@ -69,14 +81,14 @@ export default function AutomationCreateModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create Automation</DialogTitle>
           <DialogDescription>
             Set up automated workflows for property management
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="automation-name">Name *</Label>
@@ -84,7 +96,9 @@ export default function AutomationCreateModal({ open, onClose }: Props) {
               id="automation-name"
               placeholder="e.g., Send booking confirmation"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               data-testid="input-automation-name"
             />
           </div>
@@ -95,48 +109,76 @@ export default function AutomationCreateModal({ open, onClose }: Props) {
               id="automation-description"
               placeholder="Optional description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               data-testid="input-automation-description"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="automation-trigger">Trigger *</Label>
-            <Select value={formData.trigger} onValueChange={(value) => setFormData({ ...formData, trigger: value })}>
-              <SelectTrigger id="automation-trigger" data-testid="select-automation-trigger">
+            <Select
+              value={formData.trigger}
+              onValueChange={(value) =>
+                setFormData({ ...formData, trigger: value })
+              }
+            >
+              <SelectTrigger
+                id="automation-trigger"
+                data-testid="select-automation-trigger"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="booking_due">Booking Check-in Due</SelectItem>
+                <SelectItem value="booking_due">
+                  Booking Check-in Due
+                </SelectItem>
                 <SelectItem value="task_overdue">Task Overdue</SelectItem>
                 <SelectItem value="payment_pending">Payment Pending</SelectItem>
-                <SelectItem value="document_expiring">Document Expiring</SelectItem>
+                <SelectItem value="document_expiring">
+                  Document Expiring
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="automation-action">Action *</Label>
-            <Select value={formData.action} onValueChange={(value) => setFormData({ ...formData, action: value })}>
-              <SelectTrigger id="automation-action" data-testid="select-automation-action">
+            <Select
+              value={formData.action}
+              onValueChange={(value) =>
+                setFormData({ ...formData, action: value })
+              }
+            >
+              <SelectTrigger
+                id="automation-action"
+                data-testid="select-automation-action"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="email">Send Email</SelectItem>
                 <SelectItem value="sms">Send SMS</SelectItem>
-                <SelectItem value="push_notification">Push Notification</SelectItem>
+                <SelectItem value="push_notification">
+                  Push Notification
+                </SelectItem>
                 <SelectItem value="whatsapp">WhatsApp Message</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="automation-schedule">Schedule (Cron Expression)</Label>
+            <Label htmlFor="automation-schedule">
+              Schedule (Cron Expression)
+            </Label>
             <Input
               id="automation-schedule"
               placeholder="e.g., 0 9 * * * (daily at 9 AM)"
               value={formData.schedule}
-              onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, schedule: e.target.value })
+              }
               data-testid="input-automation-schedule"
             />
           </div>

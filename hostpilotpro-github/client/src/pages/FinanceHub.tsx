@@ -2,9 +2,9 @@ import React, { lazy, Suspense, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  DollarSign, 
-  FileText, 
+import {
+  DollarSign,
+  FileText,
   Zap,
   TrendingUp,
   Calculator,
@@ -15,11 +15,10 @@ import {
   Users,
   Shield,
   Brain,
-  Receipt
+  Receipt,
 } from "lucide-react";
 import TopBar from "@/components/TopBar";
 import RefreshDataButton from "@/components/RefreshDataButton";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useFastAuth } from "@/lib/fastAuth";
 
 // Lazy load all Finance modules
@@ -27,14 +26,24 @@ const FinancesPage = lazy(() => import("./CachedFinances"));
 const InvoiceGenerator = lazy(() => import("./CachedInvoiceGenerator"));
 const UtilityTracker = lazy(() => import("./CachedUtilityTracker"));
 const FinanceEngine = lazy(() => import("./FinanceEngine"));
-const SmartPricingPerformanceToolkit = lazy(() => import("./SmartPricingPerformanceToolkit"));
-const OtaPayoutLogicSmartRevenue = lazy(() => import("./OtaPayoutLogicSmartRevenue"));
-const SimpleFilteredFinancialDashboard = lazy(() => import("./SimpleFilteredFinancialDashboard"));
+const SmartPricingPerformanceToolkit = lazy(
+  () => import("./SmartPricingPerformanceToolkit"),
+);
+const OtaPayoutLogicSmartRevenue = lazy(
+  () => import("./OtaPayoutLogicSmartRevenue"),
+);
+const SimpleFilteredFinancialDashboard = lazy(
+  () => import("./SimpleFilteredFinancialDashboard"),
+);
 const OwnerInvoicingPayouts = lazy(() => import("./OwnerInvoicingPayouts"));
 const SalariesWages = lazy(() => import("./SalariesWages"));
-const FinanceIntelligenceModule = lazy(() => import("./FinanceIntelligenceModule"));
+const FinanceIntelligenceModule = lazy(
+  () => import("./FinanceIntelligenceModule"),
+);
 const CurrencyTaxManagement = lazy(() => import("./CurrencyTaxManagement"));
-const OtaRevenueNetPayoutCalculation = lazy(() => import("./OtaRevenueNetPayoutCalculation"));
+const OtaRevenueNetPayoutCalculation = lazy(
+  () => import("./OtaRevenueNetPayoutCalculation"),
+);
 const StaffExpenseManagement = lazy(() => import("./StaffExpenseManagement"));
 
 export default function FinanceHub() {
@@ -44,39 +53,43 @@ export default function FinanceHub() {
   const financeItems = [
     {
       title: "Revenue & Payouts",
-      description: "Track property revenue, owner payouts, and commission calculations",
+      description:
+        "Track property revenue, owner payouts, and commission calculations",
       key: "finances",
       icon: DollarSign,
       badge: "Core",
       color: "bg-green-50 hover:bg-green-100 border-green-200",
-      component: FinancesPage
+      component: FinancesPage,
     },
     {
-      title: "Invoices & Income", 
-      description: "Generate invoices, track payments, and manage income streams",
+      title: "Invoices & Income",
+      description:
+        "Generate invoices, track payments, and manage income streams",
       key: "invoice-generator",
       icon: FileText,
       badge: "Billing",
       color: "bg-blue-50 hover:bg-blue-100 border-blue-200",
-      component: InvoiceGenerator
+      component: InvoiceGenerator,
     },
     {
       title: "Utility Tracker",
-      description: "Monitor utility bills, track usage, and manage property expenses",
+      description:
+        "Monitor utility bills, track usage, and manage property expenses",
       key: "utility-tracker",
       icon: Zap,
       badge: "Utilities",
       color: "bg-yellow-50 hover:bg-yellow-100 border-yellow-200",
-      component: UtilityTracker
+      component: UtilityTracker,
     },
     {
       title: "Finance Engine",
-      description: "Advanced financial analytics, reporting, and performance metrics",
+      description:
+        "Advanced financial analytics, reporting, and performance metrics",
       key: "finance-engine",
       icon: Calculator,
       badge: "Analytics",
       color: "bg-purple-50 hover:bg-purple-100 border-purple-200",
-      component: FinanceEngine
+      component: FinanceEngine,
     },
     {
       title: "Smart Pricing",
@@ -85,25 +98,27 @@ export default function FinanceHub() {
       icon: TrendingUp,
       badge: "AI",
       color: "bg-indigo-50 hover:bg-indigo-100 border-indigo-200",
-      component: SmartPricingPerformanceToolkit
+      component: SmartPricingPerformanceToolkit,
     },
     {
       title: "OTA Payout Logic",
-      description: "Online travel agency commission tracking and payout calculations",
+      description:
+        "Online travel agency commission tracking and payout calculations",
       key: "ota-payout-logic-smart-revenue",
       icon: ArrowUpDown,
       badge: "OTA",
       color: "bg-orange-50 hover:bg-orange-100 border-orange-200",
-      component: OtaPayoutLogicSmartRevenue
+      component: OtaPayoutLogicSmartRevenue,
     },
     {
       title: "Financial Admin Cockpit",
-      description: "Comprehensive financial overview with charts and key metrics",
+      description:
+        "Comprehensive financial overview with charts and key metrics",
       key: "simple-filtered-financial-dashboard",
       icon: PieChart,
       badge: "Overview",
       color: "bg-pink-50 hover:bg-pink-100 border-pink-200",
-      component: SimpleFilteredFinancialDashboard
+      component: SimpleFilteredFinancialDashboard,
     },
     {
       title: "Owner Invoicing & Payouts",
@@ -112,21 +127,22 @@ export default function FinanceHub() {
       icon: CreditCard,
       badge: "Owners",
       color: "bg-teal-50 hover:bg-teal-100 border-teal-200",
-      component: OwnerInvoicingPayouts
-    }
+      component: OwnerInvoicingPayouts,
+    },
   ];
 
   // Add admin-only items
   const adminOnlyItems = [
     {
       title: "Finance Intelligence",
-      description: "AI-powered financial analysis, insights, and business intelligence",
+      description:
+        "AI-powered financial analysis, insights, and business intelligence",
       key: "finance-intelligence",
       icon: Brain,
       badge: "AI Intelligence",
       color: "bg-purple-50 hover:bg-purple-100 border-purple-200",
       component: FinanceIntelligenceModule,
-      adminOnly: true
+      adminOnly: true,
     },
     {
       title: "Salaries & Wages",
@@ -136,50 +152,56 @@ export default function FinanceHub() {
       badge: "Admin Only",
       color: "bg-red-50 hover:bg-red-100 border-red-200",
       component: SalariesWages,
-      adminOnly: true
+      adminOnly: true,
     },
     {
       title: "Currency & Tax Management",
-      description: "Configure currency settings, tax rates, and financial compliance options",
+      description:
+        "Configure currency settings, tax rates, and financial compliance options",
       key: "currency-tax-management",
       icon: Calculator,
       badge: "Admin Only",
       color: "bg-blue-50 hover:bg-blue-100 border-blue-200",
       component: CurrencyTaxManagement,
-      adminOnly: true
+      adminOnly: true,
     },
     {
       title: "OTA Revenue Calculator",
-      description: "Advanced OTA commission calculations and revenue optimization tools",
+      description:
+        "Advanced OTA commission calculations and revenue optimization tools",
       key: "ota-revenue-calculator",
       icon: TrendingUp,
       badge: "Admin Only",
       color: "bg-green-50 hover:bg-green-100 border-green-200",
       component: OtaRevenueNetPayoutCalculation,
-      adminOnly: true
+      adminOnly: true,
     },
     {
       title: "Staff Expense Management",
-      description: "Track staff expenses, reimbursements, and operational cost management",
+      description:
+        "Track staff expenses, reimbursements, and operational cost management",
       key: "staff-expense-management",
       icon: Receipt,
       badge: "Admin Only",
       color: "bg-gray-50 hover:bg-gray-100 border-gray-200",
       component: StaffExpenseManagement,
-      adminOnly: true
-    }
+      adminOnly: true,
+    },
   ];
 
   // Combine items based on user role
-  const allFinanceItems = user?.role === "admin" 
-    ? [...financeItems, ...adminOnlyItems]
-    : financeItems;
+  const allFinanceItems =
+    user?.role === "admin"
+      ? [...financeItems, ...adminOnlyItems]
+      : financeItems;
 
   const handleModuleClick = (key: string) => {
     setSelectedModule(key);
   };
 
-  const selectedItem = allFinanceItems.find(item => item.key === selectedModule);
+  const selectedItem = allFinanceItems.find(
+    (item) => item.key === selectedModule,
+  );
 
   // If a module is selected, render it lazily
   if (selectedModule && selectedItem) {
@@ -188,7 +210,7 @@ export default function FinanceHub() {
       <div className="min-h-screen flex bg-background">
         <div className="flex-1 flex flex-col lg:ml-0">
           <TopBar title={selectedItem.title} />
-          
+
           <main className="flex-1 overflow-auto">
             <div className="p-4 border-b bg-white">
               <Button
@@ -200,15 +222,19 @@ export default function FinanceHub() {
                 Back to Finance Hub
               </Button>
             </div>
-            
-            <Suspense fallback={
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Loading {selectedItem.title}...</p>
+
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">
+                      Loading {selectedItem.title}...
+                    </p>
+                  </div>
                 </div>
-              </div>
-            }>
+              }
+            >
               <Component />
             </Suspense>
           </main>
@@ -222,19 +248,22 @@ export default function FinanceHub() {
     <div className="min-h-screen flex bg-background">
       <div className="flex-1 flex flex-col lg:ml-0">
         <TopBar title="Finance Hub" />
-        
+
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-6xl mx-auto">
             <div className="mb-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Finance Hub</h1>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    Finance Hub
+                  </h1>
                   <p className="text-gray-600">
-                    Complete financial management suite for revenue tracking, billing, and analytics
+                    Complete financial management suite for revenue tracking,
+                    billing, and analytics
                   </p>
                 </div>
                 <RefreshDataButton
-                  endpoints={['/api/finance', '/api/finance/analytics']}
+                  endpoints={["/api/finance", "/api/finance/analytics"]}
                   variant="outline"
                   size="sm"
                   showStats={true}
@@ -247,9 +276,17 @@ export default function FinanceHub() {
             {user?.role === "admin" && (
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-700">
-                  🔐 Admin Access Active - Showing {allFinanceItems.length} finance modules (including admin-only)
+                  🔐 Admin Access Active - Showing {allFinanceItems.length}{" "}
+                  finance modules (including admin-only)
                   <br />
-                  <strong>SALARIES & WAGES FORCED VISIBLE: {allFinanceItems.some(item => item.key === 'salaries-wages') ? 'YES ✓' : 'NO ❌'}</strong>
+                  <strong>
+                    SALARIES & WAGES FORCED VISIBLE:{" "}
+                    {allFinanceItems.some(
+                      (item) => item.key === "salaries-wages",
+                    )
+                      ? "YES ✓"
+                      : "NO ❌"}
+                  </strong>
                 </p>
               </div>
             )}
@@ -275,11 +312,14 @@ export default function FinanceHub() {
                             </CardTitle>
                           </div>
                         </div>
-                        <Badge 
-                          variant="secondary" 
+                        <Badge
+                          variant="secondary"
                           className={`${item.badge === "Admin Only" || item.badge === "AI Intelligence" ? "bg-red-100 text-red-700 border-red-300" : "bg-white/70 text-gray-700 border border-gray-300"}`}
                         >
-                          {(item.badge === "Admin Only" || item.badge === "AI Intelligence") && <Shield className="h-3 w-3 mr-1" />}
+                          {(item.badge === "Admin Only" ||
+                            item.badge === "AI Intelligence") && (
+                            <Shield className="h-3 w-3 mr-1" />
+                          )}
                           {item.badge}
                         </Badge>
                       </div>

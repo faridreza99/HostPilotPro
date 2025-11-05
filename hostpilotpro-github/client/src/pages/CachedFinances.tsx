@@ -4,11 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import RefreshDataButton from "@/components/RefreshDataButton";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import LoadingOverlay from "@/components/ui/LoadingOverlay";
 import { DollarSign, TrendingUp, AlertCircle } from "lucide-react";
 
 export default function CachedFinances() {
-  const { data: finances = [], isLoading: financesLoading, isStale: financesStale } = useFinanceData();
-  const { data: analytics, isLoading: analyticsLoading, isStale: analyticsStale } = useFinanceAnalytics();
+  const {
+    data: finances = [],
+    isLoading: financesLoading,
+    isStale: financesStale,
+  } = useFinanceData();
+  const {
+    data: analytics,
+    isLoading: analyticsLoading,
+    isStale: analyticsStale,
+  } = useFinanceAnalytics();
 
   const formatCurrency = (amount: number | null | undefined) => {
     if (amount == null) return "฿0";
@@ -19,18 +28,25 @@ export default function CachedFinances() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Revenue & Payouts</h1>
-          <p className="text-gray-600 mt-1">Track property revenue, owner payouts, and commission calculations</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Revenue & Payouts
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Track property revenue, owner payouts, and commission calculations
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {(financesStale || analyticsStale) && (
-            <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+            <Badge
+              variant="outline"
+              className="text-yellow-600 border-yellow-600"
+            >
               <AlertCircle className="h-3 w-3 mr-1" />
               Data refreshing...
             </Badge>
           )}
           <RefreshDataButton
-            endpoints={['/api/finance', '/api/finance/analytics']}
+            endpoints={["/api/finance", "/api/finance/analytics"]}
             showStats={true}
             showLastUpdate={true}
           />
@@ -40,11 +56,15 @@ export default function CachedFinances() {
       {/* Analytics Overview */}
       {analyticsLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-center">
-                  <LoadingSpinner size="md" />
+                  {/* <LoadingSpinner size="md" /> */}
+                  <LoadingOverlay
+                    show={analyticsLoading}
+                    text="Fetching data…"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -56,7 +76,9 @@ export default function CachedFinances() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Revenue
+                  </p>
                   <p className="text-2xl font-bold text-green-600">
                     {formatCurrency(analytics.totalRevenue)}
                   </p>
@@ -70,7 +92,9 @@ export default function CachedFinances() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Expenses</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Expenses
+                  </p>
                   <p className="text-2xl font-bold text-red-600">
                     {formatCurrency(analytics.totalExpenses)}
                   </p>
@@ -84,9 +108,14 @@ export default function CachedFinances() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Net Profit</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Net Profit
+                  </p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {formatCurrency((analytics.totalRevenue || 0) - (analytics.totalExpenses || 0))}
+                    {formatCurrency(
+                      (analytics.totalRevenue || 0) -
+                        (analytics.totalExpenses || 0),
+                    )}
                   </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-blue-600" />
@@ -101,25 +130,36 @@ export default function CachedFinances() {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Recent Financial Transactions</span>
-            {financesLoading && <LoadingSpinner size="sm" />}
+            {/* {financesLoading && <LoadingSpinner size="sm" />} */}
+            {financesLoading && (
+              <LoadingOverlay show={financesLoading} text="Fetching data…" />
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {financesLoading ? (
             <div className="flex items-center justify-center h-32">
-              <LoadingSpinner size="lg" />
+              {/* <LoadingSpinner size="lg" /> */}
+              <LoadingOverlay show={financesLoading} text="Fetching data…" />
             </div>
           ) : finances.length > 0 ? (
             <div className="space-y-4">
               {finances.slice(0, 10).map((finance: any) => (
-                <div key={finance.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div
+                  key={finance.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
                   <div>
                     <h3 className="font-semibold">{finance.type}</h3>
-                    <p className="text-sm text-gray-600">{finance.description}</p>
+                    <p className="text-sm text-gray-600">
+                      {finance.description}
+                    </p>
                     <p className="text-xs text-gray-500">{finance.date}</p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-semibold ${finance.type === 'revenue' ? 'text-green-600' : 'text-red-600'}`}>
+                    <p
+                      className={`font-semibold ${finance.type === "revenue" ? "text-green-600" : "text-red-600"}`}
+                    >
                       {formatCurrency(finance.amount)}
                     </p>
                     <Badge variant="outline">{finance.category}</Badge>

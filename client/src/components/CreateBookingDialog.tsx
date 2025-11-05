@@ -499,7 +499,7 @@ export default function CreateBookingDialog({
 
     const totalAmount = parseFloat(formData.totalAmount);
     const amountPaid = parseFloat(formData.amountPaid);
-    
+
     // Validate numeric values
     if (isNaN(totalAmount) || !isFinite(totalAmount)) {
       toast({
@@ -573,184 +573,193 @@ export default function CreateBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      {/* limit width and prevent overall overflow */}
+      <DialogContent className="w-[95vw] max-w-2xl p-0 overflow-y-auto max-h-[90vh]">
+        {/* sticky header */}
+        <DialogHeader className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur px-6 py-4">
           <DialogTitle>Create New Booking</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="propertyId">Property</Label>
-              <Select
-                value={formData.propertyId}
-                onValueChange={(v) => handleChange("propertyId", v)}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select property" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.isArray(properties)
-                    ? properties.map((p: any) => (
-                        <SelectItem key={p.id} value={p.id.toString()}>
-                          {p.name}
-                        </SelectItem>
-                      ))
-                    : []}
-                </SelectContent>
-              </Select>
+        {/* form = column layout: scrollable body + sticky buttons */}
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          {/* scrollable body */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="propertyId">Property</Label>
+                <Select
+                  value={formData.propertyId}
+                  onValueChange={(v) => handleChange("propertyId", v)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select property" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.isArray(properties)
+                      ? properties.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id.toString()}>
+                            {p.name}
+                          </SelectItem>
+                        ))
+                      : []}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="guests">Number of Guests</Label>
+                <Input
+                  id="guests"
+                  type="number"
+                  value={formData.guests}
+                  onChange={(e) => handleChange("guests", e.target.value)}
+                  placeholder="1"
+                  min="1"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="guestName">Guest Name</Label>
+                <Input
+                  id="guestName"
+                  value={formData.guestName}
+                  onChange={(e) => handleChange("guestName", e.target.value)}
+                  placeholder="Full name"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="guestEmail">Guest Email</Label>
+                <Input
+                  id="guestEmail"
+                  type="email"
+                  value={formData.guestEmail}
+                  onChange={(e) => handleChange("guestEmail", e.target.value)}
+                  placeholder="email@example.com"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="guestPhone">Guest Phone</Label>
+                <Input
+                  id="guestPhone"
+                  value={formData.guestPhone}
+                  onChange={(e) => handleChange("guestPhone", e.target.value)}
+                  placeholder="+1234567890"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="checkIn">Check-in Date</Label>
+                <Input
+                  id="checkIn"
+                  type="date"
+                  value={formData.checkIn}
+                  onChange={(e) => handleChange("checkIn", e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="checkOut">Check-out Date</Label>
+                <Input
+                  id="checkOut"
+                  type="date"
+                  value={formData.checkOut}
+                  onChange={(e) => handleChange("checkOut", e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="totalAmount">Total Amount</Label>
+                <Input
+                  id="totalAmount"
+                  type="number"
+                  step="0.01"
+                  value={formData.totalAmount}
+                  onChange={(e) => handleChange("totalAmount", e.target.value)}
+                  placeholder="0.00"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="paymentStatus">Payment Status</Label>
+                <Select
+                  value={formData.paymentStatus}
+                  onValueChange={(v) => handleChange("paymentStatus", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="pending">Payment Pending</SelectItem>
+                    <SelectItem value="partial">Partial Payment</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="amountPaid">Amount Paid</Label>
+                <Input
+                  id="amountPaid"
+                  type="number"
+                  step="0.01"
+                  value={formData.amountPaid}
+                  onChange={(e) => handleChange("amountPaid", e.target.value)}
+                  placeholder="0.00"
+                  min="0"
+                  max={formData.totalAmount || undefined}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="amountDue">Amount Due</Label>
+                <Input
+                  id="amountDue"
+                  type="number"
+                  step="0.01"
+                  value={
+                    (parseFloat(formData.totalAmount) || 0) -
+                    (parseFloat(formData.amountPaid) || 0)
+                  }
+                  readOnly
+                  className="bg-muted"
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Auto-calculated: Total - Paid
+                </p>
+              </div>
             </div>
 
             <div>
-              <Label htmlFor="guests">Number of Guests</Label>
-              <Input
-                id="guests"
-                type="number"
-                value={formData.guests}
-                onChange={(e) => handleChange("guests", e.target.value)}
-                placeholder="1"
-                min="1"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="guestName">Guest Name</Label>
-              <Input
-                id="guestName"
-                value={formData.guestName}
-                onChange={(e) => handleChange("guestName", e.target.value)}
-                placeholder="Full name"
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="guestEmail">Guest Email</Label>
-              <Input
-                id="guestEmail"
-                type="email"
-                value={formData.guestEmail}
-                onChange={(e) => handleChange("guestEmail", e.target.value)}
-                placeholder="email@example.com"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="guestPhone">Guest Phone</Label>
-              <Input
-                id="guestPhone"
-                value={formData.guestPhone}
-                onChange={(e) => handleChange("guestPhone", e.target.value)}
-                placeholder="+1234567890"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="checkIn">Check-in Date</Label>
-              <Input
-                id="checkIn"
-                type="date"
-                value={formData.checkIn}
-                onChange={(e) => handleChange("checkIn", e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="checkOut">Check-out Date</Label>
-              <Input
-                id="checkOut"
-                type="date"
-                value={formData.checkOut}
-                onChange={(e) => handleChange("checkOut", e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="totalAmount">Total Amount</Label>
-              <Input
-                id="totalAmount"
-                type="number"
-                step="0.01"
-                value={formData.totalAmount}
-                onChange={(e) => handleChange("totalAmount", e.target.value)}
-                placeholder="0.00"
-                min="0"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="paymentStatus">Payment Status</Label>
-              <Select
-                value={formData.paymentStatus}
-                onValueChange={(v) => handleChange("paymentStatus", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Payment Pending</SelectItem>
-                  <SelectItem value="partial">Partial Payment</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="amountPaid">Amount Paid</Label>
-              <Input
-                id="amountPaid"
-                type="number"
-                step="0.01"
-                value={formData.amountPaid}
-                onChange={(e) => handleChange("amountPaid", e.target.value)}
-                placeholder="0.00"
-                min="0"
-                max={formData.totalAmount || undefined}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="amountDue">Amount Due</Label>
-              <Input
-                id="amountDue"
-                type="number"
-                step="0.01"
-                value={
-                  (parseFloat(formData.totalAmount) || 0) -
-                  (parseFloat(formData.amountPaid) || 0)
+              <Label htmlFor="specialRequests">Special Requests</Label>
+              <Textarea
+                id="specialRequests"
+                value={formData.specialRequests}
+                onChange={(e) =>
+                  handleChange("specialRequests", e.target.value)
                 }
-                readOnly
-                className="bg-muted"
-                placeholder="0.00"
+                placeholder="Any special requests or notes..."
+                rows={3}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Auto-calculated: Total - Paid
-              </p>
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="specialRequests">Special Requests</Label>
-            <Textarea
-              id="specialRequests"
-              value={formData.specialRequests}
-              onChange={(e) => handleChange("specialRequests", e.target.value)}
-              placeholder="Any special requests or notes..."
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
+          {/* sticky actions (no DialogFooter used) */}
+          <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t bg-white/90 backdrop-blur px-6 py-3">
             <Button
               type="button"
               variant="outline"

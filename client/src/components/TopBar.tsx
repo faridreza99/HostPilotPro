@@ -16,9 +16,9 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
-import { 
-  Bell, 
-  Search, 
+import {
+  Bell,
+  Search,
   Settings,
   HelpCircle,
   Shield,
@@ -29,7 +29,7 @@ import {
   Users,
   Clock,
   LogOut,
-  User
+  User,
 } from "lucide-react";
 
 // Global Search Button Component
@@ -47,10 +47,10 @@ function GlobalSearchButton() {
       >
         <Search className="h-4 w-4" />
       </Button>
-      
-      <GlobalSearchModal 
-        isOpen={isSearchOpen} 
-        onClose={() => setIsSearchOpen(false)} 
+
+      <GlobalSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
       />
     </>
   );
@@ -70,7 +70,7 @@ const roleIcons = {
   staff: UserCheck,
   "retail-agent": CreditCard,
   "referral-agent": Users,
-  guest: Clock
+  guest: Clock,
 } as const;
 
 const roleColors = {
@@ -80,7 +80,7 @@ const roleColors = {
   staff: "bg-yellow-500",
   "retail-agent": "bg-purple-500",
   "referral-agent": "bg-orange-500",
-  guest: "bg-gray-500"
+  guest: "bg-gray-500",
 } as const;
 
 export default function TopBar({ title, subtitle, action }: TopBarProps) {
@@ -88,7 +88,8 @@ export default function TopBar({ title, subtitle, action }: TopBarProps) {
   const [, setLocation] = useLocation();
   const userRole = (user as any)?.role || "guest";
   const RoleIcon = roleIcons[userRole as keyof typeof roleIcons] || Clock;
-  const roleColor = roleColors[userRole as keyof typeof roleColors] || "bg-gray-500";
+  const roleColor =
+    roleColors[userRole as keyof typeof roleColors] || "bg-gray-500";
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -102,9 +103,7 @@ export default function TopBar({ title, subtitle, action }: TopBarProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60 shadow-sm">
-      <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
-        
-
+      <div className="flex h-14 items-center gap-4 px-4 lg:px-2">
         {/* Title and subtitle */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
@@ -122,13 +121,10 @@ export default function TopBar({ title, subtitle, action }: TopBarProps) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2">
-          {action}
-        </div>
+        <div className="flex items-center gap-2">{action}</div>
 
         {/* Right side items */}
         <div className="flex items-center gap-2">
-          
           {/* Global Search Modal */}
           <GlobalSearchButton />
 
@@ -160,21 +156,28 @@ export default function TopBar({ title, subtitle, action }: TopBarProps) {
           {/* User profile dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-3 pl-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+              <Button
+                variant="ghost"
+                className="flex items-center gap-3 pl-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
                 <div className="hidden sm:block text-right">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {(user as any)?.firstName} {(user as any)?.lastName}
                   </p>
                   <div className="flex justify-end">
                     <Badge variant="secondary" className="text-xs">
-                      {userRole === "portfolio-manager" ? "PM" : 
-                       userRole === "retail-agent" ? "Retail" :
-                       userRole === "referral-agent" ? "Referral" :
-                       userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                      {userRole === "portfolio-manager"
+                        ? "PM"
+                        : userRole === "retail-agent"
+                          ? "Retail"
+                          : userRole === "referral-agent"
+                            ? "Referral"
+                            : userRole.charAt(0).toUpperCase() +
+                              userRole.slice(1)}
                     </Badge>
                   </div>
                 </div>
-                
+
                 <div className="relative">
                   <Avatar className="h-8 w-8 lg:h-9 lg:w-9">
                     <AvatarImage src={(user as any)?.profileImageUrl} />
@@ -182,7 +185,9 @@ export default function TopBar({ title, subtitle, action }: TopBarProps) {
                       {((user as any)?.firstName || "U").charAt(0)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${roleColor} rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900`}>
+                  <div
+                    className={`absolute -bottom-1 -right-1 w-3 h-3 ${roleColor} rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900`}
+                  >
                     <RoleIcon className="w-1.5 h-1.5 text-white" />
                   </div>
                 </div>
@@ -191,14 +196,14 @@ export default function TopBar({ title, subtitle, action }: TopBarProps) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="flex items-center gap-2"
                 onClick={() => setLocation("/profile")}
               >
                 <User className="h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="flex items-center gap-2"
                 onClick={() => {
                   try {
@@ -213,7 +218,7 @@ export default function TopBar({ title, subtitle, action }: TopBarProps) {
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="flex items-center gap-2 text-red-600 focus:text-red-600"
                 onClick={() => logoutMutation.mutate()}
                 disabled={logoutMutation.isPending}

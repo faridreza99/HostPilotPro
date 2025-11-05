@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
-import { useFastAuth } from "@/lib/fastAuth";
+import { useFastAuth } from "../lib/fastAuth";
 import {
   Card,
   CardContent,
@@ -253,6 +254,20 @@ export default function UltraFastTasks() {
       setDateRange(range);
     }
   };
+  // Read propertyId from the URL
+  const [location] = useLocation();
+    // read ?propertyId=... from the current URL
+    const propertyIdFromUrl = React.useMemo(() => {
+      try {
+        const qs = location.includes("?")
+          ? location.split("?")[1]
+          : window.location.search.slice(1);
+        const p = new URLSearchParams(qs).get("propertyId");
+        return p && !Number.isNaN(Number(p)) ? String(Number(p)) : "";
+      } catch {
+        return "";
+      }
+  }, [location]);
 
   // Build query parameters for tasks API
   const tasksQueryParams = useMemo(() => {
@@ -261,8 +276,11 @@ export default function UltraFastTasks() {
       params.append("due_from", dateRange.from);
       params.append("due_to", dateRange.to);
     }
+      if (propertyIdFromUrl) {
+        params.append("propertyId", propertyIdFromUrl);
+      }
     return params.toString();
-  }, [dateRange]);
+  }, [dateRange, propertyIdFromUrl]);
 
   // Fetch actual tasks from database with date filtering
   const {
@@ -331,6 +349,8 @@ export default function UltraFastTasks() {
   // Real-time filtering with actual data
   const filteredTasks = useMemo(() => {
     return enhancedTasks.filter((task: any) => {
+       const matchesProperty =
+       !propertyIdFromUrl || task.propertyId ===     Number(propertyIdFromUrl);
       const matchesSearch =
         searchTerm === "" ||
         (task.title &&
@@ -346,9 +366,9 @@ export default function UltraFastTasks() {
         priorityFilter === "all" || task.priority === priorityFilter;
       const matchesType = typeFilter === "all" || task.type === typeFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesType;
+      return  matchesProperty && matchesSearch && matchesStatus && matchesPriority && matchesType;
     });
-  }, [enhancedTasks, searchTerm, statusFilter, priorityFilter, typeFilter]);
+  }, [enhancedTasks, searchTerm, statusFilter, priorityFilter, typeFilter, propertyIdFromUrl]);
 
   // Calculate real statistics
   const stats = useMemo(() => {
@@ -1093,6 +1113,17 @@ export default function UltraFastTasks() {
       <CreateTaskDialog
         isOpen={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+        onCreated={() => {
+          // ✅ refresh ALL tasks lists (including those with date params)
+          queryClient.invalidateQueries({
+            queryKey: ["/api/tasks"],
+            exact: false,
+          });
+          queryClient.refetchQueries({
+            queryKey: ["/api/tasks"],
+            exact: false,
+          });
+        }}
       />
 
       {/* Bulk Actions Dialog */}

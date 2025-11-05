@@ -65,6 +65,7 @@ interface CreateTaskDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger?: React.ReactNode;
+  onCreated?: (newTask?: any) => void; // ✅ add this
 }
 
 const TASK_TYPES = [
@@ -147,6 +148,7 @@ export default function CreateTaskDialog({
   isOpen,
   onOpenChange,
   trigger,
+  onCreated, // ✅ receive it
 }: CreateTaskDialogProps) {
   const [date, setDate] = useState<Date>();
   const { toast } = useToast();
@@ -233,6 +235,9 @@ export default function CreateTaskDialog({
         title: "Success",
         description: `Task "${newTask.title || "New task"}" created successfully`,
       });
+
+      // ✅ notify parent page
+      onCreated?.(newTask);
 
       // Reset form and close dialog
       form.reset();
@@ -613,12 +618,9 @@ export default function CreateTaskDialog({
                 <FormControl>
                   <Input
                     type="number"
-                    step="0.01"
                     placeholder="0.00"
                     {...field}
-                    onChange={(e) =>
-                      field.onChange(parseFloat(e.target.value) || 0)
-                    }
+                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
                   />
                 </FormControl>
                 <FormDescription>

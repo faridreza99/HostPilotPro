@@ -536,9 +536,9 @@ export default function PortfolioManagerDashboard() {
   }
 
   return (
-    <div className="relative">
+    <div className="container px-6">
       {/* Back button sits on top of everything */}
-      <div className="absolute top-3 left-0 z-50">
+      <div className="mt-3">
         <BackButton
           fallbackRoute="/dashboard-hub"
           variant="ghost"
@@ -549,7 +549,7 @@ export default function PortfolioManagerDashboard() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col pt-12 gap-4">
+      <div className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
           <div className="mt-3">
             <h1 className="text-3xl font-bold tracking-tight">
@@ -573,85 +573,82 @@ export default function PortfolioManagerDashboard() {
               )}
             </div>
           </div>
+        </div>
 
-          {/* Filters */}
-          <div className="flex gap-4">
-            {/* Portfolio Manager Selection (Admin Only) */}
-            {isAdmin && (
-              <Select
-                value={selectedPortfolioManager}
-                onValueChange={setSelectedPortfolioManager}
-              >
-                <SelectTrigger className="w-56">
-                  <SelectValue placeholder="Select Portfolio Manager">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      {(portfolioManagers && Array.isArray(portfolioManagers)
-                        ? portfolioManagers
-                        : []
-                      ).find((pm) => pm.id === selectedPortfolioManager)
-                        ?.name || "Select Portfolio Manager"}
-                    </div>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {(portfolioManagers && Array.isArray(portfolioManagers)
-                    ? portfolioManagers
-                    : []
-                  ).map((pm: any) => (
-                    <SelectItem key={pm.id} value={pm.id}>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        {pm.name} ({pm.email})
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                value={dateRange.startDate}
-                onChange={(e) =>
-                  setDateRange((prev) => ({
-                    ...prev,
-                    startDate: e.target.value,
-                  }))
-                }
-                className="w-40"
-              />
-              <Input
-                type="date"
-                value={dateRange.endDate}
-                onChange={(e) =>
-                  setDateRange((prev) => ({ ...prev, endDate: e.target.value }))
-                }
-                className="w-40"
-              />
-            </div>
-
+        {/* Filters */}
+        <div className="flex gap-4">
+          {/* Portfolio Manager Selection (Admin Only) */}
+          {isAdmin && (
             <Select
-              value={selectedProperty}
-              onValueChange={setSelectedProperty}
+              value={selectedPortfolioManager}
+              onValueChange={setSelectedPortfolioManager}
             >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Properties" />
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Select Portfolio Manager">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    {(portfolioManagers && Array.isArray(portfolioManagers)
+                      ? portfolioManagers
+                      : []
+                    ).find((pm) => pm.id === selectedPortfolioManager)?.name ||
+                      "Select Portfolio Manager"}
+                  </div>
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Properties</SelectItem>
-                {(portfolioProperties && Array.isArray(portfolioProperties)
-                  ? portfolioProperties
+                {(portfolioManagers && Array.isArray(portfolioManagers)
+                  ? portfolioManagers
                   : []
-                )?.map((property: any) => (
-                  <SelectItem key={property.id} value={property.id.toString()}>
-                    {property.name}
+                ).map((pm: any) => (
+                  <SelectItem key={pm.id} value={pm.id}>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      {pm.name} ({pm.email})
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          )}
+
+          <div className="flex gap-2">
+            <Input
+              type="date"
+              value={dateRange.startDate}
+              onChange={(e) =>
+                setDateRange((prev) => ({
+                  ...prev,
+                  startDate: e.target.value,
+                }))
+              }
+              className="w-40"
+            />
+            <Input
+              type="date"
+              value={dateRange.endDate}
+              onChange={(e) =>
+                setDateRange((prev) => ({ ...prev, endDate: e.target.value }))
+              }
+              className="w-40"
+            />
           </div>
+
+          <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All Properties" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Properties</SelectItem>
+              {(portfolioProperties && Array.isArray(portfolioProperties)
+                ? portfolioProperties
+                : []
+              )?.map((property: any) => (
+                <SelectItem key={property.id} value={property.id.toString()}>
+                  {property.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Summary Cards */}

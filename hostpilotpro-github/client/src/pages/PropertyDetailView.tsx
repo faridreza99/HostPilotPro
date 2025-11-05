@@ -4,17 +4,23 @@ import { useRoute, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Users, 
-  Bed, 
-  Bath, 
-  Home, 
-  Star, 
+import {
+  ArrowLeft,
+  MapPin,
+  Users,
+  Bed,
+  Bath,
+  Home,
+  Star,
   DollarSign,
   Calendar,
   ClipboardList,
@@ -25,20 +31,27 @@ import {
   TrendingUp,
   Building,
   Edit,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 // Mock booking source data - in real app this would come from API
 const mockBookingSources = [
-  { name: 'Airbnb', value: 45, color: '#FF5A5F' },
-  { name: 'Booking.com', value: 25, color: '#003580' },
-  { name: 'VRBO', value: 20, color: '#FFD700' },
-  { name: 'Direct', value: 10, color: '#4CAF50' }
+  { name: "Airbnb", value: 45, color: "#FF5A5F" },
+  { name: "Booking.com", value: 25, color: "#003580" },
+  { name: "VRBO", value: 20, color: "#FFD700" },
+  { name: "Direct", value: 10, color: "#4CAF50" },
 ];
 
 // Helper function to extract URL from iframe HTML
@@ -53,12 +66,18 @@ function extractUrlFromIframe(iframeHtml: string): string {
 
 // Mock property descriptions
 const mockDescriptions = {
-  description: "Beautiful luxury villa with stunning ocean views, private pool, and modern amenities. Perfect for families or groups seeking a premium tropical experience.",
-  spaceDescription: "3 spacious bedrooms with en-suite bathrooms, open-plan living area, fully equipped kitchen, private infinity pool, and multiple terraces with panoramic views.",
-  interaction: "Our dedicated property manager is available 24/7 to assist with any requests. We provide personalized concierge services and local recommendations.",
-  neighborhood: "Located in the prestigious Bophut area, close to pristine beaches, luxury resorts, world-class restaurants, and vibrant nightlife.",
-  transit: "15 minutes from Samui Airport, complimentary airport transfers available. Scooter and car rental services can be arranged.",
-  otherNotes: "Strict no-smoking policy. No pets allowed. Minimum 3-night stay required. Check-in: 3 PM, Check-out: 11 AM."
+  description:
+    "Beautiful luxury villa with stunning ocean views, private pool, and modern amenities. Perfect for families or groups seeking a premium tropical experience.",
+  spaceDescription:
+    "3 spacious bedrooms with en-suite bathrooms, open-plan living area, fully equipped kitchen, private infinity pool, and multiple terraces with panoramic views.",
+  interaction:
+    "Our dedicated property manager is available 24/7 to assist with any requests. We provide personalized concierge services and local recommendations.",
+  neighborhood:
+    "Located in the prestigious Bophut area, close to pristine beaches, luxury resorts, world-class restaurants, and vibrant nightlife.",
+  transit:
+    "15 minutes from Samui Airport, complimentary airport transfers available. Scooter and car rental services can be arranged.",
+  otherNotes:
+    "Strict no-smoking policy. No pets allowed. Minimum 3-night stay required. Check-in: 3 PM, Check-out: 11 AM.",
 };
 
 interface ActionButtonProps {
@@ -70,17 +89,24 @@ interface ActionButtonProps {
   onClick?: () => void;
 }
 
-function ActionButton({ label, href, icon: Icon, variant = "default", propertyId, onClick }: ActionButtonProps) {
+function ActionButton({
+  label,
+  href,
+  icon: Icon,
+  variant = "default",
+  propertyId,
+  onClick,
+}: ActionButtonProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  
+
   const handleClick = () => {
     try {
       if (onClick) {
         onClick();
       } else {
         // Check if the href exists and handle property-specific navigation
-        if (href.includes('/property/') && propertyId) {
+        if (href.includes("/property/") && propertyId) {
           setLocation(`${href}?propertyId=${propertyId}`);
         } else {
           setLocation(href);
@@ -95,7 +121,7 @@ function ActionButton({ label, href, icon: Icon, variant = "default", propertyId
       console.error("Navigation error:", error);
     }
   };
-  
+
   return (
     <Button
       variant={variant}
@@ -127,7 +153,9 @@ function EditMapLinkDialog({ property, onUpdate }: EditMapLinkDialogProps) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/properties/${property.id}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/properties/${property.id}`],
+      });
       toast({
         title: "Success",
         description: "Google Maps link updated successfully",
@@ -137,7 +165,7 @@ function EditMapLinkDialog({ property, onUpdate }: EditMapLinkDialogProps) {
     },
     onError: (error) => {
       toast({
-        title: "Error", 
+        title: "Error",
         description: `Failed to update map link: ${error.message}`,
         variant: "destructive",
       });
@@ -170,14 +198,15 @@ function EditMapLinkDialog({ property, onUpdate }: EditMapLinkDialogProps) {
               className="mt-2 min-h-[100px]"
             />
             <p className="text-xs text-muted-foreground mt-2">
-              You can paste either a Google Maps share link (https://maps.google.com/...) or full embed HTML code
+              You can paste either a Google Maps share link
+              (https://maps.google.com/...) or full embed HTML code
             </p>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleSave}
               disabled={updatePropertyMutation.isPending}
             >
@@ -236,7 +265,9 @@ function BookingPieChart({ data }: BookingPieChartProps) {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) =>
+                  `${name} ${(percent * 100).toFixed(0)}%`
+                }
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -280,7 +311,7 @@ export default function PropertyDetailView() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Property Not Found</h2>
-          <Button onClick={() => setLocation('/properties')}>
+          <Button onClick={() => setLocation("/properties")}>
             Back to Properties
           </Button>
         </div>
@@ -289,22 +320,26 @@ export default function PropertyDetailView() {
   }
 
   // Check access permissions (simplified)
-  if (userRole === 'guest') {
+  if (userRole === "guest") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
-          <p className="text-muted-foreground mb-4">You don't have permission to view this property</p>
-          <Button onClick={() => setLocation('/')}>
-            Go to Dashboard
-          </Button>
+          <p className="text-muted-foreground mb-4">
+            You don't have permission to view this property
+          </p>
+          <Button onClick={() => setLocation("/")}>Go to Dashboard</Button>
         </div>
       </div>
     );
   }
 
-  const statusColor = property.status === 'active' ? 'default' : 
-                     property.status === 'maintenance' ? 'secondary' : 'destructive';
+  const statusColor =
+    property.status === "active"
+      ? "default"
+      : property.status === "maintenance"
+        ? "secondary"
+        : "destructive";
 
   // Calculate mock occupancy rate and rating
   const occupancyRate = 78;
@@ -316,10 +351,10 @@ export default function PropertyDetailView() {
       <div className="p-6">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setLocation('/properties')}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLocation("/properties")}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -334,14 +369,14 @@ export default function PropertyDetailView() {
             <h1 className="text-4xl font-bold mb-2">{property.name}</h1>
             <div className="flex items-center gap-2 mb-4">
               <MapPin className="w-5 h-5 text-muted-foreground" />
-              <button 
+              <button
                 onClick={() => {
-                  const mapUrl = property.googleMapsLink 
-                    ? (property.googleMapsLink.includes('<iframe') 
-                        ? extractUrlFromIframe(property.googleMapsLink)
-                        : property.googleMapsLink)
+                  const mapUrl = property.googleMapsLink
+                    ? property.googleMapsLink.includes("<iframe")
+                      ? extractUrlFromIframe(property.googleMapsLink)
+                      : property.googleMapsLink
                     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`;
-                  window.open(mapUrl, '_blank');
+                  window.open(mapUrl, "_blank");
                 }}
                 className="text-lg text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors flex items-center gap-1"
                 title="View on Google Maps"
@@ -349,12 +384,12 @@ export default function PropertyDetailView() {
                 {property.address}
                 <ExternalLink className="w-4 h-4" />
               </button>
-              {userRole === 'admin' && (
-                <EditMapLinkDialog 
-                  property={property} 
+              {userRole === "admin" && (
+                <EditMapLinkDialog
+                  property={property}
                   onUpdate={() => {
                     // Refresh will happen via React Query invalidation
-                  }} 
+                  }}
                 />
               )}
             </div>
@@ -387,9 +422,7 @@ export default function PropertyDetailView() {
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span>Status:</span>
-                  <Badge variant={statusColor}>
-                    {property.status}
-                  </Badge>
+                  <Badge variant={statusColor}>{property.status}</Badge>
                 </div>
                 <div className="flex justify-between">
                   <span>Property ID:</span>
@@ -404,7 +437,9 @@ export default function PropertyDetailView() {
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                     <span className="font-medium">{rating}</span>
-                    <span className="text-sm text-muted-foreground">({reviewCount} reviews)</span>
+                    <span className="text-sm text-muted-foreground">
+                      ({reviewCount} reviews)
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -419,12 +454,30 @@ export default function PropertyDetailView() {
 
         {/* Property Descriptions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <DescriptionBlock title="General Description" text={mockDescriptions.description} />
-          <DescriptionBlock title="Space Description" text={mockDescriptions.spaceDescription} />
-          <DescriptionBlock title="Guest Interaction" text={mockDescriptions.interaction} />
-          <DescriptionBlock title="Neighborhood" text={mockDescriptions.neighborhood} />
-          <DescriptionBlock title="Transportation" text={mockDescriptions.transit} />
-          <DescriptionBlock title="Other Notes" text={mockDescriptions.otherNotes} />
+          <DescriptionBlock
+            title="General Description"
+            text={mockDescriptions.description}
+          />
+          <DescriptionBlock
+            title="Space Description"
+            text={mockDescriptions.spaceDescription}
+          />
+          <DescriptionBlock
+            title="Guest Interaction"
+            text={mockDescriptions.interaction}
+          />
+          <DescriptionBlock
+            title="Neighborhood"
+            text={mockDescriptions.neighborhood}
+          />
+          <DescriptionBlock
+            title="Transportation"
+            text={mockDescriptions.transit}
+          />
+          <DescriptionBlock
+            title="Other Notes"
+            text={mockDescriptions.otherNotes}
+          />
         </div>
 
         {/* Action Buttons */}
@@ -437,63 +490,65 @@ export default function PropertyDetailView() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <ActionButton 
-                label="View Tasks" 
-                href="/tasks" 
+              <ActionButton
+                label="View Tasks"
+                href="/tasks"
                 icon={ClipboardList}
                 propertyId={property?.id}
               />
-              <ActionButton 
-                label="View Bookings" 
-                href="/bookings" 
+              <ActionButton
+                label="View Bookings"
+                href="/bookings"
                 icon={Calendar}
                 propertyId={property?.id}
               />
-              <ActionButton 
-                label="Edit Property" 
-                href="/property-edit" 
+              <ActionButton
+                label="Edit Property"
+                href="/property-edit"
                 icon={Settings}
                 propertyId={property?.id}
                 onClick={() => {
                   toast({
                     title: "Property Edit",
-                    description: "Property editing interface will be available soon. Use the admin dashboard to edit properties for now.",
+                    description:
+                      "Property editing interface will be available soon. Use the admin dashboard to edit properties for now.",
                   });
                 }}
               />
-              <ActionButton 
-                label="View Utilities" 
-                href="/utility-tracker" 
+              <ActionButton
+                label="View Utilities"
+                href="/utility-tracker"
                 icon={Calculator}
                 variant="outline"
               />
-              <ActionButton 
-                label="View Finances" 
-                href="/finances" 
+              <ActionButton
+                label="View Finances"
+                href="/finances"
                 icon={DollarSign}
                 variant="outline"
               />
-              <ActionButton 
-                label="Property Info" 
-                href="/property-info" 
+              <ActionButton
+                label="Property Info"
+                href="/property-info"
                 icon={Info}
                 variant="outline"
                 onClick={() => {
                   toast({
                     title: "Property Information",
-                    description: "Detailed property information panel is displayed above. Additional settings available in admin dashboard.",
+                    description:
+                      "Detailed property information panel is displayed above. Additional settings available in admin dashboard.",
                   });
                 }}
               />
-              <ActionButton 
-                label="Documents" 
-                href="/property-documents-management" 
+              <ActionButton
+                label="Documents"
+                href="/property-documents-management"
                 icon={FileText}
                 variant="outline"
               />
-              <ActionButton 
-                label="View Calendar" 
-                href="/multi-property-calendar" 
+              <ActionButton
+                label="View Calendar"
+                href="/multi-property-calendar"
                 icon={Star}
               />
             </div>

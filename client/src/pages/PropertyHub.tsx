@@ -481,7 +481,7 @@ export default function PropertyHub() {
                   </Button>
                   <Badge
                     variant="outline"
-                    className="px-4 py-2 text-sm bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold cursor-pointer hover:bg-emerald-200 hover:scale-105 transition-all duration-200"
+                    className="px-4 py-2 text-sm bg-emerald-100 text-emerald-700 border-emerald-200 font-semibold cursor-pointer hover:bg-emerald-200 hover:scale-105 transition-all duration-200 flex items-center gap-2 whitespace-nowrap rounded-lg"
                     onClick={handleRefresh}
                     data-testid="badge-properties-counter"
                   >
@@ -709,7 +709,7 @@ export default function PropertyHub() {
                       title: "Properties List",
                       description:
                         "View and manage all properties with detailed information and status",
-                      href: "/properties",
+                      href: "/property-hub",
                       icon: Building2,
                       badge: "Core",
                       badgeIcon: "🏠",

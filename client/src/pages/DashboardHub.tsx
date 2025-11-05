@@ -104,7 +104,7 @@ export default function DashboardHub() {
   const today = new Date().toLocaleDateString();
 
   return (
-    <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 py-3">
       <div className="mb-6 sm:mb-8">
         <TopBar
           title="Dashboard Hub"

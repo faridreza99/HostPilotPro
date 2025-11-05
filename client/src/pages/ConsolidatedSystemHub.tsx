@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import {
@@ -16,10 +21,11 @@ import {
   Building2,
   DollarSign,
   ClipboardList,
-  Calendar
+  Calendar,
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import { queryClient } from "../lib/queryClient";
+import LoadingOverlay from "../components/ui/LoadingOverlay";
 
 interface SystemInfo {
   version: string;
@@ -53,20 +59,24 @@ export default function ConsolidatedSystemHub() {
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: systemInfo, isLoading, error } = useQuery<SystemInfo>({
-    queryKey: ["/api/system"]
+  const {
+    data: systemInfo,
+    isLoading,
+    error,
+  } = useQuery<SystemInfo>({
+    queryKey: ["/api/system"],
   });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries({ queryKey: ["/api/system"] });
     await queryClient.refetchQueries({ queryKey: ["/api/system"] });
-    
+
     toast({
       title: "System data refreshed",
-      description: "Latest system information loaded successfully"
+      description: "Latest system information loaded successfully",
     });
-    
+
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
@@ -75,7 +85,8 @@ export default function ConsolidatedSystemHub() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-lg">Loading system information...</span>
+          <LoadingOverlay show={true} text="Loading system information..." />
+          {/* <span className="text-lg">Loading system information...</span> */}
         </div>
       </div>
     );
@@ -93,7 +104,9 @@ export default function ConsolidatedSystemHub() {
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">
-              {error instanceof Error ? error.message : "No system data available"}
+              {error instanceof Error
+                ? error.message
+                : "No system data available"}
             </p>
             <Button onClick={handleRefresh} className="w-full">
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -119,13 +132,15 @@ export default function ConsolidatedSystemHub() {
               Platform administration and system monitoring
             </p>
           </div>
-          <Button 
+          <Button
             onClick={handleRefresh}
             disabled={isRefreshing}
             variant="outline"
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
         </div>
@@ -134,10 +149,14 @@ export default function ConsolidatedSystemHub() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="border-2 border-blue-200 bg-blue-50">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-blue-900">System Version</CardTitle>
+              <CardTitle className="text-sm font-medium text-blue-900">
+                System Version
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-700">{systemInfo.version}</div>
+              <div className="text-2xl font-bold text-blue-700">
+                {systemInfo.version}
+              </div>
               <p className="text-xs text-blue-600 mt-1">HostPilotPro</p>
             </CardContent>
           </Card>
@@ -154,19 +173,25 @@ export default function ConsolidatedSystemHub() {
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 {systemInfo.status.toUpperCase()}
               </Badge>
-              <p className="text-xs text-green-600 mt-2">All systems operational</p>
+              <p className="text-xs text-green-600 mt-2">
+                All systems operational
+              </p>
             </CardContent>
           </Card>
 
           <Card className="border-2 border-purple-200 bg-purple-50">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-purple-900">Last Updated</CardTitle>
+              <CardTitle className="text-sm font-medium text-purple-900">
+                Last Updated
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-sm font-semibold text-purple-700">
                 {new Date(systemInfo.lastUpdated).toLocaleString()}
               </div>
-              <p className="text-xs text-purple-600 mt-1">Real-time monitoring</p>
+              <p className="text-xs text-purple-600 mt-1">
+                Real-time monitoring
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -186,7 +211,13 @@ export default function ConsolidatedSystemHub() {
                   <Database className="h-5 w-5 text-blue-600" />
                   <span className="font-medium">Database</span>
                 </div>
-                <Badge className={systemInfo.health.database === 'healthy' ? 'bg-green-600' : 'bg-red-600'}>
+                <Badge
+                  className={
+                    systemInfo.health.database === "healthy"
+                      ? "bg-green-600"
+                      : "bg-red-600"
+                  }
+                >
                   {systemInfo.health.database}
                 </Badge>
               </div>
@@ -195,7 +226,13 @@ export default function ConsolidatedSystemHub() {
                   <Cloud className="h-5 w-5 text-purple-600" />
                   <span className="font-medium">API</span>
                 </div>
-                <Badge className={systemInfo.health.api === 'operational' ? 'bg-green-600' : 'bg-red-600'}>
+                <Badge
+                  className={
+                    systemInfo.health.api === "operational"
+                      ? "bg-green-600"
+                      : "bg-red-600"
+                  }
+                >
                   {systemInfo.health.api}
                 </Badge>
               </div>
@@ -204,7 +241,13 @@ export default function ConsolidatedSystemHub() {
                   <Zap className="h-5 w-5 text-yellow-600" />
                   <span className="font-medium">Cache</span>
                 </div>
-                <Badge className={systemInfo.health.cache === 'active' ? 'bg-green-600' : 'bg-red-600'}>
+                <Badge
+                  className={
+                    systemInfo.health.cache === "active"
+                      ? "bg-green-600"
+                      : "bg-red-600"
+                  }
+                >
                   {systemInfo.health.cache}
                 </Badge>
               </div>
@@ -222,15 +265,19 @@ export default function ConsolidatedSystemHub() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <ModuleCard 
+              <ModuleCard
                 icon={Building2}
                 name="Properties"
                 count={systemInfo.modules.properties.count}
                 active={systemInfo.modules.properties.active}
                 color="blue"
               />
-              <a href="/admin/user-management" className="block" data-testid="module-link-users">
-                <ModuleCard 
+              <a
+                href="/admin/user-management"
+                className="block"
+                data-testid="module-link-users"
+              >
+                <ModuleCard
                   icon={Users}
                   name="Users"
                   count={systemInfo.modules.users.count}
@@ -239,21 +286,21 @@ export default function ConsolidatedSystemHub() {
                   clickable={true}
                 />
               </a>
-              <ModuleCard 
+              <ModuleCard
                 icon={DollarSign}
                 name="Finance"
                 count={systemInfo.modules.finance.count}
                 active={systemInfo.modules.finance.active}
                 color="emerald"
               />
-              <ModuleCard 
+              <ModuleCard
                 icon={ClipboardList}
                 name="Tasks"
                 count={systemInfo.modules.tasks.count}
                 active={systemInfo.modules.tasks.active}
                 color="orange"
               />
-              <ModuleCard 
+              <ModuleCard
                 icon={Calendar}
                 name="Bookings"
                 count={systemInfo.modules.bookings.count}
@@ -274,10 +321,22 @@ export default function ConsolidatedSystemHub() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <APIStatusBadge name="Stripe" active={systemInfo.apiConfigs.hasStripe} />
-              <APIStatusBadge name="Hostaway" active={systemInfo.apiConfigs.hasHostaway} />
-              <APIStatusBadge name="OpenAI" active={systemInfo.apiConfigs.hasOpenAI} />
-              <APIStatusBadge name="Twilio" active={systemInfo.apiConfigs.hasTwilio} />
+              <APIStatusBadge
+                name="Stripe"
+                active={systemInfo.apiConfigs.hasStripe}
+              />
+              <APIStatusBadge
+                name="Hostaway"
+                active={systemInfo.apiConfigs.hasHostaway}
+              />
+              <APIStatusBadge
+                name="OpenAI"
+                active={systemInfo.apiConfigs.hasOpenAI}
+              />
+              <APIStatusBadge
+                name="Twilio"
+                active={systemInfo.apiConfigs.hasTwilio}
+              />
             </div>
           </CardContent>
         </Card>
@@ -291,11 +350,15 @@ export default function ConsolidatedSystemHub() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="font-medium text-indigo-700">Name:</span>
-                <span className="text-indigo-900 font-semibold">{systemInfo.organization.name}</span>
+                <span className="text-indigo-900 font-semibold">
+                  {systemInfo.organization.name}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium text-indigo-700">ID:</span>
-                <span className="text-indigo-900 font-mono text-sm">{systemInfo.organization.id}</span>
+                <span className="text-indigo-900 font-mono text-sm">
+                  {systemInfo.organization.id}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -311,14 +374,16 @@ export default function ConsolidatedSystemHub() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <a 
-                href="/admin/user-management" 
+              <a
+                href="/admin/user-management"
                 className="block p-4 bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-200 rounded-lg transition-all cursor-pointer group"
                 data-testid="link-user-management"
               >
                 <div className="flex items-center gap-3 mb-2">
                   <Users className="h-6 w-6 text-blue-600 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-semibold text-blue-900">User Management</h3>
+                  <h3 className="font-semibold text-blue-900">
+                    User Management
+                  </h3>
                 </div>
                 <p className="text-sm text-blue-700">
                   Create and manage user accounts with role-based access control
@@ -332,31 +397,33 @@ export default function ConsolidatedSystemHub() {
   );
 }
 
-function ModuleCard({ 
-  icon: Icon, 
-  name, 
-  count, 
-  active, 
+function ModuleCard({
+  icon: Icon,
+  name,
+  count,
+  active,
   color,
-  clickable = false
-}: { 
-  icon: any; 
-  name: string; 
-  count: number; 
-  active: boolean; 
+  clickable = false,
+}: {
+  icon: any;
+  name: string;
+  count: number;
+  active: boolean;
   color: string;
   clickable?: boolean;
 }) {
   const colorClasses = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    green: 'bg-green-50 border-green-200 text-green-700',
-    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
-    purple: 'bg-purple-50 border-purple-200 text-purple-700'
+    blue: "bg-blue-50 border-blue-200 text-blue-700",
+    green: "bg-green-50 border-green-200 text-green-700",
+    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    orange: "bg-orange-50 border-orange-200 text-orange-700",
+    purple: "bg-purple-50 border-purple-200 text-purple-700",
   };
 
   return (
-    <div className={`p-4 rounded-lg border-2 ${colorClasses[color as keyof typeof colorClasses]} ${clickable ? 'hover:shadow-lg hover:scale-105 transition-all cursor-pointer' : ''}`}>
+    <div
+      className={`p-4 rounded-lg border-2 ${colorClasses[color as keyof typeof colorClasses]} ${clickable ? "hover:shadow-lg hover:scale-105 transition-all cursor-pointer" : ""}`}
+    >
       <div className="flex items-center justify-between mb-2">
         <Icon className="h-5 w-5" />
         {active ? (
@@ -368,7 +435,9 @@ function ModuleCard({
       <div className="font-semibold text-lg">{name}</div>
       <div className="text-sm opacity-80">{count} records</div>
       {clickable && (
-        <div className="text-xs mt-2 font-medium opacity-70">Click to manage →</div>
+        <div className="text-xs mt-2 font-medium opacity-70">
+          Click to manage →
+        </div>
       )}
     </div>
   );
@@ -376,11 +445,11 @@ function ModuleCard({
 
 function APIStatusBadge({ name, active }: { name: string; active: boolean }) {
   return (
-    <div className={`p-3 rounded-lg border-2 flex items-center justify-between ${
-      active 
-        ? 'bg-green-50 border-green-200' 
-        : 'bg-gray-50 border-gray-200'
-    }`}>
+    <div
+      className={`p-3 rounded-lg border-2 flex items-center justify-between ${
+        active ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"
+      }`}
+    >
       <span className="font-medium text-sm">{name}</span>
       {active ? (
         <CheckCircle2 className="h-4 w-4 text-green-600" />
