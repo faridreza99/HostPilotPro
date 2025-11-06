@@ -558,8 +558,8 @@ router.post('/enrich-properties-bulk', async (req, res) => {
     res.json({
       success: true,
       totalProperties: properties.length,
-      successCount: results.filter(r => !r.error).length,
-      failureCount: results.filter(r => r.error).length,
+      successCount: results.filter(r => !('error' in r)).length,
+      failureCount: results.filter(r => 'error' in r).length,
       results,
     });
   } catch (error: any) {
