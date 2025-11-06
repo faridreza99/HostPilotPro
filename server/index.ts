@@ -117,6 +117,11 @@ app.use((req, res, next) => {
   app.use("/api", lodgifyRouter);
   console.log("[INIT] Lodgify API routes mounted ✅");
 
+  // Register Makcorps API routes
+  const makcorpsRouter = (await import('./makcorps-routes')).default;
+  app.use("/api", makcorpsRouter);
+  console.log("[INIT] Makcorps API routes mounted ✅");
+
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
   console.log("[INIT] Static uploads directory mounted ✅");
