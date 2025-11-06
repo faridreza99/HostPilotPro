@@ -13,6 +13,12 @@ function getOrgId(req: Request): string {
 
 // Helper function to get Makcorps API key for organization
 async function getMakcorpsApiKey(organizationId: string): Promise<string> {
+  // PRODUCTION SECURITY REQUIREMENTS:
+  // 1. API keys MUST be encrypted at rest using strong encryption (AES-256)
+  // 2. Decryption keys MUST be stored in secure key management (e.g., AWS KMS, HashiCorp Vault)
+  // 3. Fallback environment variable should ONLY be used in development/testing
+  // 4. Each organization MUST have unique organizationId (never use 'default-org' in production)
+  
   // First, try to get from organization API keys table
   const apiKeyRecord = await db.select()
     .from(organizationApiKeys)
@@ -26,15 +32,16 @@ async function getMakcorpsApiKey(organizationId: string): Promise<string> {
     .limit(1);
 
   if (apiKeyRecord.length > 0 && apiKeyRecord[0].encryptedValue) {
-    // In a real app, decrypt the value here
-    // For now, assume it's stored as plain text (should be encrypted in production)
+    // TODO PRODUCTION: Decrypt the value using secure key management
+    // Currently storing plaintext for development - MUST encrypt before production deployment
+    console.log(`[Makcorps] Using database API key for organization: ${organizationId}`);
     return apiKeyRecord[0].encryptedValue;
   }
 
-  // Fallback to environment variable for testing/development
+  // Fallback to environment variable for testing/development ONLY
   const envKey = process.env.MAKCORPS_API_KEY;
   if (envKey) {
-    console.log('[Makcorps] Using fallback environment variable API key');
+    console.log(`[Makcorps] WARNING: Using fallback environment variable for org ${organizationId}. Configure org-specific key in production.`);
     return envKey;
   }
 

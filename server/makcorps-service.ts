@@ -274,11 +274,13 @@ export class MakcorpsService {
 }
 
 // Cache instances per organization to avoid credential leakage
+// Key format: organizationId ensures complete isolation even with same API keys
 const makcorpsInstances: Map<string, MakcorpsService> = new Map();
 
 export function getMakcorpsService(apiKey: string, organizationId: string = 'default-org'): MakcorpsService {
-  // Create a new instance for each organization
-  const cacheKey = `${organizationId}:${apiKey.substring(0, 10)}`;
+  // Always scope by organizationId first to prevent cross-tenant leakage
+  // Even if multiple orgs use same API key (fallback), they get separate instances
+  const cacheKey = `org:${organizationId}:key:${apiKey.substring(0, 10)}`;
   
   if (!makcorpsInstances.has(cacheKey)) {
     makcorpsInstances.set(cacheKey, new MakcorpsService(apiKey, organizationId));

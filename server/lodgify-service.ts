@@ -232,14 +232,16 @@ export class LodgifyService {
 }
 
 // Cache instances per organization to avoid credential leakage
+// Key format: organizationId ensures complete isolation even with same API keys
 const lodgifyInstances: Map<string, LodgifyService> = new Map();
 
 export function getLodgifyService(
   apiKey: string,
   organizationId: string = "default-org",
 ): LodgifyService {
-  // Create a new instance for each organization
-  const cacheKey = `${organizationId}:${apiKey.substring(0, 10)}`;
+  // Always scope by organizationId first to prevent cross-tenant leakage
+  // Even if multiple orgs use same API key (fallback), they get separate instances
+  const cacheKey = `org:${organizationId}:key:${apiKey.substring(0, 10)}`;
 
   if (!lodgifyInstances.has(cacheKey)) {
     lodgifyInstances.set(cacheKey, new LodgifyService(apiKey, organizationId));
