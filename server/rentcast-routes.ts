@@ -344,4 +344,170 @@ router.get('/markets', async (req, res) => {
   }
 });
 
+/**
+ * Property Enrichment - Fetch rental estimate for a specific property
+ * Use property address and details to get automated valuation model (AVM) data
+ */
+router.post('/enrich-property', async (req, res) => {
+  try {
+    const organizationId = (req.user as any)?.organizationId || 'default-org';
+    const apiKey = await getRentCastApiKey(organizationId);
+    const rentcast = getRentCastService(apiKey, organizationId);
+    
+    const { address, city, state, zipCode, propertyType, bedrooms, bathrooms, squareFootage } = req.body;
+
+    if (!address) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property address is required for enrichment',
+      });
+    }
+
+    // Fetch both rent estimate and value estimate in parallel
+    const [rentEstimate, valueEstimate] = await Promise.allSettled([
+      rentcast.getRentEstimate({
+        address,
+        city,
+        state,
+        zipCode,
+        propertyType,
+        bedrooms,
+        bathrooms,
+        squareFootage,
+        compCount: 5, // Get 5 comparables
+      }),
+      rentcast.getValueEstimate({
+        address,
+        city,
+        state,
+        zipCode,
+        propertyType,
+        bedrooms,
+        bathrooms,
+        squareFootage,
+        compCount: 5,
+      }),
+    ]);
+
+    const enrichmentData: any = {
+      success: true,
+      address,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Add rent estimate data if successful
+    if (rentEstimate.status === 'fulfilled') {
+      enrichmentData.rentEstimate = {
+        estimatedRent: rentEstimate.value.price,
+        rentRangeLow: rentEstimate.value.priceRangeLow,
+        rentRangeHigh: rentEstimate.value.priceRangeHigh,
+        comparablesCount: rentEstimate.value.comparables?.length || 0,
+        comparables: rentEstimate.value.comparables?.slice(0, 5), // Top 5 comparables
+      };
+    } else {
+      enrichmentData.rentEstimateError = (rentEstimate.reason as Error).message;
+    }
+
+    // Add value estimate data if successful
+    if (valueEstimate.status === 'fulfilled') {
+      enrichmentData.valueEstimate = {
+        estimatedValue: valueEstimate.value.price,
+        valueRangeLow: valueEstimate.value.priceRangeLow,
+        valueRangeHigh: valueEstimate.value.priceRangeHigh,
+        comparablesCount: valueEstimate.value.comparables?.length || 0,
+        comparables: valueEstimate.value.comparables?.slice(0, 5), // Top 5 comparables
+      };
+    } else {
+      enrichmentData.valueEstimateError = (valueEstimate.reason as Error).message;
+    }
+
+    res.json(enrichmentData);
+  } catch (error: any) {
+    console.error('[RentCast API] Property enrichment error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to enrich property data',
+    });
+  }
+});
+
+/**
+ * Bulk Property Enrichment - Fetch rental estimates for multiple properties
+ * Useful for enriching entire portfolio at once
+ */
+router.post('/enrich-properties-bulk', async (req, res) => {
+  try {
+    const organizationId = (req.user as any)?.organizationId || 'default-org';
+    const apiKey = await getRentCastApiKey(organizationId);
+    const rentcast = getRentCastService(apiKey, organizationId);
+    
+    const { properties } = req.body;
+
+    if (!Array.isArray(properties) || properties.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Properties array is required',
+      });
+    }
+
+    if (properties.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 50 properties can be enriched at once',
+      });
+    }
+
+    // Enrich each property with rate limiting
+    const enrichedProperties = await Promise.allSettled(
+      properties.map(async (prop: any) => {
+        const rentEstimate = await rentcast.getRentEstimate({
+          address: prop.address,
+          city: prop.city,
+          state: prop.state,
+          zipCode: prop.zipCode,
+          propertyType: prop.propertyType,
+          bedrooms: prop.bedrooms,
+          bathrooms: prop.bathrooms,
+          squareFootage: prop.squareFootage,
+          compCount: 3,
+        });
+
+        return {
+          propertyId: prop.id,
+          address: prop.address,
+          estimatedRent: rentEstimate.price,
+          rentRangeLow: rentEstimate.priceRangeLow,
+          rentRangeHigh: rentEstimate.priceRangeHigh,
+        };
+      })
+    );
+
+    const results = enrichedProperties.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } else {
+        return {
+          propertyId: properties[index].id,
+          address: properties[index].address,
+          error: (result.reason as Error).message,
+        };
+      }
+    });
+
+    res.json({
+      success: true,
+      totalProperties: properties.length,
+      successCount: results.filter(r => !r.error).length,
+      failureCount: results.filter(r => r.error).length,
+      results,
+    });
+  } catch (error: any) {
+    console.error('[RentCast API] Bulk enrichment error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to enrich properties',
+    });
+  }
+});
+
 export default router;
