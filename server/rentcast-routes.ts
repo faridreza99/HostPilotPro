@@ -234,6 +234,134 @@ router.get('/properties/search', async (req, res) => {
 /**
  * Get property details by ID
  */
+/**
+ * Get comprehensive property enrichment data by property ID
+ * Returns detailed rent/value estimates, comparables, nearby listings, and market data
+ */
+router.get('/properties/:id/enrich', async (req, res) => {
+  try {
+    const organizationId = (req.user as any)?.organizationId || 'default-org';
+    const apiKey = await getRentCastApiKey(organizationId);
+    const rentcast = getRentCastService(apiKey, organizationId);
+    
+    const propertyId = req.params.id;
+
+    // First, get the basic property data
+    const property = await rentcast.getProperty(propertyId);
+
+    // Fetch comprehensive enrichment data in parallel
+    const [rentEstimate, valueEstimate, rentalListings, marketData] = await Promise.allSettled([
+      // 1. Rent Estimate (AVM)
+      rentcast.getRentEstimate({
+        address: property.formattedAddress,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        squareFootage: property.squareFootage,
+        compCount: 5,
+      }),
+      
+      // 2. Value Estimate (AVM)
+      rentcast.getValueEstimate({
+        address: property.formattedAddress,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        squareFootage: property.squareFootage,
+        compCount: 5,
+      }),
+      
+      // 3. Nearby Rental Listings
+      rentcast.searchRentalListings({
+        city: property.city,
+        state: property.state,
+        bedrooms: property.bedrooms,
+        limit: 5,
+      }),
+      
+      // 4. Market Data
+      rentcast.getMarketData({
+        city: property.city,
+        state: property.state,
+      }),
+    ]);
+
+    const enrichmentData: any = {
+      propertyId,
+      lastUpdated: new Date().toISOString(),
+      propertyDetails: {
+        id: property.id,
+        formattedAddress: property.formattedAddress,
+        city: property.city,
+        state: property.state,
+        zipCode: property.zipCode,
+        county: property.county,
+        propertyType: property.propertyType,
+        squareFootage: property.squareFootage,
+        lotSize: property.lotSize,
+        yearBuilt: property.yearBuilt,
+        lastSaleDate: property.lastSaleDate,
+        lastSalePrice: property.lastSalePrice,
+        assessedValue: property.assessedValue,
+      },
+    };
+
+    // Rent estimate data
+    if (rentEstimate.status === 'fulfilled') {
+      enrichmentData.rentEstimate = {
+        estimatedRent: rentEstimate.value.price,
+        rentRangeLow: rentEstimate.value.priceRangeLow,
+        rentRangeHigh: rentEstimate.value.priceRangeHigh,
+        comparablesCount: rentEstimate.value.comparables?.length || 0,
+        comparables: rentEstimate.value.comparables?.slice(0, 5),
+      };
+    }
+
+    // Value estimate data
+    if (valueEstimate.status === 'fulfilled') {
+      enrichmentData.valueEstimate = {
+        estimatedValue: valueEstimate.value.price,
+        valueRangeLow: valueEstimate.value.priceRangeLow,
+        valueRangeHigh: valueEstimate.value.priceRangeHigh,
+        comparablesCount: valueEstimate.value.comparables?.length || 0,
+        comparables: valueEstimate.value.comparables?.slice(0, 5),
+      };
+    }
+
+    // Nearby rental listings
+    if (rentalListings.status === 'fulfilled' && rentalListings.value.length > 0) {
+      enrichmentData.nearbyRentals = {
+        count: rentalListings.value.length,
+        listings: rentalListings.value.slice(0, 5).map((listing: any) => ({
+          address: listing.formattedAddress,
+          price: listing.price,
+          bedrooms: listing.bedrooms,
+          bathrooms: listing.bathrooms,
+          squareFootage: listing.squareFootage,
+          daysOnMarket: listing.daysOnMarket,
+        })),
+      };
+    }
+
+    // Market data
+    if (marketData.status === 'fulfilled') {
+      enrichmentData.marketData = {
+        averageRent: marketData.value.averageRent,
+        medianRent: marketData.value.medianRent,
+        averagePrice: marketData.value.averagePrice,
+        medianPrice: marketData.value.medianPrice,
+        inventoryCount: marketData.value.listings?.total,
+      };
+    }
+
+    res.json(enrichmentData);
+  } catch (error: any) {
+    console.error('[RentCast API] Property enrichment error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to enrich property',
+    });
+  }
+});
+
 router.get('/properties/:id', async (req, res) => {
   try {
     const organizationId = (req.user as any)?.organizationId || 'default-org';

@@ -66,6 +66,9 @@ function RentCastMarketSearch() {
   const [state, setState] = useState("");
   const [searchResults, setSearchResults] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [propertyDetails, setPropertyDetails] = useState<any>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const { toast } = useToast();
 
   const handleSearch = async () => {
@@ -102,6 +105,33 @@ function RentCastMarketSearch() {
       });
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handlePropertyClick = async (property: any) => {
+    setSelectedProperty(property);
+    setIsLoadingDetails(true);
+    
+    try {
+      // Fetch comprehensive property enrichment data
+      const response = await fetch(
+        `/api/rentcast/properties/${encodeURIComponent(property.id)}/enrich`
+      );
+      const data = await response.json();
+      
+      if (response.ok) {
+        setPropertyDetails(data);
+      } else {
+        throw new Error(data.message || "Failed to load details");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load property details",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDetails(false);
     }
   };
 
@@ -200,23 +230,34 @@ function RentCastMarketSearch() {
               <CardContent>
                 <div className="space-y-3">
                   {searchResults.properties.map((prop: any, idx: number) => (
-                    <div key={idx} className="border rounded-lg p-4 bg-slate-50 hover:bg-slate-100 transition-colors">
-                      <div className="font-semibold text-lg">{prop.address}</div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 text-sm">
-                        <div><span className="text-slate-600">Type:</span> <span className="font-medium">{prop.propertyType}</span></div>
-                        <div><span className="text-slate-600">Beds:</span> <span className="font-medium">{prop.bedrooms || "N/A"}</span></div>
-                        <div><span className="text-slate-600">Baths:</span> <span className="font-medium">{prop.bathrooms || "N/A"}</span></div>
-                        <div><span className="text-slate-600">Sq Ft:</span> <span className="font-medium">{prop.squareFootage?.toLocaleString() || "N/A"}</span></div>
-                      </div>
-                      {prop.lastSalePrice && (
-                        <div className="mt-2 text-sm">
-                          <span className="text-slate-600">Last Sale:</span> 
-                          <span className="font-medium text-emerald-700 ml-2">
-                            ${prop.lastSalePrice.toLocaleString()} 
-                            {prop.lastSaleDate && ` (${new Date(prop.lastSaleDate).getFullYear()})`}
-                          </span>
+                    <div 
+                      key={idx} 
+                      className="border rounded-lg p-4 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                      onClick={() => handlePropertyClick(prop)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-lg">{prop.address}</div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 text-sm">
+                            <div><span className="text-slate-600">Type:</span> <span className="font-medium">{prop.propertyType}</span></div>
+                            <div><span className="text-slate-600">Beds:</span> <span className="font-medium">{prop.bedrooms || "N/A"}</span></div>
+                            <div><span className="text-slate-600">Baths:</span> <span className="font-medium">{prop.bathrooms || "N/A"}</span></div>
+                            <div><span className="text-slate-600">Sq Ft:</span> <span className="font-medium">{prop.squareFootage?.toLocaleString() || "N/A"}</span></div>
+                          </div>
+                          {prop.lastSalePrice && (
+                            <div className="mt-2 text-sm">
+                              <span className="text-slate-600">Last Sale:</span> 
+                              <span className="font-medium text-emerald-700 ml-2">
+                                ${prop.lastSalePrice.toLocaleString()} 
+                                {prop.lastSaleDate && ` (${new Date(prop.lastSaleDate).getFullYear()})`}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
+                        <Button variant="ghost" size="sm" className="ml-4">
+                          View Details →
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -257,6 +298,209 @@ function RentCastMarketSearch() {
               </CardContent>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* Property Details Modal */}
+      {selectedProperty && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedProperty(null)}>
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">{selectedProperty.address}</h2>
+              <Button variant="ghost" onClick={() => setSelectedProperty(null)}>✕</Button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {isLoadingDetails ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin h-8 w-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-slate-600">Loading comprehensive property data...</p>
+                </div>
+              ) : propertyDetails ? (
+                <div className="space-y-6">
+                  {/* Rent & Value Estimates */}
+                  {(propertyDetails.rentEstimate || propertyDetails.valueEstimate) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {propertyDetails.rentEstimate && (
+                        <Card className="bg-gradient-to-br from-purple-50 to-purple-100">
+                          <CardHeader>
+                            <CardTitle className="text-purple-900">Estimated Monthly Rent</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold text-purple-900 mb-2">
+                              ${propertyDetails.rentEstimate.estimatedRent?.toLocaleString()}
+                            </div>
+                            {propertyDetails.rentEstimate.rentRangeLow && propertyDetails.rentEstimate.rentRangeHigh && (
+                              <div className="text-sm text-purple-700">
+                                Range: ${propertyDetails.rentEstimate.rentRangeLow.toLocaleString()} - ${propertyDetails.rentEstimate.rentRangeHigh.toLocaleString()}
+                              </div>
+                            )}
+                            {propertyDetails.rentEstimate.comparablesCount > 0 && (
+                              <div className="text-xs text-purple-600 mt-2">
+                                Based on {propertyDetails.rentEstimate.comparablesCount} comparable properties
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {propertyDetails.valueEstimate && (
+                        <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100">
+                          <CardHeader>
+                            <CardTitle className="text-indigo-900">Estimated Property Value</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold text-indigo-900 mb-2">
+                              ${propertyDetails.valueEstimate.estimatedValue?.toLocaleString()}
+                            </div>
+                            {propertyDetails.valueEstimate.valueRangeLow && propertyDetails.valueEstimate.valueRangeHigh && (
+                              <div className="text-sm text-indigo-700">
+                                Range: ${propertyDetails.valueEstimate.valueRangeLow.toLocaleString()} - ${propertyDetails.valueEstimate.valueRangeHigh.toLocaleString()}
+                              </div>
+                            )}
+                            {propertyDetails.valueEstimate.comparablesCount > 0 && (
+                              <div className="text-xs text-indigo-600 mt-2">
+                                Based on {propertyDetails.valueEstimate.comparablesCount} comparable sales
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Property Details */}
+                  {propertyDetails.propertyDetails && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Property Information</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div>
+                            <div className="text-sm text-slate-600">Property Type</div>
+                            <div className="font-semibold">{propertyDetails.propertyDetails.propertyType || "N/A"}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-slate-600">Square Footage</div>
+                            <div className="font-semibold">{propertyDetails.propertyDetails.squareFootage?.toLocaleString() || "N/A"} sq ft</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-slate-600">Lot Size</div>
+                            <div className="font-semibold">{propertyDetails.propertyDetails.lotSize?.toLocaleString() || "N/A"} sq ft</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-slate-600">Year Built</div>
+                            <div className="font-semibold">{propertyDetails.propertyDetails.yearBuilt || "N/A"}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-slate-600">County</div>
+                            <div className="font-semibold">{propertyDetails.propertyDetails.county || "N/A"}</div>
+                          </div>
+                          {propertyDetails.propertyDetails.lastSalePrice && (
+                            <div>
+                              <div className="text-sm text-slate-600">Last Sale</div>
+                              <div className="font-semibold text-emerald-700">
+                                ${propertyDetails.propertyDetails.lastSalePrice.toLocaleString()}
+                                {propertyDetails.propertyDetails.lastSaleDate && ` (${new Date(propertyDetails.propertyDetails.lastSaleDate).getFullYear()})`}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Rental Comparables */}
+                  {propertyDetails.rentEstimate?.comparables && propertyDetails.rentEstimate.comparables.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Rental Comparables</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {propertyDetails.rentEstimate.comparables.map((comp: any, idx: number) => (
+                            <div key={idx} className="border rounded-lg p-3 bg-purple-50">
+                              <div className="font-medium">{comp.formattedAddress}</div>
+                              <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
+                                <div><span className="text-purple-600">Rent:</span> <span className="font-semibold">${comp.price.toLocaleString()}/mo</span></div>
+                                <div><span className="text-purple-600">Beds/Baths:</span> {comp.bedrooms}bd / {comp.bathrooms}ba</div>
+                                <div><span className="text-purple-600">Distance:</span> {comp.distance.toFixed(1)} mi</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Nearby Rentals */}
+                  {propertyDetails.nearbyRentals?.listings && propertyDetails.nearbyRentals.listings.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Nearby Rental Listings ({propertyDetails.nearbyRentals.count})</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {propertyDetails.nearbyRentals.listings.map((listing: any, idx: number) => (
+                            <div key={idx} className="border rounded-lg p-3 bg-indigo-50">
+                              <div className="font-medium">{listing.address}</div>
+                              <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
+                                <div><span className="text-indigo-600">Price:</span> <span className="font-bold">${listing.price.toLocaleString()}/mo</span></div>
+                                <div><span className="text-indigo-600">Size:</span> {listing.bedrooms}bd / {listing.bathrooms}ba</div>
+                                <div><span className="text-indigo-600">DOM:</span> {listing.daysOnMarket} days</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Market Data */}
+                  {propertyDetails.marketData && (
+                    <Card className="bg-gradient-to-br from-emerald-50 to-teal-50">
+                      <CardHeader>
+                        <CardTitle>Local Market Statistics</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {propertyDetails.marketData.medianRent && (
+                            <div>
+                              <div className="text-sm text-emerald-700">Median Rent</div>
+                              <div className="text-xl font-bold text-emerald-900">${propertyDetails.marketData.medianRent.toLocaleString()}</div>
+                            </div>
+                          )}
+                          {propertyDetails.marketData.averageRent && (
+                            <div>
+                              <div className="text-sm text-emerald-700">Avg Rent</div>
+                              <div className="text-xl font-bold text-emerald-900">${propertyDetails.marketData.averageRent.toLocaleString()}</div>
+                            </div>
+                          )}
+                          {propertyDetails.marketData.medianPrice && (
+                            <div>
+                              <div className="text-sm text-teal-700">Median Price</div>
+                              <div className="text-xl font-bold text-teal-900">${Math.round(propertyDetails.marketData.medianPrice / 1000)}k</div>
+                            </div>
+                          )}
+                          {propertyDetails.marketData.inventoryCount && (
+                            <div>
+                              <div className="text-sm text-teal-700">Inventory</div>
+                              <div className="text-xl font-bold text-teal-900">{propertyDetails.marketData.inventoryCount.toLocaleString()}</div>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-slate-500">
+                  No detailed data available for this property
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
