@@ -122,6 +122,11 @@ app.use((req, res, next) => {
   app.use("/api", makcorpsRouter);
   console.log("[INIT] Makcorps API routes mounted ✅");
 
+  // Register RentCast API routes
+  const rentcastRouter = (await import('./rentcast-routes')).default;
+  app.use("/api/rentcast", rentcastRouter);
+  console.log("[INIT] RentCast API routes mounted ✅");
+
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
   console.log("[INIT] Static uploads directory mounted ✅");
