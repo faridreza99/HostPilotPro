@@ -113,3 +113,85 @@ The platform utilizes Radix UI primitives with shadcn/ui for a modern design sys
 - Webhook receiver for real-time updates
 - Finance data sync from booking transactions
 - Two-way sync (push local changes to Lodgify)
+
+## Makcorps Hotel Pricing API Integration
+**Status**: ACTIVE & TESTED  
+**API Base URL**: `https://api.makcorps.com`  
+**Authentication**: api_key query parameter (stored per organization in database)  
+**API Key**: 690c83540048a3e75ebd87e9
+
+### Multi-Tenant Credential Management
+- API keys stored in `organization_api_keys` table per organization
+- Service loads credentials from database using `getMakcorpsApiKey(organizationId)`
+- Fallback to `MAKCORPS_API_KEY` environment variable for testing/development
+- Per-organization credential caching prevents cross-tenant leakage
+- Clear error messages when API key not configured
+
+### Service Module
+- **Location**: `server/makcorps-service.ts`
+- **Class**: `MakcorpsService` - Multi-tenant service with per-org API key management
+- **Methods**:
+  - `testConnection()` - Validates API key and connection
+  - `searchMapping(name)` - Search for hotel or city IDs by name
+  - `searchByCity(params)` - Get hotels in a city with pricing from top vendors
+  - `searchByHotel(params)` - Get pricing from 15+ vendors for specific hotel
+  - `getBookingPrices(params)` - Booking.com specific pricing data
+  - `getExpediaPrices(params)` - Expedia specific pricing data
+
+### API Routes
+- **Location**: `server/makcorps-routes.ts`
+- **Endpoints**:
+  - `GET /api/makcorps/test-connection` - Test API connectivity
+  - `GET /api/makcorps/mapping?name={query}` - Search hotel/city IDs
+  - `GET /api/makcorps/search-by-city` - Search hotels by city with params
+  - `GET /api/makcorps/search-by-hotel` - Get hotel pricing comparison
+  - `GET /api/makcorps/booking-prices` - Booking.com specific prices
+  - `GET /api/makcorps/expedia-prices` - Expedia specific prices
+
+### Data Capabilities
+**Price Comparison**:
+- Aggregates pricing from 200+ OTAs (Booking.com, Expedia, Agoda, Hotels.com, Priceline, Skyscanner, Trip.com, StayForLong, etc.)
+- Returns real-time pricing with taxes and total prices
+- Supports multiple currencies (USD, EUR, INR, etc.)
+- Customizable search parameters (adults, rooms, kids, dates)
+
+**Mapping System**:
+- Search hotels or cities by name
+- Returns unique `document_id` for each result
+- Use `document_id` for subsequent pricing queries
+- Supports city-level and hotel-level searches
+
+### UI Integration
+- **Page**: `client/src/pages/admin/ApiConnections.tsx`
+- **Features**: Makcorps appears second in predefined services list (after Lodgify)
+- **Icon**: Lightning bolt (Zap) with indigo color scheme
+- **Actions**: Configure API key, test connection, search hotels, get pricing
+
+### Testing Results
+- ✅ Connection test: **SUCCESSFUL** (Found 11 results for test query)
+- ✅ Mapping API: **SUCCESSFUL** (Search "New York" returned 11 locations)
+- ✅ Hotel search: **SUCCESSFUL** (Marriott NYC returned document_id: 99371)
+- ✅ Pricing comparison: **SUCCESSFUL** (Retrieved pricing from 11 vendors)
+  - Best price: StayForLong at $552/night
+  - Price range: $552-$674 for 2-night stay
+  - Includes: vendor name, base price, total price, taxes
+
+### Use Cases
+- **Price Intelligence**: Monitor competitor pricing across OTAs
+- **Dynamic Pricing**: Adjust rates based on market data
+- **Revenue Optimization**: Identify best-priced channels
+- **Guest Recommendations**: Show competitive pricing to potential guests
+- **Market Analysis**: Track pricing trends across different platforms
+
+### Integration Workflow
+1. **Find Hotel ID**: Use `/mapping` endpoint with hotel name + city
+2. **Get Prices**: Use `/search-by-hotel` with `document_id` from step 1
+3. **Compare**: Analyze pricing across 15+ vendors to optimize rates
+4. **Track**: Store historical data for pricing trend analysis
+
+### Future Enhancements
+- Automated daily price scraping for portfolio properties
+- Price alert notifications when competitors change rates
+- Historical pricing analytics and trend visualization
+- Integration with dynamic pricing engine
+- Automated rate adjustments based on market data
