@@ -700,33 +700,159 @@ export default function PropertyCard({
             </div>
           </div>
 
-          {/* RentCast Market Data */}
+          {/* RentCast Comprehensive Market Intelligence */}
           {rentcastData && (
-            <div className="mb-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-3 border border-purple-200">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="mb-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200 space-y-3">
+              <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-purple-600" />
                 <div className="text-xs font-bold text-purple-900">
                   RentCast Market Intelligence
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {rentcastData.rent && (
-                  <div>
-                    <div className="text-xs text-purple-700">Est. Monthly Rent</div>
-                    <div className="text-sm font-bold text-purple-900">
-                      ${rentcastData.rent.toLocaleString()}
+
+              {/* Rent & Value Estimates */}
+              {(rentcastData.rentEstimate || rentcastData.valueEstimate) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {rentcastData.rentEstimate && (
+                    <div className="bg-white/80 rounded-lg p-2">
+                      <div className="text-[10px] text-purple-600 font-semibold mb-0.5">MONTHLY RENT</div>
+                      <div className="text-base font-bold text-purple-900">
+                        ${rentcastData.rentEstimate.estimatedRent?.toLocaleString() || 'N/A'}
+                      </div>
+                      {rentcastData.rentEstimate.rentRangeLow && rentcastData.rentEstimate.rentRangeHigh && (
+                        <div className="text-[9px] text-purple-700">
+                          ${rentcastData.rentEstimate.rentRangeLow.toLocaleString()} - ${rentcastData.rentEstimate.rentRangeHigh.toLocaleString()}
+                        </div>
+                      )}
+                      {rentcastData.rentEstimate.comparablesCount > 0 && (
+                        <div className="text-[9px] text-purple-600 mt-0.5">
+                          {rentcastData.rentEstimate.comparablesCount} comps
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-                {rentcastData.value && (
-                  <div>
-                    <div className="text-xs text-purple-700">Est. Value</div>
-                    <div className="text-sm font-bold text-purple-900">
-                      ${Math.round(rentcastData.value / 1000)}k
+                  )}
+
+                  {rentcastData.valueEstimate && (
+                    <div className="bg-white/80 rounded-lg p-2">
+                      <div className="text-[10px] text-indigo-600 font-semibold mb-0.5">PROPERTY VALUE</div>
+                      <div className="text-base font-bold text-indigo-900">
+                        ${Math.round((rentcastData.valueEstimate.estimatedValue || 0) / 1000)}k
+                      </div>
+                      {rentcastData.valueEstimate.valueRangeLow && rentcastData.valueEstimate.valueRangeHigh && (
+                        <div className="text-[9px] text-indigo-700">
+                          ${Math.round(rentcastData.valueEstimate.valueRangeLow / 1000)}k - ${Math.round(rentcastData.valueEstimate.valueRangeHigh / 1000)}k
+                        </div>
+                      )}
+                      {rentcastData.valueEstimate.comparablesCount > 0 && (
+                        <div className="text-[9px] text-indigo-600 mt-0.5">
+                          {rentcastData.valueEstimate.comparablesCount} comps
+                        </div>
+                      )}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* Property Details */}
+              {rentcastData.propertyDetails && (
+                <div className="bg-white/60 rounded-lg p-2">
+                  <div className="text-[10px] font-semibold text-purple-700 mb-1.5">PROPERTY DATA</div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                    {rentcastData.propertyDetails.squareFootage && (
+                      <div className="flex justify-between">
+                        <span className="text-purple-600">Sq Ft:</span>
+                        <span className="font-medium text-purple-900">{rentcastData.propertyDetails.squareFootage.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {rentcastData.propertyDetails.yearBuilt && (
+                      <div className="flex justify-between">
+                        <span className="text-purple-600">Built:</span>
+                        <span className="font-medium text-purple-900">{rentcastData.propertyDetails.yearBuilt}</span>
+                      </div>
+                    )}
+                    {rentcastData.propertyDetails.lotSize && (
+                      <div className="flex justify-between">
+                        <span className="text-purple-600">Lot:</span>
+                        <span className="font-medium text-purple-900">{rentcastData.propertyDetails.lotSize.toLocaleString()} sf</span>
+                      </div>
+                    )}
+                    {rentcastData.propertyDetails.propertyType && (
+                      <div className="flex justify-between">
+                        <span className="text-purple-600">Type:</span>
+                        <span className="font-medium text-purple-900">{rentcastData.propertyDetails.propertyType}</span>
+                      </div>
+                    )}
+                    {rentcastData.propertyDetails.lastSalePrice && (
+                      <div className="flex justify-between col-span-2">
+                        <span className="text-purple-600">Last Sale:</span>
+                        <span className="font-medium text-purple-900">
+                          ${rentcastData.propertyDetails.lastSalePrice.toLocaleString()}
+                          {rentcastData.propertyDetails.lastSaleDate && ` (${new Date(rentcastData.propertyDetails.lastSaleDate).getFullYear()})`}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Market Data */}
+              {rentcastData.marketData && (
+                <div className="bg-white/60 rounded-lg p-2">
+                  <div className="text-[10px] font-semibold text-indigo-700 mb-1.5">MARKET STATS</div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                    {rentcastData.marketData.medianRent && (
+                      <div className="flex justify-between">
+                        <span className="text-indigo-600">Median Rent:</span>
+                        <span className="font-medium text-indigo-900">${rentcastData.marketData.medianRent.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {rentcastData.marketData.averageRent && (
+                      <div className="flex justify-between">
+                        <span className="text-indigo-600">Avg Rent:</span>
+                        <span className="font-medium text-indigo-900">${rentcastData.marketData.averageRent.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {rentcastData.marketData.medianPrice && (
+                      <div className="flex justify-between">
+                        <span className="text-indigo-600">Median Price:</span>
+                        <span className="font-medium text-indigo-900">${Math.round(rentcastData.marketData.medianPrice / 1000)}k</span>
+                      </div>
+                    )}
+                    {rentcastData.marketData.averagePrice && (
+                      <div className="flex justify-between">
+                        <span className="text-indigo-600">Avg Price:</span>
+                        <span className="font-medium text-indigo-900">${Math.round(rentcastData.marketData.averagePrice / 1000)}k</span>
+                      </div>
+                    )}
+                    {rentcastData.marketData.inventoryCount && (
+                      <div className="flex justify-between col-span-2">
+                        <span className="text-indigo-600">Market Inventory:</span>
+                        <span className="font-medium text-indigo-900">{rentcastData.marketData.inventoryCount.toLocaleString()} listings</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Nearby Rentals */}
+              {rentcastData.nearbyRentals?.count > 0 && (
+                <div className="bg-white/60 rounded-lg p-2">
+                  <div className="text-[10px] font-semibold text-purple-700 mb-1.5">
+                    NEARBY RENTALS ({rentcastData.nearbyRentals.count})
+                  </div>
+                  <div className="space-y-1.5">
+                    {rentcastData.nearbyRentals.listings.slice(0, 2).map((listing: any, idx: number) => (
+                      <div key={idx} className="text-[9px] bg-purple-50 rounded p-1.5">
+                        <div className="font-medium text-purple-900 truncate">{listing.address}</div>
+                        <div className="flex justify-between text-purple-700">
+                          <span>${listing.price.toLocaleString()}/mo</span>
+                          <span>{listing.bedrooms}bd {listing.bathrooms}ba</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
