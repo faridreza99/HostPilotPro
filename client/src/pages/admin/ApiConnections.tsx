@@ -78,6 +78,17 @@ const predefinedServices = [
     ]
   },
   {
+    service: "rentcast",
+    name: "RentCast Property Data",
+    icon: Home,
+    color: "bg-teal-100 text-teal-700",
+    description: "140M+ property records, rental estimates (AVM), valuations, market data & trends",
+    fields: [
+      { name: "apiKey", label: "API Key", placeholder: "Your RentCast API key", type: "password" },
+      { name: "baseUrl", label: "API Base URL", placeholder: "https://api.rentcast.io/v1", type: "text" }
+    ]
+  },
+  {
     service: "stripe",
     name: "Stripe Payment Processing",
     icon: CreditCard,
