@@ -67,6 +67,17 @@ const predefinedServices = [
     ]
   },
   {
+    service: "makcorps",
+    name: "Makcorps Hotel Pricing",
+    icon: Zap,
+    color: "bg-indigo-100 text-indigo-700",
+    description: "Real-time hotel pricing from 200+ OTAs (Booking.com, Expedia, Agoda, etc.)",
+    fields: [
+      { name: "apiKey", label: "API Key", placeholder: "Your Makcorps API key", type: "password" },
+      { name: "baseUrl", label: "API Base URL", placeholder: "https://api.makcorps.com", type: "text" }
+    ]
+  },
+  {
     service: "stripe",
     name: "Stripe Payment Processing",
     icon: CreditCard,
