@@ -1,4 +1,4 @@
-// build-server.mjs
+// scripts/build-server.mjs
 import { build } from 'esbuild';
 import path from 'path';
 
@@ -6,10 +6,8 @@ const root = process.cwd();
 const entry = path.resolve(root, 'server', 'index.ts');
 const outFile = path.resolve(root, 'dist', 'index.js');
 
-// Externalize native or runtime-resolved modules that must remain in node_modules at runtime
-// Add any other modules that produce "Dynamic require of ..." or native-binding errors
 const externals = [
-  // Common native or dynamic modules
+  // native / dynamic / runtime modules (keep these external)
   'bcrypt',
   'node-gyp-build',
   'bindings',
@@ -20,14 +18,24 @@ const externals = [
   'combined-stream',
   'safe-buffer',
   'axios',
+  'pg',
+  'connect-pg-simple',
+  'express-session',
+  'express',
+  'multer',
+  'node-cron',
+  'nanoid',
 
-  // keep express and big server libs external if you prefer (optional)
-  // 'express', 'pg', 'connect-pg-simple', 'express-session',
-
-  // keep Vite plugins/external tooling out as well (optional)
+  // Vite/Babel/dev-tooling — do not bundle these server-side
+  'vite',
+  '@vitejs/plugin-react',
   '@replit/vite-plugin-cartographer',
   '@replit/vite-plugin-runtime-error-modal',
-  'vite',
+  '@babel/core',
+  '@babel/preset-typescript',
+
+  // optionally keep other large libs external
+  // add any package that throws "Could not resolve ..." or "Dynamic require ..." errors
 ];
 
 (async () => {
@@ -35,19 +43,17 @@ const externals = [
     await build({
       entryPoints: [entry],
       bundle: true,
-      platform: 'node',        // <--- important: treat Node built-ins as builtins (events, fs, url, etc)
+      platform: 'node',          // treat node builtins as builtins (events, url, fs, etc)
       target: ['node18'],
       outfile: outFile,
-      format: 'esm',          // keep ESM if your runtime uses it
+      format: 'esm',
       sourcemap: true,
       minify: false,
       external: externals,
       define: {
-        // keep any import.meta.* use working — map dirname to import.meta.url
         'import.meta.dirname': 'import.meta.url',
       },
       logLevel: 'info',
-      // optional: increase concurrency or memory via esbuild options if you need
     });
 
     console.log('✅ server build complete');
