@@ -12,7 +12,7 @@
   "db:push": "drizzle-kit push:pg",
   "db:migrate": "drizzle-kit generate:pg && drizzle-kit push:pg",
   "start:dev": "tsx server/index.ts",
-  "build:server": "esbuild server/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --external:express --external:body-parser --external:depd --external:drizzle-kit --external:@babel/preset-typescript --external:lightningcss --external:path --external:fs --external:os --external:crypto --external:stream --external:http --external:https --external:zlib --external:net --define:import.meta.dirname=import.meta.url",
+ "build:server": "esbuild server/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --external:express --external:body-parser --external:depd --external:drizzle-kit --external:@babel/preset-typescript --external:lightningcss --external:path --external:fs --external:os --external:crypto --external:stream --external:http --external:https --external:zlib --external:net --external:vite --external:@replit/vite-plugin-cartographer --external:@replit/vite-plugin-runtime-error-modal --external:bcrypt --external:node-gyp-build --external:bindings --external:bufferutil --external:utf-8-validate --external:node-pre-gyp --define:import.meta.dirname=import.meta.url",
   "postbuild": "echo '✅ Build completed successfully'"
 },
   "dependencies": {
