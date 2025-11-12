@@ -4,17 +4,17 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "preinstall": "npm install esbuild",
-    "dev": "tsx server/index.ts",
-    "build": "npm install esbuild && npm run build:server",
-    "start": "node dist/index.js",
-    "check": "tsc",
-    "db:push": "drizzle-kit push:pg",
-    "db:migrate": "drizzle-kit generate:pg && drizzle-kit push:pg",
-    "start:dev": "tsx server/index.ts",
-   "build:server": "esbuild server/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --external:drizzle-kit --external:@babel/preset-typescript --external:lightningcss --define:import.meta.dirname=__dirname",
-    "postbuild": "echo '✅ Build completed successfully'"
-  },
+  "preinstall": "npm install esbuild",
+  "dev": "tsx server/index.ts",
+  "build": "npm install esbuild && npm run build:server",
+  "start": "node dist/index.cjs",
+  "check": "tsc",
+  "db:push": "drizzle-kit push:pg",
+  "db:migrate": "drizzle-kit generate:pg && drizzle-kit push:pg",
+  "start:dev": "tsx server/index.ts",
+  "build:server": "esbuild server/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.cjs --format=cjs --external:express --external:body-parser --external:depd --external:drizzle-kit --external:@babel/preset-typescript --external:lightningcss --external:path --external:fs --external:os --external:crypto --external:stream --external:http --external:https --external:zlib --external:net",
+  "postbuild": "echo '✅ Build completed successfully'"
+},
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
