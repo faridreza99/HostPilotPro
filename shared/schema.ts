@@ -13014,3 +13014,102 @@ export const insertAutomationLogSchema = createInsertSchema(automationLogs).omit
 
 export type AutomationLog = typeof automationLogs.$inferSelect;
 export type InsertAutomationLog = z.infer<typeof insertAutomationLogSchema>;
+
+// --- AI NOTIFICATIONS SCHEMA ---
+
+export const aiNotifications = pgTable("ai_notifications", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  // NOTE: properties.id reference assumes you have a 'properties' table defined earlier.
+  propertyId: integer("property_id").references(() => properties.id), 
+  alertType: varchar("alert_type", { length: 100 }).notNull(), // e.g., 'pest', 'electricity', 'cleaning', 'ac'
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  priority: varchar("priority", { length: 50 }).default('medium').notNull(), // low, medium, high, critical
+  status: varchar("status", { length: 50 }).default('active').notNull(), // active, dismissed, resolved
+  dueDate: timestamp("due_date"),
+  snoozeUntil: timestamp("snooze_until"),
+  lastServiceDate: timestamp("last_service_date"),
+  estimatedNextDate: timestamp("estimated_next_date"),
+  aiConfidence: varchar("ai_confidence", { length: 10 }), // e.g., '0.92'
+  sourceType: varchar("source_type", { length: 50 }), // e.g., 'service_log', 'bill_pattern'
+  sourceId: varchar("source_id", { length: 255 }),
+  visibleToRoles: jsonb("visible_to_roles").$type<string[]>().default([]).notNull(),
+  assignedTo: varchar("assigned_to"),
+  createdBy: varchar("created_by", { length: 100 }).notNull(), // 'ai-system' or 'user-id'
+  actionTaken: boolean("action_taken").default(false).notNull(),
+  actionTakenBy: varchar("action_taken_by"),
+  actionTakenAt: timestamp("action_taken_at"),
+  actionNotes: text("action_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_ai_notifications_org").on(table.organizationId),
+  index("IDX_ai_notifications_property").on(table.propertyId),
+  index("IDX_ai_notifications_status").on(table.status),
+  index("IDX_ai_notifications_due").on(table.dueDate),
+]);
+
+export const insertAiNotificationSchema = createInsertSchema(aiNotifications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  actionTaken: true,
+  actionTakenBy: true,
+  actionTakenAt: true,
+});
+export type AiNotification = typeof aiNotifications.$inferSelect;
+export type InsertAiNotification = z.infer<typeof insertAiNotificationSchema>;
+
+// --- AI REMINDER SETTINGS SCHEMA ---
+
+export const aiReminderSettings = pgTable("ai_reminder_settings", {
+  id: serial("id").primaryKey(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  propertyId: integer("property_id").references(() => properties.id), // Can be null for organization-wide default
+  alertType: varchar("alert_type", { length: 100 }).notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  intervalDays: integer("interval_days").notNull(),
+  reminderDaysBefore: integer("reminder_days_before").default(0).notNull(),
+  autoCreateTasks: boolean("auto_create_tasks").default(false).notNull(),
+  notificationMethods: jsonb("notification_methods").$type<string[]>().default(['dashboard']).notNull(), // ['dashboard', 'email', 'sms']
+  customRules: jsonb("custom_rules"), // e.g., { priority: "high_if_overdue", escalation: "notify_manager_after_7_days" }
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_ai_rem_settings_org").on(table.organizationId),
+  index("IDX_ai_rem_settings_property").on(table.propertyId),
+  index("IDX_ai_rem_settings_alert_type").on(table.alertType),
+  index("IDX_ai_rem_settings_unique").on(table.organizationId, table.propertyId, table.alertType).unique(),
+]);
+
+export const insertAiReminderSettingSchema = createInsertSchema(aiReminderSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type AiReminderSetting = typeof aiReminderSettings.$inferSelect;
+export type InsertAiReminderSetting = z.infer<typeof insertAiReminderSettingSchema>;
+
+// --- AI NOTIFICATION HISTORY SCHEMA ---
+
+export const aiNotificationHistory = pgTable("ai_notification_history", {
+  id: serial("id").primaryKey(),
+  notificationId: integer("notification_id").references(() => aiNotifications.id).notNull(),
+  organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
+  actionType: varchar("action_type", { length: 50 }).notNull(), // e.g., 'created', 'dismissed', 'resolved', 'snoozed', 'updated'
+  actionDetails: jsonb("action_details"), // Payload of what changed, notes, etc.
+  actorId: varchar("actor_id"), // User ID or 'ai-system'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_ai_history_notification").on(table.notificationId),
+  index("IDX_ai_history_org").on(table.organizationId),
+  index("IDX_ai_history_action_type").on(table.actionType),
+]);
+
+export const insertAiNotificationHistorySchema = createInsertSchema(aiNotificationHistory).omit({
+  id: true,
+  createdAt: true,
+});
+export type AiNotificationHistory = typeof aiNotificationHistory.$inferSelect;
+export type InsertAiNotificationHistory = z.infer<typeof insertAiNotificationHistorySchema>;
