@@ -1,57 +1,55 @@
-// scripts/build-server.mjs
+// build-server.mjs
 import { build } from 'esbuild';
-import { readFile } from 'fs/promises';
 import path from 'path';
-import { builtinModules } from 'module';
 
 const root = process.cwd();
-const pkgPath = path.resolve(root, 'package.json');
-const pkg = JSON.parse(await readFile(pkgPath, 'utf8'));
+const entry = path.resolve(root, 'server', 'index.ts');
+const outFile = path.resolve(root, 'dist', 'index.js');
 
-// Collect packages to externalize (dependencies + dev + optional)
-const deps = Object.keys(pkg.dependencies || {});
-const devDeps = Object.keys(pkg.devDependencies || {});
-const optDeps = Object.keys(pkg.optionalDependencies || {});
+const externals = [
+  // Node builtins (safe to keep external)
+  'path','fs','os','crypto','stream','http','https','zlib','net','util','buffer',
 
-// Common native / runtime helpers and optional native modules
-const extra = [
+  // libraries that perform dynamic require / native bindings — keep external so Node loads them at runtime
+  'axios',
+  'form-data',
+  'combined-stream',
+  'safe-buffer',
+  'bufferutil',
+  'utf-8-validate',
+  'bcrypt',
   'node-gyp-build',
   'bindings',
   'node-pre-gyp',
-  'node-addon-api',
-  'bufferutil',
-  'utf-8-validate',
-  'safe-buffer',
-  'node-pre-gyp',
-  'nan',
-  // also externalize packages that may try to load package.json at build-time
-  '@babel/preset-typescript',
-  'lightningcss',
-  'v8-compile-cache'
+  // tooling libs you previously externalized
+  'express','body-parser','depd','drizzle-kit','@babel/preset-typescript','lightningcss',
+  // Vite and dev-only plugins (if they appear in server bundle)
+  '@replit/vite-plugin-cartographer','@replit/vite-plugin-runtime-error-modal','vite'
 ];
 
-const externals = new Set([
-  ...deps,
-  ...devDeps,
-  ...optDeps,
-  ...extra,
-  ...builtinModules,
-]);
-
-console.log('Externalizing', externals.size, 'modules (sample):', Array.from(externals).slice(0,8));
-
-await build({
-  entryPoints: [path.resolve(root, 'server/index.ts')],
-  bundle: true,
-  platform: 'node',
-  target: 'node18',
-  outfile: path.resolve(root, 'dist/index.js'),
-  format: 'esm',
-  external: Array.from(externals),
-  define: {
-    'import.meta.dirname': 'import.meta.url'
-  },
-  sourcemap: true,
-  logLevel: 'info',
-});
-console.log('✅ server build complete');
+(async () => {
+  try {
+    await build({
+      entryPoints: [entry],
+      bundle: true,
+      platform: 'neutral',         // use neutral so esbuild won't try to shim Node builtins; we'll externalize explicitly
+      target: ['node18'],
+      outfile: outFile,
+      format: 'esm',
+      sourcemap: true,
+      minify: false,
+      external: externals,
+      define: {
+        // ensure import.meta.dirname is available in your code (previously you used import.meta.dirname)
+        'import.meta.dirname': 'import.meta.url'
+      },
+      logLevel: 'info',
+      // optional: increase memory/timeouts for big projects
+      // metafile: true,
+    });
+    console.log('✅ server build complete');
+  } catch (err) {
+    console.error('✘ build failed', err);
+    process.exit(1);
+  }
+})();
