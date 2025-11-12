@@ -8,31 +8,25 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(async () => {
-  // allow passing a comma-separated list via VITE_ALLOWED_HOSTS or let Render inject RENDER_EXTERNAL_HOSTNAME
-  const extraHosts = (process.env.VITE_ALLOWED_HOSTS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
+  // Allow Render + local domains
   const renderHost = process.env.RENDER_EXTERNAL_HOSTNAME || "hostpilotpro.onrender.com";
   const allowedHosts = [
     "localhost",
     "127.0.0.1",
-    ...extraHosts,
-    ...(renderHost ? [renderHost] : []),
+    renderHost,
   ];
+
+  // Optional: dynamically import Replit plugin only if needed
+  const replitPlugin =
+    process.env.NODE_ENV !== "production" && process.env.REPL_ID
+      ? [(await import("@replit/vite-plugin-cartographer")).cartographer()]
+      : [];
 
   return {
     plugins: [
       react(),
       runtimeErrorOverlay(),
-      // only import replit plugin in non-production and when REPL_ID exists
-      ...(process.env.NODE_ENV !== "production" && process.env.REPL_ID
-        ? [
-            // dynamic import is inside the async function so await is safe
-            (await import("@replit/vite-plugin-cartographer")).cartographer(),
-          ]
-        : []),
+      ...replitPlugin,
     ],
     resolve: {
       alias: {
@@ -59,24 +53,27 @@ export default defineConfig(async () => {
       target: "esnext",
     },
     server: {
-      // allow Vite dev-server to accept requests from your Render hostname
-      allowedHosts,
-      // when deploying inside containers (Render), host true lets Vite bind to 0.0.0.0
-      host: true,
-      // Keep strict fs to avoid reading dotfiles; change only if you need it.
+      host: true, // allow external connections in container
+      allowedHosts, // ✅ fix for Render
       fs: {
         strict: true,
         deny: ["**/.*"],
       },
-      // helpful HMR settings inside containers (optional)
       hmr: {
         protocol: "ws",
-        host: renderHost || "localhost",
+        host: renderHost,
       },
     },
-    // preview server uses same host rules
     preview: {
       host: true,
+      allowedHosts,
+    },
+    optimizeDeps: {
+      include: ["react", "react-dom"],
+    },
+    envPrefix: "VITE_",
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
     },
   };
 });
