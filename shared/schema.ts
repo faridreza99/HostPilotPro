@@ -12,6 +12,7 @@ import {
   date,
   real,
   json,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -13080,7 +13081,7 @@ export const aiReminderSettings = pgTable("ai_reminder_settings", {
   index("IDX_ai_rem_settings_org").on(table.organizationId),
   index("IDX_ai_rem_settings_property").on(table.propertyId),
   index("IDX_ai_rem_settings_alert_type").on(table.alertType),
-  index("IDX_ai_rem_settings_unique").on(table.organizationId, table.propertyId, table.alertType).unique(),
+  IDX_ai_rem_settings_unique: unique("IDX_ai_rem_settings_unique").on(table.organizationId, table.propertyId, table.alertType)
 ]);
 
 export const insertAiReminderSettingSchema = createInsertSchema(aiReminderSettings).omit({
