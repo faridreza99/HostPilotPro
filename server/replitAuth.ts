@@ -1,159 +1,142 @@
-import * as client from "openid-client";
-import { Strategy, type VerifyFunction } from "openid-client/passport";
-
-import passport from "passport";
-import session from "express-session";
+// server/replitAuth.ts
 import type { Express, RequestHandler } from "express";
-import memoize from "memoizee";
+import type { Request, Response } from "express";
+import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+/**
+ * Simple session-based auth (no Replit, no passport).
+ * - POST /api/login   { email }  -> creates/updates user and sets session
+ * - POST /api/logout                 -> destroy session
+ * - GET  /api/me                     -> current user info
+ *
+ * Replace later with real OAuth/JWT when ready.
+ */
 
-const getOidcConfig = memoize(
-  async () => {
-    return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
-    );
-  },
-  { maxAge: 3600 * 1000 }
-);
+const SESSION_SECRET = process.env.SESSION_SECRET;
+const DATABASE_URL = process.env.DATABASE_URL;
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+
+  let store: any = undefined;
+  if (DATABASE_URL) {
+    try {
+      const pgStore = connectPg(session);
+      store = new pgStore({
+        conString: DATABASE_URL,
+        createTableIfMissing: false,
+        ttl: sessionTtl,
+        tableName: "sessions",
+      });
+    } catch (err) {
+      console.warn("[replitAuth/simple] connect-pg-simple not available or failed, falling back to memory store.", err);
+    }
+  }
+
+  if (!SESSION_SECRET) {
+    console.warn("[replitAuth/simple] WARNING: SESSION_SECRET not set. Using fallback secret (NOT SECURE) — set SESSION_SECRET in Render env for production.");
+  }
+
   return session({
-    secret: process.env.SESSION_SECRET!,
-    store: sessionStore,
+    secret: SESSION_SECRET ?? "dev-secret",
+    store,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       maxAge: sessionTtl,
     },
   });
 }
 
-function updateUserSession(
-  user: any,
-  tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers
-) {
-  user.claims = tokens.claims();
-  user.access_token = tokens.access_token;
-  user.refresh_token = tokens.refresh_token;
-  user.expires_at = user.claims?.exp;
+/** Minimal helper to set user in session and upsert to storage. */
+async function createUserInSession(req: Request, email: string) {
+  // Use email as ID for simple flows, or generate a proper id
+  const userId = `local:${email}`;
+  const userRecord = {
+    id: userId,
+    email,
+    firstName: "",
+    lastName: "",
+    profileImageUrl: "",
+    organizationId: "default-org",
+  };
+
+  // Upsert user into your storage (keeps your existing user DB)
+  try {
+    // storage.upsertUser should be implemented in your storage module
+    await storage.upsertUser(userRecord);
+  } catch (err) {
+    console.warn("[replitAuth/simple] storage.upsertUser failed:", err);
+    // continue — session can still be set locally
+  }
+
+  // Save minimal session user
+  (req.session as any).user = {
+    id: userId,
+    email,
+  };
 }
 
-async function upsertUser(
-  claims: any,
-  organizationId: string = "default-org"
-) {
-  await storage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
-    organizationId: organizationId,
-  });
-}
-
+/** Call this to mount session + small login routes */
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
-  app.use(passport.initialize());
-  app.use(passport.session());
 
-  const config = await getOidcConfig();
+  // Basic routes for login/logout/me
+  // NOTE: POST /api/login accepts JSON { email }
+  app.post("/api/login", async (req: Request, res: Response) => {
+    try {
+      const body = req.body as any;
+      const email = (body?.email || "").toString().trim().toLowerCase();
+      if (!email) {
+        return res.status(400).json({ message: "Missing email in request body" });
+      }
 
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims(), "default-org");
-    verified(null, user);
-  };
-
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
-    const strategy = new Strategy(
-      {
-        name: `replitauth:${domain}`,
-        config,
-        scope: "openid email profile offline_access",
-        callbackURL: `https://${domain}/api/callback`,
-      },
-      verify,
-    );
-    passport.use(strategy);
-  }
-
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
-
-  app.get("/api/login", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
+      await createUserInSession(req, email);
+      // save session then respond
+      req.session.save((err) => {
+        if (err) {
+          console.error("[replitAuth/simple] session save error:", err);
+          return res.status(500).json({ message: "Session save failed" });
+        }
+        return res.json({ message: "Logged in (dev)", user: (req.session as any).user });
+      });
+    } catch (err) {
+      console.error("[replitAuth/simple] /api/login error:", err);
+      return res.status(500).json({ message: "Login failed" });
+    }
   });
 
-  app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
-    })(req, res, next);
-  });
-
-  app.get("/api/logout", (req, res) => {
-    req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
+  app.post("/api/logout", (req: Request, res: Response) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("[replitAuth/simple] session destroy error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logged out" });
     });
   });
+
+  app.get("/api/me", (req: Request, res: Response) => {
+    const u = (req.session as any).user;
+    if (!u) return res.status(401).json({ message: "Not authenticated" });
+    return res.json({ user: u });
+  });
+
+  console.log("[replitAuth/simple] Session-based auth mounted (no Replit/OIDC).");
 }
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
-
-  if (!req.isAuthenticated() || !user.expires_at) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  if (now <= user.expires_at) {
-    return next();
-  }
-
-  const refreshToken = user.refresh_token;
-  if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-
-  try {
-    const config = await getOidcConfig();
-    const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
-    return next();
-  } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
+/** Middleware to protect endpoints */
+export const isAuthenticated: RequestHandler = (req, res, next) => {
+  const u = (req.session as any).user;
+  if (!u) return res.status(401).json({ message: "Unauthorized" });
+  // attach user to req.user for compatibility
+  (req as any).user = u;
+  return next();
 };
+
+export default { getSession, setupAuth, isAuthenticated };
