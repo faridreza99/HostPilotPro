@@ -4,6 +4,8 @@
  * Deployment Preparation Script
  * 1. Bundles the server code using esbuild (CRITICAL FIX for "Dynamic require" error).
  * 2. Copies client assets for final deployment.
+ * * FIX IMPLEMENTATION: Ensures all node built-ins and all project dependencies 
+ * are marked as 'external' to prevent CJS/ESM conflict in the bundle.
  */
 
 import fs from 'fs';
@@ -27,25 +29,39 @@ const nodeBuiltins = [
     'worker_threads', 'zlib'
 ];
 
-// 2. Read package.json to externalize all production dependencies
-// NOTE: Make sure 'package.json' is in the project root.
+// 2. Read package.json to externalize ALL dependencies (prod and dev)
 const packageJsonPath = path.resolve(projectRoot, 'package.json');
-const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-const allDependencies = Object.keys(pkg.dependencies || {});
+let externalDependencies = [...nodeBuiltins];
 
-const externalDependencies = nodeBuiltins.concat(allDependencies);
+try {
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    
+    const prodDeps = Object.keys(pkg.dependencies || {});
+    const devDeps = Object.keys(pkg.devDependencies || {}); 
+
+    externalDependencies = externalDependencies.concat(prodDeps, devDeps);
+    
+    // Ensure uniqueness
+    externalDependencies = [...new Set(externalDependencies)]; 
+
+    console.log(`[ESBUILD] External dependencies configured: ${externalDependencies.length} modules`);
+
+} catch (e) {
+    console.error(`❌ Could not read package.json at ${packageJsonPath}. Using only Node built-ins for external.`);
+}
+
 
 async function buildServer() {
     console.log('📦 Bundling server code (server/index.ts) to dist/index.js...');
     try {
         await esbuild.build({
-            entryPoints: ['server/index.ts'], // Your server entry point
+            entryPoints: ['server/index.ts'],
             bundle: true,
             platform: 'node',
             target: 'node20',
             outfile: 'dist/index.js',
             
-            // THE FIX: Telling the bundler to skip bundling these modules/dependencies
+            // THE CRITICAL FIX: Mark all dependencies and built-ins as external
             external: externalDependencies, 
             
             sourcemap: false,
@@ -66,12 +82,12 @@ async function buildServer() {
 async function runDeploymentPrep() {
     console.log('🚀 Preparing deployment...');
 
-    // 1. Run Server Bundling (New Step to fix runtime error)
+    // 1. Run Server Bundling 
     if (!(await buildServer())) {
-        process.exit(1); // Exit if server build fails
+        process.exit(1); 
     }
 
-    // 2. Client Asset Copying (Original logic)
+    // 2. Client Asset Copying
     
     // Define paths
     const serverPublicPath = path.join(projectRoot, 'server', 'public');
