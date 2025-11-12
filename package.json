@@ -5,9 +5,11 @@
   "license": "MIT",
   "scripts": {
   "preinstall": "npm install esbuild",
-  "build:server": "node ./scripts/build-server.mjs",
-  "build": "npm ci && npm run build:server",
-  "start": "node --enable-source-maps dist/index.js"
+  "dev": "tsx server/index.ts",
+  "build:client": "cd client && npm ci && npm run build",     // optional if client has own package.json
+  "build:server": "node ./scripts/build-server.mjs",         // keep your current server build flow
+  "build": "npm run build:client && npm run build:server",   // produce client first, then server bundle
+  "start": "node --enable-source-maps dist/index.js",
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
