@@ -13064,6 +13064,9 @@ export type InsertAiNotification = z.infer<typeof insertAiNotificationSchema>;
 
 // --- AI REMINDER SETTINGS SCHEMA ---
 
+// add `unique` to your imports from drizzle-orm/pg-core, e.g:
+// import { pgTable, serial, varchar, integer, boolean, jsonb, timestamp, index, unique } from 'drizzle-orm/pg-core';
+
 export const aiReminderSettings = pgTable("ai_reminder_settings", {
   id: serial("id").primaryKey(),
   organizationId: varchar("organization_id").references(() => organizations.id).notNull(),
@@ -13081,8 +13084,10 @@ export const aiReminderSettings = pgTable("ai_reminder_settings", {
   index("IDX_ai_rem_settings_org").on(table.organizationId),
   index("IDX_ai_rem_settings_property").on(table.propertyId),
   index("IDX_ai_rem_settings_alert_type").on(table.alertType),
-  IDX_ai_rem_settings_unique: unique("IDX_ai_rem_settings_unique").on(table.organizationId, table.propertyId, table.alertType)
+  // NOTE: unique constraint must be an array element (no `KEY:` here)
+  unique("IDX_ai_rem_settings_unique").on(table.organizationId, table.propertyId, table.alertType),
 ]);
+
 
 export const insertAiReminderSettingSchema = createInsertSchema(aiReminderSettings).omit({
   id: true,
