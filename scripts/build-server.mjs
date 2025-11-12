@@ -6,25 +6,28 @@ const root = process.cwd();
 const entry = path.resolve(root, 'server', 'index.ts');
 const outFile = path.resolve(root, 'dist', 'index.js');
 
+// Externalize native or runtime-resolved modules that must remain in node_modules at runtime
+// Add any other modules that produce "Dynamic require of ..." or native-binding errors
 const externals = [
-  // Node builtins (safe to keep external)
-  'path','fs','os','crypto','stream','http','https','zlib','net','util','buffer',
-
-  // libraries that perform dynamic require / native bindings — keep external so Node loads them at runtime
-  'axios',
-  'form-data',
-  'combined-stream',
-  'safe-buffer',
-  'bufferutil',
-  'utf-8-validate',
+  // Common native or dynamic modules
   'bcrypt',
   'node-gyp-build',
   'bindings',
   'node-pre-gyp',
-  // tooling libs you previously externalized
-  'express','body-parser','depd','drizzle-kit','@babel/preset-typescript','lightningcss',
-  // Vite and dev-only plugins (if they appear in server bundle)
-  '@replit/vite-plugin-cartographer','@replit/vite-plugin-runtime-error-modal','vite'
+  'bufferutil',
+  'utf-8-validate',
+  'form-data',
+  'combined-stream',
+  'safe-buffer',
+  'axios',
+
+  // keep express and big server libs external if you prefer (optional)
+  // 'express', 'pg', 'connect-pg-simple', 'express-session',
+
+  // keep Vite plugins/external tooling out as well (optional)
+  '@replit/vite-plugin-cartographer',
+  '@replit/vite-plugin-runtime-error-modal',
+  'vite',
 ];
 
 (async () => {
@@ -32,21 +35,21 @@ const externals = [
     await build({
       entryPoints: [entry],
       bundle: true,
-      platform: 'neutral',         // use neutral so esbuild won't try to shim Node builtins; we'll externalize explicitly
+      platform: 'node',        // <--- important: treat Node built-ins as builtins (events, fs, url, etc)
       target: ['node18'],
       outfile: outFile,
-      format: 'esm',
+      format: 'esm',          // keep ESM if your runtime uses it
       sourcemap: true,
       minify: false,
       external: externals,
       define: {
-        // ensure import.meta.dirname is available in your code (previously you used import.meta.dirname)
-        'import.meta.dirname': 'import.meta.url'
+        // keep any import.meta.* use working — map dirname to import.meta.url
+        'import.meta.dirname': 'import.meta.url',
       },
       logLevel: 'info',
-      // optional: increase memory/timeouts for big projects
-      // metafile: true,
+      // optional: increase concurrency or memory via esbuild options if you need
     });
+
     console.log('✅ server build complete');
   } catch (err) {
     console.error('✘ build failed', err);
