@@ -13,6 +13,7 @@ export default defineConfig(async () => {
   const allowedHosts = [
     "localhost",
     "127.0.0.1",
+    "hostpilotpro.onrender.com",
     renderHost,
   ];
 
