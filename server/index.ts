@@ -1,11 +1,15 @@
-// server/index.ts
 import express from "express";
 import http from "http";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";           // <-- ADD THIS
 import { serveStatic, setupVite, log as viteLog } from "./vite";
 import { storage } from "./storage";
 import { registerRoutes } from "./routes";
+
+// ESM-safe __filename / __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
