@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
   "dev": "tsx server/index.ts",
-  "build:client": "if [ -f client/package.json ]; then if [ -f client/package-lock.json ]; then npm --prefix client ci; else npm --prefix client install; fi && npm --prefix client run build; else echo 'No client found — skipping client build'; fi",
+  "build:client": "if [ -f /package.json ]; then if [ -f /package-lock.json ]; then npm --prefix client ci; else npm --prefix client install; fi && npm --prefix client run build; else echo 'No client found — skipping client build'; fi",
   "build:server": "node ./scripts/build-server.mjs",
   "build": "npm run build:client && npm run build:server",
   "start": "node --enable-source-maps dist/index.js"
