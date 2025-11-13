@@ -4,11 +4,16 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-  "dev": "tsx server/index.ts",
-  "build:client": "if [ -f client/package.json ]; then npm --prefix client install --include=dev && npm --prefix client run build; else echo 'No client found — skipping client build'; fi",
-  "build:server": "node ./scripts/build-server.mjs",
-  "build": "npm run build:client && npm run build:server",
-  "start": "node --enable-source-maps dist/index.js"
+    "preinstall": "npm install esbuild",
+    "dev": "tsx server/index.ts",
+    "build": "npm install esbuild && npm run build:server",
+    "start": "node dist/index.js",
+    "check": "tsc",
+    "db:push": "drizzle-kit push:pg",
+    "db:migrate": "drizzle-kit generate:pg && drizzle-kit push:pg",
+    "start:dev": "tsx server/index.ts",
+   "build:server": "esbuild server/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --format=esm --external:drizzle-kit --external:@babel/preset-typescript --external:lightningcss --define:import.meta.dirname=__dirname",
+    "postbuild": "echo '✅ Build completed successfully'"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
