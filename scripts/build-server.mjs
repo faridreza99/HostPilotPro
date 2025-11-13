@@ -8,26 +8,36 @@ const root = process.cwd();
 const entry = path.resolve(root, 'server', 'index.ts');
 const outFile = path.resolve(root, 'dist', 'index.js');
 
-const externals = [ /* same externals as before */ ];
+const externals = [
+  'bcrypt',
+  'pg',
+  'express',
+  'express-session',
+  'connect-pg-simple',
+  'multer',
+  'node-cron',
+  'nanoid',
+  'bufferutil',
+  'utf-8-validate'
+];
 
 async function copyDir(src, dest) {
   await fs.mkdir(dest, { recursive: true });
-  if (typeof fsSync.cpSync === 'function') {
+  if (fsSync.cpSync) {
     fsSync.cpSync(src, dest, { recursive: true });
-    return true;
+    return;
   }
-  const copyRecursive = async (s, d) => {
+  const walk = async (s, d) => {
     await fs.mkdir(d, { recursive: true });
-    for (const name of await fs.readdir(s)) {
-      const sPath = path.join(s, name);
-      const dPath = path.join(d, name);
-      const stat = await fs.lstat(sPath);
-      if (stat.isDirectory()) await copyRecursive(sPath, dPath);
-      else await fs.copyFile(sPath, dPath);
+    for (const file of await fs.readdir(s)) {
+      const sp = path.join(s, file);
+      const dp = path.join(d, file);
+      const stat = await fs.lstat(sp);
+      if (stat.isDirectory()) await walk(sp, dp);
+      else await fs.copyFile(sp, dp);
     }
   };
-  await copyRecursive(src, dest);
-  return true;
+  await walk(src, dest);
 }
 
 (async () => {
@@ -42,23 +52,22 @@ async function copyDir(src, dest) {
       sourcemap: true,
       minify: false,
       external: externals,
-      define: { 'import.meta.dirname': 'import.meta.url' },
-      logLevel: 'info',
+      logLevel: 'info'
     });
 
     const dest = path.resolve(root, 'dist', 'public');
-    const builtCandidates = [
+    const candidates = [
       path.resolve(root, 'dist', 'public'),
       path.resolve(root, 'client', 'dist'),
-      path.resolve(root, 'client', 'build'),
+      path.resolve(root, 'client', 'build')
     ];
 
-    // Only copy from *built* locations that actually have index.html
     let copied = false;
-    for (const c of builtCandidates) {
+
+    for (const c of candidates) {
       const idx = path.join(c, 'index.html');
       if (fsSync.existsSync(idx)) {
-        console.log(`[build-server] copying built client from ${c} -> ${dest}`);
+        console.log(`[build-server] copying built client from ${c}`);
         await copyDir(c, dest);
         copied = true;
         break;
@@ -66,8 +75,7 @@ async function copyDir(src, dest) {
     }
 
     if (!copied) {
-      console.error('[build-server] No built client found in expected locations; dist/public/index.html missing. Ensure client build runs before server build.');
-      // fail build - important so production cannot serve raw sources
+      console.error('[build-server] No built client found. Client build failed.');
       process.exit(1);
     }
 
