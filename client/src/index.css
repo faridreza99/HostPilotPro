@@ -55,11 +55,19 @@
 }
 
 @layer base {
+  /* Apply a sensible default border color using your CSS variable.
+     This avoids relying on Tailwind generating a `border-border` utility. */
   * {
-    @apply border-border;
+    /* keep border-style/width untouched — only ensure border-color */
+    border-color: var(--border);
+    /* If you want elements to have visible default borders you can set:
+       border-width: 0;
+       border-style: solid;
+       But usually you want to let components set width/style as needed. */
   }
 
   body {
+    /* these use Tailwind utilities which will be generated according to your content paths */
     @apply font-sans antialiased bg-background text-foreground;
     font-family: 'Inter', sans-serif;
   }
