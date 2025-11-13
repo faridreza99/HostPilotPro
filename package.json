@@ -5,15 +5,10 @@
   "license": "MIT",
   "scripts": {
   "dev": "tsx server/index.ts",
- "build:client": "if [ -f client/package.json ]; then if [ -f client/package-lock.json ]; then npm --prefix client ci; else npm --prefix client install; fi && npm --prefix client run build; else echo 'No client found — skipping client build'; fi",
+  "build:client": "npm --prefix client ci && npm --prefix client run build",
   "build:server": "node ./scripts/build-server.mjs",
   "build": "npm run build:client && npm run build:server",
-  "start": "node --enable-source-maps dist/index.js",
-  "check": "tsc",
-  "db:push": "drizzle-kit push:pg",
-  "db:migrate": "drizzle-kit generate:pg && drizzle-kit push:pg",
-  "start:dev": "tsx server/index.ts",
-  "postbuild": "echo '✅ Build completed successfully'"
+  "start": "node --enable-source-maps dist/index.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
