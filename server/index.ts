@@ -2,9 +2,9 @@
 import express from "express";
 import http from "http";
 import path from "path";
-import { serveStatic, setupVite, log as viteLog } from "./vite"; // note: vite.ts exports serveStatic & setupVite
-import { storage } from "./storage"; // your existing imports
-// import other server route modules below (they should not import vite or replit dev plugins)
+import fs from "fs";
+import { serveStatic, setupVite, log as viteLog } from "./vite";
+import { storage } from "./storage";
 import { registerRoutes } from "./routes";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
@@ -13,47 +13,70 @@ async function start() {
   const app = express();
   const server = http.createServer(app);
 
-  // common middleware (CORS, bodyParser etc)
+  // common middleware
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // important: do NOT import Vite or dev-only plugins here at top-level for production.
   const isDev = process.env.NODE_ENV !== "production";
 
   if (isDev) {
-    // DEV: dynamically import vite server and mount it as middleware
     try {
-      // dynamic import so bundlers won't include Vite in prod bundle
       const viteModule = await import("./vite");
-      // viteModule.setupVite is the middleware-mode setup
       await viteModule.setupVite(app as any, server as any);
       viteModule.log("[startup] Running in DEV mode — Vite middleware mounted.");
     } catch (err) {
-      // If dev import fails, log and continue — dev only
       console.error("[startup] Failed to mount Vite dev server:", (err as Error).message);
     }
   } else {
-    // PROD: serve built static files
+    // PROD: before calling serveStatic, log what the runtime sees
     try {
+      const root = path.resolve(process.cwd());
+      console.log("[startup] cwd:", root);
+
+      const candidates = [
+        path.join(root, "dist", "public"),
+        path.join(root, "client", "dist"),
+        path.join(root, "client", "build"),
+        path.join(root, "dist"),
+        path.join(root, "dist", "build"),
+        path.join(root, "client"),
+        // compiled/packaged locations:
+        path.join(__dirname, "..", "dist", "public"),
+        path.join(__dirname, "..", "dist"),
+      ];
+
+      console.log("[startup] Checking candidate client build locations:");
+      for (const c of candidates) {
+        const idx = path.join(c, "index.html");
+        try {
+          const exists = fs.existsSync(idx);
+          console.log(`[startup]  ${idx} -> ${exists ? "FOUND" : "missing"}`);
+          if (exists) {
+            console.log(`[startup]  listing ${c}:`, fs.readdirSync(c).slice(0, 50));
+          }
+        } catch (e) {
+          console.log("[startup]  error checking", idx, e);
+        }
+      }
+
       await serveStatic(app);
       console.log("[startup] Running in PROD mode — serving static build.");
     } catch (err) {
       console.error("[startup] Failed to serve static client:", (err as Error).message);
-      // failing to find client should not crash the server if you want API-only deploys.
-      // Throwing here will crash the process and make deploy fail — choose behavior you want.
+      // Choose behavior: throw to fail the deploy, or continue API-only.
+      // For now rethrow so deploy fails loudly and you fix the build step:
       throw err;
+      // If you prefer server to run API-only uncomment the following and remove throw:
+      // console.warn("[startup] Continuing in API-only mode (static client missing).");
     }
   }
 
-  // register your app routes (these should be free of dev-only imports)
   await registerRoutes(app);
 
-  // start http server
   server.listen(PORT, () => {
     console.log(`[startup] Server listening on port ${PORT} (dev=${isDev})`);
   });
 
-  // optional: graceful shutdown handlers
   process.on("SIGINT", () => process.exit(0));
   process.on("SIGTERM", () => process.exit(0));
 }
