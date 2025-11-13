@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
   "dev": "tsx server/index.ts",
-  "build:client": "npm --prefix client ci && npm --prefix client run build",
+  "build:client": "npm --prefix client install && npm --prefix client run build",
   "build:server": "node ./scripts/build-server.mjs",
   "build": "npm run build:client && npm run build:server",
   "start": "node --enable-source-maps dist/index.js"
