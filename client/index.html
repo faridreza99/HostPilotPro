@@ -22,9 +22,21 @@
   <body>
     <div id="root"></div>
 
-    <!-- Vite will automatically replace this with built JS during `vite build` -->
+    <!-- Vite dev entry — Vite will replace this during build -->
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- REMOVE Replit dev banner: it breaks production -->
+    <!-- Replit dev banner removed for production.
+         If you want it in development only, use a tiny runtime loader (example below)
+         and keep that commented out in production builds. -->
+
+    <!--
+    <script>
+      if (location.hostname === 'localhost' || location.hostname.endsWith('.repl')) {
+        const s = document.createElement('script');
+        s.src = 'https://replit.com/public/js/replit-dev-banner.js';
+        document.head.appendChild(s);
+      }
+    </script>
+    -->
   </body>
 </html>
