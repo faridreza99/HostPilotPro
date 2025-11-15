@@ -69,7 +69,7 @@ export default function Dashboard() {
 
   // Use optimized dashboard API endpoint for recent tasks only
   const { data: tasks = [] } = useQuery({
-    queryKey: ["/api/dashboard/tasks"],
+    queryKey: ["/api/tasks"],
     staleTime: 5 * 60 * 1000, // 5 minutes cache for recent tasks
     refetchOnMount: false,
   });
