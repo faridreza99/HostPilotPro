@@ -175,6 +175,7 @@ export default function Dashboard() {
     )
     .slice(0, 3);
   const recentTasks = tasks.slice(0, 5); // Use actual tasks from API
+  console.log("recent tasks", recentTasks)
 
   // Create property lookup map for bookings
   const propertyMap = new Map();
