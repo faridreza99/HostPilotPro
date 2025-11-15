@@ -74,6 +74,8 @@ export default function Dashboard() {
     refetchOnMount: false,
   });
 
+  console.log("tasks", tasks)
+
   // Get task statistics without loading all tasks
   const { data: taskStats = {} } = useQuery({
     queryKey: ["/api/dashboard/task-stats"],
