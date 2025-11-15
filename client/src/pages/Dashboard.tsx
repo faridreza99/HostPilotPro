@@ -70,7 +70,7 @@ export default function Dashboard() {
   // Use optimized dashboard API endpoint for recent tasks only
   const { data: tasks = [] } = useQuery({
     queryKey: ["/api/tasks"],
-    staleTime: 30 * 100, // 30 seconds - allow fresh data to show
+    staleTime: 0, // No cache - always show fresh data
     refetchOnMount: false,
   });
 
@@ -79,7 +79,7 @@ export default function Dashboard() {
   // Get task statistics without loading all tasks
   const { data: taskStats = {} } = useQuery({
     queryKey: ["/api/dashboard/task-stats"],
-    staleTime: 5 * 60 * 1000, // 5 minutes cache for task stats
+    staleTime: 0, // No cache - always show fresh data
     refetchOnMount: false,
   });
 
